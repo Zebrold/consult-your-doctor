@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Consult Your Doctor | Online Medical Consultation",
   description: "Consult your doctor online",
+  icons: {
+    icon: "/logo.svg"
+  }
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -19,7 +19,7 @@ export function Header() {
       <div className="max-w-7xl mx-auto w-full flex items-center justify-between py-3 px-4 md:px-8">
         {/* Logo Area */}
         <Link href="/" className="flex items-center">
-          <Image src="/logo.png" alt="Consult your Doctor Logo" width={200} height={50} className="object-contain" priority />
+          <Image src="/logo.png" alt="Consult your Doctor Logo" width={200} height={50} className="w-auto h-auto object-contain" priority />
         </Link>
 
         {/* Actions Area */}

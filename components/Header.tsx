@@ -16,10 +16,10 @@ export function Header() {
     <>
       <header className="w-full bg-white flex flex-col border-b border-gray-200">
       {/* Top Bar */}
-      <div className="max-w-7xl mx-auto w-full flex items-center justify-between py-3 px-4 md:px-8">
+      <div className="max-w-[1440px] mx-auto w-full flex items-center justify-between py-3 px-4 md:px-8">
         {/* Logo Area */}
         <Link href="/" className="flex items-center">
-          <Image src="/logo.png" alt="Consult your Doctor Logo" width={200} height={50} className="w-auto h-auto object-contain" priority />
+          <Image src="/logo.png" alt="Consult your Doctor Logo" width={200} height={50} className="h-10 w-auto object-contain" priority />
         </Link>
 
         {/* Actions Area */}
@@ -52,7 +52,7 @@ export function Header() {
 
       {/* Navigation Bar */}
       <div className="w-full border-t border-gray-100">
-        <div className="max-w-7xl mx-auto w-full flex items-center justify-between py-3 px-4 md:px-8">
+        <div className="max-w-[1440px] mx-auto w-full flex items-center justify-between py-3 px-4 md:px-8">
           <nav className="hidden lg:flex items-center gap-6 text-sm font-semibold text-gray-700">
             <Link href="/" className="text-[#E31E24]">Home</Link>
             <Link href="#" className="hover:text-[#E31E24] transition-colors">Find Doctors</Link>

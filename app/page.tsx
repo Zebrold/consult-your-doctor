@@ -15,7 +15,7 @@ export default function Home() {
 
       {/* Hero Section */}
       <section className="relative w-full bg-[#f8f9fa] border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-20 flex flex-col lg:flex-row items-center gap-12">
+        <div className="max-w-[1440px] mx-auto px-4 md:px-8 py-12 md:py-20 flex flex-col lg:flex-row items-center gap-12">
           {/* Left Text */}
           <div className="flex-1 space-y-6">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
@@ -130,7 +130,7 @@ export default function Home() {
 
       {/* Trust Strip */}
       <section className="bg-white border-b border-gray-200 py-6">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 flex flex-wrap justify-between gap-6 text-sm font-semibold text-gray-700">
+        <div className="max-w-[1440px] mx-auto px-4 md:px-8 flex flex-wrap justify-between gap-6 text-sm font-semibold text-gray-700">
           <div className="flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-[#E31E24]" /> Trusted Healthcare Platform</div>
           <div className="flex items-center gap-2"><PhoneCall className="w-5 h-5 text-[#E31E24]" /> 24/7 Executive Support</div>
           <div className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-[#E31E24]" /> Verified Doctors</div>
@@ -166,7 +166,7 @@ export default function Home() {
 
       {/* Popular Specialities */}
       <section className="bg-gray-50 py-16 border-t border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 md:px-8">
+        <div className="max-w-[1440px] mx-auto px-4 md:px-8">
           <div className="flex justify-between items-center mb-8">
             <h2 className="text-2xl font-bold text-gray-900">Popular Specialities</h2>
             <Link href="#" className="text-[#E31E24] text-sm font-semibold flex items-center">View All Specialities <ChevronRight className="w-4 h-4 ml-1"/></Link>
@@ -193,7 +193,7 @@ export default function Home() {
 
       {/* How It Works */}
       <section className="bg-white py-16 border-t border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 text-center">
+        <div className="max-w-[1440px] mx-auto px-4 md:px-8 text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-12">How Consult Your Doctor Works</h2>
           <div className="flex flex-wrap justify-center items-center gap-4 lg:gap-8">
             {[
@@ -224,7 +224,7 @@ export default function Home() {
 
       {/* Why Choose */}
       <section className="bg-gray-50 py-16 border-t border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 text-center">
+        <div className="max-w-[1440px] mx-auto px-4 md:px-8 text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-12">Why Choose Consult Your Doctor?</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
@@ -251,7 +251,7 @@ export default function Home() {
 
       {/* Featured Hospitals */}
       <section className="bg-white py-16 border-t border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 md:px-8">
+        <div className="max-w-[1440px] mx-auto px-4 md:px-8">
           <div className="flex justify-between items-center mb-8">
             <h2 className="text-2xl font-bold text-gray-900">Featured Hospitals</h2>
             <Link href="#" className="text-[#E31E24] text-sm font-semibold flex items-center">View All Hospitals <ChevronRight className="w-4 h-4 ml-1"/></Link>
@@ -281,7 +281,7 @@ export default function Home() {
 
       {/* Top Doctors */}
       <section className="bg-gray-50 py-16 border-t border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 md:px-8">
+        <div className="max-w-[1440px] mx-auto px-4 md:px-8">
           <div className="flex justify-between items-center mb-8">
             <h2 className="text-2xl font-bold text-gray-900">Top Doctors</h2>
             <Link href="#" className="text-[#E31E24] text-sm font-semibold flex items-center">View All Doctors <ChevronRight className="w-4 h-4 ml-1"/></Link>
@@ -314,7 +314,7 @@ export default function Home() {
 
       {/* Health Check Packages */}
       <section className="bg-white py-16 border-t border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 md:px-8">
+        <div className="max-w-[1440px] mx-auto px-4 md:px-8">
           <div className="flex justify-between items-center mb-8">
             <h2 className="text-2xl font-bold text-gray-900">Health Check Packages</h2>
             <Link href="#" className="text-[#E31E24] text-sm font-semibold flex items-center">View All Packages <ChevronRight className="w-4 h-4 ml-1"/></Link>
@@ -344,7 +344,7 @@ export default function Home() {
 function Footer() {
   return (
     <footer className="bg-[#1a2b3c] text-white mt-12">
-      <div className="max-w-7xl mx-auto px-4 md:px-8 py-12">
+      <div className="max-w-[1440px] mx-auto px-4 md:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center gap-2 mb-4">

@@ -83,14 +83,14 @@ export function AuthModal({ isOpen, onClose, initialType = 'login' }: AuthModalP
                       name="fullName" 
                       required
                       placeholder="John Doe"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E31E24] focus:border-[#E31E24] outline-none transition-all"
+                      className="w-full px-4 py-2 text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E31E24] focus:border-[#E31E24] outline-none transition-all"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">I am a...</label>
                     <select 
                       name="role" 
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E31E24] focus:border-[#E31E24] outline-none bg-white transition-all"
+                      className="w-full px-4 py-2 text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E31E24] focus:border-[#E31E24] outline-none bg-white transition-all"
                     >
                       <option value="patient">Patient</option>
                       <option value="doctor">Doctor</option>
@@ -110,7 +110,7 @@ export function AuthModal({ isOpen, onClose, initialType = 'login' }: AuthModalP
                     name="phone" 
                     required
                     placeholder="9876543210"
-                    className="w-full pl-14 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E31E24] focus:border-[#E31E24] outline-none transition-all"
+                    className="w-full pl-14 pr-4 py-2 text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E31E24] focus:border-[#E31E24] outline-none transition-all"
                   />
                 </div>
               </div>
@@ -171,7 +171,7 @@ export function AuthModal({ isOpen, onClose, initialType = 'login' }: AuthModalP
                   required
                   placeholder="123456"
                   maxLength={6}
-                  className="w-full px-4 py-3 text-center tracking-[0.5em] text-xl font-semibold border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E31E24] focus:border-[#E31E24] outline-none transition-all"
+                  className="w-full px-4 py-3 text-center text-gray-900 tracking-[0.5em] text-xl font-semibold border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E31E24] focus:border-[#E31E24] outline-none transition-all"
                 />
               </div>
               

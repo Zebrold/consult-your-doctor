@@ -27,10 +27,10 @@ export default function Home() {
               Book appointments with trusted hospitals and specialists, pay securely online, and receive dedicated executive assistance throughout your healthcare journey.
             </p>
             <div className="flex flex-wrap gap-4 pt-4">
-              <button className="px-6 py-3 bg-[#E31E24] text-white font-semibold rounded-md hover:bg-red-700 transition-colors">
+              <button className="px-6 py-3 bg-[#E31E24] text-white font-semibold hover:bg-red-700 transition-colors rounded-full cursor-pointer">
                 Book Appointment
               </button>
-              <button className="px-6 py-3 bg-white text-gray-800 border border-gray-300 font-semibold rounded-md hover:bg-gray-50 transition-colors">
+              <button className="px-6 py-3 bg-white text-gray-800 border border-gray-300 font-semibold hover:bg-gray-50 transition-colors rounded-full cursor-pointer">
                 Find a Doctor
               </button>
             </div>
@@ -120,7 +120,7 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-              <button type="button" className="w-full py-3 mt-4 bg-[#E31E24] text-white font-bold rounded-md hover:bg-red-700 transition-colors">
+              <button type="button" className="w-full py-3 mt-4 bg-[#E31E24] text-white font-bold hover:bg-red-700 transition-colors rounded-full cursor-pointer">
                 Book Now
               </button>
             </form>
@@ -144,11 +144,11 @@ export default function Home() {
       <section className="bg-white py-12">
         <div className="max-w-4xl mx-auto px-4">
           <div className="flex flex-wrap items-center justify-center gap-8 mb-6 border-b border-gray-200 pb-4 text-sm font-semibold text-gray-500">
-            <button className="text-[#E31E24] border-b-2 border-[#E31E24] pb-4 -mb-[18px] flex items-center gap-2"><SearchIcon className="w-4 h-4"/> Search Doctor</button>
-            <button className="hover:text-[#E31E24] transition-colors flex items-center gap-2"><Building2 className="w-4 h-4"/> Search Hospital</button>
-            <button className="hover:text-[#E31E24] transition-colors flex items-center gap-2"><Stethoscope className="w-4 h-4"/> Search by Speciality</button>
-            <button className="hover:text-[#E31E24] transition-colors flex items-center gap-2"><Activity className="w-4 h-4"/> Search by Symptoms</button>
-            <button className="hover:text-[#E31E24] transition-colors flex items-center gap-2"><MapPin className="w-4 h-4"/> Search by City</button>
+            <button className="text-[#E31E24] border-b-2 border-[#E31E24] pb-4 -mb-[18px] flex items-center gap-2 rounded-full cursor-pointer"><SearchIcon className="w-4 h-4"/> Search Doctor</button>
+            <button className="hover:text-[#E31E24] transition-colors flex items-center gap-2 rounded-full cursor-pointer"><Building2 className="w-4 h-4"/> Search Hospital</button>
+            <button className="hover:text-[#E31E24] transition-colors flex items-center gap-2 rounded-full cursor-pointer"><Stethoscope className="w-4 h-4"/> Search by Speciality</button>
+            <button className="hover:text-[#E31E24] transition-colors flex items-center gap-2 rounded-full cursor-pointer"><Activity className="w-4 h-4"/> Search by Symptoms</button>
+            <button className="hover:text-[#E31E24] transition-colors flex items-center gap-2 rounded-full cursor-pointer"><MapPin className="w-4 h-4"/> Search by City</button>
           </div>
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
@@ -159,7 +159,7 @@ export default function Home() {
               <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input type="text" placeholder="Enter city or location" className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:border-[#E31E24]" />
             </div>
-            <button className="px-8 py-3 bg-[#E31E24] text-white font-bold rounded-md hover:bg-red-700 transition-colors">Search</button>
+            <button className="px-8 py-3 bg-[#E31E24] text-white font-bold hover:bg-red-700 transition-colors rounded-full cursor-pointer">Search</button>
           </div>
         </div>
       </section>
@@ -269,7 +269,7 @@ export default function Home() {
                   <h3 className="font-bold text-gray-900 mb-1">{name}</h3>
                   <p className="text-xs text-gray-500 mb-2">{['Hyderabad', 'Bangalore', 'New Delhi', 'Gurugram', 'Bangalore'][i]}</p>
                   <p className="text-xs font-medium text-gray-600 mb-4">{15 + (i * 5)}+ Specialities</p>
-                  <button className="mt-auto w-full py-2 border border-[#E31E24] text-[#E31E24] text-sm font-semibold rounded hover:bg-red-50 transition-colors">
+                  <button className="mt-auto w-full py-2 border border-[#E31E24] text-[#E31E24] text-sm font-semibold hover:bg-red-50 transition-colors rounded-full cursor-pointer">
                     Book Appointment
                   </button>
                 </div>
@@ -303,7 +303,7 @@ export default function Home() {
                   <p className="text-[10px] font-medium text-gray-700 mb-3"><span className="text-[#E31E24]">₹{doc.fee}</span> Consultation Fee</p>
                   <div className="mt-auto flex justify-between items-center">
                     <span className="text-[10px] text-green-600 font-medium flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Available Today</span>
-                    <button className="px-4 py-1.5 bg-[#E31E24] text-white text-xs font-semibold rounded hover:bg-red-700 transition-colors">Book</button>
+                    <button className="px-4 py-1.5 bg-[#E31E24] text-white text-xs font-semibold hover:bg-red-700 transition-colors rounded-full cursor-pointer">Book</button>
                   </div>
                 </div>
               </div>
@@ -326,7 +326,7 @@ export default function Home() {
                 <div className="p-4 flex flex-col flex-1 text-center items-center">
                   <h3 className="font-bold text-gray-900 mb-2 text-sm">{pkg}</h3>
                   <p className="text-lg font-bold text-gray-900 mb-4">₹{(i+2)*1000}</p>
-                  <button className="mt-auto w-full py-2 bg-[#E31E24] text-white text-sm font-semibold rounded hover:bg-red-700 transition-colors">
+                  <button className="mt-auto w-full py-2 bg-[#E31E24] text-white text-sm font-semibold hover:bg-red-700 transition-colors rounded-full cursor-pointer">
                     Book Now
                   </button>
                 </div>

@@ -40,7 +40,7 @@ export function AuthModal({ isOpen, onClose, initialType = 'login' }: AuthModalP
       <div className="relative w-full max-w-md bg-white p-8 rounded-xl shadow-lg border border-gray-100">
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 p-1 text-gray-400 hover:text-gray-900 transition-colors"
+          className="absolute top-4 right-4 p-1 text-gray-400 hover:text-gray-900 transition-colors rounded-full cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
@@ -118,7 +118,7 @@ export function AuthModal({ isOpen, onClose, initialType = 'login' }: AuthModalP
               <button 
                 type="submit"
                 disabled={isSendPending}
-                className="w-full py-2.5 bg-[#E31E24] text-white rounded-md font-semibold hover:bg-red-700 transition-colors mt-4 disabled:opacity-50"
+                className="w-full py-2.5 bg-[#E31E24] text-white font-semibold hover:bg-red-700 transition-colors mt-4 disabled:opacity-50 rounded-full cursor-pointer"
               >
                 {isSendPending ? 'Sending OTP...' : 'Send OTP'}
               </button>
@@ -178,7 +178,7 @@ export function AuthModal({ isOpen, onClose, initialType = 'login' }: AuthModalP
               <button 
                 type="submit"
                 disabled={isVerifyPending}
-                className="w-full py-2.5 bg-[#E31E24] text-white rounded-md font-semibold hover:bg-red-700 transition-colors mt-4 disabled:opacity-50"
+                className="w-full py-2.5 bg-[#E31E24] text-white font-semibold hover:bg-red-700 transition-colors mt-4 disabled:opacity-50 rounded-full cursor-pointer"
               >
                 {isVerifyPending ? 'Verifying...' : 'Verify OTP'}
               </button>

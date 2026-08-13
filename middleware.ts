@@ -6,6 +6,25 @@ export async function middleware(request: NextRequest) {
     request,
   })
 
+  const url = request.nextUrl
+  const path = url.pathname
+
+  // Super Admin custom session check
+  const superAdminSession = request.cookies.get('super_admin_session')
+  if (path.startsWith('/admin/dashboard')) {
+    if (!superAdminSession) {
+      return NextResponse.redirect(new URL('/admin', request.url))
+    }
+    return supabaseResponse
+  }
+  
+  if (path === '/admin') {
+    if (superAdminSession) {
+      return NextResponse.redirect(new URL('/admin/dashboard', request.url))
+    }
+    return supabaseResponse
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -29,14 +48,11 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const url = request.nextUrl
-  const path = url.pathname
-
-  // Protected paths
+  // Standard protected paths
   const isProtectedRoute = path.startsWith('/patient') || 
                            path.startsWith('/doctor') || 
                            path.startsWith('/executive') || 
-                           path.startsWith('/admin')
+                           path.startsWith('/hospital')
 
   if (user) {
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
@@ -46,7 +62,7 @@ export async function middleware(request: NextRequest) {
     let dashboardPath = '/patient/dashboard'
     if (role === 'doctor') dashboardPath = '/doctor/dashboard'
     else if (role === 'executive') dashboardPath = '/executive/dashboard'
-    else if (role === 'hospital_admin' || role === 'super_admin') dashboardPath = '/admin/dashboard'
+    else if (role === 'hospital_admin') dashboardPath = '/hospital/dashboard'
 
     if (path === '/login' || path === '/signup' || path === '/') {
       return NextResponse.redirect(new URL(dashboardPath, request.url))
@@ -62,13 +78,14 @@ export async function middleware(request: NextRequest) {
     if (path.startsWith('/executive') && role !== 'executive') {
        return NextResponse.redirect(new URL(dashboardPath, request.url))
     }
-    if (path.startsWith('/admin') && role !== 'hospital_admin' && role !== 'super_admin') {
+    if (path.startsWith('/hospital') && role !== 'hospital_admin') {
        return NextResponse.redirect(new URL(dashboardPath, request.url))
     }
   } else {
     // Not logged in
     if (isProtectedRoute) {
-      return NextResponse.redirect(new URL('/login', request.url))
+      // Redirect to homepage to trigger auth modal, or a dedicated error page
+      return NextResponse.redirect(new URL('/', request.url))
     }
   }
 

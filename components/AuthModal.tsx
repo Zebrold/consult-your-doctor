@@ -37,10 +37,10 @@ export function AuthModal({ isOpen, onClose, initialType = 'login' }: AuthModalP
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-md bg-white p-8 rounded-xl shadow-lg border border-gray-100">
+      <div className="relative w-full max-w-md bg-white p-8 rounded-xl shadow-lg border border-gray-100 transition-colors">
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 p-1 text-gray-400 hover:text-gray-900 transition-colors rounded-full cursor-pointer"
+          className="absolute top-4 right-4 p-1 text-gray-400 hover:text-gray-900:text-white transition-colors rounded-full cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
@@ -48,7 +48,7 @@ export function AuthModal({ isOpen, onClose, initialType = 'login' }: AuthModalP
         {step === 2 && (
           <button 
             onClick={() => setStep(1)}
-            className="absolute top-4 left-4 p-1 text-gray-400 hover:text-gray-900 transition-colors"
+            className="absolute top-4 left-4 p-1 text-gray-400 hover:text-gray-900:text-white transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -83,14 +83,14 @@ export function AuthModal({ isOpen, onClose, initialType = 'login' }: AuthModalP
                       name="fullName" 
                       required
                       placeholder="John Doe"
-                      className="w-full px-4 py-2 text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E31E24] focus:border-[#E31E24] outline-none transition-all"
+                      className="w-full px-4 py-2 text-gray-900 bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E31E24] focus:border-[#E31E24] outline-none transition-all"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">I am a...</label>
                     <select 
                       name="role" 
-                      className="w-full px-4 py-2 text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E31E24] focus:border-[#E31E24] outline-none bg-white transition-all"
+                      className="w-full px-4 py-2 text-gray-900 bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E31E24] focus:border-[#E31E24] outline-none transition-all"
                     >
                       <option value="patient">Patient</option>
                       <option value="doctor">Doctor</option>
@@ -110,7 +110,7 @@ export function AuthModal({ isOpen, onClose, initialType = 'login' }: AuthModalP
                     name="phone" 
                     required
                     placeholder="9876543210"
-                    className="w-full pl-14 pr-4 py-2 text-gray-900 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E31E24] focus:border-[#E31E24] outline-none transition-all"
+                    className="w-full pl-14 pr-4 py-2 text-gray-900 bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E31E24] focus:border-[#E31E24] outline-none transition-all"
                   />
                 </div>
               </div>
@@ -171,7 +171,7 @@ export function AuthModal({ isOpen, onClose, initialType = 'login' }: AuthModalP
                   required
                   placeholder="123456"
                   maxLength={6}
-                  className="w-full px-4 py-3 text-center text-gray-900 tracking-[0.5em] text-xl font-semibold border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E31E24] focus:border-[#E31E24] outline-none transition-all"
+                  className="w-full px-4 py-3 text-center text-gray-900 bg-white tracking-[0.5em] text-xl font-semibold border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E31E24] focus:border-[#E31E24] outline-none transition-all"
                 />
               </div>
               

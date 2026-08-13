@@ -20,8 +20,8 @@ serve(async (req) => {
     // Get the Fast2SMS API Key from Supabase Secrets
     const FAST2SMS_API_KEY = Deno.env.get('FAST2SMS_API_KEY')
 
-    // Call Fast2SMS API using the 'otp' route (Extremely cheap, ~0.20 INR)
-    // We cannot use custom messages here without DLT, but Fast2SMS automatically sends "Your OTP is: {otp}"
+    // Call Fast2SMS API using the 'q' (Quick) route.
+    // This bypasses the strict Indian DLT registration requirement, but costs ₹5 per SMS.
     const response = await fetch('https://www.fast2sms.com/dev/bulkV2', {
       method: 'POST',
       headers: {
@@ -29,8 +29,10 @@ serve(async (req) => {
         'authorization': FAST2SMS_API_KEY as string,
       },
       body: JSON.stringify({
-        route: 'otp', 
-        variables_values: otp, 
+        route: 'q', 
+        message: `Your Consult Your Doctor login OTP is: ${otp}`, 
+        language: 'english',
+        flash: 0,
         numbers: cleanPhone,
       }),
     })

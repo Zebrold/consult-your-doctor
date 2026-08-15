@@ -64,8 +64,8 @@ export async function middleware(request: NextRequest) {
     else if (role === 'executive') dashboardPath = '/executive/dashboard'
     else if (role === 'hospital_admin') dashboardPath = '/hospital/dashboard'
 
-    if (path === '/login' || path === '/signup' || path === '/') {
-      return NextResponse.redirect(new URL(dashboardPath, request.url))
+    if (path === '/login' || path === '/signup' || path === '/login/patient' || path === '/login/doctor' || path === '/login/hospital' || path === '/login/executive') {
+      return NextResponse.redirect(new URL('/', request.url))
     }
 
     // Role-based protection

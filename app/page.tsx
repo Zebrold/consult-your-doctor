@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { Header } from '@/components/Header'
 import { HomeSearchBar } from '@/components/HomeSearchBar'
 import Image from 'next/image'
@@ -187,7 +188,9 @@ export default async function Home() {
 
       {/* Search Bar Section */}
       <section className="bg-white py-12">
-        <HomeSearchBar />
+        <Suspense fallback={<div className="h-24 flex items-center justify-center">Loading search...</div>}>
+          <HomeSearchBar />
+        </Suspense>
       </section>
 
       {/* Popular Specialities */}

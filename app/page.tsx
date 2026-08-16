@@ -300,65 +300,6 @@ export default async function Home() {
           </div>
         </div>
       </section>
-
-      <Footer />
     </div>
-  )
-}
-
-function Footer() {
-  return (
-    <footer className="bg-[#1a2b3c] text-white mt-12">
-      <div className="max-w-[1440px] mx-auto px-4 md:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
-          <div className="col-span-1 md:col-span-2">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-[#E31E24] rounded-full flex items-center justify-center text-white font-bold text-xl">C</div>
-              <span className="text-xl font-bold">Consult your Doctor</span>
-            </div>
-            <p className="text-xs text-gray-400 mb-6 max-w-xs leading-relaxed">
-              Your personal healthcare concierge. We connect patients with top doctors, hospitals and executives with complete support.
-            </p>
-          </div>
-          
-          <div>
-            <h4 className="font-bold mb-4 text-sm">Company</h4>
-            <ul className="space-y-2 text-xs text-gray-400">
-              <li><Link href="#" className="hover:text-white transition-colors">About Us</Link></li>
-              <li><Link href="#" className="hover:text-white transition-colors">Careers</Link></li>
-              <li><Link href="#" className="hover:text-white transition-colors">Blog</Link></li>
-              <li><Link href="#" className="hover:text-white transition-colors">Press & Media</Link></li>
-              <li><Link href="#" className="hover:text-white transition-colors">Contact Us</Link></li>
-            </ul>
-          </div>
-          
-          <div>
-            <h4 className="font-bold mb-4 text-sm">For Patients</h4>
-            <ul className="space-y-2 text-xs text-gray-400">
-              <li><Link href="#" className="hover:text-white transition-colors">Find Doctors</Link></li>
-              <li><Link href="#" className="hover:text-white transition-colors">Find Hospitals</Link></li>
-              <li><Link href="#" className="hover:text-white transition-colors">Health Check Packages</Link></li>
-              <li><Link href="#" className="hover:text-white transition-colors">Diagnostics</Link></li>
-              <li><Link href="#" className="hover:text-white transition-colors">Medical Tourism</Link></li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-bold mb-4 text-sm">Contact Us</h4>
-            <ul className="space-y-3 text-xs text-gray-400">
-              <li className="flex items-center gap-2"><PhoneCall className="w-4 h-4"/> +91 12345 67890</li>
-              <li className="flex items-center gap-2"><MapPin className="w-4 h-4"/> support@consultyourdoctor.com</li>
-              <li className="flex gap-2">
-                <Building2 className="w-4 h-4 shrink-0"/> 
-                <span>123, Healthcare Avenue,<br/>Hyderabad, Telangana - 500001</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-        <div className="border-t border-gray-700 mt-12 pt-8 text-center text-xs text-gray-500">
-          © 2026 Consult Your Doctor. All Rights Reserved.
-        </div>
-      </div>
-    </footer>
   )
 }

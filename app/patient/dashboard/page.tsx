@@ -1,17 +1,110 @@
-import { logout } from '@/app/actions/auth'
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { Header } from '@/components/Header'
+import { Calendar, Clock, MapPin, Building2, User } from 'lucide-react'
 
-export default function PatientDashboard() {
+export default async function PatientDashboard() {
+  const supabase = await createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login/patient')
+
+  // Fetch all appointments for this patient
+  const { data: appointments } = await supabase
+    .from('appointments')
+    .select(`
+      id,
+      status,
+      doctors (
+        specialty,
+        profiles ( full_name )
+      ),
+      hospitals (
+        name,
+        city
+      ),
+      schedules (
+        start_time
+      )
+    `)
+    .eq('patient_id', user.id)
+    .order('created_at', { ascending: false })
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-8">
-      <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 text-center max-w-md w-full">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">Patient Dashboard</h1>
-        <p className="text-gray-600 mb-8">Welcome! This is the protected dashboard for patients.</p>
-        <form action={logout}>
-          <button type="submit" className="px-6 py-2 bg-[#E31E24] text-white font-medium hover:bg-red-700 transition-colors rounded-full cursor-pointer">
-            Logout
-          </button>
-        </form>
-      </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+      <Header />
+      
+      <main className="flex-1 max-w-[1440px] w-full mx-auto px-4 py-12">
+        <div className="flex justify-between items-end mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">My Appointments</h1>
+            <p className="text-gray-600 mt-2">Manage your upcoming consultations and medical history.</p>
+          </div>
+        </div>
+
+        {appointments?.length === 0 ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
+            <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-gray-900 mb-2">No appointments yet</h3>
+            <p className="text-gray-500">You haven't booked any consultations yet.</p>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {appointments?.map(apt => {
+              const date = new Date(apt.schedules.start_time)
+              return (
+                <div key={apt.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col">
+                  <div className="flex justify-between items-start mb-4">
+                    <span className={`px-3 py-1 text-xs font-bold rounded-full ${
+                      apt.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                      apt.status === 'pending_payment' ? 'bg-yellow-100 text-yellow-700' :
+                      apt.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {apt.status.replace('_', ' ').toUpperCase()}
+                    </span>
+                    <span className="text-xs font-bold text-gray-400">ID: {apt.id.slice(0, 8)}</span>
+                  </div>
+
+                  <div className="space-y-4 flex-1">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+                        <User className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-900">Dr. {apt.doctors.profiles.full_name}</p>
+                        <p className="text-xs text-gray-500">{apt.doctors.specialty}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Building2 className="w-4 h-4 shrink-0 text-gray-400" />
+                      <span className="truncate">{apt.hospitals.name}, {apt.hospitals.city}</span>
+                    </div>
+
+                    <div className="flex items-center gap-4 bg-gray-50 p-3 rounded-xl mt-4">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                        <Calendar className="w-4 h-4 text-[#E31E24]" />
+                        {date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                        <Clock className="w-4 h-4 text-[#E31E24]" />
+                        {date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {apt.status === 'pending_payment' && (
+                    <a href={`/patient/checkout/${apt.id}`} className="mt-6 block w-full py-2.5 bg-[#E31E24] text-white text-center font-semibold rounded-xl hover:bg-red-700 transition-colors">
+                      Complete Payment
+                    </a>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </main>
     </div>
   )
 }

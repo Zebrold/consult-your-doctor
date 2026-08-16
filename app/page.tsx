@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { Header } from '@/components/Header'
 import { HomeSearchBar } from '@/components/HomeSearchBar'
+import { BookConsultationForm } from '@/components/BookConsultationForm'
 import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
@@ -114,69 +115,7 @@ export default async function Home() {
           </div>
 
           {/* Right Card (Quick Search Form) */}
-          <div className="w-full max-w-md bg-white rounded-xl shadow-lg border border-gray-100 p-6 relative z-10">
-            <h3 className="text-xl font-bold text-gray-900 mb-6">Book Consultation</h3>
-            <form action="/search" method="GET" className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Speciality</label>
-                <div className="relative">
-                  <Stethoscope className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <select name="specialty" className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-[#E31E24] bg-white text-gray-900">
-                    <option value="">Any Speciality</option>
-                    {popularSpecialities.map(spec => (
-                      <option key={spec} value={spec}>{spec}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Doctor</label>
-                <div className="relative">
-                  <UserCircle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <select name="query" className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-[#E31E24] bg-white text-gray-900">
-                    <option value="">Any Doctor</option>
-                    {topDoctors?.map((doc: any) => (
-                      <option key={doc.id} value={doc.profiles?.full_name}>{doc.profiles?.full_name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Hospital</label>
-                <div className="relative">
-                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <select name="hospital_id" className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-[#E31E24] bg-white text-gray-900">
-                    <option value="">Any Hospital</option>
-                    {featuredHospitals?.map(h => (
-                      <option key={h.id} value={h.id}>{h.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Location</label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <select name="city" className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-[#E31E24] bg-white text-gray-900">
-                    <option value="">Any Location</option>
-                    {featuredHospitals?.map(h => h.city).filter((v, i, a) => a.indexOf(v) === i).map(city => (
-                      <option key={city} value={city}>{city}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Date & Time</label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="datetime-local" name="datetime" className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-md text-sm outline-none focus:border-[#E31E24] bg-white text-gray-900" />
-                </div>
-              </div>
-              <button type="submit" className="w-full py-3 mt-4 bg-[#E31E24] text-white font-bold hover:bg-red-700 transition-colors rounded-full cursor-pointer">
-                Book Now
-              </button>
-            </form>
-          </div>
+          <BookConsultationForm />
         </div>
       </section>
 

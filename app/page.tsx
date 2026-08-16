@@ -57,8 +57,14 @@ export default async function Home() {
       <Header />
 
       {/* Hero Section */}
-      <section className="relative w-full bg-[#f8f9fa] border-b border-gray-200">
-        <div className="max-w-[1440px] mx-auto px-4 md:px-8 py-12 md:py-20 flex flex-col lg:flex-row items-start gap-12">
+      <section 
+        className="relative w-full border-b border-gray-200 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url("/hero-bg.jpg")' }}
+      >
+        {/* Overlay for readability */}
+        <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/80 to-transparent pointer-events-none"></div>
+
+        <div className="relative z-10 max-w-[1440px] mx-auto px-4 md:px-8 py-12 md:py-20 flex flex-col lg:flex-row items-start gap-12">
           {/* Left Text */}
           <div className="flex-1 space-y-6">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">

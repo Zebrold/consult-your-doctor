@@ -173,3 +173,62 @@ export async function superAdminLogin(prevState: any, formData: FormData) {
 
   redirect('/admin/dashboard')
 }
+
+export async function createHospitalCredentials(formData: FormData) {
+  const supabase = await createClient()
+
+  // Verify caller is Super Admin
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'super_admin') return { error: 'Unauthorized' }
+
+  const hospitalId = formData.get('hospitalId') as string
+  const hospitalName = formData.get('hospitalName') as string
+  const adminId = formData.get('adminId') as string
+  const password = formData.get('password') as string
+
+  if (!hospitalId || !adminId || !password) return { error: 'Missing required fields' }
+
+  // Admin auth client to create users
+  const adminAuthClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const emailForAuth = `${adminId.toLowerCase()}@cyd.internal`
+
+  // 1. Check if auth user exists
+  const { data: existing } = await adminAuthClient.auth.admin.listUsers()
+  if (existing.users.some(u => u.email === emailForAuth)) {
+    return { error: 'This Admin ID is already in use.' }
+  }
+
+  // 2. Create Auth User
+  const { data: newAuthUser, error: authError } = await adminAuthClient.auth.admin.createUser({
+    email: emailForAuth,
+    password,
+    email_confirm: true,
+    user_metadata: { role: 'hospital_admin', full_name: `${hospitalName} Admin` }
+  })
+
+  if (authError) {
+    console.error('Failed to create hospital admin auth user:', authError)
+    return { error: authError.message }
+  }
+
+  // 3. Insert the profile
+  const { error: profileError } = await supabase.from('profiles').insert({
+    id: newAuthUser.user.id,
+    role: 'hospital_admin',
+    full_name: `${hospitalName} Admin`,
+    hospital_id: hospitalId
+  })
+
+  if (profileError) {
+    console.error('Failed to create profile for hospital admin:', profileError)
+    return { error: 'Failed to create profile.' }
+  }
+
+  return { success: true }
+}

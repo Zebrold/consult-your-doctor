@@ -1,7 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { Search, MapPin, MoreVertical } from 'lucide-react'
 import { CreateHospitalModal } from '@/components/CreateHospitalModal'
+import { ManageHospitalCredentialsModal } from '@/components/ManageHospitalCredentialsModal'
 
 export default async function AdminHospitals() {
   const supabase = await createClient()
@@ -25,6 +27,31 @@ export default async function AdminHospitals() {
       doctors ( id )
     `)
     .order('name', { ascending: true })
+
+  // Fetch Hospital Admins to display their IDs
+  const adminAuthClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const { data: adminProfiles } = await supabase
+    .from('profiles')
+    .select('id, hospital_id')
+    .eq('role', 'hospital_admin')
+
+  const { data: authUsers } = await adminAuthClient.auth.admin.listUsers()
+  const userMap = new Map(authUsers?.users.map(u => [u.id, u.email]) || [])
+
+  const hospitalAdmins = new Map()
+  adminProfiles?.forEach(p => {
+    if (p.hospital_id) {
+      const email = userMap.get(p.id) || ''
+      const generatedId = email.endsWith('@cyd.internal') 
+        ? email.split('@')[0].toUpperCase() 
+        : null
+      if (generatedId) hospitalAdmins.set(p.hospital_id, generatedId)
+    }
+  })
 
   return (
     <div className="p-4 sm:p-8 flex flex-col h-full">
@@ -70,7 +97,9 @@ export default async function AdminHospitals() {
                   <tr key={h.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="font-bold text-gray-900">{h.name}</div>
-                      <div className="text-xs font-medium text-gray-500">{h.contact_email}</div>
+                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                        {hospitalAdmins.get(h.id) ? `Admin ID: ${hospitalAdmins.get(h.id)}` : h.contact_email}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1.5 text-gray-600 font-medium">
@@ -89,9 +118,9 @@ export default async function AdminHospitals() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors">
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
+                      <div className="flex justify-end">
+                        <ManageHospitalCredentialsModal hospitalId={h.id} hospitalName={h.name} />
+                      </div>
                     </td>
                   </tr>
                 ))

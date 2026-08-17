@@ -103,5 +103,47 @@ export async function verifyOTP(prevState: any, formData: FormData) {
 export async function logout() {
   const supabase = await createClient()
   await supabase.auth.signOut()
-  redirect('/login')
+  redirect('/dashboard')
+}
+
+export async function staffLogin(prevState: any, formData: FormData) {
+  const supabase = await createClient()
+
+  const staffId = formData.get('staffId') as string
+  const password = formData.get('password') as string
+  const expectedRole = formData.get('role') as string
+
+  if (!staffId || !password) {
+    return { error: 'Staff ID and password are required.' }
+  }
+
+  // The email in Supabase is the ID lowercased + @cyd.internal
+  const email = `${staffId.toLowerCase()}@cyd.internal`
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  })
+
+  if (error) {
+    return { error: 'Invalid Staff ID or Password.' }
+  }
+
+  // Verify Role
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
+  
+  if (profile?.role !== expectedRole) {
+    await supabase.auth.signOut()
+    return { error: `Unauthorized. You are not a ${expectedRole.replace('_', ' ')}.` }
+  }
+
+  if (expectedRole === 'doctor') {
+    redirect('/doctor/dashboard')
+  } else if (expectedRole === 'executive') {
+    redirect('/executive/dashboard')
+  } else if (expectedRole === 'hospital_admin') {
+    redirect('/hospital/dashboard')
+  }
+
+  redirect('/')
 }

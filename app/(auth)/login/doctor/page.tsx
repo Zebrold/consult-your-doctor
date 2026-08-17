@@ -1,11 +1,13 @@
-import Link from 'next/link'
-import { Stethoscope, ArrowLeft } from 'lucide-react'
+'use client'
 
-export const metadata = {
-  title: 'Doctor Login - Consult Your Doctor',
-}
+import Link from 'next/link'
+import { useActionState } from 'react'
+import { staffLogin } from '@/app/actions/auth'
+import { Stethoscope, ArrowLeft, Loader2 } from 'lucide-react'
 
 export default function DoctorLoginPage() {
+  const [state, formAction, isPending] = useActionState(staffLogin, null)
+
   return (
     <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
       <Link href="/login" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-blue-600 transition-colors mb-6">
@@ -17,20 +19,27 @@ export default function DoctorLoginPage() {
           <Stethoscope className="w-8 h-8" />
         </div>
         <h1 className="text-2xl font-bold text-gray-900">Doctor Portal</h1>
-        <p className="text-gray-500 text-sm mt-1">Sign in to manage your appointments</p>
+        <p className="text-gray-500 text-sm mt-1">Sign in with your Staff ID to manage appointments</p>
       </div>
 
-      <form className="space-y-4">
+      {state?.error && (
+        <div className="mb-6 p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-200 text-center font-medium">
+          {state.error}
+        </div>
+      )}
+
+      <form action={formAction} className="space-y-4">
+        <input type="hidden" name="role" value="doctor" />
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">Email Address</label>
-          <input type="email" placeholder="dr.smith@example.com" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Staff ID</label>
+          <input required name="staffId" type="text" placeholder="e.g. CYDAB1234" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 uppercase text-gray-900" />
         </div>
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">Password</label>
-          <input type="password" placeholder="••••••••" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+          <input required name="password" type="password" placeholder="••••••••" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-gray-900" />
         </div>
-        <button type="button" className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors mt-2">
-          Sign In
+        <button disabled={isPending} type="submit" className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors mt-2 disabled:opacity-50 flex justify-center items-center gap-2">
+          {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign In'}
         </button>
       </form>
     </div>

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { LayoutDashboard, Users, LogOut, HeartPulse, Bell } from 'lucide-react'
+import { SidebarLink } from '@/components/SidebarLink'
 
 export default async function ExecutiveLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -27,14 +28,18 @@ export default async function ExecutiveLayout({ children }: { children: React.Re
         </div>
         
         <div className="flex-1 py-6 px-4 space-y-1">
-          <Link href="/executive/dashboard" className="flex items-center gap-3 px-4 py-3 bg-red-50 text-[#E31E24] rounded-xl font-bold">
-            <LayoutDashboard className="w-5 h-5" />
-            Dashboard
-          </Link>
-          <Link href="#" className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-xl font-medium transition-colors">
-            <Users className="w-5 h-5" />
-            My Patients
-          </Link>
+          <SidebarLink 
+            href="/executive/dashboard" 
+            icon={<LayoutDashboard className="w-5 h-5" />} 
+            label="Dashboard" 
+            activeClassName="bg-red-50 text-[#E31E24] font-bold"
+          />
+          <SidebarLink 
+            href="#" 
+            icon={<Users className="w-5 h-5" />} 
+            label="My Patients" 
+            activeClassName="bg-red-50 text-[#E31E24] font-bold"
+          />
         </div>
 
         <div className="p-4 border-t border-gray-200">

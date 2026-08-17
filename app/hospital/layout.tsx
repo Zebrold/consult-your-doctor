@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { LayoutDashboard, Users, LogOut, Building2, Bell, Users2, IndianRupee } from 'lucide-react'
+import { SidebarLink } from '@/components/SidebarLink'
 
 export default async function HospitalLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -30,22 +31,10 @@ export default async function HospitalLayout({ children }: { children: React.Rea
         </div>
         
         <div className="flex-1 py-6 px-4 space-y-1">
-          <Link href="/hospital/dashboard" className="flex items-center gap-3 px-4 py-3 bg-emerald-50 text-emerald-700 rounded-xl font-bold transition-colors">
-            <LayoutDashboard className="w-5 h-5" />
-            Overview
-          </Link>
-          <Link href="/hospital/doctors" className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-xl font-medium transition-colors">
-            <Users2 className="w-5 h-5" />
-            Doctors
-          </Link>
-          <Link href="#" className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-xl font-medium transition-colors">
-            <Users className="w-5 h-5" />
-            All Patients
-          </Link>
-          <Link href="#" className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-xl font-medium transition-colors">
-            <IndianRupee className="w-5 h-5" />
-            Revenue
-          </Link>
+          <SidebarLink href="/hospital/dashboard" icon={<LayoutDashboard className="w-5 h-5" />} label="Overview" />
+          <SidebarLink href="/hospital/doctors" icon={<Users2 className="w-5 h-5" />} label="Doctors" />
+          <SidebarLink href="#" icon={<Users className="w-5 h-5" />} label="All Patients" />
+          <SidebarLink href="#" icon={<IndianRupee className="w-5 h-5" />} label="Revenue" />
         </div>
 
         <div className="p-4 border-t border-gray-200">

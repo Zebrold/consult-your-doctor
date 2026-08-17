@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { LayoutDashboard, LogOut, ShieldCheck, Bell, Building2, Users } from 'lucide-react'
+import { LayoutDashboard, Users, LogOut, Building2, Bell, ShieldCheck } from 'lucide-react'
+import { SidebarLink } from '@/components/SidebarLink'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -27,18 +28,27 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
         
         <div className="flex-1 py-6 px-4 space-y-1">
-          <Link href="/admin/dashboard" className="flex items-center gap-3 px-4 py-3 bg-indigo-500/10 text-indigo-400 rounded-xl font-bold transition-colors">
-            <LayoutDashboard className="w-5 h-5" />
-            Global Overview
-          </Link>
-          <Link href="/admin/hospitals" className="flex items-center gap-3 px-4 py-3 hover:bg-slate-800 hover:text-white rounded-xl font-medium transition-colors">
-            <Building2 className="w-5 h-5" />
-            Manage Hospitals
-          </Link>
-          <Link href="/admin/staff" className="flex items-center gap-3 px-4 py-3 hover:bg-slate-800 hover:text-white rounded-xl font-medium transition-colors">
-            <Users className="w-5 h-5" />
-            Staff Management
-          </Link>
+          <SidebarLink 
+            href="/admin/dashboard" 
+            icon={<LayoutDashboard className="w-5 h-5" />} 
+            label="Global Overview" 
+            activeClassName="bg-indigo-500/10 text-indigo-400 font-bold"
+            inactiveClassName="text-slate-400 hover:bg-slate-800 hover:text-white font-medium"
+          />
+          <SidebarLink 
+            href="/admin/hospitals" 
+            icon={<Building2 className="w-5 h-5" />} 
+            label="Manage Hospitals" 
+            activeClassName="bg-indigo-500/10 text-indigo-400 font-bold"
+            inactiveClassName="text-slate-400 hover:bg-slate-800 hover:text-white font-medium"
+          />
+          <SidebarLink 
+            href="/admin/staff" 
+            icon={<Users className="w-5 h-5" />} 
+            label="Staff Management" 
+            activeClassName="bg-indigo-500/10 text-indigo-400 font-bold"
+            inactiveClassName="text-slate-400 hover:bg-slate-800 hover:text-white font-medium"
+          />
         </div>
 
         <div className="p-4 border-t border-slate-800">

@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { CalendarDays, Users, LogOut, Stethoscope, Bell, ClipboardList } from 'lucide-react'
+import { CalendarDays, Users, ClipboardList, LogOut, Stethoscope, Bell } from 'lucide-react'
+import { SidebarLink } from '@/components/SidebarLink'
 
 export default async function DoctorLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -27,18 +28,24 @@ export default async function DoctorLayout({ children }: { children: React.React
         </div>
         
         <div className="flex-1 py-6 px-4 space-y-1">
-          <Link href="/doctor/dashboard" className="flex items-center gap-3 px-4 py-3 bg-blue-50 text-blue-700 rounded-xl font-bold">
-            <CalendarDays className="w-5 h-5" />
-            Today's Schedule
-          </Link>
-          <Link href="#" className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-xl font-medium transition-colors">
-            <Users className="w-5 h-5" />
-            My Patients
-          </Link>
-          <Link href="#" className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-xl font-medium transition-colors">
-            <ClipboardList className="w-5 h-5" />
-            Medical Records
-          </Link>
+          <SidebarLink 
+            href="/doctor/dashboard" 
+            icon={<CalendarDays className="w-5 h-5" />} 
+            label="Today's Schedule" 
+            activeClassName="bg-blue-50 text-blue-700 font-bold"
+          />
+          <SidebarLink 
+            href="#" 
+            icon={<Users className="w-5 h-5" />} 
+            label="My Patients" 
+            activeClassName="bg-blue-50 text-blue-700 font-bold"
+          />
+          <SidebarLink 
+            href="#" 
+            icon={<ClipboardList className="w-5 h-5" />} 
+            label="Medical Records" 
+            activeClassName="bg-blue-50 text-blue-700 font-bold"
+          />
         </div>
 
         <div className="p-4 border-t border-gray-200">

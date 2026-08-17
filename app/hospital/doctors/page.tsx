@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { Plus, Search, MoreVertical } from 'lucide-react'
+import { Plus, Search, CalendarPlus } from 'lucide-react'
+import Link from 'next/link'
+import { HospitalCreateDoctorModal } from '@/components/HospitalCreateDoctorModal'
 
 export default async function HospitalDoctors() {
   const supabase = await createClient()
@@ -33,9 +35,7 @@ export default async function HospitalDoctors() {
           <h1 className="text-2xl font-bold text-gray-900">Hospital Doctors</h1>
           <p className="text-gray-500">Manage physicians registered at your hospital.</p>
         </div>
-        <button className="px-4 py-2.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors flex items-center gap-2">
-          <Plus className="w-4 h-4" /> Add Doctor
-        </button>
+        <HospitalCreateDoctorModal />
       </div>
 
       {/* Doctors List */}
@@ -92,9 +92,13 @@ export default async function HospitalDoctors() {
                       <div className="font-bold text-gray-900">₹{doc.consultation_fee}</div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors">
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
+                      <Link 
+                        href={`/hospital/doctors/${doc.id}/schedule`}
+                        className="inline-flex items-center gap-2 px-3 py-2 text-sm font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors"
+                      >
+                        <CalendarPlus className="w-4 h-4" />
+                        Manage Schedule
+                      </Link>
                     </td>
                   </tr>
                 ))

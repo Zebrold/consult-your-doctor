@@ -103,7 +103,7 @@ export async function verifyOTP(prevState: any, formData: FormData) {
 export async function logout() {
   const supabase = await createClient()
   await supabase.auth.signOut()
-  redirect('/dashboard')
+  redirect('/')
 }
 
 export async function staffLogin(prevState: any, formData: FormData) {
@@ -143,6 +143,8 @@ export async function staffLogin(prevState: any, formData: FormData) {
     redirect('/executive/dashboard')
   } else if (expectedRole === 'hospital_admin') {
     redirect('/hospital/dashboard')
+  } else if (expectedRole === 'super_admin') {
+    redirect('/admin/dashboard')
   }
 
   redirect('/')

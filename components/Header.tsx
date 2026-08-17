@@ -10,7 +10,7 @@ export async function Header() {
   
   let profile = null
   if (user) {
-    const { data } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
+    const { data } = await supabase.from('profiles').select('full_name, role').eq('id', user.id).single()
     profile = data
   }
 
@@ -33,6 +33,14 @@ export async function Header() {
           <div className="flex items-center gap-3 ml-2">
             {user ? (
               <div className="flex items-center gap-4">
+                {profile?.role === 'patient' && (
+                  <Link 
+                    href="/patient/dashboard" 
+                    className="px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-full hover:bg-emerald-700 transition-colors"
+                  >
+                    My Appointments
+                  </Link>
+                )}
                 <div className="flex items-center gap-2 text-sm font-semibold text-gray-700 bg-gray-50 px-4 py-2 rounded-full border border-gray-200">
                   <UserCircle2 className="w-5 h-5 text-[#E31E24]" />
                   <span>Hello, {profile?.full_name || 'Patient'}</span>

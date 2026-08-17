@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { Calendar, Users, IndianRupee, TrendingUp, Building2, User } from 'lucide-react'
 
@@ -16,7 +17,9 @@ export default async function HospitalDashboard() {
   const { data: doctors } = await supabase.from('doctors').select('id').eq('hospital_id', profile.hospital_id)
   
   // Fetch appointments for this hospital
-  const { data: appointments } = await supabase
+  // Use admin client to bypass RLS for fetching related profiles (patients)
+  const adminClient = createAdminClient()
+  const { data: appointments } = await adminClient
     .from('appointments')
     .select(`
       id,
@@ -100,13 +103,13 @@ export default async function HospitalDashboard() {
                 recentBookings.map(apt => (
                   <tr key={apt.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4">
-                      <div className="font-bold text-gray-900">{apt.patient.full_name}</div>
+                      <div className="font-bold text-gray-900">{apt.patient?.full_name || 'Unknown Patient'}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="font-medium text-gray-600">Dr. {apt.doctor.profiles.full_name.replace('Dr. ', '')}</div>
+                      <div className="font-medium text-gray-600">Dr. {apt.doctor?.profiles?.full_name?.replace('Dr. ', '') || 'Unknown Doctor'}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="font-bold text-gray-900">₹{apt.doctor.consultation_fee}</div>
+                      <div className="font-bold text-gray-900">₹{apt.doctor?.consultation_fee || 0}</div>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 text-xs font-bold rounded-md ${

@@ -2,13 +2,14 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { MoreVertical, Edit, Trash2, Mail, X, Loader2 } from 'lucide-react'
-import { updateStaffEmail } from '@/app/actions/admin'
+import { updateStaffEmail, deleteStaffAccount } from '@/app/actions/admin'
 
 export function StaffActionMenu({ profileId, staffId, currentEmail }: { profileId: string, staffId: string, currentEmail: string }) {
   const [isOpen, setIsOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [email, setEmail] = useState(currentEmail)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   // Close menu on click outside
@@ -56,13 +57,22 @@ export function StaffActionMenu({ profileId, staffId, currentEmail }: { profileI
             <Mail className="w-4 h-4" /> Edit Email
           </button>
           <button 
-            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-            onClick={() => {
+            disabled={isDeleting}
+            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 disabled:opacity-50"
+            onClick={async () => {
+              if (window.confirm('Are you sure you want to completely delete this staff member? This action cannot be undone.')) {
+                setIsDeleting(true)
+                const res = await deleteStaffAccount(profileId)
+                if (res.error) {
+                  alert(res.error)
+                  setIsDeleting(false)
+                }
+              }
               setIsOpen(false)
-              alert("Delete functionality coming soon!")
             }}
           >
-            <Trash2 className="w-4 h-4" /> Delete Staff
+            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />} 
+            {isDeleting ? 'Deleting...' : 'Delete Staff'}
           </button>
         </div>
       )}

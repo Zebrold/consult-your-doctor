@@ -130,7 +130,7 @@ export function BookConsultationForm() {
           <Loader2 className="w-8 h-8 text-[#E31E24] animate-spin" />
         </div>
       ) : (
-        <form action={createAppointment} onSubmit={() => setIsSubmitting(true)} className="space-y-5">
+        <form action={async (formData) => { await createAppointment(formData) }} onSubmit={() => setIsSubmitting(true)} className="space-y-5">
           
           {/* Location */}
           <div>

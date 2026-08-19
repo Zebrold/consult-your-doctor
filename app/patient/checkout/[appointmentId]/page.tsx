@@ -57,7 +57,11 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
   }
 
   // Format Date and Time
-  const appointmentDate = new Date(appointment.schedules.start_time)
+  const doctor: any = appointment.doctors
+  const hospital: any = appointment.hospitals
+  const schedule: any = appointment.schedules
+  
+  const appointmentDate = new Date(schedule.start_time)
   const formattedDate = appointmentDate.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
   const formattedTime = appointmentDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
 
@@ -90,8 +94,8 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
                   </div>
                   <div>
                     <p className="text-sm text-gray-500 font-medium">Doctor</p>
-                    <p className="text-gray-900 font-bold">Dr. {appointment.doctors.profiles.full_name}</p>
-                    <p className="text-sm text-gray-600">{appointment.doctors.specialty}</p>
+                    <p className="text-gray-900 font-bold">Dr. {doctor.profiles.full_name}</p>
+                    <p className="text-sm text-gray-600">{doctor.specialty}</p>
                   </div>
                 </div>
 
@@ -101,8 +105,8 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
                   </div>
                   <div>
                     <p className="text-sm text-gray-500 font-medium">Hospital</p>
-                    <p className="text-gray-900 font-bold">{appointment.hospitals.name}</p>
-                    <p className="text-sm text-gray-600">{appointment.hospitals.address}, {appointment.hospitals.city}</p>
+                    <p className="text-gray-900 font-bold">{hospital.name}</p>
+                    <p className="text-sm text-gray-600">{hospital.address}, {hospital.city}</p>
                   </div>
                 </div>
 
@@ -132,7 +136,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
               <div className="flex-1 space-y-4">
                 <div className="flex justify-between items-center text-gray-600">
                   <span>Consultation Fee</span>
-                  <span className="font-semibold text-gray-900">₹{appointment.doctors.consultation_fee}</span>
+                  <span className="font-semibold text-gray-900">₹{doctor.consultation_fee}</span>
                 </div>
                 <div className="flex justify-between items-center text-gray-600">
                   <span>Platform Fee</span>
@@ -143,7 +147,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-bold text-gray-900">Total Payable</span>
                     <span className="text-2xl font-black text-[#E31E24]">
-                      ₹{(Number(appointment.doctors.consultation_fee) + 49).toFixed(2)}
+                      ₹{(Number(doctor.consultation_fee) + 49).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -161,7 +165,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
                   // Also record a payment row
                   await supabase.from('payments').insert({
                     appointment_id: appointmentId,
-                    amount: Number(appointment.doctors.consultation_fee) + 49,
+                    amount: Number(doctor.consultation_fee) + 49,
                     gateway: 'razorpay',
                     status: 'success'
                   })

@@ -14,13 +14,22 @@ export async function generateDoctorSlots(formData: FormData) {
   if (profile?.role !== 'hospital_admin' || !profile.hospital_id) return { error: 'Unauthorized' }
 
   const doctorId = formData.get('doctorId') as string
-  const dateStr = formData.get('date') as string
+  const startDateStr = formData.get('startDate') as string
+  const endDateStr = formData.get('endDate') as string
+  const activeDaysStr = formData.get('activeDays') as string
   const startTimeStr = formData.get('startTime') as string // HH:mm
   const endTimeStr = formData.get('endTime') as string     // HH:mm
   const durationStr = formData.get('duration') as string
 
-  if (!doctorId || !dateStr || !startTimeStr || !endTimeStr || !durationStr) {
+  if (!doctorId || !startDateStr || !endDateStr || !activeDaysStr || !startTimeStr || !endTimeStr || !durationStr) {
     return { error: 'Missing required fields' }
+  }
+
+  let activeDays: number[] = []
+  try {
+    activeDays = JSON.parse(activeDaysStr)
+  } catch (e) {
+    return { error: 'Invalid active days' }
   }
 
   const durationMins = parseInt(durationStr, 10)
@@ -30,40 +39,59 @@ export async function generateDoctorSlots(formData: FormData) {
   const { data: doctor } = await supabase.from('doctors').select('hospital_id').eq('id', doctorId).single()
   if (doctor?.hospital_id !== profile.hospital_id) return { error: 'Doctor not found in your hospital' }
 
-  // Create slot dates
-  // dateStr is YYYY-MM-DD
-  const baseDateStr = `${dateStr}T00:00:00.000Z` // UTC base
-  // Better approach: use simple Date objects in local time and convert to ISO strings
   const [startHour, startMin] = startTimeStr.split(':').map(Number)
   const [endHour, endMin] = endTimeStr.split(':').map(Number)
 
-  const startTime = new Date(`${dateStr}T00:00:00`)
-  startTime.setHours(startHour, startMin, 0, 0)
+  const startDate = new Date(`${startDateStr}T00:00:00`)
+  const endDate = new Date(`${endDateStr}T00:00:00`)
   
-  const endTime = new Date(`${dateStr}T00:00:00`)
-  endTime.setHours(endHour, endMin, 0, 0)
-
-  if (endTime <= startTime) {
-    return { error: 'End time must be after start time' }
+  if (endDate < startDate) {
+    return { error: 'End date must be on or after start date' }
   }
 
   const newSlots = []
-  let currentSlotStart = new Date(startTime.getTime())
+  
+  // Iterate through each day in the date range
+  let currentDate = new Date(startDate.getTime())
+  
+  // Cap at 90 days to prevent abuse or browser timeout
+  const maxDays = 90;
+  let daysProcessed = 0;
 
-  while (currentSlotStart < endTime) {
-    const currentSlotEnd = new Date(currentSlotStart.getTime() + durationMins * 60000)
+  while (currentDate <= endDate && daysProcessed < maxDays) {
+    // Check if the current day of the week is active
+    // getDay() returns 0 for Sunday, 1 for Monday...
+    if (activeDays.includes(currentDate.getDay())) {
+      const currentDayStartTime = new Date(currentDate.getTime())
+      currentDayStartTime.setHours(startHour, startMin, 0, 0)
+      
+      const currentDayEndTime = new Date(currentDate.getTime())
+      currentDayEndTime.setHours(endHour, endMin, 0, 0)
+
+      if (currentDayEndTime <= currentDayStartTime) {
+         return { error: 'End time must be after start time' }
+      }
+
+      let currentSlotStart = new Date(currentDayStartTime.getTime())
+
+      while (currentSlotStart < currentDayEndTime) {
+        const currentSlotEnd = new Date(currentSlotStart.getTime() + durationMins * 60000)
+        if (currentSlotEnd > currentDayEndTime) break
+
+        newSlots.push({
+          doctor_id: doctorId,
+          start_time: currentSlotStart.toISOString(),
+          end_time: currentSlotEnd.toISOString(),
+          is_booked: false
+        })
+
+        currentSlotStart = currentSlotEnd
+      }
+    }
     
-    // Break if the slot exceeds the end time
-    if (currentSlotEnd > endTime) break
-
-    newSlots.push({
-      doctor_id: doctorId,
-      start_time: currentSlotStart.toISOString(),
-      end_time: currentSlotEnd.toISOString(),
-      is_booked: false
-    })
-
-    currentSlotStart = currentSlotEnd
+    // Move to next day
+    currentDate.setDate(currentDate.getDate() + 1)
+    daysProcessed++;
   }
 
   if (newSlots.length === 0) {

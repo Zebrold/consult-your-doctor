@@ -51,7 +51,10 @@ export default async function PatientDashboard() {
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {appointments?.map(apt => {
-              const date = new Date(apt.schedules.start_time)
+              const doctor: any = apt.doctors
+              const hospital: any = apt.hospitals
+              const schedule: any = apt.schedules
+              const date = new Date(schedule.start_time)
               return (
                 <div key={apt.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col">
                   <div className="flex justify-between items-start mb-4">
@@ -72,14 +75,14 @@ export default async function PatientDashboard() {
                         <User className="w-5 h-5 text-blue-600" />
                       </div>
                       <div>
-                        <p className="font-bold text-gray-900">Dr. {apt.doctors.profiles.full_name}</p>
-                        <p className="text-xs text-gray-500">{apt.doctors.specialty}</p>
+                        <p className="font-bold text-gray-900">Dr. {doctor.profiles.full_name}</p>
+                        <p className="text-xs text-gray-500">{doctor.specialty}</p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Building2 className="w-4 h-4 shrink-0 text-gray-400" />
-                      <span className="truncate">{apt.hospitals.name}, {apt.hospitals.city}</span>
+                      <span className="truncate">{hospital.name}, {hospital.city}</span>
                     </div>
 
                     <div className="flex items-center gap-4 bg-gray-50 p-3 rounded-xl mt-4">

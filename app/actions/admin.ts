@@ -374,3 +374,39 @@ export async function deleteHospital(hospitalId: string) {
     return { error: err.message || 'Failed to delete hospital.' }
   }
 }
+
+export async function deleteStaffAccount(profileId: string) {
+  const supabase = await createClient()
+
+  // 1. Verify caller is Super Admin
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized' }
+
+  const { data: callerProfile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (callerProfile?.role !== 'super_admin') return { error: 'Forbidden. Super Admin only.' }
+
+  if (!profileId) return { error: 'Profile ID is required.' }
+
+  try {
+    // 2. Initialize Supabase Admin Client
+    const adminAuthClient = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+
+    // 3. Delete from auth.users (cascades to profiles, doctors, executives, etc)
+    const { error: authError } = await adminAuthClient.auth.admin.deleteUser(profileId)
+
+    if (authError) {
+      console.error('Failed to delete user from Auth:', authError)
+      return { error: 'Failed to delete user.' }
+    }
+
+    revalidatePath('/admin/staff')
+    return { success: true }
+  } catch (err: any) {
+    console.error('Delete staff error:', err)
+    return { error: 'Failed to delete staff account.' }
+  }
+}

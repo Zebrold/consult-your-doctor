@@ -31,7 +31,13 @@ export default async function DoctorLayout({ children }: { children: React.React
           <SidebarLink 
             href="/doctor/dashboard" 
             icon={<CalendarDays className="w-5 h-5" />} 
-            label="Today's Schedule" 
+            label="Today's Appointments" 
+            activeClassName="bg-blue-50 text-blue-700 font-bold"
+          />
+          <SidebarLink 
+            href="/doctor/dashboard/schedules" 
+            icon={<CalendarDays className="w-5 h-5" />} 
+            label="My Schedule" 
             activeClassName="bg-blue-50 text-blue-700 font-bold"
           />
           <SidebarLink 

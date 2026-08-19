@@ -122,7 +122,7 @@ export function ManageHospitalCredentialsModal({ hospitalId, hospitalName, isOpe
                 </div>
                 
                 <button 
-                  onClick={() => { setIsOpen(false); setSuccessMessage(''); setGeneratedId(''); setPassword(''); }}
+                  onClick={handleClose}
                   className="w-full py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition-colors"
                 >
                   Done

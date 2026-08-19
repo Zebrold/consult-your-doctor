@@ -75,7 +75,7 @@ export default async function AdminStaff() {
           </div>
         </div>
         
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto pb-32">
           <table className="w-full text-left border-collapse">
             <thead className="sticky top-0 bg-white shadow-sm z-10">
               <tr className="border-b border-gray-100 text-sm">

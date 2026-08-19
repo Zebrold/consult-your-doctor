@@ -3,7 +3,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { Search, MapPin, MoreVertical } from 'lucide-react'
 import { CreateHospitalModal } from '@/components/CreateHospitalModal'
-import { ManageHospitalCredentialsModal } from '@/components/ManageHospitalCredentialsModal'
+import { HospitalActionMenu } from './HospitalActionMenu'
 
 export default async function AdminHospitals() {
   const supabase = await createClient()
@@ -76,7 +76,7 @@ export default async function AdminHospitals() {
           </div>
         </div>
         
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto pb-32">
           <table className="w-full text-left border-collapse">
             <thead className="sticky top-0 bg-white shadow-sm z-10">
               <tr className="border-b border-gray-100 text-sm">
@@ -119,7 +119,7 @@ export default async function AdminHospitals() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end">
-                        <ManageHospitalCredentialsModal hospitalId={h.id} hospitalName={h.name} />
+                        <HospitalActionMenu hospitalId={h.id} hospitalName={h.name} />
                       </div>
                     </td>
                   </tr>

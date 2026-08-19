@@ -328,3 +328,49 @@ export async function updateStaffEmail(profileId: string, email: string, staffId
   revalidatePath('/admin/staff')
   return { success: true }
 }
+
+export async function deleteHospital(hospitalId: string) {
+  const supabase = await createClient()
+  
+  // 1. Verify caller is Super Admin
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized' }
+
+  const { data: adminProfile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (adminProfile?.role !== 'super_admin') return { error: 'Forbidden. Super Admin only.' }
+
+  const adminAuthClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+
+  try {
+    // 2. Find all hospital_admin profiles for this hospital
+    const { data: admins } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('hospital_id', hospitalId)
+
+    // 3. Delete those auth users (this cascades to their profiles)
+    if (admins && admins.length > 0) {
+      for (const admin of admins) {
+        await adminAuthClient.auth.admin.deleteUser(admin.id)
+      }
+    }
+
+    // 4. Delete the hospital itself (cascades to doctors, appointments, etc)
+    const { error: deleteError } = await supabase
+      .from('hospitals')
+      .delete()
+      .eq('id', hospitalId)
+
+    if (deleteError) throw deleteError
+
+    revalidatePath('/admin/hospitals')
+    return { success: true }
+  } catch (err: any) {
+    console.error('Delete hospital error:', err)
+    return { error: err.message || 'Failed to delete hospital.' }
+  }
+}

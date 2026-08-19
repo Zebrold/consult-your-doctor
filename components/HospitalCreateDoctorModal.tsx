@@ -9,6 +9,8 @@ export function HospitalCreateDoctorModal() {
   const [isPending, setIsPending] = useState(false)
   const [error, setError] = useState('')
   const [successData, setSuccessData] = useState<{ id: string, name: string } | null>(null)
+  const [specialty, setSpecialty] = useState('')
+  const [customSpecialty, setCustomSpecialty] = useState('')
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -73,7 +75,12 @@ export function HospitalCreateDoctorModal() {
                   </div>
                   
                   <button 
-                    onClick={() => { setIsOpen(false); setSuccessData(null); }}
+                    onClick={() => {
+                      setIsOpen(false)
+                      setSuccessData(null)
+                      setSpecialty('')
+                      setCustomSpecialty('')
+                    }}
                     className="w-full max-w-sm mx-auto py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition-colors block"
                   >
                     Done
@@ -117,7 +124,13 @@ export function HospitalCreateDoctorModal() {
 
                     <div className="md:col-span-2">
                       <label className="block text-sm font-bold text-gray-700 mb-1.5">Specialty</label>
-                      <select required name="specialty" className="w-full border border-gray-200 rounded-xl p-3 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-gray-900 bg-white">
+                      <select 
+                        required={specialty !== 'Other'}
+                        name={specialty === 'Other' ? '' : 'specialty'} 
+                        value={specialty}
+                        onChange={(e) => setSpecialty(e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl p-3 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-gray-900 bg-white"
+                      >
                         <option value="">Select Specialty</option>
                         <option value="Cardiology">Cardiology</option>
                         <option value="Neurology">Neurology</option>
@@ -126,7 +139,23 @@ export function HospitalCreateDoctorModal() {
                         <option value="General Medicine">General Medicine</option>
                         <option value="Dermatology">Dermatology</option>
                         <option value="Gynecology">Gynecology</option>
+                        <option value="General Surgery">General Surgery</option>
+                        <option value="Ophthalmology">Ophthalmology</option>
+                        <option value="ENT">ENT</option>
+                        <option value="Other">Other (Please specify)</option>
                       </select>
+                      
+                      {specialty === 'Other' && (
+                        <input 
+                          required 
+                          type="text" 
+                          name="specialty"
+                          value={customSpecialty}
+                          onChange={(e) => setCustomSpecialty(e.target.value)}
+                          className="w-full mt-3 border border-gray-200 rounded-xl p-3 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-gray-900 bg-white" 
+                          placeholder="Type custom specialty..." 
+                        />
+                      )}
                     </div>
 
                     <div>

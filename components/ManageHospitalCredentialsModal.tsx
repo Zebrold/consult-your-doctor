@@ -7,10 +7,26 @@ import { createHospitalCredentials } from '@/app/actions/admin'
 interface ManageHospitalCredentialsModalProps {
   hospitalId: string
   hospitalName: string
+  isOpen?: boolean
+  onClose?: () => void
 }
 
-export function ManageHospitalCredentialsModal({ hospitalId, hospitalName }: ManageHospitalCredentialsModalProps) {
-  const [isOpen, setIsOpen] = useState(false)
+export function ManageHospitalCredentialsModal({ hospitalId, hospitalName, isOpen: controlledIsOpen, onClose }: ManageHospitalCredentialsModalProps) {
+  const [internalIsOpen, setInternalIsOpen] = useState(false)
+  const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen
+  
+  const handleClose = () => {
+    setSuccessMessage('')
+    setError('')
+    setGeneratedId('')
+    setPassword('')
+    if (onClose) {
+      onClose()
+    } else {
+      setInternalIsOpen(false)
+    }
+  }
+
   const [isPending, setIsPending] = useState(false)
   const [generatedId, setGeneratedId] = useState('')
   const [password, setPassword] = useState('')
@@ -56,13 +72,15 @@ export function ManageHospitalCredentialsModal({ hospitalId, hospitalName }: Man
 
   return (
     <>
-      <button 
-        onClick={() => setIsOpen(true)}
-        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-      >
-        <Key className="w-4 h-4 text-gray-400" />
-        Provision Admin
-      </button>
+      {controlledIsOpen === undefined && (
+        <button 
+          onClick={() => setInternalIsOpen(true)}
+          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+        >
+          <Key className="w-4 h-4 text-gray-400" />
+          Provision Admin
+        </button>
+      )}
 
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
@@ -73,7 +91,7 @@ export function ManageHospitalCredentialsModal({ hospitalId, hospitalName }: Man
                 Hospital Credentials
               </h2>
               <button 
-                onClick={() => { setIsOpen(false); setSuccessMessage(''); setError(''); setGeneratedId(''); setPassword(''); }}
+                onClick={handleClose}
                 className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
               >
                 <X className="w-5 h-5" />

@@ -8,6 +8,8 @@ export function CreateStaffModal({ hospitals }: { hospitals: { id: string, name:
   const [isOpen, setIsOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [role, setRole] = useState('executive')
+  const [specialty, setSpecialty] = useState('')
+  const [customSpecialty, setCustomSpecialty] = useState('')
   const [error, setError] = useState('')
   const [createdInfo, setCreatedInfo] = useState<{ adminId: string, password?: string } | null>(null)
 
@@ -122,14 +124,38 @@ export function CreateStaffModal({ hospitals }: { hospitals: { id: string, name:
                 <div className="grid grid-cols-2 gap-4 p-4 bg-indigo-50 rounded-xl border border-indigo-100">
                   <div className="col-span-2">
                     <label className="block text-sm font-bold text-indigo-900 mb-1.5">Specialty</label>
-                    <select required name="specialty" className="w-full border border-indigo-200 rounded-xl p-2 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-gray-900 bg-white">
+                    <select 
+                      required={specialty !== 'Other'}
+                      name={specialty === 'Other' ? '' : 'specialty'} 
+                      value={specialty}
+                      onChange={(e) => setSpecialty(e.target.value)}
+                      className="w-full border border-indigo-200 rounded-xl p-2 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-gray-900 bg-white"
+                    >
                       <option value="">Select Specialty</option>
                       <option value="Cardiology">Cardiology</option>
                       <option value="Neurology">Neurology</option>
                       <option value="Orthopaedics">Orthopaedics</option>
                       <option value="General Medicine">General Medicine</option>
                       <option value="Pediatrics">Pediatrics</option>
+                      <option value="Dermatology">Dermatology</option>
+                      <option value="Gynecology">Gynecology</option>
+                      <option value="General Surgery">General Surgery</option>
+                      <option value="Ophthalmology">Ophthalmology</option>
+                      <option value="ENT">ENT</option>
+                      <option value="Other">Other (Please specify)</option>
                     </select>
+
+                    {specialty === 'Other' && (
+                      <input 
+                        required 
+                        type="text" 
+                        name="specialty"
+                        value={customSpecialty}
+                        onChange={(e) => setCustomSpecialty(e.target.value)}
+                        className="w-full mt-3 border border-indigo-200 rounded-xl p-2 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-gray-900 bg-white" 
+                        placeholder="Type custom specialty..." 
+                      />
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-indigo-900 mb-1.5">Consultation Fee (₹)</label>

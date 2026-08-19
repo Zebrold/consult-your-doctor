@@ -109,7 +109,8 @@ export async function logout() {
 export async function staffLogin(prevState: any, formData: FormData) {
   const supabase = await createClient()
 
-  const staffId = formData.get('staffId') as string
+  const rawStaffId = formData.get('staffId') as string
+  const staffId = rawStaffId ? rawStaffId.trim().toUpperCase() : ''
   const password = formData.get('password') as string
   const expectedRole = formData.get('role') as string
 

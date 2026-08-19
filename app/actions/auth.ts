@@ -117,8 +117,23 @@ export async function staffLogin(prevState: any, formData: FormData) {
     return { error: 'Staff ID and password are required.' }
   }
 
-  // The email in Supabase is the ID lowercased + @cyd.internal
-  const email = `${staffId.toLowerCase()}@cyd.internal`
+  // The email in Supabase is the ID lowercased + @cyd.internal OR their real email if updated
+  let email = `${staffId.toLowerCase()}@cyd.internal`
+
+  // Let's check if the staff has a custom email set in profiles
+  // We need to use service role to bypass RLS if they aren't logged in yet
+  const { createAdminClient } = await import('@/lib/supabase/admin')
+  const adminClient = createAdminClient()
+  
+  const { data: profile } = await adminClient
+    .from('profiles')
+    .select('email')
+    .eq('staff_id', staffId)
+    .single()
+
+  if (profile?.email) {
+    email = profile.email
+  }
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
@@ -130,9 +145,9 @@ export async function staffLogin(prevState: any, formData: FormData) {
   }
 
   // Verify Role
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
+  const { data: roleProfile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
   
-  if (profile?.role !== expectedRole) {
+  if (roleProfile?.role !== expectedRole) {
     await supabase.auth.signOut()
     return { error: `Unauthorized. You are not a ${expectedRole.replace('_', ' ')}.` }
   }
@@ -146,6 +161,61 @@ export async function staffLogin(prevState: any, formData: FormData) {
   } else if (expectedRole === 'super_admin') {
     redirect('/admin/dashboard')
   }
+}
 
-  redirect('/')
+export async function sendPasswordResetOTP(staffId: string) {
+  if (!staffId) return { error: 'Staff ID is required.' }
+
+  const { createAdminClient } = await import('@/lib/supabase/admin')
+  const adminClient = createAdminClient()
+  
+  const { data: profile } = await adminClient
+    .from('profiles')
+    .select('email, role')
+    .eq('staff_id', staffId)
+    .single()
+
+  if (!profile || !profile.email) {
+    return { error: 'No registered email found for this Staff ID. Please contact the Super Admin to update your email.' }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase.auth.resetPasswordForEmail(profile.email, {
+    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/update-password`,
+  })
+
+  if (error) {
+    console.error('Password reset error:', error)
+    return { error: error.message }
+  }
+
+  return { success: true, email: profile.email }
+}
+
+export async function verifyOTPAndUpdatePassword(email: string, token: string, newPassword: string) {
+  const supabase = await createClient()
+
+  // Verify the OTP
+  const { error: verifyError } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: 'recovery'
+  })
+
+  if (verifyError) {
+    console.error('Verify OTP error:', verifyError)
+    return { error: verifyError.message }
+  }
+
+  // Update the password
+  const { error: updateError } = await supabase.auth.updateUser({
+    password: newPassword
+  })
+
+  if (updateError) {
+    console.error('Update password error:', updateError)
+    return { error: updateError.message }
+  }
+
+  return { success: true }
 }

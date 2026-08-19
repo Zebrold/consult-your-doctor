@@ -3,6 +3,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { Search, Building2, User, MoreVertical } from 'lucide-react'
 import { CreateStaffModal } from '@/components/CreateStaffModal'
+import { StaffActionMenu } from './StaffActionMenu'
 
 export default async function AdminStaff() {
   const supabase = await createClient()
@@ -41,12 +42,14 @@ export default async function AdminStaff() {
 
   const staffWithIds = staff?.map(s => {
     const email = userMap.get(s.id) || ''
+    // Real email is the one from the profile or auth if it doesn't end with cyd.internal
+    const realEmail = email.endsWith('@cyd.internal') ? '' : email;
     // If email is like cydak1234@cyd.internal, extract cydak1234
     const generatedId = email.endsWith('@cyd.internal') 
       ? email.split('@')[0].toUpperCase() 
       : s.id.slice(0, 8) + '...'
     
-    return { ...s, generatedId }
+    return { ...s, generatedId, email: realEmail }
   })
 
   return (
@@ -121,9 +124,7 @@ export default async function AdminStaff() {
                       {new Date(s.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors">
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
+                      <StaffActionMenu profileId={s.id} staffId={s.generatedId} currentEmail={s.email} />
                     </td>
                   </tr>
                 ))

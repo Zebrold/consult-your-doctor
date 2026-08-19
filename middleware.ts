@@ -9,21 +9,8 @@ export async function middleware(request: NextRequest) {
   const url = request.nextUrl
   const path = url.pathname
 
-  // Super Admin custom session check
-  const superAdminSession = request.cookies.get('super_admin_session')
-  if (path.startsWith('/admin/dashboard')) {
-    if (!superAdminSession) {
-      return NextResponse.redirect(new URL('/admin', request.url))
-    }
-    return supabaseResponse
-  }
-  
-  if (path === '/admin') {
-    if (superAdminSession) {
-      return NextResponse.redirect(new URL('/admin/dashboard', request.url))
-    }
-    return supabaseResponse
-  }
+  // We will handle all admin paths via standard Supabase auth below
+
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -52,19 +39,20 @@ export async function middleware(request: NextRequest) {
   const isProtectedRoute = path.startsWith('/patient') || 
                            path.startsWith('/doctor') || 
                            path.startsWith('/executive') || 
-                           path.startsWith('/hospital')
+                           path.startsWith('/hospital') ||
+                           path.startsWith('/admin/dashboard')
 
   if (user) {
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
     const role = profile?.role || 'patient'
 
-    // Determine correct dashboard path
     let dashboardPath = '/patient/dashboard'
     if (role === 'doctor') dashboardPath = '/doctor/dashboard'
     else if (role === 'executive') dashboardPath = '/executive/dashboard'
     else if (role === 'hospital_admin') dashboardPath = '/hospital/dashboard'
+    else if (role === 'super_admin') dashboardPath = '/admin/dashboard'
 
-    if (path === '/login' || path === '/signup' || path === '/login/patient' || path === '/login/doctor' || path === '/login/hospital' || path === '/login/executive') {
+    if (path === '/login' || path === '/signup' || path === '/login/patient' || path === '/login/doctor' || path === '/login/hospital' || path === '/login/executive' || path === '/login/admin') {
       return NextResponse.redirect(new URL('/', request.url))
     }
 
@@ -79,6 +67,9 @@ export async function middleware(request: NextRequest) {
        return NextResponse.redirect(new URL(dashboardPath, request.url))
     }
     if (path.startsWith('/hospital') && role !== 'hospital_admin') {
+       return NextResponse.redirect(new URL(dashboardPath, request.url))
+    }
+    if (path.startsWith('/admin/dashboard') && role !== 'super_admin') {
        return NextResponse.redirect(new URL(dashboardPath, request.url))
     }
   } else {

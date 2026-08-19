@@ -177,7 +177,9 @@ export async function createHospitalDoctor(formData: FormData) {
     id: newAuthUser.user.id,
     role: 'doctor',
     full_name: fullName,
-    hospital_id: profile.hospital_id
+    hospital_id: profile.hospital_id,
+    staff_id: adminId
+
   })
 
   if (profileError) {

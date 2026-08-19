@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { Plus, Stethoscope, Star } from 'lucide-react'
 import Image from 'next/image'
+import { UpdateDoctorEmailModal } from './UpdateDoctorEmailModal'
 
 export const revalidate = 0
 
@@ -10,7 +11,8 @@ export default async function AdminDoctorsPage() {
     .from('doctors')
     .select(`
       *,
-      hospitals (name)
+      hospitals (name),
+      profiles!doctors_profile_id_fkey ( email )
     `)
     .order('created_at', { ascending: false })
 
@@ -71,7 +73,7 @@ export default async function AdminDoctorsPage() {
                       {doctor.experience_years} Years
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-[#E31E24] font-medium text-sm hover:underline cursor-pointer">Edit</button>
+                      <UpdateDoctorEmailModal doctorId={doctor.id} currentEmail={doctor.profiles?.email} />
                     </td>
                   </tr>
                 ))

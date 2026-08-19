@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { Calendar, Clock, User, FileText, CheckCircle2 } from 'lucide-react'
 import { DoctorPrescriptionModal } from '@/components/DoctorPrescriptionModal'
@@ -18,7 +19,8 @@ export default async function DoctorDashboard() {
   todayStart.setHours(0,0,0,0)
   
   // Actually, we'll fetch all appointments for demo purposes, since we pushed seed data 7 days into the future.
-  const { data: appointments } = await supabase
+  const adminClient = createAdminClient()
+  const { data: appointments } = await adminClient
     .from('appointments')
     .select(`
       id,
@@ -95,22 +97,22 @@ export default async function DoctorDashboard() {
                       <User className="w-6 h-6 text-gray-400" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-gray-900">{apt.patient.full_name}</h3>
-                      <p className="text-sm text-gray-500 font-medium">{apt.patient.phone_number}</p>
+                      <h3 className="text-lg font-bold text-gray-900">{apt.patient?.full_name || 'Unknown Patient'}</h3>
+                      <p className="text-sm text-gray-500 font-medium">{apt.patient?.phone_number || 'No phone number'}</p>
                     </div>
                   </div>
 
                   {/* Status Badge */}
                   <div className="flex-1 flex items-center justify-center">
-                    <span className={`px-3 py-1 text-xs font-bold rounded-full ${
+                    <span className={`px-3 py-1 text-xs font-bold rounded-lg uppercase tracking-wider ${
                       apt.status === 'completed' ? 'bg-green-100 text-green-700' :
-                      apt.status === 'checked_in' ? 'bg-blue-100 text-blue-700' :
-                      'bg-gray-100 text-gray-700'
+                      apt.status === 'confirmed' ? 'bg-blue-100 text-blue-700' :
+                      apt.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                      'bg-orange-100 text-orange-700'
                     }`}>
-                      {apt.status.toUpperCase().replace('_', ' ')}
+                      {apt.status.replace('_', ' ')}
                     </span>
                   </div>
-
                   {/* Actions */}
                   <div className="flex-1 flex justify-end">
                     {apt.status === 'completed' || hasPrescription ? (
@@ -118,7 +120,7 @@ export default async function DoctorDashboard() {
                         <CheckCircle2 className="w-4 h-4" /> Prescribed
                       </div>
                     ) : (
-                      <DoctorPrescriptionModal appointmentId={apt.id} patientName={apt.patient.full_name} />
+                      <DoctorPrescriptionModal appointmentId={apt.id} patientName={apt.patient?.full_name || 'Unknown Patient'} />
                     )}
                   </div>
 

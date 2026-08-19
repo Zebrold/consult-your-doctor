@@ -66,7 +66,8 @@ export async function createStaffAccount(formData: FormData) {
     id: newAuthUser.user.id,
     role: role,
     full_name: fullName,
-    hospital_id: hospitalId
+    hospital_id: hospitalId,
+    staff_id: adminId
   })
 
   if (profileError) {
@@ -222,7 +223,8 @@ export async function createHospitalCredentials(formData: FormData) {
     id: newAuthUser.user.id,
     role: 'hospital_admin',
     full_name: `${hospitalName} Admin`,
-    hospital_id: hospitalId
+    hospital_id: hospitalId,
+    staff_id: adminId
   })
 
   if (profileError) {
@@ -230,5 +232,99 @@ export async function createHospitalCredentials(formData: FormData) {
     return { error: 'Failed to create profile.' }
   }
 
+  return { success: true }
+}
+
+export async function updateDoctorEmail(doctorId: string, email: string) {
+  const supabase = await createClient()
+
+  // Verify caller is Super Admin
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'super_admin') return { error: 'Unauthorized' }
+
+  if (!email || !email.includes('@')) return { error: 'Valid email is required' }
+
+  // We need to update auth.users.email AND profiles.email
+  const adminAuthClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  // 1. Get the profile_id for this doctor
+  const { data: doctorData } = await supabase.from('doctors').select('profile_id').eq('id', doctorId).single()
+  if (!doctorData) return { error: 'Doctor not found' }
+
+  // Derive staffId from current auth.users email if possible
+  const { data: authUserObj } = await adminAuthClient.auth.admin.getUserById(doctorData.profile_id)
+  let staffId = null
+  if (authUserObj.user && authUserObj.user.email?.endsWith('@cyd.internal')) {
+    staffId = authUserObj.user.email.split('@')[0].toUpperCase()
+  }
+
+  // 2. Update Auth User
+  const { error: authError } = await adminAuthClient.auth.admin.updateUserById(
+    doctorData.profile_id,
+    { email: email, email_confirm: true }
+  )
+
+  if (authError) {
+    console.error('Failed to update auth email:', authError)
+    return { error: authError.message }
+  }
+
+  // 3. Update Profiles Table
+  const updateData: any = { email }
+  if (staffId) updateData.staff_id = staffId
+  
+  const { error: profileError } = await adminAuthClient.from('profiles').update(updateData).eq('id', doctorData.profile_id)
+  
+  if (profileError) {
+    console.error('Failed to update profile email:', profileError)
+    return { error: 'Auth updated but profile update failed.' }
+  }
+
+  revalidatePath('/admin/dashboard/doctors')
+  return { success: true }
+}
+
+export async function updateStaffEmail(profileId: string, email: string, staffId: string) {
+  const supabase = await createClient()
+
+  // Verify caller is Super Admin
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'super_admin') return { error: 'Unauthorized' }
+
+  if (!email || !email.includes('@')) return { error: 'Valid email is required' }
+
+  const adminAuthClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  // 1. Update Auth User directly using profileId
+  const { error: authError } = await adminAuthClient.auth.admin.updateUserById(
+    profileId,
+    { email: email, email_confirm: true }
+  )
+
+  if (authError) {
+    console.error('Failed to update auth email:', authError)
+    return { error: authError.message }
+  }
+
+  // 2. Update Profiles Table
+  // We also save staff_id just in case it was NULL for legacy users
+  const { error: profileError } = await adminAuthClient.from('profiles').update({ email, staff_id: staffId }).eq('id', profileId)
+  
+  if (profileError) {
+    console.error('Failed to update profile email:', profileError)
+    return { error: 'Auth updated but profile update failed.' }
+  }
+
+  revalidatePath('/admin/staff')
   return { success: true }
 }

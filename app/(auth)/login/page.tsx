@@ -54,7 +54,7 @@ const roles = [
     id: 'admin',
     title: 'ADMIN (SUPER ADMIN)',
     icon: ShieldAlert,
-    href: '/admin',
+    href: '/login/admin',
     color: 'text-rose-700',
     border: 'border-rose-100 hover:border-rose-500',
     iconBg: 'bg-gradient-to-br from-rose-400 to-rose-600',

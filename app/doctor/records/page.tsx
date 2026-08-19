@@ -39,13 +39,15 @@ export default async function DoctorRecordsPage() {
     .eq('appointments.doctor_id', doctor.id)
 
   // Clean up data for the client component
-  const formattedRecords = records?.map(record => ({
+  const formattedRecords = records?.map(record => {
+    const appointment: any = record.appointments
+    return {
     id: record.id,
     type: record.document_type,
     notes: record.notes,
-    date: record.appointments?.schedules?.start_time || null,
-    patient_name: record.appointments?.patient?.full_name || 'Unknown Patient'
-  })) || []
+    date: appointment?.schedules?.start_time || null,
+    patient_name: appointment?.patient?.full_name || 'Unknown Patient'
+  }}) || []
 
   // Sort by date descending
   formattedRecords.sort((a, b) => {

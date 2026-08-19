@@ -46,8 +46,9 @@ export default async function HospitalPatientsPage() {
   const departmentsSet = new Set<string>()
 
   appointments?.forEach(apt => {
-    const doctorName = apt.doctor?.profiles?.full_name?.replace('Dr. ', '') || 'Unknown'
-    const deptName = apt.doctor?.departments?.name || 'Unknown'
+    const doctor: any = apt.doctor
+    const doctorName = doctor?.profiles?.full_name?.replace('Dr. ', '') || 'Unknown'
+    const deptName = doctor?.departments?.name || 'Unknown'
     doctorsSet.add(doctorName)
     departmentsSet.add(deptName)
   })

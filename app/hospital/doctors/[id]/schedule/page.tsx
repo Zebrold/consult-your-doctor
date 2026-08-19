@@ -35,7 +35,7 @@ export default async function DoctorSchedulePage(props: { params: Promise<{ id: 
     redirect('/hospital/doctors')
   }
 
-  const doctorName = doctor.profiles?.full_name?.replace('Dr. ', '') || 'Doctor'
+  const doctorName = (doctor.profiles as any)?.full_name?.replace('Dr. ', '') || 'Doctor'
 
   // Date setup
   const today = new Date()

@@ -33,8 +33,9 @@ export default async function AdminDashboard() {
   
   let totalRevenue = 0
   appointments?.forEach(apt => {
+    const doctor: any = apt.doctor
     if (apt.status !== 'cancelled' && apt.status !== 'pending_payment') {
-      totalRevenue += Number(apt.doctor.consultation_fee)
+      totalRevenue += Number(doctor.consultation_fee)
     }
   })
 
@@ -96,16 +97,20 @@ export default async function AdminDashboard() {
                   <td colSpan={5} className="px-6 py-12 text-center text-gray-500">No bookings across the platform.</td>
                 </tr>
               ) : (
-                recentBookings.map(apt => (
+                recentBookings.map(apt => {
+                  const hospital: any = apt.hospital
+                  const patient: any = apt.patient
+                  const doctor: any = apt.doctor
+                  return (
                   <tr key={apt.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4">
-                      <div className="font-bold text-indigo-700">{apt.hospital.name}</div>
+                      <div className="font-bold text-indigo-700">{hospital.name}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="font-bold text-gray-900">{apt.patient.full_name}</div>
+                      <div className="font-bold text-gray-900">{patient.full_name}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="font-medium text-gray-600">Dr. {apt.doctor.profiles.full_name.replace('Dr. ', '')}</div>
+                      <div className="font-medium text-gray-600">Dr. {doctor.profiles.full_name.replace('Dr. ', '')}</div>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 text-xs font-bold rounded-md ${
@@ -120,7 +125,8 @@ export default async function AdminDashboard() {
                       {new Date(apt.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </td>
                   </tr>
-                ))
+                )
+                })
               )}
             </tbody>
           </table>

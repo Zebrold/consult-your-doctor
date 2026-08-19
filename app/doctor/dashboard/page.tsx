@@ -45,7 +45,7 @@ export default async function DoctorDashboard() {
   return (
     <div className="p-4 sm:p-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Welcome, Dr. {doctor.profiles.full_name.replace('Dr. ', '')}</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Welcome, Dr. {(doctor.profiles as any).full_name.replace('Dr. ', '')}</h1>
         <p className="text-gray-500">Here is your schedule overview.</p>
       </div>
 
@@ -79,7 +79,9 @@ export default async function DoctorDashboard() {
             </div>
           ) : (
             appointments?.map(apt => {
-              const date = new Date(apt.schedules.start_time)
+              const schedule: any = apt.schedules
+              const patient: any = apt.patient
+              const date = new Date(schedule.start_time)
               const hasPrescription = apt.medical_records && apt.medical_records.length > 0
               
               return (
@@ -97,8 +99,8 @@ export default async function DoctorDashboard() {
                       <User className="w-6 h-6 text-gray-400" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-gray-900">{apt.patient?.full_name || 'Unknown Patient'}</h3>
-                      <p className="text-sm text-gray-500 font-medium">{apt.patient?.phone_number || 'No phone number'}</p>
+                      <h3 className="text-lg font-bold text-gray-900">{patient?.full_name || 'Unknown Patient'}</h3>
+                      <p className="text-sm text-gray-500 font-medium">{patient?.phone_number || 'No phone number'}</p>
                     </div>
                   </div>
 
@@ -120,7 +122,7 @@ export default async function DoctorDashboard() {
                         <CheckCircle2 className="w-4 h-4" /> Prescribed
                       </div>
                     ) : (
-                      <DoctorPrescriptionModal appointmentId={apt.id} patientName={apt.patient?.full_name || 'Unknown Patient'} />
+                      <DoctorPrescriptionModal appointmentId={apt.id} patientName={patient?.full_name || 'Unknown Patient'} />
                     )}
                   </div>
 

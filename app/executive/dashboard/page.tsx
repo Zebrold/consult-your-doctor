@@ -33,7 +33,7 @@ export default async function ExecutiveDashboard() {
   todayStart.setHours(0,0,0,0)
   
   const totalAssigned = appointments?.length || 0
-  const todayAppointments = appointments?.filter(apt => new Date(apt.schedules.start_time) >= todayStart).length || 0
+  const todayAppointments = appointments?.filter(apt => new Date((apt.schedules as any).start_time) >= todayStart).length || 0
   const pendingCheckins = appointments?.filter(apt => apt.status === 'confirmed').length || 0
 
   return (
@@ -73,17 +73,20 @@ export default async function ExecutiveDashboard() {
             </div>
           ) : (
             appointments?.map(apt => {
-              const date = new Date(apt.schedules.start_time)
+              const schedule: any = apt.schedules
+              const patient: any = apt.patient
+              const doctor: any = apt.doctor
+              const date = new Date(schedule.start_time)
               return (
                 <div key={apt.id} className="p-6 flex flex-col md:flex-row gap-6 md:items-center hover:bg-gray-50/50 transition-colors">
                   
                   {/* Patient Info */}
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-1">
-                      <h3 className="text-lg font-bold text-gray-900">{apt.patient.full_name}</h3>
+                      <h3 className="text-lg font-bold text-gray-900">{patient.full_name}</h3>
                       <ExecutiveStatusSelect appointmentId={apt.id} currentStatus={apt.status} />
                     </div>
-                    <p className="text-sm text-gray-500 font-medium">{apt.patient.phone_number}</p>
+                    <p className="text-sm text-gray-500 font-medium">{patient.phone_number}</p>
                   </div>
 
                   {/* Doctor Info */}
@@ -92,8 +95,8 @@ export default async function ExecutiveDashboard() {
                       <Stethoscope className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-gray-900">Dr. {apt.doctor.profiles.full_name}</p>
-                      <p className="text-xs text-gray-500">{apt.doctor.specialty}</p>
+                      <p className="text-sm font-bold text-gray-900">Dr. {doctor.profiles.full_name}</p>
+                      <p className="text-xs text-gray-500">{doctor.specialty}</p>
                     </div>
                   </div>
 

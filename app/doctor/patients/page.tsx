@@ -40,13 +40,15 @@ export default async function DoctorPatientsPage() {
 
   appointments?.forEach(apt => {
     const pId = apt.patient_id
+    const patient: any = apt.patient
+    const schedule: any = apt.schedules
     if (!patientsMap.has(pId)) {
       patientsMap.set(pId, {
         id: pId,
-        full_name: apt.patient?.full_name || 'Unknown',
-        phone_number: apt.patient?.phone_number || 'N/A',
+        full_name: patient?.full_name || 'Unknown',
+        phone_number: patient?.phone_number || 'N/A',
         total_visits: 0,
-        last_visit: apt.schedules?.start_time || null,
+        last_visit: schedule?.start_time || null,
         status: apt.status
       })
     }
@@ -56,9 +58,9 @@ export default async function DoctorPatientsPage() {
     p.total_visits += 1
     
     // Update last visit if this appointment is more recent
-    if (apt.schedules?.start_time) {
-      if (!p.last_visit || new Date(apt.schedules.start_time) > new Date(p.last_visit)) {
-        p.last_visit = apt.schedules.start_time
+    if (schedule?.start_time) {
+      if (!p.last_visit || new Date(schedule.start_time) > new Date(p.last_visit)) {
+        p.last_visit = schedule.start_time
         p.status = apt.status // update status to the most recent one
       }
     }

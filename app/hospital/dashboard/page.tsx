@@ -41,8 +41,9 @@ export default async function HospitalDashboard() {
   // Calculate total revenue from all appointments that are completed/visited/confirmed
   let totalRevenue = 0
   appointments?.forEach(apt => {
+    const doctor: any = apt.doctor
     if (apt.status !== 'cancelled' && apt.status !== 'pending_payment') {
-      totalRevenue += Number(apt.doctor.consultation_fee)
+      totalRevenue += Number(doctor.consultation_fee)
     }
   })
 
@@ -100,16 +101,19 @@ export default async function HospitalDashboard() {
                   <td colSpan={5} className="px-6 py-12 text-center text-gray-500">No bookings found.</td>
                 </tr>
               ) : (
-                recentBookings.map(apt => (
+                recentBookings.map(apt => {
+                  const patient: any = apt.patient
+                  const doctor: any = apt.doctor
+                  return (
                   <tr key={apt.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4">
-                      <div className="font-bold text-gray-900">{apt.patient?.full_name || 'Unknown Patient'}</div>
+                      <div className="font-bold text-gray-900">{patient?.full_name || 'Unknown Patient'}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="font-medium text-gray-600">Dr. {apt.doctor?.profiles?.full_name?.replace('Dr. ', '') || 'Unknown Doctor'}</div>
+                      <div className="font-medium text-gray-600">Dr. {doctor?.profiles?.full_name?.replace('Dr. ', '') || 'Unknown Doctor'}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="font-bold text-gray-900">₹{apt.doctor?.consultation_fee || 0}</div>
+                      <div className="font-bold text-gray-900">₹{doctor?.consultation_fee || 0}</div>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 text-xs font-bold rounded-md ${
@@ -124,7 +128,8 @@ export default async function HospitalDashboard() {
                       {new Date(apt.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </td>
                   </tr>
-                ))
+                )
+                })
               )}
             </tbody>
           </table>

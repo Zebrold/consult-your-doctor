@@ -68,21 +68,24 @@ export default async function HospitalDoctors() {
                   <td colSpan={5} className="px-6 py-12 text-center text-gray-500">No doctors found.</td>
                 </tr>
               ) : (
-                doctors?.map(doc => (
+                doctors?.map(doc => {
+                  const profile: any = doc.profiles
+                  const department: any = doc.departments
+                  return (
                   <tr key={doc.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold shrink-0">
-                          {doc.profiles.full_name.replace('Dr. ', '').charAt(0)}
+                          {profile.full_name.replace('Dr. ', '').charAt(0)}
                         </div>
                         <div>
-                          <div className="font-bold text-gray-900">Dr. {doc.profiles.full_name.replace('Dr. ', '')}</div>
-                          <div className="text-xs font-medium text-gray-500">{doc.profiles.phone_number || 'No contact info'}</div>
+                          <div className="font-bold text-gray-900">Dr. {profile.full_name.replace('Dr. ', '')}</div>
+                          <div className="text-xs font-medium text-gray-500">{profile.phone_number || 'No contact info'}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="font-bold text-gray-700">{doc.departments?.name || doc.specialty}</div>
+                      <div className="font-bold text-gray-700">{department?.name || doc.specialty}</div>
                       <div className="text-xs text-gray-500">{doc.specialty}</div>
                     </td>
                     <td className="px-6 py-4">
@@ -101,7 +104,8 @@ export default async function HospitalDoctors() {
                       </Link>
                     </td>
                   </tr>
-                ))
+                )
+                })
               )}
             </tbody>
           </table>

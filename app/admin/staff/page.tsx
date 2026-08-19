@@ -117,7 +117,7 @@ export default async function AdminStaff() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2 text-gray-700 font-medium">
                         <Building2 className="w-4 h-4 text-gray-400" />
-                        {s.hospital?.name || 'Unassigned'}
+                        {(s.hospital as any)?.name || 'Unassigned'}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right text-sm text-gray-500 font-medium">

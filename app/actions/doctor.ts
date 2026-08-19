@@ -23,7 +23,7 @@ export async function addPrescription(appointmentId: string, notes: string) {
     appointment_id: appointmentId,
     document_type: 'prescription',
     notes: notes,
-    // file_url is omitted for this simple text notes implementation
+    file_url: 'none' // required by NOT NULL constraint
   })
 
   if (insertError) {

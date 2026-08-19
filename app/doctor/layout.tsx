@@ -35,13 +35,13 @@ export default async function DoctorLayout({ children }: { children: React.React
             activeClassName="bg-blue-50 text-blue-700 font-bold"
           />
           <SidebarLink 
-            href="#" 
+            href="/doctor/patients" 
             icon={<Users className="w-5 h-5" />} 
             label="My Patients" 
             activeClassName="bg-blue-50 text-blue-700 font-bold"
           />
           <SidebarLink 
-            href="#" 
+            href="/doctor/records" 
             icon={<ClipboardList className="w-5 h-5" />} 
             label="Medical Records" 
             activeClassName="bg-blue-50 text-blue-700 font-bold"

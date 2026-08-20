@@ -24,13 +24,13 @@ export function WalkInForm({ doctors }: { doctors: any[] }) {
         return
       }
 
-      // Fetch today's unbooked slots for this doctor
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const todayStr = today.toISOString()
+      // Fetch today's unbooked slots for this doctor, only from CURRENT time onwards
+      const nowStr = new Date().toISOString()
       
+      const today = new Date()
       const tomorrow = new Date(today)
       tomorrow.setDate(tomorrow.getDate() + 1)
+      tomorrow.setHours(0, 0, 0, 0)
       const tomorrowStr = tomorrow.toISOString()
 
       const { data } = await supabase
@@ -38,7 +38,7 @@ export function WalkInForm({ doctors }: { doctors: any[] }) {
         .select('*')
         .eq('doctor_id', doctorId)
         .eq('is_booked', false)
-        .gte('start_time', todayStr)
+        .gte('start_time', nowStr)
         .lt('start_time', tomorrowStr)
         .order('start_time', { ascending: true })
 

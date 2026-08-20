@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { Calendar, Clock, MapPin, User, Stethoscope } from 'lucide-react'
+import Link from 'next/link'
+import { Calendar, Clock, MapPin, User, Stethoscope, Plus } from 'lucide-react'
 import { ExecutiveStatusSelect } from '@/components/ExecutiveStatusSelect'
 
 export default async function ExecutiveDashboard() {
@@ -38,9 +39,18 @@ export default async function ExecutiveDashboard() {
 
   return (
     <div className="p-4 sm:p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
-        <p className="text-gray-500">Welcome back! Here's what's happening today.</p>
+      <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
+          <p className="text-gray-500">Welcome back! Here's what's happening today.</p>
+        </div>
+        <Link 
+          href="/executive/dashboard/walk-in"
+          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-sm shadow-blue-200"
+        >
+          <Plus className="w-5 h-5" />
+          New Walk-In
+        </Link>
       </div>
 
       {/* Stats Cards */}

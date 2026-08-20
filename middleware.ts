@@ -26,7 +26,8 @@ export async function middleware(request: NextRequest) {
             request,
           })
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            // Enforce a strict 2-hour (7200 seconds) inactivity lifespan
+            supabaseResponse.cookies.set(name, value, { ...options, maxAge: 7200 })
           )
         },
       },
@@ -53,7 +54,12 @@ export async function middleware(request: NextRequest) {
     else if (role === 'super_admin') dashboardPath = '/admin/dashboard'
 
     if (path === '/login' || path === '/signup' || path === '/login/patient' || path === '/login/doctor' || path === '/login/hospital' || path === '/login/executive' || path === '/login/admin') {
-      return NextResponse.redirect(new URL('/', request.url))
+      return NextResponse.redirect(new URL(dashboardPath, request.url))
+    }
+
+    // If they hit the home page and they are not a super admin, redirect to their dashboard
+    if (path === '/' && role !== 'super_admin') {
+      return NextResponse.redirect(new URL(dashboardPath, request.url))
     }
 
     // Role-based protection

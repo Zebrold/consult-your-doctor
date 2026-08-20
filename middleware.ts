@@ -57,8 +57,8 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL(dashboardPath, request.url))
     }
 
-    // If they hit the home page and they are not a super admin, redirect to their dashboard
-    if (path === '/' && role !== 'super_admin') {
+    // If they hit the home page, redirect staff to their dashboard, but allow patients and super admins
+    if (path === '/' && role !== 'super_admin' && role !== 'patient') {
       return NextResponse.redirect(new URL(dashboardPath, request.url))
     }
 

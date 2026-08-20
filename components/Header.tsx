@@ -7,7 +7,7 @@ import { logout } from '@/app/actions/auth'
 export async function Header() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  
+
   let profile = null
   if (user) {
     const { data } = await supabase.from('profiles').select('full_name, role').eq('id', user.id).single()
@@ -34,8 +34,8 @@ export async function Header() {
             {user ? (
               <div className="flex items-center gap-4">
                 {profile?.role === 'patient' && (
-                  <Link 
-                    href="/patient/dashboard" 
+                  <Link
+                    href="/patient/dashboard"
                     className="px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-full hover:bg-emerald-700 transition-colors"
                   >
                     My Appointments
@@ -91,7 +91,7 @@ export async function Header() {
           </nav>
 
           <Link
-            href="#"
+            href="/"
             className="px-6 py-2.5 bg-[#E31E24] rounded text-sm font-semibold text-white hover:bg-red-700 transition-colors ml-auto lg:ml-0"
           >
             Book Appointment

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Calendar, Clock, MapPin, User, Stethoscope, Plus } from 'lucide-react'
@@ -19,8 +20,9 @@ export default async function ExecutiveDashboard() {
 
   const hospitalName = (profile?.hospital as any)?.name || 'Unassigned Hospital'
 
-  // Fetch all appointments assigned to this executive
-  const { data: appointments } = await supabase
+  // Fetch all appointments assigned to this executive using admin client to bypass RLS on profiles
+  const adminClient = createAdminClient()
+  const { data: appointments } = await adminClient
     .from('appointments')
     .select(`
       id,

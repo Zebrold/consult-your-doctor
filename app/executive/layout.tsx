@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { LayoutDashboard, Users, LogOut, HeartPulse, Bell, MapPin } from 'lucide-react'
+import { LayoutDashboard, Users, LogOut, HeartPulse, Bell, MapPin, CalendarClock } from 'lucide-react'
 import { SidebarLink } from '@/components/SidebarLink'
 
 export default async function ExecutiveLayout({ children }: { children: React.ReactNode }) {
@@ -42,6 +42,12 @@ export default async function ExecutiveLayout({ children }: { children: React.Re
             href="/executive/dashboard" 
             icon={<LayoutDashboard className="w-5 h-5" />} 
             label="Dashboard" 
+            activeClassName="bg-red-50 text-[#E31E24] font-bold"
+          />
+          <SidebarLink 
+            href="/executive/today" 
+            icon={<CalendarClock className="w-5 h-5" />} 
+            label="Today's Appointments" 
             activeClassName="bg-red-50 text-[#E31E24] font-bold"
           />
           <SidebarLink 

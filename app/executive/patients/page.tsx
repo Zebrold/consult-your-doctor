@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { Users, Search, Phone, Calendar, Clock } from 'lucide-react'
 
@@ -20,7 +21,8 @@ export default async function ExecutivePatientsPage() {
   }
 
   // Fetch all appointments at this hospital to get the unique patients
-  const { data: appointments } = await supabase
+  const adminClient = createAdminClient()
+  const { data: appointments } = await adminClient
     .from('appointments')
     .select(`
       id,

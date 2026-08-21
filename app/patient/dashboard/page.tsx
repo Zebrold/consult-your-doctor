@@ -77,7 +77,12 @@ export default async function PatientDashboard() {
                         </span>
                       )}
                     </div>
-                    <span className="text-xs font-bold text-gray-400">ID: {apt.id.slice(0, 8)}</span>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Booking ID</span>
+                      <span className="text-lg font-black text-gray-900 tracking-wider bg-gray-100 px-3 py-1 rounded-lg border border-gray-200">
+                        {apt.id.slice(0, 8).toUpperCase()}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="space-y-4 flex-1 mt-2">

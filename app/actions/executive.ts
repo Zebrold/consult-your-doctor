@@ -40,6 +40,57 @@ export async function updateAppointmentStatus(appointmentId: string, newStatus: 
   return { success: true }
 }
 
+export async function verifyAndCheckInPatient(appointmentId: string, inputBookingId: string) {
+  const supabase = await createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized' }
+
+  const { data: profile } = await supabase.from('profiles').select('role, hospital_id').eq('id', user.id).single()
+  
+  if (profile?.role !== 'executive') {
+    return { error: 'Not authorized' }
+  }
+
+  const { data: appointment, error: fetchError } = await supabase
+    .from('appointments')
+    .select('id, hospital_id, status')
+    .eq('id', appointmentId)
+    .single()
+
+  if (fetchError || !appointment) {
+    return { error: 'Appointment not found' }
+  }
+
+  // Ensure appointment belongs to executive's hospital
+  if (appointment.hospital_id !== profile.hospital_id) {
+    return { error: 'Not authorized for this hospital' }
+  }
+
+  // Verify Booking ID (first 8 chars, case insensitive)
+  const actualBookingId = appointment.id.slice(0, 8).toUpperCase()
+  if (inputBookingId.toUpperCase().trim() !== actualBookingId) {
+    return { error: 'Invalid Booking ID' }
+  }
+
+  // Update status to 'visited' (checked in)
+  const { error: updateError } = await supabase
+    .from('appointments')
+    .update({ 
+      status: 'visited',
+      executive_id: user.id // assign this executive as the one who handled it
+    })
+    .eq('id', appointmentId)
+
+  if (updateError) {
+    return { error: 'Failed to update status' }
+  }
+
+  revalidatePath('/executive/today')
+  revalidatePath('/executive/dashboard')
+  return { success: true }
+}
+
 export async function createWalkInAppointment(formData: FormData) {
   const supabase = await createClient()
 

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { LayoutDashboard, Users, LogOut, HeartPulse, Bell } from 'lucide-react'
+import { LayoutDashboard, Users, LogOut, HeartPulse, Bell, MapPin } from 'lucide-react'
 import { SidebarLink } from '@/components/SidebarLink'
 
 export default async function ExecutiveLayout({ children }: { children: React.ReactNode }) {
@@ -10,7 +10,7 @@ export default async function ExecutiveLayout({ children }: { children: React.Re
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login/executive')
     
-  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+  const { data: profile } = await supabase.from('profiles').select('*, hospital:hospitals ( name )').eq('id', user.id).single()
   
   if (profile?.role !== 'executive') {
     redirect('/')
@@ -26,6 +26,16 @@ export default async function ExecutiveLayout({ children }: { children: React.Re
             <span className="text-xl font-black text-gray-900 tracking-tight">Executive<span className="text-[#E31E24]">Portal</span></span>
           </Link>
         </div>
+
+        <div className="px-6 py-5 border-b border-gray-200 bg-red-50/30">
+          <div className="flex items-center gap-1.5 text-[#E31E24] text-xs font-bold uppercase tracking-wider mb-1.5">
+            <MapPin className="w-3.5 h-3.5" />
+            Active Branch
+          </div>
+          <div className="text-gray-900 font-black text-xl leading-tight">
+            {(profile?.hospital as any)?.name || 'Unassigned Hospital'}
+          </div>
+        </div>
         
         <div className="flex-1 py-6 px-4 space-y-1">
           <SidebarLink 
@@ -35,7 +45,7 @@ export default async function ExecutiveLayout({ children }: { children: React.Re
             activeClassName="bg-red-50 text-[#E31E24] font-bold"
           />
           <SidebarLink 
-            href="#" 
+            href="/executive/patients" 
             icon={<Users className="w-5 h-5" />} 
             label="My Patients" 
             activeClassName="bg-red-50 text-[#E31E24] font-bold"

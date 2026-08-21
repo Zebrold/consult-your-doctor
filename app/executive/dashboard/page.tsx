@@ -10,6 +10,15 @@ export default async function ExecutiveDashboard() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login/executive')
 
+  // Fetch executive's hospital
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('hospital:hospitals ( name )')
+    .eq('id', user.id)
+    .single()
+
+  const hospitalName = (profile?.hospital as any)?.name || 'Unassigned Hospital'
+
   // Fetch all appointments assigned to this executive
   const { data: appointments } = await supabase
     .from('appointments')
@@ -42,7 +51,7 @@ export default async function ExecutiveDashboard() {
       <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
-          <p className="text-gray-500">Welcome back! Here's what's happening today.</p>
+          <p className="text-gray-500 mt-1">Welcome back! Here's what's happening today.</p>
         </div>
         <Link 
           href="/executive/dashboard/walk-in"
@@ -93,10 +102,10 @@ export default async function ExecutiveDashboard() {
                   {/* Patient Info */}
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-1">
-                      <h3 className="text-lg font-bold text-gray-900">{patient.full_name}</h3>
+                      <h3 className="text-lg font-bold text-gray-900">{patient?.full_name || 'Unknown Patient'}</h3>
                       <ExecutiveStatusSelect appointmentId={apt.id} currentStatus={apt.status} />
                     </div>
-                    <p className="text-sm text-gray-500 font-medium">{patient.phone_number}</p>
+                    <p className="text-sm text-gray-500 font-medium">{patient?.phone_number || 'N/A'}</p>
                   </div>
 
                   {/* Doctor Info */}

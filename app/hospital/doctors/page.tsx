@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { Plus, Search, CalendarPlus } from 'lucide-react'
 import Link from 'next/link'
 import { HospitalCreateDoctorModal } from '@/components/HospitalCreateDoctorModal'
+import { EditDoctorModal } from '@/components/EditDoctorModal'
 
 export default async function HospitalDoctors() {
   const supabase = await createClient()
@@ -22,7 +23,10 @@ export default async function HospitalDoctors() {
       specialty,
       experience_years,
       consultation_fee,
-      profiles!doctors_profile_id_fkey ( full_name, phone_number, created_at ),
+      address,
+      bio,
+      qualifications,
+      profiles!doctors_profile_id_fkey ( id, full_name, phone_number, created_at ),
       departments ( name )
     `)
     .eq('hospital_id', profile.hospital_id)
@@ -95,13 +99,26 @@ export default async function HospitalDoctors() {
                       <div className="font-bold text-gray-900">₹{doc.consultation_fee}</div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <Link 
-                        href={`/hospital/doctors/${doc.id}/schedule`}
-                        className="inline-flex items-center gap-2 px-3 py-2 text-sm font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors"
-                      >
-                        <CalendarPlus className="w-4 h-4" />
-                        Manage Schedule
-                      </Link>
+                      <div className="flex items-center justify-end gap-2">
+                        <EditDoctorModal doctor={{
+                          id: doc.id,
+                          profile_id: (doc.profiles as any).id, // need to fetch profile id
+                          specialty: doc.specialty,
+                          experience_years: doc.experience_years,
+                          consultation_fee: doc.consultation_fee,
+                          address: (doc as any).address,
+                          bio: (doc as any).bio,
+                          qualifications: (doc as any).qualifications,
+                          profiles: doc.profiles as any
+                        }} />
+                        <Link 
+                          href={`/hospital/doctors/${doc.id}/schedule`}
+                          className="inline-flex items-center gap-2 px-3 py-2 text-sm font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors"
+                        >
+                          <CalendarPlus className="w-4 h-4" />
+                          Manage Schedule
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 )

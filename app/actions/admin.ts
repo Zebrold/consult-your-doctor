@@ -158,6 +158,84 @@ export async function createHospital(formData: FormData) {
   return { success: true }
 }
 
+export async function updateDoctorDetails(formData: FormData) {
+  const supabase = await createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized' }
+
+  const { data: profile } = await supabase.from('profiles').select('role, hospital_id').eq('id', user.id).single()
+  if (profile?.role !== 'super_admin' && profile?.role !== 'hospital_admin') {
+    return { error: 'Forbidden. Admin only.' }
+  }
+
+  const doctorId = formData.get('doctorId') as string
+  const profileId = formData.get('profileId') as string
+  
+  if (!doctorId || !profileId) return { error: 'Missing IDs' }
+
+  // Verify authorization for hospital admins
+  if (profile.role === 'hospital_admin') {
+    const { data: doctor } = await supabase.from('doctors').select('hospital_id').eq('id', doctorId).single()
+    if (doctor?.hospital_id !== profile.hospital_id) {
+      return { error: 'Doctor not found in your hospital' }
+    }
+  }
+
+  const phone = formData.get('phone') as string
+  const specialty = formData.get('specialty') as string
+  const experience = parseInt(formData.get('experience') as string, 10)
+  const fee = parseFloat(formData.get('fee') as string)
+  const address = formData.get('address') as string
+  const qualifications = formData.get('qualifications') as string
+  const bio = formData.get('bio') as string
+
+  if (!specialty || isNaN(experience) || isNaN(fee)) {
+    return { error: 'Specialty, experience, and fee are required.' }
+  }
+
+  const adminAuthClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+
+  // 1. Update Profile (Phone Number)
+  if (phone) {
+    const { error: profileError } = await adminAuthClient
+      .from('profiles')
+      .update({ phone_number: phone })
+      .eq('id', profileId)
+
+    if (profileError) {
+      // It might fail if phone number is not unique
+      if (profileError.code === '23505') {
+        return { error: 'This phone number is already in use by another account.' }
+      }
+      return { error: 'Failed to update phone number.' }
+    }
+  }
+
+  // 2. Update Doctors Table
+  const { error: doctorError } = await adminAuthClient
+    .from('doctors')
+    .update({ 
+      specialty, 
+      experience_years: experience, 
+      consultation_fee: fee,
+      address: address || null,
+      qualifications: qualifications || null,
+      bio: bio || null
+    })
+    .eq('id', doctorId)
+
+  if (doctorError) return { error: 'Failed to update doctor details: ' + doctorError.message }
+
+  revalidatePath('/admin/staff')
+  revalidatePath('/hospital/doctors')
+  return { success: true }
+}
+
 export async function superAdminLogin(prevState: any, formData: FormData) {
   const supabase = await createClient()
 

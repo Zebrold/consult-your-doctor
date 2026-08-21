@@ -4,14 +4,18 @@ import { useState } from 'react'
 import { Search, Building2 } from 'lucide-react'
 import { StaffActionMenu } from './StaffActionMenu'
 
+import { EditDoctorModal } from '@/components/EditDoctorModal'
+
 type StaffMember = {
   id: string
   full_name: string
+  phone_number: string | null
   role: string
   created_at: string
   hospital: { name: string } | null
   generatedId: string
   email: string
+  doctors?: any[]
 }
 
 type Hospital = {
@@ -144,7 +148,22 @@ export function StaffListClient({ initialStaff, hospitals }: { initialStaff: Sta
                     {new Date(s.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <StaffActionMenu profileId={s.id} staffId={s.generatedId} currentEmail={s.email} />
+                    <div className="flex items-center justify-end gap-2">
+                      {s.role === 'doctor' && s.doctors && s.doctors.length > 0 && (
+                        <EditDoctorModal doctor={{
+                          id: s.doctors[0].id,
+                          profile_id: s.id,
+                          specialty: s.doctors[0].specialty,
+                          experience_years: s.doctors[0].experience_years,
+                          consultation_fee: s.doctors[0].consultation_fee,
+                          address: s.doctors[0].address,
+                          bio: s.doctors[0].bio,
+                          qualifications: s.doctors[0].qualifications,
+                          profiles: { full_name: s.full_name, phone_number: (s as any).phone_number || '' }
+                        }} />
+                      )}
+                      <StaffActionMenu profileId={s.id} staffId={s.generatedId} currentEmail={s.email} />
+                    </div>
                   </td>
                 </tr>
               ))

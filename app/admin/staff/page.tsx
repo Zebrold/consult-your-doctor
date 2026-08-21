@@ -29,9 +29,20 @@ export default async function AdminStaff() {
     .select(`
       id,
       full_name,
+      phone_number,
       role,
       created_at,
-      hospital:hospitals ( name )
+      staff_id,
+      hospital:hospitals ( name ),
+      doctors (
+        id,
+        specialty,
+        experience_years,
+        consultation_fee,
+        address,
+        bio,
+        qualifications
+      )
     `)
     .in('role', ['executive', 'doctor', 'hospital_admin'])
     .order('created_at', { ascending: false })
@@ -42,12 +53,14 @@ export default async function AdminStaff() {
 
   const staffWithIds = staff?.map(s => {
     const email = userMap.get(s.id) || ''
-    // Real email is the one from the profile or auth if it doesn't end with cyd.internal
+    // Real email is the one from the auth if it doesn't end with cyd.internal
     const realEmail = email.endsWith('@cyd.internal') ? '' : email;
-    // If email is like cydak1234@cyd.internal, extract cydak1234
-    const generatedId = email.endsWith('@cyd.internal') 
+    
+    // Always use the persistent staff_id from the database
+    // Fallback to generating one only if legacy row is missing it
+    const generatedId = s.staff_id || (email.endsWith('@cyd.internal') 
       ? email.split('@')[0].toUpperCase() 
-      : s.id.slice(0, 8) + '...'
+      : s.id.slice(0, 8).toUpperCase() + '...')
     
     return { ...s, generatedId, email: realEmail }
   })
@@ -62,7 +75,7 @@ export default async function AdminStaff() {
         {hospitals && <CreateStaffModal hospitals={hospitals} />}
       </div>
 
-      <StaffListClient initialStaff={staffWithIds || []} hospitals={hospitals || []} />
+      <StaffListClient initialStaff={(staffWithIds as any) || []} hospitals={hospitals || []} />
     </div>
   )
 }

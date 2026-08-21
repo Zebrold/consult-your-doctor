@@ -55,27 +55,38 @@ export default async function PatientDashboard() {
               const hospital: any = apt.hospitals
               const schedule: any = apt.schedules
               const date = new Date(schedule.start_time)
+              const isPassed = date.getTime() < new Date().getTime()
+              
               return (
-                <div key={apt.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col">
+                <div key={apt.id} className={`rounded-2xl shadow-sm border p-6 flex flex-col transition-all ${
+                  isPassed ? 'bg-gray-50 border-gray-200 opacity-75' : 'bg-white border-gray-100'
+                }`}>
                   <div className="flex justify-between items-start mb-4">
-                    <span className={`px-3 py-1 text-xs font-bold rounded-full ${
-                      apt.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                      apt.status === 'pending_payment' ? 'bg-yellow-100 text-yellow-700' :
-                      apt.status === 'completed' ? 'bg-blue-100 text-blue-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {apt.status.replace('_', ' ').toUpperCase()}
-                    </span>
+                    <div className="flex flex-col gap-1.5">
+                      <span className={`w-fit px-3 py-1 text-[10px] font-bold rounded-full tracking-wider ${
+                        apt.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                        apt.status === 'pending_payment' ? 'bg-yellow-100 text-yellow-700' :
+                        apt.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {apt.status.replace('_', ' ').toUpperCase()}
+                      </span>
+                      {isPassed && (
+                        <span className="w-fit px-3 py-1 text-[10px] font-bold rounded-full tracking-wider bg-gray-200 text-gray-600">
+                          PAST APPOINTMENT
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs font-bold text-gray-400">ID: {apt.id.slice(0, 8)}</span>
                   </div>
 
-                  <div className="space-y-4 flex-1">
+                  <div className="space-y-4 flex-1 mt-2">
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-                        <User className="w-5 h-5 text-blue-600" />
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isPassed ? 'bg-gray-200' : 'bg-blue-50'}`}>
+                        <User className={`w-5 h-5 ${isPassed ? 'text-gray-500' : 'text-blue-600'}`} />
                       </div>
                       <div>
-                        <p className="font-bold text-gray-900">Dr. {doctor.profiles.full_name}</p>
+                        <p className={`font-bold ${isPassed ? 'text-gray-700' : 'text-gray-900'}`}>Dr. {doctor.profiles.full_name}</p>
                         <p className="text-xs text-gray-500">{doctor.specialty}</p>
                       </div>
                     </div>
@@ -85,13 +96,13 @@ export default async function PatientDashboard() {
                       <span className="truncate">{hospital.name}, {hospital.city}</span>
                     </div>
 
-                    <div className="flex items-center gap-4 bg-gray-50 p-3 rounded-xl mt-4">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                        <Calendar className="w-4 h-4 text-[#E31E24]" />
+                    <div className={`flex items-center gap-4 p-3 rounded-xl mt-4 ${isPassed ? 'bg-gray-200/50' : 'bg-gray-50'}`}>
+                      <div className={`flex items-center gap-2 text-sm font-semibold ${isPassed ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                        <Calendar className={`w-4 h-4 ${isPassed ? 'text-gray-400' : 'text-[#E31E24]'}`} />
                         {date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
                       </div>
-                      <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                        <Clock className="w-4 h-4 text-[#E31E24]" />
+                      <div className={`flex items-center gap-2 text-sm font-semibold ${isPassed ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                        <Clock className={`w-4 h-4 ${isPassed ? 'text-gray-400' : 'text-[#E31E24]'}`} />
                         {date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </div>

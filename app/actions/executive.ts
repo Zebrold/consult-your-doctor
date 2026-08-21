@@ -90,9 +90,13 @@ export async function createWalkInAppointment(formData: FormData) {
       if (createError) throw new Error('Failed to provision patient account: ' + createError.message)
       patientUserId = newUser.user.id
 
-      // Wait a moment for trigger to create profile, then update full_name
-      await new Promise(resolve => setTimeout(resolve, 500))
-      await adminAuthClient.from('profiles').update({ full_name: patientName }).eq('id', patientUserId)
+      // Insert the profile since there is no automatic trigger
+      await adminAuthClient.from('profiles').insert({ 
+        id: patientUserId, 
+        full_name: patientName,
+        phone_number: patientPhone,
+        role: 'patient'
+      })
     }
 
     // 3. Create Appointment and Payment

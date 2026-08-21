@@ -7,7 +7,7 @@ import { ExecutiveStatusSelect } from '@/components/ExecutiveStatusSelect'
 
 export default async function ExecutiveDashboard() {
   const supabase = await createClient()
-  
+
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login/executive')
 
@@ -42,8 +42,8 @@ export default async function ExecutiveDashboard() {
 
   // Statistics
   const todayStart = new Date()
-  todayStart.setHours(0,0,0,0)
-  
+  todayStart.setHours(0, 0, 0, 0)
+
   const totalAssigned = appointments?.length || 0
   const todayAppointments = appointments?.filter(apt => new Date((apt.schedules as any).start_time) >= todayStart).length || 0
   const pendingCheckins = appointments?.filter(apt => apt.status === 'confirmed').length || 0
@@ -55,13 +55,13 @@ export default async function ExecutiveDashboard() {
           <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
           <p className="text-gray-500 mt-1">Welcome back! Here's what's happening today.</p>
         </div>
-        <Link 
+        {/* <Link 
           href="/executive/dashboard/walk-in"
           className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-sm shadow-blue-200"
         >
           <Plus className="w-5 h-5" />
           New Walk-In
-        </Link>
+        </Link> */}
       </div>
 
       {/* Stats Cards */}
@@ -85,7 +85,7 @@ export default async function ExecutiveDashboard() {
         <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
           <h2 className="text-lg font-bold text-gray-900">Assigned Patients</h2>
         </div>
-        
+
         <div className="divide-y divide-gray-100">
           {appointments?.length === 0 ? (
             <div className="p-12 text-center">
@@ -100,7 +100,7 @@ export default async function ExecutiveDashboard() {
               const date = new Date(schedule.start_time)
               return (
                 <div key={apt.id} className="p-6 flex flex-col md:flex-row gap-6 md:items-center hover:bg-gray-50/50 transition-colors">
-                  
+
                   {/* Patient Info */}
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-1">

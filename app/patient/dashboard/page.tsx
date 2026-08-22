@@ -1,7 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Header } from '@/components/Header'
-import { Calendar, Clock, MapPin, Building2, User } from 'lucide-react'
+import { Calendar, Clock, MapPin, Building2, User, FileText, Download } from 'lucide-react'
+import { PatientPrescriptionModal } from '@/components/PatientPrescriptionModal'
 
 export default async function PatientDashboard() {
   const supabase = await createClient()
@@ -25,6 +26,11 @@ export default async function PatientDashboard() {
       ),
       schedules (
         start_time
+      ),
+      medical_records (
+        id,
+        notes,
+        file_url
       )
     `)
     .eq('patient_id', user.id)
@@ -54,8 +60,10 @@ export default async function PatientDashboard() {
               const doctor: any = apt.doctors
               const hospital: any = apt.hospitals
               const schedule: any = apt.schedules
+              const records: any = apt.medical_records
               const date = new Date(schedule.start_time)
               const isPassed = date.getTime() < new Date().getTime()
+              const hasPrescription = records && records.length > 0
               
               return (
                 <div key={apt.id} className={`rounded-2xl shadow-sm border p-6 flex flex-col transition-all ${
@@ -117,6 +125,14 @@ export default async function PatientDashboard() {
                     <a href={`/patient/checkout/${apt.id}`} className="mt-6 block w-full py-2.5 bg-[#E31E24] text-white text-center font-semibold rounded-xl hover:bg-red-700 transition-colors">
                       Complete Payment
                     </a>
+                  )}
+
+                  {/* Prescription Section */}
+                  {hasPrescription && (
+                    <PatientPrescriptionModal 
+                      record={records[0]} 
+                      doctorName={doctor.profiles.full_name} 
+                    />
                   )}
                 </div>
               )

@@ -18,7 +18,9 @@ export default async function DoctorDashboard() {
   const todayStart = new Date()
   todayStart.setHours(0,0,0,0)
   
-  // Actually, we'll fetch all appointments for demo purposes, since we pushed seed data 7 days into the future.
+  const todayEnd = new Date()
+  todayEnd.setHours(23,59,59,999)
+  
   const adminClient = createAdminClient()
   const { data: appointments } = await adminClient
     .from('appointments')
@@ -26,7 +28,7 @@ export default async function DoctorDashboard() {
       id,
       status,
       patient:profiles!appointments_patient_id_fkey ( full_name, phone_number ),
-      schedules (
+      schedules!inner (
         start_time,
         end_time
       ),
@@ -36,7 +38,10 @@ export default async function DoctorDashboard() {
       )
     `)
     .eq('doctor_id', doctor.id)
-    .order('created_at', { ascending: false })
+    .gte('schedules.start_time', todayStart.toISOString())
+    .lte('schedules.start_time', todayEnd.toISOString())
+
+  appointments?.sort((a: any, b: any) => new Date(a.schedules.start_time).getTime() - new Date(b.schedules.start_time).getTime())
 
   const totalPatients = appointments?.length || 0
   const completed = appointments?.filter(a => a.status === 'completed').length || 0

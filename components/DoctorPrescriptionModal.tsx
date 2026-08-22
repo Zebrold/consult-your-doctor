@@ -7,12 +7,21 @@ import { FileText, Loader2, X } from 'lucide-react'
 export function DoctorPrescriptionModal({ appointmentId, patientName }: { appointmentId: string, patientName: string }) {
   const [isOpen, setIsOpen] = useState(false)
   const [notes, setNotes] = useState('')
+  const [file, setFile] = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
-    const res = await addPrescription(appointmentId, notes)
+    
+    const formData = new FormData()
+    formData.append('appointmentId', appointmentId)
+    formData.append('notes', notes)
+    if (file) {
+      formData.append('file', file)
+    }
+
+    const res = await addPrescription(formData)
     setIsSubmitting(false)
     
     if (res.error) {
@@ -42,16 +51,28 @@ export function DoctorPrescriptionModal({ appointmentId, patientName }: { appoin
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-6">
-              <div className="mb-6">
-                <label className="block text-sm font-bold text-gray-700 mb-2">Doctor's Notes / Medication</label>
-                <textarea 
-                  required
-                  rows={5}
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl p-3 text-gray-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
-                  placeholder="E.g., Paracetamol 500mg, twice a day for 3 days."
-                />
+              <div className="mb-6 space-y-6">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Doctor's Notes / Medication</label>
+                  <textarea 
+                    required
+                    rows={4}
+                    value={notes}
+                    onChange={e => setNotes(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl p-3 text-gray-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+                    placeholder="E.g., Paracetamol 500mg, twice a day for 3 days."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Attach Document (PDF/Image)</label>
+                  <input
+                    type="file"
+                    accept="application/pdf,image/jpeg,image/png"
+                    onChange={e => setFile(e.target.files?.[0] || null)}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-colors"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">Optional. Max file size: 5MB.</p>
+                </div>
               </div>
               <div className="flex justify-end gap-3">
                 <button 

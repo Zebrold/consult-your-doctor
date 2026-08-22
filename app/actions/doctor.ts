@@ -3,7 +3,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
-export async function addPrescription(appointmentId: string, notes: string) {
+export async function addPrescription(formData: FormData) {
+  const appointmentId = formData.get('appointmentId') as string
+  const notes = formData.get('notes') as string
+  const file = formData.get('file') as File | null
+
+  if (!appointmentId || !notes) return { error: 'Missing required fields' }
+
   const supabase = await createClient()
   
   const { data: { user } } = await supabase.auth.getUser()
@@ -18,12 +24,40 @@ export async function addPrescription(appointmentId: string, notes: string) {
     return { error: 'Not authorized for this appointment' }
   }
 
+  let fileUrl = 'none'
+
+  if (file && file.size > 0) {
+    // Basic validation
+    if (file.size > 5242880) return { error: 'File size must be under 5MB' }
+    
+    // Generate unique filename
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${appointmentId}-${Date.now()}.${fileExt}`
+    
+    // Upload to supabase storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('medical_records')
+      .upload(fileName, file, { upsert: true })
+
+    if (uploadError) {
+      console.error('Storage upload error:', uploadError)
+      return { error: 'Failed to upload document' }
+    }
+    
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('medical_records')
+      .getPublicUrl(uploadData.path)
+      
+    fileUrl = publicUrl
+  }
+
   // Insert medical record
   const { error: insertError } = await supabase.from('medical_records').insert({
     appointment_id: appointmentId,
     document_type: 'prescription',
     notes: notes,
-    file_url: 'none' // required by NOT NULL constraint
+    file_url: fileUrl
   })
 
   if (insertError) {

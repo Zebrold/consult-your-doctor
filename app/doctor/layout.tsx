@@ -43,7 +43,7 @@ export default async function DoctorLayout({ children }: { children: React.React
           <SidebarLink 
             href="/doctor/patients" 
             icon={<Users className="w-5 h-5" />} 
-            label="My Patients" 
+            label="All Appointments" 
             activeClassName="bg-blue-50 text-blue-700 font-bold"
           />
           <SidebarLink 

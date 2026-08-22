@@ -43,9 +43,14 @@ export default async function DoctorDashboard() {
 
   appointments?.sort((a: any, b: any) => new Date(a.schedules.start_time).getTime() - new Date(b.schedules.start_time).getTime())
 
-  const totalPatients = appointments?.length || 0
+  // Fetch all-time total appointments for the stat card
+  const { count: totalAppointmentsCount } = await adminClient
+    .from('appointments')
+    .select('*', { count: 'exact', head: true })
+    .eq('doctor_id', doctor.id)
+
   const completed = appointments?.filter(a => a.status === 'completed').length || 0
-  const pending = totalPatients - completed
+  const pending = (appointments?.length || 0) - completed
 
   return (
     <div className="p-4 sm:p-8">
@@ -58,7 +63,7 @@ export default async function DoctorDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
           <p className="text-sm font-medium text-gray-500 mb-1">Total Appointments</p>
-          <p className="text-3xl font-black text-gray-900">{totalPatients}</p>
+          <p className="text-3xl font-black text-gray-900">{totalAppointmentsCount || 0}</p>
         </div>
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
           <p className="text-sm font-medium text-blue-600 mb-1">Pending Consultations</p>

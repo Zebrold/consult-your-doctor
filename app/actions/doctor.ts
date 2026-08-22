@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
 export async function addPrescription(formData: FormData) {
@@ -34,8 +35,9 @@ export async function addPrescription(formData: FormData) {
     const fileExt = file.name.split('.').pop()
     const fileName = `${appointmentId}-${Date.now()}.${fileExt}`
     
-    // Upload to supabase storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    // Upload to supabase storage using admin client to bypass Storage RLS
+    const adminClient = createAdminClient()
+    const { data: uploadData, error: uploadError } = await adminClient.storage
       .from('medical_records')
       .upload(fileName, file, { upsert: true })
 

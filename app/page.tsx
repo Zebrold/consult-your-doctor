@@ -5,7 +5,7 @@ import { BookConsultationForm } from '@/components/BookConsultationForm'
 import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { 
+import {
   Heart, Brain, Bone, Stethoscope, Baby, UserCircle, Eye, Activity,
   Search, ShieldCheck, CreditCard, Building2, UserPlus, UserCheck, Calendar,
   FileText, Clock, FileDigit, PhoneCall, CheckCircle2, MapPin, Search as SearchIcon,
@@ -16,7 +16,7 @@ export const revalidate = 0
 
 export default async function Home() {
   const supabase = await createClient()
-  
+
   // Fetch Top Doctors
   const { data: topDoctors } = await supabase
     .from('doctors')
@@ -45,11 +45,11 @@ export default async function Home() {
     'Ophthalmology': Eye,
     'Dental': Activity,
   }
-  
+
   const { data: uniqueDepartments } = await supabase
     .from('departments')
     .select('name')
-    
+
   // Get unique department names
   const popularSpecialities = Array.from(new Set(uniqueDepartments?.map(d => d.name) || [])).slice(0, 8)
 
@@ -58,7 +58,7 @@ export default async function Home() {
       <Header />
 
       {/* Hero Section */}
-      <section 
+      <section
         className="relative w-full border-b border-gray-200 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: 'url("/hero-bg.jpg")' }}
       >
@@ -77,14 +77,14 @@ export default async function Home() {
               Book appointments with trusted hospitals and specialists, pay securely online, and receive dedicated executive assistance throughout your healthcare journey.
             </p>
             <div className="flex flex-wrap gap-4 pt-4">
-              <Link href="/search" className="px-6 py-3 bg-[#E31E24] text-white font-semibold hover:bg-red-700 transition-colors rounded-full cursor-pointer inline-block">
+              <Link href="/" className="px-6 py-3 bg-[#E31E24] text-white font-semibold hover:bg-red-700 transition-colors rounded-full cursor-pointer inline-block">
                 Book Appointment
               </Link>
               <Link href="/search" className="px-6 py-3 bg-white text-gray-800 border border-gray-300 font-semibold hover:bg-gray-50 transition-colors rounded-full cursor-pointer inline-block">
                 Find a Doctor
               </Link>
             </div>
-            
+
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-12 border-t border-gray-200 mt-8">
               <div>
@@ -143,7 +143,7 @@ export default async function Home() {
         <div className="max-w-[1440px] mx-auto px-4 md:px-8">
           <div className="flex justify-between items-center mb-8">
             <h2 className="text-2xl font-bold text-gray-900">Popular Specialities</h2>
-            <Link href="/search" className="text-[#E31E24] text-sm font-semibold flex items-center">View All Specialities <ChevronRight className="w-4 h-4 ml-1"/></Link>
+            <Link href="/search" className="text-[#E31E24] text-sm font-semibold flex items-center">View All Specialities <ChevronRight className="w-4 h-4 ml-1" /></Link>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
             {popularSpecialities.map((spec, i) => {
@@ -164,7 +164,7 @@ export default async function Home() {
         <div className="max-w-[1440px] mx-auto px-4 md:px-8">
           <div className="flex justify-between items-center mb-8">
             <h2 className="text-2xl font-bold text-gray-900">Featured Hospitals</h2>
-            <Link href="/search" className="text-[#E31E24] text-sm font-semibold flex items-center">View All Hospitals <ChevronRight className="w-4 h-4 ml-1"/></Link>
+            <Link href="/search" className="text-[#E31E24] text-sm font-semibold flex items-center">View All Hospitals <ChevronRight className="w-4 h-4 ml-1" /></Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             {featuredHospitals?.map((hospital, i) => (
@@ -194,13 +194,13 @@ export default async function Home() {
         <div className="max-w-[1440px] mx-auto px-4 md:px-8">
           <div className="flex justify-between items-center mb-8">
             <h2 className="text-2xl font-bold text-gray-900">Top Doctors</h2>
-            <Link href="/search" className="text-[#E31E24] text-sm font-semibold flex items-center">View All Doctors <ChevronRight className="w-4 h-4 ml-1"/></Link>
+            <Link href="/search" className="text-[#E31E24] text-sm font-semibold flex items-center">View All Doctors <ChevronRight className="w-4 h-4 ml-1" /></Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {topDoctors?.map((doc: any, i: number) => (
               <div key={doc.id} className="bg-white border border-gray-200 rounded-xl p-4 flex gap-4 hover:shadow-md transition-shadow">
                 <div className="w-20 h-24 bg-gray-100 rounded-lg shrink-0 flex items-center justify-center">
-                   <UserCircle className="w-10 h-10 text-gray-300" />
+                  <UserCircle className="w-10 h-10 text-gray-300" />
                 </div>
                 <div className="flex flex-col flex-1">
                   <h3 className="font-bold text-gray-900 text-sm mb-0.5">{doc.profiles?.full_name}</h3>
@@ -209,7 +209,7 @@ export default async function Home() {
                   <p className="text-[10px] font-medium text-gray-700 mb-0.5"><span className="text-[#E31E24]">{doc.experience_years}</span> Years Exp.</p>
                   <p className="text-[10px] font-medium text-gray-700 mb-3"><span className="text-[#E31E24]">₹{doc.consultation_fee}</span> Consultation Fee</p>
                   <div className="mt-auto flex justify-between items-center">
-                    <span className="text-[10px] text-green-600 font-medium flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Available</span>
+                    <span className="text-[10px] text-green-600 font-medium flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Available</span>
                     <button className="px-4 py-1.5 bg-[#E31E24] text-white text-xs font-semibold hover:bg-red-700 transition-colors rounded-full cursor-pointer">Book</button>
                   </div>
                 </div>

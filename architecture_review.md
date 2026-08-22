@@ -39,8 +39,10 @@ Based on the **Consult Your Doctor** backend architecture blueprint and recent d
 - **Credential Management**: Super Admins can update staff emails and delete staff accounts entirely (cascading deletes).
 - **Doctor Details Management**: Super Admins can fully edit all details of doctors across the entire platform (Qualifications, Address, Bio, Specialty, Fee, Phone).
 
+- **Global Analytics**: Dashboard widgets with Recharts (Line/Bar charts) to view system-wide revenue, aggregate bookings, and hospital activity.
+
 ❌ **Pending**:
-- **Global Analytics**: Dashboard widgets to view system-wide revenue, aggregate bookings, and system audit logs.
+- System audit logs.
 
 ### 🏥 Hospital Admin Flow
 ✅ **Implemented**:
@@ -48,8 +50,9 @@ Based on the **Consult Your Doctor** backend architecture blueprint and recent d
 - **Doctor Management**: Can view doctors assigned to their hospital, create new doctor profiles, and fully edit all doctor details (Qualifications, Address, Bio, etc.).
 - **Roster Generation (Hybrid Scheduling)**: Admins can bulk-generate 15/30-minute time slots for doctors over custom date ranges and active days.
 
+- **Hospital Analytics**: Interactive charts to track hospital-specific revenue trends and doctor consultation volume.
+
 ❌ **Pending**:
-- **Hospital Analytics**: Tracking hospital-specific revenue and department performance.
 - **Department Management**: UI to add/edit hospital departments.
 
 ### 🩺 Doctor Flow
@@ -71,8 +74,10 @@ Based on the **Consult Your Doctor** backend architecture blueprint and recent d
 - **Patient Check-In (Verification)**: "Today's Appointments" view allows executives to check-in patients by securely verifying their randomly generated Booking ID.
 - **Patient CRM**: "My Patients" view to track all unique patients who have visited the branch.
 
+- **Patient Guidance**: UI phase integrated into the Check-In modal that provides a "Guidance Slip" for executives to route patients to correct departments/doctors.
+
 ❌ **Pending**:
-- **Patient Guidance**: Advanced coordination or status tracking beyond "Checked-in" (e.g. guided to specific departments).
+- None for this role.
 
 ---
 
@@ -82,4 +87,3 @@ To bring the application to 100% completion for production, we must focus on the
 
 1. **Payment Gateway Integration**: Wire up Stripe or Razorpay in the patient checkout flow to finalize appointments.
 2. **Supabase Storage Integration**: Implement file uploading for Medical Records in the Doctor Portal.
-3. **Analytics Dashboards**: Build charts/metrics for Hospital Admins and Super Admins to track revenue and bookings.

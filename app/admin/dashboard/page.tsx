@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Building2, Users, IndianRupee, Calendar } from 'lucide-react'
+import { RevenueChart } from '@/components/RevenueChart'
+import { BookingsChart } from '@/components/BookingsChart'
 
 export default async function AdminDashboard() {
   const supabase = await createClient()
@@ -32,12 +34,44 @@ export default async function AdminDashboard() {
   const totalAppointments = appointments?.length || 0
   
   let totalRevenue = 0
+  
+  // Aggregate chart data
+  const last7Days = [...Array(7)].map((_, i) => {
+    const d = new Date()
+    d.setDate(d.getDate() - (6 - i))
+    return { date: d.toISOString().split('T')[0], formatted: d.toLocaleDateString('en-US', { weekday: 'short' }), revenue: 0 }
+  })
+  
+  const hospitalBookingsMap = new Map<string, number>()
+
   appointments?.forEach(apt => {
     const doctor: any = apt.doctor
-    if (apt.status !== 'cancelled' && apt.status !== 'pending_payment') {
-      totalRevenue += Number(doctor.consultation_fee)
+    const hospital: any = apt.hospital
+    const isCompletedOrConfirmed = apt.status !== 'cancelled' && apt.status !== 'pending_payment'
+    
+    if (isCompletedOrConfirmed) {
+      const fee = Number(doctor.consultation_fee) || 0
+      totalRevenue += fee
+      
+      const aptDate = new Date(apt.created_at).toISOString().split('T')[0]
+      const dayData = last7Days.find(d => d.date === aptDate)
+      if (dayData) {
+        dayData.revenue += fee
+      }
+    }
+
+    if (apt.status !== 'cancelled') {
+      const hName = hospital.name
+      hospitalBookingsMap.set(hName, (hospitalBookingsMap.get(hName) || 0) + 1)
     }
   })
+
+  const revenueData = last7Days.map(d => ({ date: d.formatted, revenue: d.revenue }))
+  
+  const bookingsData = Array.from(hospitalBookingsMap.entries())
+    .map(([name, bookings]) => ({ name: name.length > 15 ? name.substring(0, 15) + '...' : name, bookings }))
+    .sort((a, b) => b.bookings - a.bookings)
+    .slice(0, 5) // Top 5 hospitals
 
   const recentBookings = appointments?.slice(0, 8) || []
 
@@ -71,6 +105,22 @@ export default async function AdminDashboard() {
           <div className="absolute top-0 right-0 p-4 opacity-5"><Calendar className="w-16 h-16 text-indigo-600" /></div>
           <p className="text-sm font-medium text-gray-500 mb-1">Total Appointments</p>
           <p className="text-3xl font-black text-gray-900">{totalAppointments}</p>
+        </div>
+      </div>
+
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h2 className="text-lg font-bold text-gray-900 mb-6">Revenue (Last 7 Days)</h2>
+          <div className="h-72">
+            <RevenueChart data={revenueData} />
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h2 className="text-lg font-bold text-gray-900 mb-6">Top Hospitals by Bookings</h2>
+          <div className="h-72">
+            <BookingsChart data={bookingsData} color="#4f46e5" />
+          </div>
         </div>
       </div>
 

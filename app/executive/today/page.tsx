@@ -142,7 +142,13 @@ export default async function ExecutiveTodayAppointments() {
                         <div className="text-sm font-medium text-gray-500">{bookedOn}</div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <CheckInModal appointmentId={apt.id} currentStatus={apt.status} />
+                        <CheckInModal 
+                          appointmentId={apt.id} 
+                          currentStatus={apt.status} 
+                          patientName={pat?.full_name || 'Unknown Patient'}
+                          doctorName={doc?.profiles?.full_name || 'Unknown Doctor'}
+                          departmentName={doc?.departments?.name || 'Unknown'}
+                        />
                       </td>
                     </tr>
                   )

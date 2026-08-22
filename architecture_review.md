@@ -37,6 +37,7 @@ Based on the **Consult Your Doctor** backend architecture blueprint and recent d
 - **Hospital Management**: Full CRUD capability (Add, Edit, Delete Hospitals).
 - **Staff Management**: Centralized creation of Hospital Admins, Doctors, and Executives, including auto-generating secure credentials and Staff IDs.
 - **Credential Management**: Super Admins can update staff emails and delete staff accounts entirely (cascading deletes).
+- **Doctor Details Management**: Super Admins can fully edit all details of doctors across the entire platform (Qualifications, Address, Bio, Specialty, Fee, Phone).
 
 ❌ **Pending**:
 - **Global Analytics**: Dashboard widgets to view system-wide revenue, aggregate bookings, and system audit logs.
@@ -44,7 +45,7 @@ Based on the **Consult Your Doctor** backend architecture blueprint and recent d
 ### 🏥 Hospital Admin Flow
 ✅ **Implemented**:
 - **Authentication**: Secure login using generated Staff ID and password.
-- **Doctor Management**: Can view doctors assigned to their hospital and create new doctor profiles.
+- **Doctor Management**: Can view doctors assigned to their hospital, create new doctor profiles, and fully edit all doctor details (Qualifications, Address, Bio, etc.).
 - **Roster Generation (Hybrid Scheduling)**: Admins can bulk-generate 15/30-minute time slots for doctors over custom date ranges and active days.
 
 ❌ **Pending**:
@@ -65,8 +66,13 @@ Based on the **Consult Your Doctor** backend architecture blueprint and recent d
 - **Database Trigger**: Smart PostgreSQL trigger (`assign_executive_on_confirmation`) that automatically assigns an executive to a patient when an appointment is confirmed.
 - **Authentication**: Secure login using generated Staff ID.
 
+- **Executive Dashboard**: Comprehensive dashboard to view assigned appointments and daily hospital stats.
+- **Walk-in Bookings**: Executives can book Walk-in appointments on the spot for unregistered patients.
+- **Patient Check-In (Verification)**: "Today's Appointments" view allows executives to check-in patients by securely verifying their randomly generated Booking ID.
+- **Patient CRM**: "My Patients" view to track all unique patients who have visited the branch.
+
 ❌ **Pending**:
-- **Executive Dashboard**: Needs UI for them to view assigned appointments, update statuses (e.g., Checked-in, Guided), and coordinate patient visits within the hospital.
+- **Patient Guidance**: Advanced coordination or status tracking beyond "Checked-in" (e.g. guided to specific departments).
 
 ---
 
@@ -76,5 +82,4 @@ To bring the application to 100% completion for production, we must focus on the
 
 1. **Payment Gateway Integration**: Wire up Stripe or Razorpay in the patient checkout flow to finalize appointments.
 2. **Supabase Storage Integration**: Implement file uploading for Medical Records in the Doctor Portal.
-3. **Executive Dashboard**: Build the UI for executives to manage daily hospital walk-ins and patient guidance.
-4. **Analytics Dashboards**: Build charts/metrics for Hospital Admins and Super Admins to track revenue and bookings.
+3. **Analytics Dashboards**: Build charts/metrics for Hospital Admins and Super Admins to track revenue and bookings.

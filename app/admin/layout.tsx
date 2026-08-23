@@ -6,12 +6,12 @@ import { SidebarLink } from '@/components/SidebarLink'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
-  
+
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login/admin')
-    
+
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-  
+
   if (profile?.role !== 'super_admin') {
     redirect('/')
   }
@@ -26,26 +26,26 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <span className="text-xl font-black text-white tracking-tight">Super<span className="text-indigo-500">Admin</span></span>
           </Link>
         </div>
-        
+
         <div className="flex-1 py-6 px-4 space-y-1">
-          <SidebarLink 
-            href="/admin/dashboard" 
-            icon={<LayoutDashboard className="w-5 h-5" />} 
-            label="Global Overview" 
+          <SidebarLink
+            href="/admin/dashboard"
+            icon={<LayoutDashboard className="w-5 h-5" />}
+            label="Global Overview"
             activeClassName="bg-indigo-500/10 text-indigo-400 font-bold"
             inactiveClassName="text-slate-400 hover:bg-slate-800 hover:text-white font-medium"
           />
-          <SidebarLink 
-            href="/admin/hospitals" 
-            icon={<Building2 className="w-5 h-5" />} 
-            label="Manage Hospitals" 
+          <SidebarLink
+            href="/admin/hospitals"
+            icon={<Building2 className="w-5 h-5" />}
+            label="Manage Hospitals"
             activeClassName="bg-indigo-500/10 text-indigo-400 font-bold"
             inactiveClassName="text-slate-400 hover:bg-slate-800 hover:text-white font-medium"
           />
-          <SidebarLink 
-            href="/admin/staff" 
-            icon={<Users className="w-5 h-5" />} 
-            label="Staff Management" 
+          <SidebarLink
+            href="/admin/staff"
+            icon={<Users className="w-5 h-5" />}
+            label="Staff Management"
             activeClassName="bg-indigo-500/10 text-indigo-400 font-bold"
             inactiveClassName="text-slate-400 hover:bg-slate-800 hover:text-white font-medium"
           />
@@ -85,7 +85,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </button>
           </div>
         </header>
-        
+
         <div className="flex-1 overflow-auto">
           {children}
         </div>

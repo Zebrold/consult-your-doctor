@@ -6,7 +6,7 @@ import { DoctorPrescriptionModal } from '@/components/DoctorPrescriptionModal'
 
 export default async function DoctorDashboard() {
   const supabase = await createClient()
-  
+
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login/doctor')
 
@@ -16,11 +16,11 @@ export default async function DoctorDashboard() {
 
   // Fetch today's appointments for this doctor
   const todayStart = new Date()
-  todayStart.setHours(0,0,0,0)
-  
+  todayStart.setHours(0, 0, 0, 0)
+
   const todayEnd = new Date()
-  todayEnd.setHours(23,59,59,999)
-  
+  todayEnd.setHours(23, 59, 59, 999)
+
   const adminClient = createAdminClient()
   const { data: appointments } = await adminClient
     .from('appointments')
@@ -80,7 +80,7 @@ export default async function DoctorDashboard() {
         <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
           <h2 className="text-lg font-bold text-gray-900">Your Patients</h2>
         </div>
-        
+
         <div className="divide-y divide-gray-100">
           {appointments?.length === 0 ? (
             <div className="p-12 text-center">
@@ -93,10 +93,10 @@ export default async function DoctorDashboard() {
               const patient: any = apt.patient
               const date = new Date(schedule.start_time)
               const hasPrescription = apt.medical_records && apt.medical_records.length > 0
-              
+
               return (
                 <div key={apt.id} className="p-6 flex flex-col md:flex-row gap-6 md:items-center hover:bg-gray-50/50 transition-colors">
-                  
+
                   {/* Time Info */}
                   <div className="w-32">
                     <p className="text-xl font-black text-gray-900">{date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>
@@ -116,12 +116,11 @@ export default async function DoctorDashboard() {
 
                   {/* Status Badge */}
                   <div className="flex-1 flex items-center justify-center">
-                    <span className={`px-3 py-1 text-xs font-bold rounded-lg uppercase tracking-wider ${
-                      apt.status === 'completed' ? 'bg-green-100 text-green-700' :
-                      apt.status === 'confirmed' ? 'bg-blue-100 text-blue-700' :
-                      apt.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                      'bg-orange-100 text-orange-700'
-                    }`}>
+                    <span className={`px-3 py-1 text-xs font-bold rounded-lg uppercase tracking-wider ${apt.status === 'completed' ? 'bg-green-100 text-green-700' :
+                        apt.status === 'confirmed' ? 'bg-blue-100 text-blue-700' :
+                          apt.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                            'bg-orange-100 text-orange-700'
+                      }`}>
                       {apt.status.replace('_', ' ')}
                     </span>
                   </div>

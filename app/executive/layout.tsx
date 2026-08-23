@@ -6,12 +6,12 @@ import { SidebarLink } from '@/components/SidebarLink'
 
 export default async function ExecutiveLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
-  
+
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login/executive')
-    
+
   const { data: profile } = await supabase.from('profiles').select('*, hospital:hospitals ( name )').eq('id', user.id).single()
-  
+
   if (profile?.role !== 'executive') {
     redirect('/')
   }
@@ -36,24 +36,24 @@ export default async function ExecutiveLayout({ children }: { children: React.Re
             {(profile?.hospital as any)?.name || 'Unassigned Hospital'}
           </div>
         </div>
-        
+
         <div className="flex-1 py-6 px-4 space-y-1">
-          <SidebarLink 
-            href="/executive/dashboard" 
-            icon={<LayoutDashboard className="w-5 h-5" />} 
-            label="Dashboard" 
+          <SidebarLink
+            href="/executive/dashboard"
+            icon={<LayoutDashboard className="w-5 h-5" />}
+            label="Dashboard"
             activeClassName="bg-red-50 text-[#E31E24] font-bold"
           />
-          <SidebarLink 
-            href="/executive/today" 
-            icon={<CalendarClock className="w-5 h-5" />} 
-            label="Today's Appointments" 
+          <SidebarLink
+            href="/executive/today"
+            icon={<CalendarClock className="w-5 h-5" />}
+            label="Today's Appointments"
             activeClassName="bg-red-50 text-[#E31E24] font-bold"
           />
-          <SidebarLink 
-            href="/executive/patients" 
-            icon={<Users className="w-5 h-5" />} 
-            label="My Patients" 
+          <SidebarLink
+            href="/executive/patients"
+            icon={<Users className="w-5 h-5" />}
+            label="My Patients"
             activeClassName="bg-red-50 text-[#E31E24] font-bold"
           />
         </div>
@@ -93,7 +93,7 @@ export default async function ExecutiveLayout({ children }: { children: React.Re
             </button>
           </div>
         </header>
-        
+
         <div className="flex-1 overflow-auto">
           {children}
         </div>

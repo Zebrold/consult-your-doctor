@@ -13,7 +13,7 @@ export default function ExecutiveLoginPage() {
       <Link href="/login" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-amber-600 transition-colors mb-6">
         <ArrowLeft className="w-4 h-4" /> Back to Roles
       </Link>
-      
+
       <div className="flex flex-col items-center mb-8">
         <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mb-4">
           <HeadphonesIcon className="w-8 h-8" />

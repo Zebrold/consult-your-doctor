@@ -75,8 +75,8 @@ export default function RoleSelectionPage() {
         {roles.map((role) => {
           const Icon = role.icon
           return (
-            <Link 
-              key={role.id} 
+            <Link
+              key={role.id}
               href={role.href}
               className={`
                 group relative flex flex-col items-center justify-center 
@@ -88,7 +88,7 @@ export default function RoleSelectionPage() {
             >
               {/* Animated background on hover */}
               <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 ${role.hoverBg} transition-opacity duration-500`} />
-              
+
               <div className="relative z-10 flex flex-col items-center gap-8">
                 <div className={`
                   w-24 h-24 rounded-3xl flex items-center justify-center text-white 
@@ -97,7 +97,7 @@ export default function RoleSelectionPage() {
                 `}>
                   <Icon className="w-10 h-10" strokeWidth={2.5} />
                 </div>
-                
+
                 <h2 className={`text-2xl font-black ${role.color} text-center tracking-tight uppercase`}>
                   {role.title.split(' (').map((part, i) => (
                     <span key={i} className="block">

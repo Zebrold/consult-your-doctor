@@ -6,12 +6,12 @@ import { SidebarLink } from '@/components/SidebarLink'
 
 export default async function DoctorLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
-  
+
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login/doctor')
-    
+
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-  
+
   if (profile?.role !== 'doctor') {
     redirect('/')
   }
@@ -26,30 +26,30 @@ export default async function DoctorLayout({ children }: { children: React.React
             <span className="text-xl font-black text-gray-900 tracking-tight">Doctor<span className="text-blue-600">Portal</span></span>
           </Link>
         </div>
-        
+
         <div className="flex-1 py-6 px-4 space-y-1">
-          <SidebarLink 
-            href="/doctor/dashboard" 
-            icon={<CalendarDays className="w-5 h-5" />} 
-            label="Today's Appointments" 
+          <SidebarLink
+            href="/doctor/dashboard"
+            icon={<CalendarDays className="w-5 h-5" />}
+            label="Today's Appointments"
             activeClassName="bg-blue-50 text-blue-700 font-bold"
           />
-          <SidebarLink 
-            href="/doctor/dashboard/schedules" 
-            icon={<CalendarDays className="w-5 h-5" />} 
-            label="My Schedule" 
+          <SidebarLink
+            href="/doctor/dashboard/schedules"
+            icon={<CalendarDays className="w-5 h-5" />}
+            label="My Schedule"
             activeClassName="bg-blue-50 text-blue-700 font-bold"
           />
-          <SidebarLink 
-            href="/doctor/patients" 
-            icon={<Users className="w-5 h-5" />} 
-            label="All Appointments" 
+          <SidebarLink
+            href="/doctor/patients"
+            icon={<Users className="w-5 h-5" />}
+            label="My Patients"
             activeClassName="bg-blue-50 text-blue-700 font-bold"
           />
-          <SidebarLink 
-            href="/doctor/records" 
-            icon={<ClipboardList className="w-5 h-5" />} 
-            label="Medical Records" 
+          <SidebarLink
+            href="/doctor/records"
+            icon={<ClipboardList className="w-5 h-5" />}
+            label="Medical Records"
             activeClassName="bg-blue-50 text-blue-700 font-bold"
           />
         </div>
@@ -88,7 +88,7 @@ export default async function DoctorLayout({ children }: { children: React.React
             </button>
           </div>
         </header>
-        
+
         <div className="flex-1 overflow-auto">
           {children}
         </div>

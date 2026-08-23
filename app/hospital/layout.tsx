@@ -6,12 +6,12 @@ import { SidebarLink } from '@/components/SidebarLink'
 
 export default async function HospitalLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
-  
+
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login/hospital')
-    
+
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-  
+
   if (profile?.role !== 'hospital_admin') {
     redirect('/')
   }
@@ -29,7 +29,7 @@ export default async function HospitalLayout({ children }: { children: React.Rea
             <span className="text-xl font-black text-gray-900 tracking-tight">Hospital<span className="text-emerald-600">Admin</span></span>
           </Link>
         </div>
-        
+
         <div className="flex-1 py-6 px-4 space-y-1">
           <SidebarLink href="/hospital/dashboard" icon={<LayoutDashboard className="w-5 h-5" />} label="Overview" />
           <SidebarLink href="/hospital/doctors" icon={<Users2 className="w-5 h-5" />} label="Doctors" />
@@ -71,7 +71,7 @@ export default async function HospitalLayout({ children }: { children: React.Rea
             </button>
           </div>
         </header>
-        
+
         <div className="flex-1 overflow-auto">
           {children}
         </div>

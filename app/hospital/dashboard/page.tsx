@@ -7,7 +7,7 @@ import { BookingsChart } from '@/components/BookingsChart'
 
 export default async function HospitalDashboard() {
   const supabase = await createClient()
-  
+
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login/hospital')
 
@@ -17,7 +17,7 @@ export default async function HospitalDashboard() {
 
   // Fetch doctors count
   const { data: doctors } = await supabase.from('doctors').select('id').eq('hospital_id', profile.hospital_id)
-  
+
   // Fetch appointments for this hospital
   // Use admin client to bypass RLS for fetching related profiles (patients)
   const adminClient = createAdminClient()
@@ -39,26 +39,26 @@ export default async function HospitalDashboard() {
   // Calculate Metrics
   const totalDoctors = doctors?.length || 0
   const totalAppointments = appointments?.length || 0
-  
+
   let totalRevenue = 0
-  
+
   // Aggregate chart data
   const last7Days = [...Array(7)].map((_, i) => {
     const d = new Date()
     d.setDate(d.getDate() - (6 - i))
     return { date: d.toISOString().split('T')[0], formatted: d.toLocaleDateString('en-US', { weekday: 'short' }), revenue: 0 }
   })
-  
+
   const doctorBookingsMap = new Map<string, number>()
 
   appointments?.forEach(apt => {
     const doctor: any = apt.doctor
     const isCompletedOrConfirmed = apt.status !== 'cancelled' && apt.status !== 'pending_payment'
-    
+
     if (isCompletedOrConfirmed) {
       const fee = Number(doctor.consultation_fee) || 0
       totalRevenue += fee
-      
+
       const aptDate = new Date(apt.created_at).toISOString().split('T')[0]
       const dayData = last7Days.find(d => d.date === aptDate)
       if (dayData) {
@@ -73,7 +73,7 @@ export default async function HospitalDashboard() {
   })
 
   const revenueData = last7Days.map(d => ({ date: d.formatted, revenue: d.revenue }))
-  
+
   const bookingsData = Array.from(doctorBookingsMap.entries())
     .map(([name, bookings]) => ({ name: name.length > 15 ? name.substring(0, 15) + '...' : name, bookings }))
     .sort((a, b) => b.bookings - a.bookings)
@@ -131,7 +131,7 @@ export default async function HospitalDashboard() {
         <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
           <h2 className="text-lg font-bold text-gray-900">Recent Bookings</h2>
         </div>
-        
+
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -153,30 +153,29 @@ export default async function HospitalDashboard() {
                   const patient: any = apt.patient
                   const doctor: any = apt.doctor
                   return (
-                  <tr key={apt.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-gray-900">{patient?.full_name || 'Unknown Patient'}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-gray-600">Dr. {doctor?.profiles?.full_name?.replace('Dr. ', '') || 'Unknown Doctor'}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-gray-900">₹{doctor?.consultation_fee || 0}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 text-xs font-bold rounded-md ${
-                        apt.status === 'completed' ? 'bg-green-100 text-green-700' :
-                        apt.status === 'confirmed' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
-                        {apt.status.toUpperCase().replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right text-sm text-gray-500 font-medium">
-                      {new Date(apt.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </td>
-                  </tr>
-                )
+                    <tr key={apt.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-gray-900">{patient?.full_name || 'Unknown Patient'}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-gray-600">Dr. {doctor?.profiles?.full_name?.replace('Dr. ', '') || 'Unknown Doctor'}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-gray-900">₹{doctor?.consultation_fee || 0}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-1 text-xs font-bold rounded-md ${apt.status === 'completed' ? 'bg-green-100 text-green-700' :
+                            apt.status === 'confirmed' ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-gray-100 text-gray-700'
+                          }`}>
+                          {apt.status.toUpperCase().replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right text-sm text-gray-500 font-medium">
+                        {new Date(apt.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </td>
+                    </tr>
+                  )
                 })
               )}
             </tbody>

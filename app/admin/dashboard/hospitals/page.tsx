@@ -1,5 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { Plus, Building2, MapPin } from 'lucide-react'
+import Image from 'next/image'
+import { HospitalActionMenu } from '@/app/admin/hospitals/HospitalActionMenu'
 
 export const revalidate = 0
 
@@ -36,8 +38,12 @@ export default async function AdminHospitalsPage() {
                 hospitals.map((hospital) => (
                   <tr key={hospital.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 font-medium text-gray-900 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-[#E31E24]">
-                        <Building2 className="w-5 h-5" />
+                      <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-[#E31E24] relative overflow-hidden">
+                        {hospital.image_url ? (
+                          <Image src={hospital.image_url} alt={hospital.name} fill className="object-cover" />
+                        ) : (
+                          <Building2 className="w-5 h-5" />
+                        )}
                       </div>
                       {hospital.name}
                     </td>
@@ -48,7 +54,9 @@ export default async function AdminHospitalsPage() {
                       {hospital.address}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-[#E31E24] font-medium text-sm hover:underline cursor-pointer">Edit</button>
+                      <div className="flex justify-end">
+                        <HospitalActionMenu hospitalId={hospital.id} hospitalName={hospital.name} />
+                      </div>
                     </td>
                   </tr>
                 ))

@@ -169,9 +169,13 @@ export default async function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             {featuredHospitals?.map((hospital, i) => (
               <div key={hospital.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
-                <div className="h-32 bg-gray-100 w-full relative flex items-center justify-center">
-                  <Building2 className="w-12 h-12 text-gray-300" />
-                  <div className="absolute bottom-2 right-2 bg-yellow-400 text-xs font-bold px-2 py-1 rounded flex items-center gap-1 text-gray-900">
+                <div className="h-32 w-full relative flex items-center justify-center bg-gray-100 overflow-hidden">
+                  {hospital.image_url ? (
+                    <Image src={hospital.image_url} alt={hospital.name} fill className="object-cover" />
+                  ) : (
+                    <Building2 className="w-12 h-12 text-gray-300" />
+                  )}
+                  <div className="absolute bottom-2 right-2 bg-yellow-400 text-xs font-bold px-2 py-1 rounded flex items-center gap-1 text-gray-900 z-10">
                     <Star className="w-3 h-3 fill-current" /> 4.5
                   </div>
                 </div>
@@ -199,8 +203,12 @@ export default async function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {topDoctors?.map((doc: any, i: number) => (
               <div key={doc.id} className="bg-white border border-gray-200 rounded-xl p-4 flex gap-4 hover:shadow-md transition-shadow">
-                <div className="w-20 h-24 bg-gray-100 rounded-lg shrink-0 flex items-center justify-center">
-                  <UserCircle className="w-10 h-10 text-gray-300" />
+                <div className="w-20 h-24 bg-gray-100 rounded-lg shrink-0 flex items-center justify-center relative overflow-hidden">
+                  {doc.image_url ? (
+                    <Image src={doc.image_url} alt={doc.profiles?.full_name} fill className="object-cover" />
+                  ) : (
+                    <UserCircle className="w-10 h-10 text-gray-300" />
+                  )}
                 </div>
                 <div className="flex flex-col flex-1">
                   <h3 className="font-bold text-gray-900 text-sm mb-0.5">{doc.profiles?.full_name}</h3>

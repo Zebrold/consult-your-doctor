@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { MoreVertical, Edit, Trash2, Mail, X, Loader2 } from 'lucide-react'
+import { MoreVertical, Edit, Trash2, Mail, X, Loader2, Image as ImageIcon } from 'lucide-react'
 import { updateStaffEmail, deleteStaffAccount } from '@/app/actions/admin'
+import { UploadDoctorImageModal } from '@/components/UploadDoctorImageModal'
 
-export function StaffActionMenu({ profileId, staffId, currentEmail }: { profileId: string, staffId: string, currentEmail: string }) {
+export function StaffActionMenu({ profileId, staffId, currentEmail, role, name, doctorId }: { profileId: string, staffId: string, currentEmail: string, role: string, name: string, doctorId?: string }) {
   const [isOpen, setIsOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [showUploadImage, setShowUploadImage] = useState(false)
   const [email, setEmail] = useState(currentEmail)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -56,6 +58,19 @@ export function StaffActionMenu({ profileId, staffId, currentEmail }: { profileI
           >
             <Mail className="w-4 h-4" /> Edit Email
           </button>
+          
+          {role === 'doctor' && doctorId && (
+            <button 
+              onClick={() => {
+                setIsOpen(false)
+                setShowUploadImage(true)
+              }}
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+            >
+              <ImageIcon className="w-4 h-4 text-indigo-600" /> Upload Photo
+            </button>
+          )}
+
           <button 
             disabled={isDeleting}
             className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 disabled:opacity-50"
@@ -121,6 +136,15 @@ export function StaffActionMenu({ profileId, staffId, currentEmail }: { profileI
             </form>
           </div>
         </div>
+      )}
+
+      {showUploadImage && (
+        <UploadDoctorImageModal 
+          doctorId={doctorId!} 
+          doctorName={name} 
+          onClose={() => setShowUploadImage(false)} 
+          isOpen={showUploadImage}
+        />
       )}
     </div>
   )

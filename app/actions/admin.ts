@@ -488,3 +488,106 @@ export async function deleteStaffAccount(profileId: string) {
     return { error: 'Failed to delete staff account.' }
   }
 }
+
+export async function uploadHospitalImage(hospitalId: string, formData: FormData) {
+  const supabase = await createClient()
+
+  // 1. Verify caller is Super Admin
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized' }
+
+  const { data: callerProfile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (callerProfile?.role !== 'super_admin') return { error: 'Forbidden. Super Admin only.' }
+
+  const file = formData.get('image') as File
+  if (!file || file.size === 0) return { error: 'No image provided' }
+
+  const adminClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const ext = file.name.split('.').pop()
+  const filePath = `hospitals/${hospitalId}-${Date.now()}.${ext}`
+
+  const { error: uploadError } = await adminClient.storage
+    .from('avatars')
+    .upload(filePath, file, { upsert: true })
+
+  if (uploadError) {
+    console.error('Failed to upload hospital image:', uploadError)
+    return { error: 'Failed to upload image' }
+  }
+
+  const { data: publicUrlData } = adminClient.storage
+    .from('avatars')
+    .getPublicUrl(filePath)
+
+  const imageUrl = publicUrlData.publicUrl
+
+  const { error: updateError } = await adminClient
+    .from('hospitals')
+    .update({ image_url: imageUrl })
+    .eq('id', hospitalId)
+
+  if (updateError) {
+    console.error('Failed to update hospital with image URL:', updateError)
+    return { error: 'Failed to link image to hospital' }
+  }
+
+  revalidatePath('/admin/hospitals')
+  revalidatePath('/')
+  return { success: true, imageUrl }
+}
+
+export async function uploadDoctorImage(doctorId: string, formData: FormData) {
+  const supabase = await createClient()
+
+  // 1. Verify caller is Super Admin
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized' }
+
+  const { data: callerProfile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (callerProfile?.role !== 'super_admin') return { error: 'Forbidden. Super Admin only.' }
+
+  const file = formData.get('image') as File
+  if (!file || file.size === 0) return { error: 'No image provided' }
+
+  const adminClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const ext = file.name.split('.').pop()
+  const filePath = `doctors/${doctorId}-${Date.now()}.${ext}`
+
+  const { error: uploadError } = await adminClient.storage
+    .from('avatars')
+    .upload(filePath, file, { upsert: true })
+
+  if (uploadError) {
+    console.error('Failed to upload doctor image:', uploadError)
+    return { error: 'Failed to upload image' }
+  }
+
+  const { data: publicUrlData } = adminClient.storage
+    .from('avatars')
+    .getPublicUrl(filePath)
+
+  const imageUrl = publicUrlData.publicUrl
+
+  const { error: updateError } = await adminClient
+    .from('doctors')
+    .update({ image_url: imageUrl })
+    .eq('id', doctorId)
+
+  if (updateError) {
+    console.error('Failed to update doctor with image URL:', updateError)
+    return { error: 'Failed to link image to doctor' }
+  }
+
+  revalidatePath('/admin/staff')
+  revalidatePath('/admin/dashboard/doctors')
+  revalidatePath('/')
+  return { success: true, imageUrl }
+}

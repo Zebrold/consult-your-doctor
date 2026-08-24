@@ -162,7 +162,14 @@ export function StaffListClient({ initialStaff, hospitals }: { initialStaff: Sta
                           profiles: { full_name: s.full_name, phone_number: (s as any).phone_number || '' }
                         }} />
                       )}
-                      <StaffActionMenu profileId={s.id} staffId={s.generatedId} currentEmail={s.email} />
+                      <StaffActionMenu 
+                        profileId={s.id} 
+                        staffId={s.generatedId} 
+                        currentEmail={s.email}
+                        role={s.role}
+                        name={s.full_name}
+                        doctorId={s.doctors?.[0]?.id}
+                      />
                     </div>
                   </td>
                 </tr>

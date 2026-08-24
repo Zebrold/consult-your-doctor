@@ -1,14 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { MoreVertical, KeyRound, Trash2, Loader2, AlertTriangle } from 'lucide-react'
+import { MoreVertical, KeyRound, Trash2, Loader2, AlertTriangle, Image as ImageIcon } from 'lucide-react'
 import { ManageHospitalCredentialsModal } from '@/components/ManageHospitalCredentialsModal'
+import { UploadHospitalImageModal } from '@/components/UploadHospitalImageModal'
 import { deleteHospital } from '@/app/actions/admin'
 
 export function HospitalActionMenu({ hospitalId, hospitalName }: { hospitalId: string, hospitalName: string }) {
   const [isOpen, setIsOpen] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showManageCreds, setShowManageCreds] = useState(false)
+  const [showUploadImage, setShowUploadImage] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
   const handleDelete = async () => {
@@ -43,6 +45,13 @@ export function HospitalActionMenu({ hospitalId, hospitalName }: { hospitalId: s
               <KeyRound className="w-4 h-4 text-blue-600" />
               Manage Credentials
             </button>
+            <button 
+              onClick={() => { setShowUploadImage(true); setIsOpen(false) }}
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+            >
+              <ImageIcon className="w-4 h-4 text-indigo-600" />
+              Upload Image
+            </button>
             <div className="h-px bg-gray-100 my-1 mx-2" />
             <button 
               onClick={() => { setShowDeleteConfirm(true); setIsOpen(false) }}
@@ -53,6 +62,16 @@ export function HospitalActionMenu({ hospitalId, hospitalName }: { hospitalId: s
             </button>
           </div>
         </>
+      )}
+
+      {/* Upload Image Modal */}
+      {showUploadImage && (
+        <UploadHospitalImageModal 
+          hospitalId={hospitalId} 
+          hospitalName={hospitalName} 
+          onClose={() => setShowUploadImage(false)} 
+          isOpen={showUploadImage}
+        />
       )}
 
       {/* Existing Credentials Modal */}

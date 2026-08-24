@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Header } from '@/components/Header'
 import { Search, MapPin, Star, UserCircle, Building2, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { HomeSearchBar } from '@/components/HomeSearchBar'
 import { Suspense } from 'react'
 
@@ -108,8 +109,12 @@ export default async function SearchPage(
                 return (
                   <div key={item.id} className="bg-white border border-gray-200 rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
                     <div className="flex gap-4 mb-4">
-                      <div className="w-20 h-20 bg-red-50 rounded-lg shrink-0 flex items-center justify-center">
-                        <Building2 className="w-10 h-10 text-[#E31E24]" />
+                      <div className="w-20 h-20 bg-red-50 rounded-lg shrink-0 flex items-center justify-center relative overflow-hidden">
+                        {item.image_url ? (
+                          <Image src={item.image_url} alt={item.name} fill className="object-cover" />
+                        ) : (
+                          <Building2 className="w-10 h-10 text-[#E31E24]" />
+                        )}
                       </div>
                       <div>
                         <h3 className="font-bold text-gray-900 text-lg mb-1 leading-tight">{item.name}</h3>
@@ -142,8 +147,12 @@ export default async function SearchPage(
               return (
                 <div key={item.id} className="bg-white border border-gray-200 rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
                   <div className="flex gap-4 mb-4">
-                    <div className="w-20 h-20 bg-gray-100 rounded-lg shrink-0 flex items-center justify-center">
-                       <UserCircle className="w-10 h-10 text-gray-300" />
+                    <div className="w-20 h-20 bg-gray-100 rounded-lg shrink-0 flex items-center justify-center relative overflow-hidden">
+                       {item.image_url ? (
+                         <Image src={item.image_url} alt={item.profiles?.full_name} fill className="object-cover" />
+                       ) : (
+                         <UserCircle className="w-10 h-10 text-gray-300" />
+                       )}
                     </div>
                     <div>
                       <h3 className="font-bold text-gray-900 text-lg mb-1">{item.profiles?.full_name}</h3>

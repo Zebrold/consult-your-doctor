@@ -12,7 +12,7 @@ export default async function AdminDoctorsPage() {
     .select(`
       *,
       hospitals (name),
-      profiles!doctors_profile_id_fkey ( email )
+      profiles!doctors_profile_id_fkey ( full_name, email )
     `)
     .order('created_at', { ascending: false })
 
@@ -48,13 +48,13 @@ export default async function AdminDoctorsPage() {
                     <td className="px-6 py-4 font-medium text-gray-900 flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full overflow-hidden bg-red-50 flex items-center justify-center text-[#E31E24] flex-shrink-0">
                         {doctor.image_url ? (
-                           <Image src={doctor.image_url} alt={doctor.name} width={40} height={40} className="object-cover" />
+                           <Image src={doctor.image_url} alt={doctor.profiles?.full_name || 'Doctor'} width={40} height={40} className="object-cover w-full h-full" />
                         ) : (
                            <Stethoscope className="w-5 h-5" />
                         )}
                       </div>
                       <div>
-                        <div className="font-semibold text-gray-900">{doctor.name}</div>
+                        <div className="font-semibold text-gray-900">{doctor.profiles?.full_name || 'Unnamed Doctor'}</div>
                         <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
                           <Star className="w-3 h-3 text-yellow-400 fill-yellow-400"/> 
                           {doctor.rating} ({doctor.reviews_count} reviews)

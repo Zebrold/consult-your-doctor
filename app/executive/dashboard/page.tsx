@@ -45,7 +45,7 @@ export default async function ExecutiveDashboard() {
   todayStart.setHours(0, 0, 0, 0)
 
   const totalAssigned = appointments?.length || 0
-  const todayAppointments = appointments?.filter(apt => new Date((apt.schedules as any).start_time) >= todayStart).length || 0
+  const todayAppointments = appointments?.filter(apt => (apt.schedules ? new Date((apt.schedules as any).start_time) : new Date(0)) >= todayStart).length || 0
   const pendingCheckins = appointments?.filter(apt => apt.status === 'confirmed').length || 0
 
   return (

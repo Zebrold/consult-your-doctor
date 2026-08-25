@@ -56,7 +56,7 @@ export default async function HospitalDashboard() {
     const isCompletedOrConfirmed = apt.status !== 'cancelled' && apt.status !== 'pending_payment'
 
     if (isCompletedOrConfirmed) {
-      const fee = Number(doctor.consultation_fee) || 0
+      const fee = Number(doctor?.consultation_fee) || 0
       totalRevenue += fee
 
       const aptDate = new Date(apt.created_at).toISOString().split('T')[0]

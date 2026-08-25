@@ -34,13 +34,13 @@ export default function HospitalLoginPage() {
 
   if (view === 'forgot') {
     return (
-      <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
-        <button onClick={() => { setView('login'); setResetError('') }} className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-emerald-600 transition-colors mb-6">
+      <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-gray-200">
+        <button onClick={() => { setView('login'); setResetError('') }} className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-[#E31E24] transition-colors mb-6">
           <ArrowLeft className="w-4 h-4" /> Back to Login
         </button>
 
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4">
+          <div className="w-16 h-16 bg-red-50 text-[#E31E24] rounded-full flex items-center justify-center mb-4">
             <KeyRound className="w-8 h-8" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Reset Password</h1>
@@ -62,10 +62,10 @@ export default function HospitalLoginPage() {
               onChange={e => setStaffId(e.target.value)}
               type="text"
               placeholder="e.g. CYDAB1234"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 uppercase text-gray-900"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] uppercase text-gray-900"
             />
           </div>
-          <button disabled={isResetting || !staffId} type="submit" className="w-full py-3 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition-colors mt-2 disabled:opacity-50 flex justify-center items-center gap-2">
+          <button disabled={isResetting || !staffId} type="submit" className="w-full py-3 bg-[#E31E24] text-white font-bold rounded-lg hover:bg-red-700 transition-colors mt-2 disabled:opacity-50 flex justify-center items-center gap-2">
             {isResetting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Send Reset Link'}
           </button>
         </form>
@@ -75,13 +75,13 @@ export default function HospitalLoginPage() {
 
   // Default Login View
   return (
-    <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
-      <Link href="/login" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-emerald-600 transition-colors mb-6">
+    <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-gray-200">
+      <Link href="/login" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-[#E31E24] transition-colors mb-6">
         <ArrowLeft className="w-4 h-4" /> Back to Roles
       </Link>
 
       <div className="flex flex-col items-center mb-8">
-        <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4">
+        <div className="w-16 h-16 bg-red-50 text-[#E31E24] rounded-full flex items-center justify-center mb-4">
           <Building2 className="w-8 h-8" />
         </div>
         <h1 className="text-2xl font-bold text-gray-900">Hospital Admin Portal</h1>
@@ -98,7 +98,7 @@ export default function HospitalLoginPage() {
         <input type="hidden" name="role" value="hospital_admin" />
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">Staff ID</label>
-          <input required name="staffId" type="text" placeholder="e.g. CYDAB1234" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 uppercase text-gray-900" />
+          <input required name="staffId" type="text" placeholder="e.g. CYDAB1234" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] uppercase text-gray-900" />
         </div>
         <div>
           <div className="flex justify-between items-center mb-1">
@@ -106,14 +106,14 @@ export default function HospitalLoginPage() {
             <button
               type="button"
               onClick={() => { setView('forgot'); setResetError('') }}
-              className="text-sm font-medium text-emerald-600 hover:underline"
+              className="text-sm font-medium text-[#E31E24] hover:underline"
             >
               Forgot Password?
             </button>
           </div>
-          <input required name="password" type="password" placeholder="••••••••" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-gray-900" />
+          <input required name="password" type="password" placeholder="••••••••" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] text-gray-900" />
         </div>
-        <button disabled={isPending} type="submit" className="w-full py-3 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition-colors mt-2 disabled:opacity-50 flex justify-center items-center gap-2">
+        <button disabled={isPending} type="submit" className="w-full py-3 bg-[#E31E24] text-white font-bold rounded-lg hover:bg-red-700 transition-colors mt-2 disabled:opacity-50 flex justify-center items-center gap-2">
           {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign In'}
         </button>
       </form>

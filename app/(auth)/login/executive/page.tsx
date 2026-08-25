@@ -9,7 +9,7 @@ export default function ExecutiveLoginPage() {
   const [state, formAction, isPending] = useActionState(staffLogin, null)
 
   return (
-    <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
+    <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-gray-200">
       <Link href="/login" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-amber-600 transition-colors mb-6">
         <ArrowLeft className="w-4 h-4" /> Back to Roles
       </Link>

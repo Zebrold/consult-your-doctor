@@ -25,8 +25,8 @@ export default async function HospitalLayout({ children }: { children: React.Rea
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col hidden md:flex">
         <div className="h-16 flex items-center px-6 border-b border-gray-200">
           <Link href="/hospital/dashboard" className="flex items-center gap-2">
-            <Building2 className="w-6 h-6 text-emerald-600" />
-            <span className="text-xl font-black text-gray-900 tracking-tight">Hospital<span className="text-emerald-600">Admin</span></span>
+            <Building2 className="w-6 h-6 text-[#E31E24]" />
+            <span className="text-xl font-black text-gray-900 tracking-tight">Hospital<span className="text-[#E31E24]">Admin</span></span>
           </Link>
         </div>
 
@@ -61,7 +61,7 @@ export default async function HospitalLayout({ children }: { children: React.Rea
         {/* Mobile/Top Header */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="md:hidden flex items-center gap-2">
-            <Building2 className="w-6 h-6 text-emerald-600" />
+            <Building2 className="w-6 h-6 text-[#E31E24]" />
             <span className="font-black text-gray-900">Hospital</span>
           </div>
           <div className="flex-1" />

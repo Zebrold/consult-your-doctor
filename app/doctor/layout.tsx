@@ -22,8 +22,8 @@ export default async function DoctorLayout({ children }: { children: React.React
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col hidden md:flex">
         <div className="h-16 flex items-center px-6 border-b border-gray-200">
           <Link href="/doctor/dashboard" className="flex items-center gap-2">
-            <Stethoscope className="w-6 h-6 text-blue-600" />
-            <span className="text-xl font-black text-gray-900 tracking-tight">Doctor<span className="text-blue-600">Portal</span></span>
+            <Stethoscope className="w-6 h-6 text-[#E31E24]" />
+            <span className="text-xl font-black text-gray-900 tracking-tight">Doctor<span className="text-[#E31E24]">Portal</span></span>
           </Link>
         </div>
 
@@ -78,7 +78,7 @@ export default async function DoctorLayout({ children }: { children: React.React
         {/* Mobile/Top Header */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="md:hidden flex items-center gap-2">
-            <Stethoscope className="w-6 h-6 text-blue-600" />
+            <Stethoscope className="w-6 h-6 text-[#E31E24]" />
             <span className="font-black text-gray-900">Doctor</span>
           </div>
           <div className="flex-1" />

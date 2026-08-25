@@ -90,7 +90,7 @@ export default async function HospitalDashboard() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm relative overflow-hidden">
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:border-[#E31E24]/30 hover:shadow-[0_8px_30px_rgb(227,30,36,0.08)] transition-all">
           <div className="absolute top-0 right-0 p-4 opacity-10"><IndianRupee className="w-16 h-16" /></div>
           <p className="text-sm font-medium text-gray-500 mb-1">Total Revenue generated</p>
           <p className="text-3xl font-black text-gray-900 flex items-center gap-1">
@@ -98,12 +98,12 @@ export default async function HospitalDashboard() {
           </p>
           <p className="text-xs text-emerald-600 font-bold mt-2 flex items-center gap-1"><TrendingUp className="w-3 h-3" /> All time</p>
         </div>
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm relative overflow-hidden">
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:border-[#E31E24]/30 hover:shadow-[0_8px_30px_rgb(227,30,36,0.08)] transition-all">
           <div className="absolute top-0 right-0 p-4 opacity-10"><Users className="w-16 h-16" /></div>
           <p className="text-sm font-medium text-gray-500 mb-1">Total Consultations</p>
           <p className="text-3xl font-black text-gray-900">{totalAppointments}</p>
         </div>
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm relative overflow-hidden">
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:border-[#E31E24]/30 hover:shadow-[0_8px_30px_rgb(227,30,36,0.08)] transition-all">
           <div className="absolute top-0 right-0 p-4 opacity-10"><User className="w-16 h-16" /></div>
           <p className="text-sm font-medium text-gray-500 mb-1">Active Doctors</p>
           <p className="text-3xl font-black text-gray-900">{totalDoctors}</p>
@@ -112,23 +112,23 @@ export default async function HospitalDashboard() {
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-6">Hospital Revenue (Last 7 Days)</h2>
           <div className="h-72">
             <RevenueChart data={revenueData} />
           </div>
         </div>
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-6">Top Doctors by Consultations</h2>
           <div className="h-72">
-            <BookingsChart data={bookingsData} color="#10b981" />
+            <BookingsChart data={bookingsData} color="#E31E24" />
           </div>
         </div>
       </div>
 
       {/* Recent Activity Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+        <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-gray-50 to-white">
           <h2 className="text-lg font-bold text-gray-900">Recent Bookings</h2>
         </div>
 
@@ -153,7 +153,7 @@ export default async function HospitalDashboard() {
                   const patient: any = apt.patient
                   const doctor: any = apt.doctor
                   return (
-                    <tr key={apt.id} className="hover:bg-gray-50/50 transition-colors">
+                    <tr key={apt.id} className="hover:bg-gradient-to-r from-gray-50 to-white transition-colors">
                       <td className="px-6 py-4">
                         <div className="font-bold text-gray-900">{patient?.full_name || 'Unknown Patient'}</div>
                       </td>

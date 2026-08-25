@@ -84,25 +84,25 @@ export default async function AdminDashboard() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-5"><IndianRupee className="w-16 h-16 text-indigo-600" /></div>
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:border-[#E31E24]/30 hover:shadow-[0_8px_30px_rgb(227,30,36,0.08)] transition-all">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-500"><IndianRupee className="w-16 h-16 text-[#E31E24]" /></div>
           <p className="text-sm font-medium text-gray-500 mb-1">Total Platform Revenue</p>
           <p className="text-3xl font-black text-gray-900 flex items-center gap-1">
             <span className="text-lg text-gray-400">₹</span>{totalRevenue.toLocaleString('en-IN')}
           </p>
         </div>
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-5"><Building2 className="w-16 h-16 text-indigo-600" /></div>
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:border-[#E31E24]/30 hover:shadow-[0_8px_30px_rgb(227,30,36,0.08)] transition-all">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-500"><Building2 className="w-16 h-16 text-[#E31E24]" /></div>
           <p className="text-sm font-medium text-gray-500 mb-1">Active Hospitals</p>
           <p className="text-3xl font-black text-gray-900">{totalHospitals}</p>
         </div>
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-5"><Users className="w-16 h-16 text-indigo-600" /></div>
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:border-[#E31E24]/30 hover:shadow-[0_8px_30px_rgb(227,30,36,0.08)] transition-all">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-500"><Users className="w-16 h-16 text-[#E31E24]" /></div>
           <p className="text-sm font-medium text-gray-500 mb-1">Registered Users</p>
           <p className="text-3xl font-black text-gray-900">{totalUsers}</p>
         </div>
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-5"><Calendar className="w-16 h-16 text-indigo-600" /></div>
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:border-[#E31E24]/30 hover:shadow-[0_8px_30px_rgb(227,30,36,0.08)] transition-all">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-500"><Calendar className="w-16 h-16 text-[#E31E24]" /></div>
           <p className="text-sm font-medium text-gray-500 mb-1">Total Appointments</p>
           <p className="text-3xl font-black text-gray-900">{totalAppointments}</p>
         </div>
@@ -110,23 +110,23 @@ export default async function AdminDashboard() {
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-6">Revenue (Last 7 Days)</h2>
           <div className="h-72">
             <RevenueChart data={revenueData} />
           </div>
         </div>
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-6">Top Hospitals by Bookings</h2>
           <div className="h-72">
-            <BookingsChart data={bookingsData} color="#4f46e5" />
+            <BookingsChart data={bookingsData} color="#E31E24" />
           </div>
         </div>
       </div>
 
       {/* Global Activity Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+        <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-gray-50 to-white">
           <h2 className="text-lg font-bold text-gray-900">Global Recent Bookings</h2>
         </div>
 
@@ -152,7 +152,7 @@ export default async function AdminDashboard() {
                   const patient: any = apt.patient
                   const doctor: any = apt.doctor
                   return (
-                    <tr key={apt.id} className="hover:bg-gray-50/50 transition-colors">
+                    <tr key={apt.id} className="hover:bg-gradient-to-r from-gray-50 to-white transition-colors">
                       <td className="px-6 py-4">
                         <div className="font-bold text-indigo-700">{hospital.name}</div>
                       </td>

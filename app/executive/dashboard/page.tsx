@@ -81,8 +81,8 @@ export default async function ExecutiveDashboard() {
       </div>
 
       {/* Appointments List */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+        <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
           <h2 className="text-lg font-bold text-gray-900">Assigned Patients</h2>
         </div>
 
@@ -99,7 +99,7 @@ export default async function ExecutiveDashboard() {
               const doctor: any = apt.doctor
               const date = new Date(schedule.start_time)
               return (
-                <div key={apt.id} className="p-6 flex flex-col md:flex-row gap-6 md:items-center hover:bg-gray-50/50 transition-colors">
+                <div key={apt.id} className="p-6 flex flex-col md:flex-row gap-6 md:items-center hover:bg-gradient-to-r from-gray-50 to-white transition-colors">
 
                   {/* Patient Info */}
                   <div className="flex-1">

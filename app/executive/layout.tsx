@@ -43,6 +43,7 @@ export default async function ExecutiveLayout({ children }: { children: React.Re
             icon={<LayoutDashboard className="w-5 h-5" />}
             label="Dashboard"
             activeClassName="bg-red-50 text-[#E31E24] font-bold"
+            exactMatch={true}
           />
           <SidebarLink
             href="/executive/today"

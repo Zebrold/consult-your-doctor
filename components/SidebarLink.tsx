@@ -9,19 +9,22 @@ export function SidebarLink({
   icon, 
   label,
   activeClassName = 'bg-emerald-50 text-emerald-700 font-bold',
-  inactiveClassName = 'text-gray-600 hover:bg-gray-50 font-medium'
+  inactiveClassName = 'text-gray-600 hover:bg-gray-50 font-medium',
+  exactMatch = false
 }: { 
   href: string, 
   icon: React.ReactNode, 
   label: string,
   activeClassName?: string,
-  inactiveClassName?: string
+  inactiveClassName?: string,
+  exactMatch?: boolean
 }) {
   const pathname = usePathname()
   
-  // Determine if active. For dashboards, usually exact match or starts with.
-  // E.g., /admin/dashboard, /admin/hospitals, /admin/staff
-  const isActive = pathname === href || pathname.startsWith(`${href}/`)
+  // Determine if active.
+  const isActive = exactMatch 
+    ? pathname === href 
+    : (pathname === href || pathname.startsWith(`${href}/`))
 
   return (
     <Link 

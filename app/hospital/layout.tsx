@@ -31,7 +31,7 @@ export default async function HospitalLayout({ children }: { children: React.Rea
         </div>
 
         <div className="flex-1 py-6 px-4 space-y-1">
-          <SidebarLink href="/hospital/dashboard" icon={<LayoutDashboard className="w-5 h-5" />} label="Overview" />
+          <SidebarLink href="/hospital/dashboard" icon={<LayoutDashboard className="w-5 h-5" />} label="Overview" exactMatch={true} />
           <SidebarLink href="/hospital/doctors" icon={<Users2 className="w-5 h-5" />} label="Doctors" />
           <SidebarLink href="/hospital/patients" icon={<Users className="w-5 h-5" />} label="All Patients" />
           <SidebarLink href="#" icon={<IndianRupee className="w-5 h-5" />} label="Revenue" />

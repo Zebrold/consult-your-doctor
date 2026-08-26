@@ -34,6 +34,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             label="Global Overview"
             activeClassName="bg-red-50 text-[#E31E24] font-bold"
             inactiveClassName="text-gray-500 hover:bg-gray-50 hover:text-gray-900 font-medium"
+            exactMatch={true}
           />
           <SidebarLink
             href="/admin/hospitals"

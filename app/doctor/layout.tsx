@@ -33,6 +33,7 @@ export default async function DoctorLayout({ children }: { children: React.React
             icon={<CalendarDays className="w-5 h-5" />}
             label="Today's Appointments"
             activeClassName="bg-blue-50 text-blue-700 font-bold"
+            exactMatch={true}
           />
           <SidebarLink
             href="/doctor/dashboard/schedules"

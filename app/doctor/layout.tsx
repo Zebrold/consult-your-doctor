@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import Image from 'next/image'
 import { CalendarDays, Users, ClipboardList, LogOut, Stethoscope, Bell } from 'lucide-react'
 import { SidebarLink } from '@/components/SidebarLink'
 
@@ -20,11 +21,14 @@ export default async function DoctorLayout({ children }: { children: React.React
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col hidden md:flex">
-        <div className="h-16 flex items-center px-6 border-b border-gray-200">
-          <Link href="/doctor/dashboard" className="flex items-center gap-2">
-            <Stethoscope className="w-6 h-6 text-[#E31E24]" />
-            <span className="text-xl font-black text-gray-900 tracking-tight">Doctor<span className="text-[#E31E24]">Portal</span></span>
+        <div className="flex flex-col items-start px-6 py-5 border-b border-gray-200">
+          <Link href="/">
+            <Image src="/logo.png" alt="Consult your Doctor" width={190} height={40} className="h-12 w-auto object-contain mb-3" priority />
           </Link>
+          <div className="flex items-center gap-2">
+            <Stethoscope className="w-5 h-5 text-[#E31E24]" />
+            <span className="text-lg font-black text-gray-900 tracking-tight">Doctor<span className="text-[#E31E24]">Portal</span></span>
+          </div>
         </div>
 
         <div className="flex-1 py-6 px-4 space-y-1">

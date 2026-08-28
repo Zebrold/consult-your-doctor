@@ -97,7 +97,7 @@ export function DoctorPatientsClient({ appointments }: { appointments: any[] }) 
                         <div className="px-4 py-2 bg-green-50 text-green-700 font-bold text-sm rounded-xl flex items-center gap-2 w-fit">
                           <CheckCircle2 className="w-4 h-4" /> Prescribed
                         </div>
-                      ) : (
+                      ) : apt.status === 'cancelled' ? null : (
                         <DoctorPrescriptionModal appointmentId={apt.id} patientName={patient?.full_name || 'Unknown Patient'} />
                       )}
                     </td>

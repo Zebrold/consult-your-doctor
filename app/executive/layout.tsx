@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import Image from 'next/image'
 import { LayoutDashboard, Users, LogOut, HeartPulse, Bell, MapPin, CalendarClock } from 'lucide-react'
 import { SidebarLink } from '@/components/SidebarLink'
 
@@ -20,11 +21,14 @@ export default async function ExecutiveLayout({ children }: { children: React.Re
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col hidden md:flex">
-        <div className="h-16 flex items-center px-6 border-b border-gray-200">
-          <Link href="/executive/dashboard" className="flex items-center gap-2">
-            <HeartPulse className="w-6 h-6 text-[#E31E24]" />
-            <span className="text-xl font-black text-gray-900 tracking-tight">Executive<span className="text-[#E31E24]">Portal</span></span>
+        <div className="flex flex-col items-start px-6 py-5 border-b border-gray-200">
+          <Link href="/">
+            <Image src="/logo.png" alt="Consult your Doctor" width={190} height={40} className="h-12 w-auto object-contain mb-3" priority />
           </Link>
+          <div className="flex items-center gap-2">
+            <HeartPulse className="w-5 h-5 text-[#E31E24]" />
+            <span className="text-lg font-black text-gray-900 tracking-tight">Executive<span className="text-[#E31E24]">Portal</span></span>
+          </div>
         </div>
 
         <div className="px-6 py-5 border-b border-gray-200 bg-red-50/30">

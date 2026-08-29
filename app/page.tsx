@@ -121,15 +121,19 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Trust Strip */}
-      <section className="bg-white border-b border-gray-200 py-6">
-        <div className="max-w-[1440px] mx-auto px-4 md:px-8 flex flex-wrap justify-between gap-6 text-sm font-semibold text-gray-700">
-          <div className="flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-[#E31E24]" /> Trusted Healthcare Platform</div>
-          <div className="flex items-center gap-2"><PhoneCall className="w-5 h-5 text-[#E31E24]" /> 24/7 Executive Support</div>
-          <div className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-[#E31E24]" /> Verified Doctors</div>
-          <div className="flex items-center gap-2"><CreditCard className="w-5 h-5 text-[#E31E24]" /> Secure Payments</div>
-          <div className="flex items-center gap-2"><Building2 className="w-5 h-5 text-[#E31E24]" /> NABH Partner Hospitals</div>
-          <div className="flex items-center gap-2"><Heart className="w-5 h-5 text-[#E31E24]" /> End-to-End Guidance</div>
+      {/* Trust Strip (Marquee) */}
+      <section className="bg-white border-b border-gray-200 py-4 overflow-hidden">
+        <div className="flex w-max animate-marquee gap-8 md:gap-16 items-center text-sm font-semibold text-gray-700">
+          {[1, 2].map((set) => (
+            <div key={set} className="flex gap-8 md:gap-16 items-center shrink-0">
+              <div className="flex items-center gap-2 shrink-0"><ShieldCheck className="w-5 h-5 text-[#E31E24]" /> <span>Trusted Platform</span></div>
+              <div className="flex items-center gap-2 shrink-0"><PhoneCall className="w-5 h-5 text-[#E31E24]" /> <span>24/7 Support</span></div>
+              <div className="flex items-center gap-2 shrink-0"><CheckCircle2 className="w-5 h-5 text-[#E31E24]" /> <span>Verified Doctors</span></div>
+              <div className="flex items-center gap-2 shrink-0"><CreditCard className="w-5 h-5 text-[#E31E24]" /> <span>Secure Payments</span></div>
+              <div className="flex items-center gap-2 shrink-0"><Building2 className="w-5 h-5 text-[#E31E24]" /> <span>NABH Hospitals</span></div>
+              <div className="flex items-center gap-2 shrink-0"><Heart className="w-5 h-5 text-[#E31E24]" /> <span>End-to-End Care</span></div>
+            </div>
+          ))}
         </div>
       </section>
 

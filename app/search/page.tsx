@@ -136,9 +136,9 @@ export default async function SearchPage(
                       </div>
                     </div>
                     
-                    <button className="mt-auto w-full py-2.5 bg-white border-2 border-[#E31E24] text-[#E31E24] text-sm font-bold hover:bg-red-50 transition-colors rounded-full cursor-pointer">
+                    <Link href={`/hospitals/${item.id}`} className="mt-auto w-full py-2.5 bg-white border-2 border-[#E31E24] text-[#E31E24] text-sm font-bold hover:bg-red-50 transition-colors rounded-full text-center inline-block">
                       View Hospital
-                    </button>
+                    </Link>
                   </div>
                 )
               }
@@ -176,9 +176,9 @@ export default async function SearchPage(
                     </div>
                   </div>
                   
-                  <button className="mt-auto w-full py-2.5 bg-[#E31E24] text-white text-sm font-semibold hover:bg-red-700 transition-colors rounded-full cursor-pointer">
-                    Book Consultation
-                  </button>
+                  <Link href={`/doctors/${item.id}`} className="mt-auto w-full py-2.5 bg-[#E31E24] text-white text-sm font-semibold hover:bg-red-700 transition-colors rounded-full text-center inline-block">
+                    View Profile
+                  </Link>
                 </div>
               )
             }) : (

@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { Header } from '@/components/Header'
 import { HomeSearchBar } from '@/components/HomeSearchBar'
 import { BookConsultationForm } from '@/components/BookConsultationForm'
+import { Carousel } from '@/components/Carousel'
 import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
@@ -171,9 +172,9 @@ export default async function Home() {
               View All <span className="hidden sm:inline ml-1">Hospitals</span> <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1" />
             </Link>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          <Carousel itemWidth={260} gap={24}>
             {featuredHospitals?.map((hospital, i) => (
-              <div key={hospital.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
+              <div key={hospital.id} className="w-[85vw] sm:w-[320px] lg:w-[260px] shrink-0 snap-start bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
                 <div className="h-32 w-full relative flex items-center justify-center bg-gray-100 overflow-hidden">
                   {hospital.image_url ? (
                     <Image src={hospital.image_url} alt={hospital.name} fill className="object-cover" />
@@ -188,13 +189,13 @@ export default async function Home() {
                   <h3 className="font-bold text-gray-900 mb-1">{hospital.name}</h3>
                   <p className="text-xs text-gray-500 mb-2">{hospital.city}</p>
                   <p className="text-xs font-medium text-gray-600 mb-4 truncate" title={hospital.address}>{hospital.address}</p>
-                  <Link href={`/search?hospital_id=${hospital.id}`} className="mt-auto block text-center w-full py-2 border border-[#E31E24] text-[#E31E24] text-sm font-semibold hover:bg-red-50 transition-colors rounded-full cursor-pointer">
+                  <Link href={`/hospitals/${hospital.id}`} className="mt-auto block text-center w-full py-2 border border-[#E31E24] text-[#E31E24] text-sm font-semibold hover:bg-red-50 transition-colors rounded-full cursor-pointer">
                     View Doctors
                   </Link>
                 </div>
               </div>
             ))}
-          </div>
+          </Carousel>
         </div>
       </section>
 
@@ -207,9 +208,9 @@ export default async function Home() {
               View All <span className="hidden sm:inline ml-1">Doctors</span> <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1" />
             </Link>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Carousel itemWidth={340} gap={24}>
             {topDoctors?.map((doc: any, i: number) => (
-              <div key={doc.id} className="bg-white border border-gray-200 rounded-xl p-4 flex gap-4 hover:shadow-md transition-shadow">
+              <div key={doc.id} className="w-[85vw] sm:w-[380px] lg:w-[340px] shrink-0 snap-start bg-white border border-gray-200 rounded-xl p-4 flex gap-4 hover:shadow-md transition-shadow">
                 <div className="w-20 h-24 bg-gray-100 rounded-lg shrink-0 flex items-center justify-center relative overflow-hidden">
                   {doc.image_url ? (
                     <Image src={doc.image_url} alt={doc.profiles?.full_name} fill className="object-cover" />
@@ -219,18 +220,20 @@ export default async function Home() {
                 </div>
                 <div className="flex flex-col flex-1">
                   <h3 className="font-bold text-gray-900 text-sm mb-0.5">{doc.profiles?.full_name}</h3>
-                  <p className="text-[10px] text-gray-500 mb-0.5">{doc.specialty}</p>
+                  <p className="text-[10px] text-gray-500 mb-0.5">{doc.departments?.name || doc.specialty}</p>
                   <p className="text-[10px] text-gray-500 mb-2 truncate" title={`${doc.hospitals?.name}, ${doc.hospitals?.city}`}>{doc.hospitals?.name}, {doc.hospitals?.city}</p>
                   <p className="text-[10px] font-medium text-gray-700 mb-0.5"><span className="text-[#E31E24]">{doc.experience_years}</span> Years Exp.</p>
                   <p className="text-[10px] font-medium text-gray-700 mb-3"><span className="text-[#E31E24]">₹{doc.consultation_fee}</span> Consultation Fee</p>
                   <div className="mt-auto flex justify-between items-center">
                     <span className="text-[10px] text-green-600 font-medium flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Available</span>
-                    <button className="px-4 py-1.5 bg-[#E31E24] text-white text-xs font-semibold hover:bg-red-700 transition-colors rounded-full cursor-pointer">Book</button>
+                    <Link href={`/doctors/${doc.id}`} className="px-4 py-1.5 bg-[#E31E24] text-white text-xs font-semibold hover:bg-red-700 transition-colors rounded-full text-center">
+                      View
+                    </Link>
                   </div>
                 </div>
               </div>
             ))}
-          </div>
+          </Carousel>
         </div>
       </section>
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Calendar, User, Stethoscope, Phone } from 'lucide-react'
+import { Search, Calendar, User, Stethoscope, Phone, ChevronDown, ChevronUp } from 'lucide-react'
 
 type Appointment = {
   id: string
@@ -26,6 +26,88 @@ type Appointment = {
   } | null
 }
 
+function PatientGroupRow({ group }: { group: any }) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <>
+      <tr 
+        className="hover:bg-gray-50/50 transition-colors cursor-pointer group"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <td className="px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+              <User className="w-5 h-5 text-blue-500" />
+            </div>
+            <div>
+              <div className="font-bold text-gray-900">{group.name}</div>
+              <div className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
+                <Phone className="w-3.5 h-3.5" />
+                {group.phone}
+              </div>
+            </div>
+          </div>
+        </td>
+        <td className="px-6 py-4 font-medium text-gray-500">
+          {group.appointments.length} Appointment{group.appointments.length !== 1 ? 's' : ''}
+        </td>
+        <td className="px-6 py-4 text-right">
+          <button className="p-2 text-gray-400 group-hover:text-gray-600 transition-colors">
+            {expanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          </button>
+        </td>
+      </tr>
+
+      {expanded && (
+        <tr>
+          <td colSpan={3} className="p-0 bg-gray-50/30">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <h4 className="text-sm font-bold text-gray-900 mb-4 px-2">Appointment History</h4>
+              <div className="space-y-3">
+                {group.appointments.map((apt: Appointment) => (
+                  <div key={apt.id} className="flex flex-col md:flex-row md:items-center justify-between bg-white p-4 rounded-xl border border-gray-100 shadow-sm gap-4">
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <div className="font-bold text-gray-900">Dr. {apt.doctor?.profiles?.full_name?.replace('Dr. ', '') || 'Unknown Doctor'}</div>
+                        <div className="text-sm text-emerald-600 font-medium flex items-center gap-1 mt-1">
+                          <Stethoscope className="w-3.5 h-3.5" />
+                          {apt.doctor?.departments?.name || 'Unknown Dept'}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div className="font-bold text-gray-900 flex items-center gap-1.5">
+                          <Calendar className="w-4 h-4 text-gray-400" />
+                          {apt.schedules?.start_time ? new Date(apt.schedules.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown Date'}
+                        </div>
+                        <div className="text-sm text-gray-500 font-medium pl-5.5 mt-1">
+                          {apt.schedules?.start_time ? new Date(apt.schedules.start_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'Unknown Time'}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="shrink-0 flex items-center justify-end">
+                      <span className={`px-3 py-1.5 text-xs font-bold rounded-lg ${
+                        apt.status === 'completed' ? 'bg-green-100 text-green-700' :
+                        apt.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
+                        apt.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                        'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {apt.status.toUpperCase().replace('_', ' ')}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  )
+}
+
 export function PatientsListClient({
   appointments,
   doctorsList,
@@ -40,8 +122,15 @@ export function PatientsListClient({
   const [departmentFilter, setDepartmentFilter] = useState('All')
   const [dateFilter, setDateFilter] = useState('')
 
+  // Sort by date first to ensure when we group them, the latest appointment is first
+  const sortedAppointments = [...appointments].sort((a, b) => {
+    const aTime = a.schedules?.start_time ? new Date(a.schedules.start_time).getTime() : 0;
+    const bTime = b.schedules?.start_time ? new Date(b.schedules.start_time).getTime() : 0;
+    return bTime - aTime;
+  });
+
   // Filter the appointments
-  const filteredAppointments = appointments.filter((apt) => {
+  const filteredAppointments = sortedAppointments.filter((apt) => {
     const patientName = apt.patient?.full_name?.toLowerCase() || ''
     const patientPhone = apt.patient?.phone_number || ''
     const doctorName = apt.doctor?.profiles?.full_name?.replace('Dr. ', '') || 'Unknown'
@@ -55,6 +144,22 @@ export function PatientsListClient({
 
     return matchesSearch && matchesDoctor && matchesDept && matchesDate
   })
+
+  // Group by phone number
+  const groupedPatientsMap = filteredAppointments.reduce((acc: any, apt) => {
+    const phone = apt.patient?.phone_number || 'No Phone'
+    if (!acc[phone]) {
+      acc[phone] = {
+        name: apt.patient?.full_name || 'Unknown',
+        phone: phone,
+        appointments: []
+      }
+    }
+    acc[phone].appointments.push(apt)
+    return acc
+  }, {})
+
+  const groupedPatients = Object.values(groupedPatientsMap)
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -153,51 +258,20 @@ export function PatientsListClient({
           <thead>
             <tr className="bg-white border-b border-gray-100">
               <th className="px-6 py-4 font-bold text-gray-500 text-sm">Patient Details</th>
-              <th className="px-6 py-4 font-bold text-gray-500 text-sm">Doctor & Dept</th>
-              <th className="px-6 py-4 font-bold text-gray-500 text-sm">Schedule</th>
-              <th className="px-6 py-4 font-bold text-gray-500 text-sm">Status</th>
+              <th className="px-6 py-4 font-bold text-gray-500 text-sm">Appointments</th>
+              <th className="px-6 py-4 font-bold text-gray-500 text-sm text-right">Details</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {filteredAppointments.length === 0 ? (
+            {groupedPatients.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-6 py-12 text-center">
+                <td colSpan={3} className="px-6 py-12 text-center">
                   <div className="text-gray-400 mb-2">No patients match your filters</div>
                 </td>
               </tr>
             ) : (
-              filteredAppointments.map((apt: Appointment) => (
-                <tr key={apt.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="font-bold text-gray-900">{apt.patient?.full_name || 'Unknown Patient'}</div>
-                    <div className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                      <Phone className="w-3 h-3" />
-                      {apt.patient?.phone_number || 'No Phone'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="font-bold text-gray-900">Dr. {apt.doctor?.profiles?.full_name?.replace('Dr. ', '') || 'Unknown Doctor'}</div>
-                    <div className="text-sm text-emerald-600 font-medium mt-1">{apt.doctor?.departments?.name || 'Unknown Dept'}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="font-bold text-gray-900">
-                      {apt.schedules?.start_time ? new Date(apt.schedules.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown Date'}
-                    </div>
-                    <div className="text-sm text-gray-500 font-medium mt-1">
-                      {apt.schedules?.start_time ? new Date(apt.schedules.start_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'Unknown Time'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1.5 text-xs font-bold rounded-lg ${
-                      apt.status === 'completed' ? 'bg-green-100 text-green-700' :
-                      apt.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
-                      apt.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                      'bg-yellow-100 text-yellow-700'
-                    }`}>
-                      {apt.status.toUpperCase().replace('_', ' ')}
-                    </span>
-                  </td>
-                </tr>
+              groupedPatients.map((group: any) => (
+                <PatientGroupRow key={group.phone} group={group} />
               ))
             )}
           </tbody>

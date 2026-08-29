@@ -33,7 +33,7 @@ export default async function DoctorRecordsPage() {
       appointments!inner (
         doctor_id,
         schedules ( start_time ),
-        patient:profiles!appointments_patient_id_fkey ( full_name )
+        patient:profiles!appointments_patient_id_fkey ( full_name, phone_number )
       )
     `)
     .eq('appointments.doctor_id', doctor.id)
@@ -46,7 +46,8 @@ export default async function DoctorRecordsPage() {
     type: record.document_type,
     notes: record.notes,
     date: appointment?.schedules?.start_time || null,
-    patient_name: appointment?.patient?.full_name || 'Unknown Patient'
+    patient_name: appointment?.patient?.full_name || 'Unknown Patient',
+    patient_phone: appointment?.patient?.phone_number || 'No Phone'
   }}) || []
 
   // Sort by date descending

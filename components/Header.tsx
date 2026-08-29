@@ -4,6 +4,7 @@ import { Headset, LogOut, UserCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { logout } from '@/app/actions/auth'
 import { MobileDashboardMenu } from '@/components/MobileDashboardMenu'
+import { MainNav } from '@/components/MainNav'
 
 export async function Header() {
   const supabase = await createClient()
@@ -15,19 +16,7 @@ export async function Header() {
     profile = data
   }
 
-  const mainNavLinks = (
-    <>
-      <Link href="/" className="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors bg-red-50 text-[#E31E24] font-bold">Home</Link>
-      <Link href="#" className="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium">Find Doctors</Link>
-      <Link href="#" className="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium">Hospitals</Link>
-      <Link href="#" className="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium">Health Check Packages</Link>
-      <Link href="#" className="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium">Diagnostics</Link>
-      <Link href="#" className="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium">Medical Tourism</Link>
-      <Link href="#" className="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium">Corporate Health</Link>
-      <Link href="#" className="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium">About Us</Link>
-      <Link href="#" className="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium">Contact Us</Link>
-    </>
-  )
+  const mainNavLinks = <MainNav mobile />
 
   return (
     <header className="w-full bg-white flex flex-col border-b border-gray-200 transition-colors">
@@ -99,15 +88,7 @@ export async function Header() {
       <div className="w-full border-t border-gray-100 hidden md:block">
         <div className="max-w-[1440px] mx-auto w-full flex items-center justify-between py-3 px-4 md:px-8">
           <nav className="hidden lg:flex items-center gap-6 text-sm font-semibold text-gray-700">
-            <Link href="/" className="text-[#E31E24]">Home</Link>
-            <Link href="#" className="hover:text-[#E31E24] transition-colors">Find Doctors</Link>
-            <Link href="#" className="hover:text-[#E31E24] transition-colors">Hospitals</Link>
-            <Link href="#" className="hover:text-[#E31E24] transition-colors">Health Check Packages</Link>
-            <Link href="#" className="hover:text-[#E31E24] transition-colors">Diagnostics</Link>
-            <Link href="#" className="hover:text-[#E31E24] transition-colors">Medical Tourism</Link>
-            <Link href="#" className="hover:text-[#E31E24] transition-colors">Corporate Health</Link>
-            <Link href="#" className="hover:text-[#E31E24] transition-colors">About Us</Link>
-            <Link href="#" className="hover:text-[#E31E24] transition-colors">Contact Us</Link>
+            <MainNav />
           </nav>
 
           <Link

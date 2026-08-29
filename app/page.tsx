@@ -77,9 +77,9 @@ export default async function Home() {
               Book appointments with trusted hospitals and specialists, pay securely online, and receive dedicated executive assistance throughout your healthcare journey.
             </p>
             <div className="flex flex-wrap gap-4 pt-4">
-              <Link href="/" className="px-6 py-3 bg-[#E31E24] text-white font-semibold hover:bg-red-700 transition-colors rounded-full cursor-pointer inline-block">
+              <a href="#book-consultation-form" className="px-6 py-3 bg-[#E31E24] text-white font-semibold hover:bg-red-700 transition-colors rounded-full cursor-pointer inline-block">
                 Book Appointment
-              </Link>
+              </a>
               <Link href="/search" className="px-6 py-3 bg-white text-gray-800 border border-gray-300 font-semibold hover:bg-gray-50 transition-colors rounded-full cursor-pointer inline-block">
                 Find a Doctor
               </Link>
@@ -114,8 +114,9 @@ export default async function Home() {
             </div>
           </div>
 
-          {/* Right Card (Quick Search Form) */}
-          <BookConsultationForm />
+          <div id="book-consultation-form" className="w-full flex justify-center lg:w-auto lg:block">
+            <BookConsultationForm />
+          </div>
         </div>
       </section>
 
@@ -141,9 +142,11 @@ export default async function Home() {
       {/* Popular Specialities */}
       <section className="bg-gray-50 py-16 border-t border-gray-100">
         <div className="max-w-[1440px] mx-auto px-4 md:px-8">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl font-bold text-gray-900">Popular Specialities</h2>
-            <Link href="/search" className="text-[#E31E24] text-sm font-semibold flex items-center">View All Specialities <ChevronRight className="w-4 h-4 ml-1" /></Link>
+          <div className="flex justify-between items-center mb-8 gap-4">
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 whitespace-nowrap">Popular Specialities</h2>
+            <Link href="/search" className="text-[#E31E24] text-xs sm:text-sm font-semibold flex items-center whitespace-nowrap shrink-0">
+              View All <span className="hidden sm:inline ml-1">Specialities</span> <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1" />
+            </Link>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
             {popularSpecialities.map((spec, i) => {
@@ -162,9 +165,11 @@ export default async function Home() {
       {/* Featured Hospitals */}
       <section className="bg-white py-16 border-t border-gray-100">
         <div className="max-w-[1440px] mx-auto px-4 md:px-8">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl font-bold text-gray-900">Featured Hospitals</h2>
-            <Link href="/search" className="text-[#E31E24] text-sm font-semibold flex items-center">View All Hospitals <ChevronRight className="w-4 h-4 ml-1" /></Link>
+          <div className="flex justify-between items-center mb-8 gap-4">
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 whitespace-nowrap">Featured Hospitals</h2>
+            <Link href="/search" className="text-[#E31E24] text-xs sm:text-sm font-semibold flex items-center whitespace-nowrap shrink-0">
+              View All <span className="hidden sm:inline ml-1">Hospitals</span> <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1" />
+            </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             {featuredHospitals?.map((hospital, i) => (
@@ -196,9 +201,11 @@ export default async function Home() {
       {/* Top Doctors */}
       <section className="bg-gray-50 py-16 border-t border-gray-100">
         <div className="max-w-[1440px] mx-auto px-4 md:px-8">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl font-bold text-gray-900">Top Doctors</h2>
-            <Link href="/search" className="text-[#E31E24] text-sm font-semibold flex items-center">View All Doctors <ChevronRight className="w-4 h-4 ml-1" /></Link>
+          <div className="flex justify-between items-center mb-8 gap-4">
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 whitespace-nowrap">Top Doctors</h2>
+            <Link href="/search" className="text-[#E31E24] text-xs sm:text-sm font-semibold flex items-center whitespace-nowrap shrink-0">
+              View All <span className="hidden sm:inline ml-1">Doctors</span> <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1" />
+            </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {topDoctors?.map((doc: any, i: number) => (

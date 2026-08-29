@@ -4,6 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { CalendarDays, Users, ClipboardList, LogOut, Stethoscope, Bell } from 'lucide-react'
 import { SidebarLink } from '@/components/SidebarLink'
+import { MobileDashboardMenu } from '@/components/MobileDashboardMenu'
 
 export default async function DoctorLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -16,6 +17,45 @@ export default async function DoctorLayout({ children }: { children: React.React
   if (profile?.role !== 'doctor') {
     redirect('/')
   }
+
+  const navLinks = (
+    <>
+      <SidebarLink
+        href="/doctor/dashboard"
+        icon={<CalendarDays className="w-5 h-5" />}
+        label="Today's Appointments"
+        activeClassName="bg-blue-50 text-blue-700 font-bold"
+        exactMatch={true}
+      />
+      <SidebarLink
+        href="/doctor/dashboard/schedules"
+        icon={<CalendarDays className="w-5 h-5" />}
+        label="My Schedule"
+        activeClassName="bg-blue-50 text-blue-700 font-bold"
+      />
+      <SidebarLink
+        href="/doctor/patients"
+        icon={<Users className="w-5 h-5" />}
+        label="My Patients"
+        activeClassName="bg-blue-50 text-blue-700 font-bold"
+      />
+      <SidebarLink
+        href="/doctor/records"
+        icon={<ClipboardList className="w-5 h-5" />}
+        label="Medical Records"
+        activeClassName="bg-blue-50 text-blue-700 font-bold"
+      />
+    </>
+  )
+
+  const logoutForm = (
+    <form action="/auth/signout" method="post">
+      <button className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-xl font-bold transition-colors cursor-pointer">
+        <LogOut className="w-5 h-5" />
+        Sign Out
+      </button>
+    </form>
+  )
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -32,31 +72,7 @@ export default async function DoctorLayout({ children }: { children: React.React
         </div>
 
         <div className="flex-1 py-6 px-4 space-y-1">
-          <SidebarLink
-            href="/doctor/dashboard"
-            icon={<CalendarDays className="w-5 h-5" />}
-            label="Today's Appointments"
-            activeClassName="bg-blue-50 text-blue-700 font-bold"
-            exactMatch={true}
-          />
-          <SidebarLink
-            href="/doctor/dashboard/schedules"
-            icon={<CalendarDays className="w-5 h-5" />}
-            label="My Schedule"
-            activeClassName="bg-blue-50 text-blue-700 font-bold"
-          />
-          <SidebarLink
-            href="/doctor/patients"
-            icon={<Users className="w-5 h-5" />}
-            label="My Patients"
-            activeClassName="bg-blue-50 text-blue-700 font-bold"
-          />
-          <SidebarLink
-            href="/doctor/records"
-            icon={<ClipboardList className="w-5 h-5" />}
-            label="Medical Records"
-            activeClassName="bg-blue-50 text-blue-700 font-bold"
-          />
+          {navLinks}
         </div>
 
         <div className="p-4 border-t border-gray-200">
@@ -81,16 +97,13 @@ export default async function DoctorLayout({ children }: { children: React.React
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* Mobile/Top Header */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="md:hidden flex items-center gap-2">
+        <header className="h-16 bg-white border-b border-gray-200 flex md:hidden items-center justify-between px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2">
             <Stethoscope className="w-6 h-6 text-[#E31E24]" />
             <span className="font-black text-gray-900">Doctor</span>
           </div>
-          <div className="flex-1" />
-          <div className="flex items-center gap-4">
-            <button className="p-2 text-gray-400 hover:text-gray-500 relative">
-              <Bell className="w-5 h-5" />
-            </button>
+          <div className="flex items-center">
+            <MobileDashboardMenu footer={logoutForm}>{navLinks}</MobileDashboardMenu>
           </div>
         </header>
 

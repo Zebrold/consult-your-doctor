@@ -55,8 +55,8 @@ export default async function DoctorSchedulesPage() {
         </Link>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
-              <Calendar className="w-6 h-6 text-blue-600" />
+            <h1 className="text-lg sm:text-2xl font-black text-gray-900 flex items-center gap-2 whitespace-nowrap">
+              <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 shrink-0" />
               My Schedule (Next 14 Days)
             </h1>
             <p className="text-gray-500 mt-1">

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { LayoutDashboard, Users, LogOut, Building2, Bell, ShieldCheck } from 'lucide-react'
 import { SidebarLink } from '@/components/SidebarLink'
+import { MobileDashboardMenu } from '@/components/MobileDashboardMenu'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -16,6 +17,42 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (profile?.role !== 'super_admin') {
     redirect('/')
   }
+
+  const navLinks = (
+    <>
+      <SidebarLink
+        href="/admin/dashboard"
+        icon={<LayoutDashboard className="w-5 h-5" />}
+        label="Global Overview"
+        activeClassName="bg-red-50 text-[#E31E24] font-bold"
+        inactiveClassName="text-gray-500 hover:bg-gray-50 hover:text-gray-900 font-medium"
+        exactMatch={true}
+      />
+      <SidebarLink
+        href="/admin/hospitals"
+        icon={<Building2 className="w-5 h-5" />}
+        label="Manage Hospitals"
+        activeClassName="bg-red-50 text-[#E31E24] font-bold"
+        inactiveClassName="text-gray-500 hover:bg-gray-50 hover:text-gray-900 font-medium"
+      />
+      <SidebarLink
+        href="/admin/staff"
+        icon={<Users className="w-5 h-5" />}
+        label="Staff Management"
+        activeClassName="bg-red-50 text-[#E31E24] font-bold"
+        inactiveClassName="text-gray-500 hover:bg-gray-50 hover:text-gray-900 font-medium"
+      />
+    </>
+  )
+
+  const logoutForm = (
+    <form action="/auth/signout" method="post">
+      <button className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-xl font-bold transition-colors cursor-pointer">
+        <LogOut className="w-5 h-5" />
+        Sign Out
+      </button>
+    </form>
+  )
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -32,28 +69,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
 
         <div className="flex-1 py-6 px-4 space-y-1">
-          <SidebarLink
-            href="/admin/dashboard"
-            icon={<LayoutDashboard className="w-5 h-5" />}
-            label="Global Overview"
-            activeClassName="bg-red-50 text-[#E31E24] font-bold"
-            inactiveClassName="text-gray-500 hover:bg-gray-50 hover:text-gray-900 font-medium"
-            exactMatch={true}
-          />
-          <SidebarLink
-            href="/admin/hospitals"
-            icon={<Building2 className="w-5 h-5" />}
-            label="Manage Hospitals"
-            activeClassName="bg-red-50 text-[#E31E24] font-bold"
-            inactiveClassName="text-gray-500 hover:bg-gray-50 hover:text-gray-900 font-medium"
-          />
-          <SidebarLink
-            href="/admin/staff"
-            icon={<Users className="w-5 h-5" />}
-            label="Staff Management"
-            activeClassName="bg-red-50 text-[#E31E24] font-bold"
-            inactiveClassName="text-gray-500 hover:bg-gray-50 hover:text-gray-900 font-medium"
-          />
+          {navLinks}
         </div>
 
         <div className="p-4 border-t border-gray-100">
@@ -78,16 +94,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* Mobile/Top Header */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="md:hidden flex items-center gap-2">
+        <header className="h-16 bg-white border-b border-gray-200 flex md:hidden items-center justify-between px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2">
             <ShieldCheck className="w-6 h-6 text-[#E31E24]" />
             <span className="font-black text-gray-900">Admin</span>
           </div>
-          <div className="flex-1" />
-          <div className="flex items-center gap-4">
-            <button className="p-2 text-gray-400 hover:text-gray-500 relative">
-              <Bell className="w-5 h-5" />
-            </button>
+          <div className="flex items-center">
+            <MobileDashboardMenu footer={logoutForm}>{navLinks}</MobileDashboardMenu>
           </div>
         </header>
 

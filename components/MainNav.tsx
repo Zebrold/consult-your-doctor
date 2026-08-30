@@ -12,7 +12,7 @@ const links: NavLink[] = [
   { href: '/', label: 'Home' },
   { href: '/search?type=doctor', label: 'Find Doctors' },
   { href: '/search?type=hospital', label: 'Hospitals' },
-  { href: '#', label: 'Health Check Packages' },
+  // { href: '#', label: 'Health Check Packages' },
   { href: '#', label: 'Diagnostics' },
   { href: '#', label: 'Medical Tourism' },
   { href: '#', label: 'Corporate Health' },
@@ -51,11 +51,10 @@ export function MainNav({ mobile }: { mobile?: boolean }) {
             <Link
               key={idx}
               href={link.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
-                isActive 
-                  ? 'bg-red-50 text-[#E31E24] font-bold' 
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${isActive
+                  ? 'bg-red-50 text-[#E31E24] font-bold'
                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium'
-              }`}
+                }`}
             >
               {link.label}
             </Link>
@@ -66,11 +65,10 @@ export function MainNav({ mobile }: { mobile?: boolean }) {
           <Link
             key={idx}
             href={link.href}
-            className={`transition-colors ${
-              isActive 
-                ? 'text-[#E31E24] font-bold' 
+            className={`transition-colors ${isActive
+                ? 'text-[#E31E24] font-bold'
                 : 'hover:text-[#E31E24] text-gray-700 font-semibold'
-            }`}
+              }`}
           >
             {link.label}
           </Link>

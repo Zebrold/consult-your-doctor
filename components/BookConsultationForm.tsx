@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { MapPin, Building2, Stethoscope, UserCircle, Calendar, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { createAppointment } from '@/app/actions/booking'
+import { useSearchParams } from 'next/navigation'
 
-export function BookConsultationForm() {
+function BookConsultationFormInner() {
   const supabase = createClient()
+  const searchParams = useSearchParams()
   // State for dropdown options
   const [cities, setCities] = useState<string[]>([])
   const [hospitals, setHospitals] = useState<any[]>([])
@@ -24,21 +26,68 @@ export function BookConsultationForm() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Initial Fetch: Get all unique cities
+  const initRef = useRef(false)
+
+  // Initial Fetch & URL Pre-fill
   useEffect(() => {
-    async function fetchCities() {
-      const { data } = await supabase.from('hospitals').select('city').eq('status', 'active')
-      if (data) {
-        const uniqueCities = Array.from(new Set(data.map(h => h.city)))
-        setCities(uniqueCities)
+    async function initialize() {
+      const urlCity = searchParams.get('city')
+      const urlHospital = searchParams.get('hospital_id')
+      const urlSpecialty = searchParams.get('specialty')
+      const urlDoctor = searchParams.get('doctor_id')
+
+      // Fetch base cities
+      const { data: cityData } = await supabase.from('hospitals').select('city').eq('status', 'active')
+      if (cityData) {
+        setCities(Array.from(new Set(cityData.map(h => h.city))))
       }
+
+      if (urlCity) {
+        setSelectedCity(urlCity)
+        const { data: hData } = await supabase.from('hospitals').select('id, name').eq('city', urlCity).eq('status', 'active')
+        setHospitals(hData || [])
+        
+        if (urlHospital) {
+          setSelectedHospital(urlHospital)
+          const { data: specData } = await supabase.from('doctors').select('specialty').eq('hospital_id', urlHospital)
+          if (specData) setSpecialties(Array.from(new Set(specData.map(d => d.specialty))))
+          
+          if (urlSpecialty) {
+            setSelectedSpecialty(urlSpecialty)
+            const { data: docData } = await supabase
+              .from('doctors')
+              .select('id, profiles!inner(full_name)')
+              .eq('hospital_id', urlHospital)
+              .eq('specialty', urlSpecialty)
+            setDoctors(docData || [])
+            
+            if (urlDoctor) {
+              setSelectedDoctor(urlDoctor)
+              const { data: schedData } = await supabase
+                .from('schedules')
+                .select('*')
+                .eq('doctor_id', urlDoctor)
+                .eq('is_booked', false)
+                .gte('start_time', new Date().toISOString())
+                .order('start_time', { ascending: true })
+              setSchedules(schedData || [])
+            }
+          }
+        }
+      }
+
       setIsLoading(false)
+      // Allow cascading effects to run on future manual changes
+      setTimeout(() => {
+        initRef.current = true
+      }, 100)
     }
-    fetchCities()
-  }, [])
+    initialize()
+  }, [searchParams])
 
   // Fetch Hospitals when City changes
   useEffect(() => {
+    if (!initRef.current) return
     setSelectedHospital('')
     setSelectedSpecialty('')
     setSelectedDoctor('')
@@ -57,6 +106,7 @@ export function BookConsultationForm() {
 
   // Fetch Specialties when Hospital changes
   useEffect(() => {
+    if (!initRef.current) return
     setSelectedSpecialty('')
     setSelectedDoctor('')
     setSchedules([])
@@ -78,6 +128,7 @@ export function BookConsultationForm() {
 
   // Fetch Doctors when Specialty changes
   useEffect(() => {
+    if (!initRef.current) return
     setSelectedDoctor('')
     setSchedules([])
     
@@ -102,6 +153,7 @@ export function BookConsultationForm() {
 
   // Fetch Schedules when Doctor changes
   useEffect(() => {
+    if (!initRef.current) return
     async function fetchSchedules() {
       if (!selectedDoctor) {
         setSchedules([])
@@ -255,5 +307,13 @@ export function BookConsultationForm() {
         </form>
       )}
     </div>
+  )
+}
+
+export function BookConsultationForm() {
+  return (
+    <Suspense fallback={<div className="flex justify-center items-center h-64 bg-white rounded-xl shadow-2xl p-8"><Loader2 className="w-8 h-8 text-[#E31E24] animate-spin" /></div>}>
+      <BookConsultationFormInner />
+    </Suspense>
   )
 }

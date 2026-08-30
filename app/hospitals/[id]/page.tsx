@@ -88,7 +88,7 @@ export default async function HospitalProfilePage(
                 {/* Actions */}
                 <div className="pt-4 w-full md:w-auto flex shrink-0">
                   <Link 
-                    href="/#book-consultation-form" 
+                    href={`/?hospital_id=${hospital.id}&city=${encodeURIComponent(hospital.city)}#book-consultation-form`} 
                     className="w-full md:w-auto px-8 py-3 bg-[#E31E24] text-white font-bold rounded-xl hover:bg-red-700 transition-colors text-center"
                   >
                     Book Consultation

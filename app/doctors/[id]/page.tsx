@@ -105,7 +105,7 @@ export default async function DoctorProfilePage(
                   {doctor.about ? (
                     <p>{doctor.about}</p>
                   ) : (
-                    <p>{doctor.profiles?.full_name} is a highly experienced specialist dedicated to providing the best patient care at {doctor.hospitals?.name}.</p>
+                    <p>No info available</p>
                   )}
                 </div>
 
@@ -154,7 +154,7 @@ export default async function DoctorProfilePage(
                 )}
 
                 <Link 
-                  href="/#book-consultation-form" 
+                  href={`/?doctor_id=${doctor.id}&hospital_id=${doctor.hospital_id}&city=${encodeURIComponent(doctor.hospitals?.city || '')}&specialty=${encodeURIComponent(doctor.specialty || doctor.departments?.name || '')}#book-consultation-form`}
                   className="w-full flex items-center justify-center px-6 py-3.5 bg-[#E31E24] text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-sm"
                 >
                   Book Consultation

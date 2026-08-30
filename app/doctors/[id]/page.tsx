@@ -22,9 +22,9 @@ export default async function DoctorProfilePage(
     .from('doctors')
     .select(`
       *,
-      profiles!inner(full_name, email, phone, role),
-      hospitals!inner(name, city, address, state),
-      departments!inner(name)
+      profiles!inner(full_name, role),
+      hospitals!inner(name, city, address),
+      departments(name)
     `)
     .eq('id', id)
     .single()

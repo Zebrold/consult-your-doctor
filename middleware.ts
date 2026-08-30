@@ -38,9 +38,9 @@ export async function middleware(request: NextRequest) {
 
   // Standard protected paths
   const isProtectedRoute = path.startsWith('/patient') || 
-                           path.startsWith('/doctor') || 
+                           path.startsWith('/doctor/') || path === '/doctor' ||
                            path.startsWith('/executive') || 
-                           path.startsWith('/hospital') ||
+                           path.startsWith('/hospital/') || path === '/hospital' ||
                            path.startsWith('/admin/dashboard')
 
   if (user) {
@@ -66,13 +66,13 @@ export async function middleware(request: NextRequest) {
     if (path.startsWith('/patient') && role !== 'patient') {
       return NextResponse.redirect(new URL(dashboardPath, request.url))
     }
-    if (path.startsWith('/doctor') && role !== 'doctor') {
+    if ((path.startsWith('/doctor/') || path === '/doctor') && role !== 'doctor') {
        return NextResponse.redirect(new URL(dashboardPath, request.url))
     }
     if (path.startsWith('/executive') && role !== 'executive') {
        return NextResponse.redirect(new URL(dashboardPath, request.url))
     }
-    if (path.startsWith('/hospital') && role !== 'hospital_admin') {
+    if ((path.startsWith('/hospital/') || path === '/hospital') && role !== 'hospital_admin') {
        return NextResponse.redirect(new URL(dashboardPath, request.url))
     }
     if (path.startsWith('/admin/dashboard') && role !== 'super_admin') {

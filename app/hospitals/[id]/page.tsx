@@ -35,7 +35,7 @@ export default async function HospitalProfilePage(
       *,
       profiles!inner(full_name),
       hospitals!inner(name, city),
-      departments!inner(name)
+      departments(name)
     `)
     .eq('hospital_id', id)
 
@@ -70,7 +70,7 @@ export default async function HospitalProfilePage(
                   <h1 className="text-3xl font-black text-gray-900 mb-2">{hospital.name}</h1>
                   <div className="flex items-center gap-2 text-gray-600 mb-6 font-medium">
                     <MapPin className="w-5 h-5 text-[#E31E24]" />
-                    <span>{hospital.address}, {hospital.city}, {hospital.state} {hospital.zip_code}</span>
+                    <span>{[hospital.address, hospital.city, hospital.state, hospital.zip_code].filter(Boolean).join(', ')}</span>
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-4 max-w-2xl">

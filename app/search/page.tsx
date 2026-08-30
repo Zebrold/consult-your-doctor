@@ -125,16 +125,7 @@ export default async function SearchPage(
                       </div>
                     </div>
                     
-                    <div className="space-y-2 mb-4 pt-4 border-t border-gray-100">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500">Contact:</span>
-                        <span className="font-medium text-gray-900">{item.contact_email}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500">City:</span>
-                        <span className="font-medium text-gray-900">{item.city}</span>
-                      </div>
-                    </div>
+
                     
                     <Link href={`/hospitals/${item.id}`} className="mt-auto w-full py-2.5 bg-white border-2 border-[#E31E24] text-[#E31E24] text-sm font-bold hover:bg-red-50 transition-colors rounded-full text-center inline-block">
                       View Hospital

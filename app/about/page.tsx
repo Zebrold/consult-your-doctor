@@ -1,316 +1,299 @@
 import { Header } from '@/components/Header'
-import { 
-  Users, Brain, Stethoscope, Microscope, Building2, RefreshCw, 
-  Database, Plug, ShieldCheck, Lock, Eye, Key, FileCheck, 
-  Sparkles, Heart, Network, Scale, Globe, Accessibility,
-  UserCircle, Briefcase, Hospital, FlaskConical, Handshake,
-  ArrowRight, ChevronRight, Layers, Activity, ActivitySquare,
-  MessageSquare, Stethoscope as StethoscopeIcon, Calendar, ArrowDown
-} from 'lucide-react'
 import Link from 'next/link'
+import {
+  ArrowRight,
+  BadgeCheck,
+  Brain,
+  Building2,
+  CalendarCheck2,
+  CheckCircle2,
+  Globe2,
+  HeartPulse,
+  LockKeyhole,
+  MessageCircleHeart,
+  Microscope,
+  ShieldCheck,
+  Sparkles,
+  Stethoscope,
+  Users,
+} from 'lucide-react'
 
 export const metadata = {
   title: 'About Us | Consult Your Doctor',
-  description: 'Consult Your Doctor is a multi-market healthcare platform building intelligent, human-centric, and connected healthcare technology infrastructure.',
+  description:
+    'Learn how Consult Your Doctor connects patients, doctors, hospitals and diagnostics through a more coordinated healthcare journey.',
 }
+
+const principles = [
+  {
+    title: 'Consult',
+    description:
+      'Connect patients with appropriate doctors, specialists and healthcare services.',
+  },
+  {
+    title: 'Understand',
+    description:
+      'Help patients understand instructions, information and the next steps in their care journey.',
+  },
+  {
+    title: 'Assess',
+    description:
+      'Use structured digital assessments and responsible AI systems to organize relevant patient information.',
+  },
+  {
+    title: 'Follow Up',
+    description:
+      'Support reminders, investigations, appointments and post-consultation continuity.',
+  },
+  {
+    title: 'Connect',
+    description:
+      'Guide patients toward the right healthcare professional or service when further support is required.',
+  },
+]
+
+const journey = [
+  'Doctor consultation',
+  'Clinical instructions',
+  'AI-assisted follow-up',
+  'Diagnostics / investigations',
+  'Patient updates',
+  'Follow-up consultation',
+  'Continuing care',
+]
+
+const trustPoints = [
+  {
+    icon: Stethoscope,
+    title: 'Doctor-led care',
+    description: 'Technology supports healthcare professionals; it does not replace clinical judgement.',
+  },
+  {
+    icon: HeartPulse,
+    title: 'Patient-first experience',
+    description: 'Clear, guided journeys designed around patient needs before and after consultation.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Privacy & trust',
+    description: 'Secure handling, access control and responsible data practices are core to the platform.',
+  },
+  {
+    icon: Building2,
+    title: 'Connected ecosystem',
+    description: 'Doctors, hospitals, diagnostics and patients connected through one coordinated layer.',
+  },
+]
+
+const ecosystem = [
+  {
+    icon: Users,
+    label: 'For Patients',
+    title: 'Clarity after the consultation',
+    description:
+      'A structured journey that helps patients understand what comes next and access the right healthcare services.',
+    points: [
+      'Clear next-step guidance',
+      'Appointment and follow-up support',
+      'Investigation coordination',
+      'Better continuity of care',
+    ],
+  },
+  {
+    icon: Stethoscope,
+    label: 'For Doctors',
+    title: 'A digital extension of care',
+    description:
+      'Tools that support organized communication and continuity without adding unnecessary administrative burden.',
+    points: [
+      'Structured patient follow-up',
+      'Organized patient information',
+      'Appointment coordination',
+      'Administrative communication support',
+    ],
+  },
+  {
+    icon: Building2,
+    label: 'For Hospitals',
+    title: 'Stronger patient engagement',
+    description:
+      'Extend the hospital-patient relationship beyond a single consultation through coordinated digital workflows.',
+    points: [
+      'Post-consultation engagement',
+      'Investigation coordination',
+      'Appointment continuity',
+      'Reduced operational friction',
+    ],
+  },
+  {
+    icon: Microscope,
+    label: 'For Diagnostics',
+    title: 'Connected testing pathways',
+    description:
+      'Create a smoother journey from recommended investigations to booking, results and professional follow-up.',
+    points: [
+      'Recommended investigation flow',
+      'Booking support',
+      'Result availability',
+      'Follow-up doctor review',
+    ],
+  },
+]
+
+const privacyPoints = [
+  'Privacy by design',
+  'Secure information handling',
+  'Access controls',
+  'Consent-based sharing',
+  'Responsible AI practices',
+  'Appropriate data governance',
+  'Interoperability',
+  'Regulatory awareness',
+]
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans selection:bg-[#E31E24]/20">
+    <div className="min-h-screen bg-white text-slate-900">
       <Header />
 
-      <main className="flex-1">
-        
-        {/* NEW HERO SECTION */}
-        <section className="relative pt-24 pb-20 md:pt-32 md:pb-32 overflow-hidden bg-white">
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#f1f5f9_1px,transparent_1px),linear-gradient(to_bottom,#f1f5f9_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-40"></div>
-          
-          <div className="max-w-[1200px] mx-auto px-6 md:px-12 relative z-10 text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-red-50 text-[#E31E24] font-semibold text-sm tracking-wide uppercase mb-8 shadow-sm ring-1 ring-red-100">
-              <Heart className="w-4 h-4" />
-              Consult Your Doctor
-            </div>
-            <h1 className="text-5xl md:text-7xl font-black text-slate-900 tracking-tight leading-[1.1] mb-8">
-              Healthcare doesn't end <br className="hidden md:block" />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E31E24] to-red-500">when the consultation ends.</span>
-            </h1>
-            <p className="text-lg md:text-xl text-slate-500 max-w-3xl mx-auto leading-relaxed font-light mb-8">
-              Consult Your Doctor, a healthcare technology company under Zebrold International Holdings Limited, is building a new layer of healthcare focused on what happens <strong>after</strong> the doctor-patient consultation.
-            </p>
-            <p className="text-lg text-slate-500 max-w-4xl mx-auto leading-relaxed font-light">
-              A medical consultation may last only a few minutes, but the patient's healthcare journey continues long after the call, appointment, diagnosis, prescription, or clinical discussion has ended. Patients may still have questions, need investigations, forget instructions, or need help understanding what to do next. Our platform bridges this gap.
-            </p>
-          </div>
-        </section>
+      <main>
+        {/* HERO */}
+        <section className="relative overflow-hidden border-b border-slate-100 bg-white">
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#f1f5f9_1px,transparent_1px),linear-gradient(to_bottom,#f1f5f9_1px,transparent_1px)] bg-[size:52px_52px] opacity-50 [mask-image:linear-gradient(to_bottom,#000,transparent_82%)]" />
+          <div className="absolute -right-32 top-8 h-96 w-96 rounded-full bg-red-100/70 blur-3xl" />
 
-        {/* VISION & PROBLEM */}
-        <section className="py-24 bg-slate-50 border-t border-slate-100">
-          <div className="max-w-[1200px] mx-auto px-6 md:px-12">
-            <div className="grid md:grid-cols-2 gap-16">
-              <div>
-                <h3 className="text-[#E31E24] font-bold tracking-wide uppercase text-sm mb-4">Our Vision</h3>
-                <h2 className="text-3xl font-bold text-slate-900 mb-6">From Consultation to Continuity.</h2>
-                <p className="text-slate-600 leading-relaxed text-lg">
-                  Our vision is to build a healthcare ecosystem where patients are not left alone after meeting their doctor. Consult Your Doctor aims to make healthcare more connected, accessible, responsive and continuous by creating a structured digital layer between the consultation and the patient's next healthcare decision. 
-                  <br /><br />
-                  We believe the future of healthcare is not simply about making doctors available online. It is about creating a system that helps patients understand, follow, monitor and continue their healthcare journey responsibly.
-                </p>
+          <div className="relative mx-auto grid max-w-[1200px] gap-12 px-6 py-20 md:px-10 md:py-28 lg:grid-cols-[1.15fr_.85fr] lg:items-center">
+            <div>
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-red-100 bg-red-50 px-4 py-2 text-sm font-semibold text-[#E31E24]">
+                About Consult Your Doctor
               </div>
-              <div>
-                <h3 className="text-[#E31E24] font-bold tracking-wide uppercase text-sm mb-4">The Problem We Are Solving</h3>
-                <h2 className="text-3xl font-bold text-slate-900 mb-6">The Fragmented Journey.</h2>
-                <p className="text-slate-600 leading-relaxed text-lg mb-6">
-                  Healthcare systems are increasingly becoming digital, but one important part of the patient journey remains fragmented: <em>What happens after the consultation?</em>
-                </p>
-                <ul className="space-y-3 mb-6">
-                  {[
-                    'A diagnosis or clinical assessment',
-                    'Medication instructions',
-                    'Recommended laboratory investigations',
-                    'Imaging or diagnostic requirements',
-                    'Follow-up requirements',
-                    'Questions that arise later',
-                  ].map((item, i) => (
-                    <li key={i} className="flex items-start gap-3">
-                      <div className="mt-1.5 w-2 h-2 rounded-full bg-slate-400 shrink-0" />
-                      <span className="text-slate-700">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-slate-600 leading-relaxed">
-                  Traditional healthcare systems often depend heavily on patients remembering and coordinating these activities themselves. This creates a gap between medical consultation and continued patient support. We are developing our platform to address this gap.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
 
-        {/* WHAT IS CONSULT YOUR DOCTOR - 5 PRINCIPLES */}
-        <section className="py-24 bg-slate-900 text-white overflow-hidden relative">
-          <div className="absolute top-0 right-0 -mr-20 -mt-20 w-[600px] h-[600px] bg-red-500/10 rounded-full blur-[100px]" />
-          <div className="max-w-[1200px] mx-auto px-6 md:px-12 relative z-10">
-            <div className="text-center mb-16 md:mb-24">
-              <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">What is Consult Your Doctor?</h2>
-              <p className="text-xl text-slate-400 max-w-3xl mx-auto">
-                A digital healthcare and post-consultation support platform designed to connect patients, doctors, diagnostic services, hospitals and intelligent digital systems through one coordinated healthcare journey. The platform is designed around five fundamental principles:
+              <h1 className="max-w-4xl text-4xl font-extrabold tracking-[-0.035em] text-slate-950 sm:text-5xl md:text-6xl md:leading-[1.08]">
+                Healthcare should continue{' '}
+                <span className="text-[#E31E24]">after the consultation ends.</span>
+              </h1>
+
+              <p className="mt-7 max-w-2xl text-lg leading-8 text-slate-600">
+                Consult Your Doctor is building a connected healthcare platform that helps patients move
+                from consultation to follow-up with greater clarity, continuity and confidence.
               </p>
-            </div>
 
-            <div className="grid md:grid-cols-5 gap-6">
-              {[
-                { name: 'Consult', desc: 'Connect patients with appropriate healthcare professionals and consultation services.' },
-                { name: 'Understand', desc: 'Help patients understand information and instructions provided during their journey.' },
-                { name: 'Assess', desc: 'Use structured digital assessments and AI systems to help organize patient information.' },
-                { name: 'Follow Up', desc: 'Create structured post-consultation pathways for investigations, appointments, reminders and continuing care.' },
-                { name: 'Connect', desc: 'Connect patients with the appropriate healthcare provider when further professional attention is required.' },
-              ].map((item, i) => (
-                <div key={item.name} className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors flex flex-col">
-                  <div className="w-10 h-10 rounded-full bg-[#E31E24]/20 flex items-center justify-center text-[#E31E24] font-black text-xl mb-4">
-                    {i + 1}
-                  </div>
-                  <h3 className="text-xl font-bold mb-3">{item.name}</h3>
-                  <p className="text-slate-400 text-sm leading-relaxed">{item.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+              <p className="mt-4 max-w-2xl leading-7 text-slate-500">
+                We connect patients, doctors, hospitals, diagnostics and intelligent digital systems through
+                a coordinated care journey designed around what happens next.
+              </p>
 
-        {/* AI LAYER & COMMUNICATION */}
-        <section className="py-24 bg-white">
-          <div className="max-w-[1200px] mx-auto px-6 md:px-12">
-            
-            <div className="grid lg:grid-cols-2 gap-16 mb-24">
-              <div>
-                <h3 className="text-[#E31E24] font-bold tracking-wide uppercase text-sm mb-4">Core Component</h3>
-                <h2 className="text-3xl font-bold text-slate-900 mb-6">Our AI-Assisted Healthcare Layer</h2>
-                <p className="text-slate-600 leading-relaxed text-lg mb-6">
-                  One of the core components is our AI-integrated healthcare assistance layer. The system interacts with patients after their consultation, collects relevant information, organizes responses and assists with appropriate next-step guidance.
-                </p>
-                <p className="text-slate-600 leading-relaxed mb-6">
-                  Depending on the service and regulatory framework applicable in each market, the platform can support:
-                </p>
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  {[
-                    'AI-assisted questionnaires', 'Structured wellness assessments',
-                    'Post-consultation follow-ups', 'Patient instruction reminders',
-                    'Investigation guidance', 'Follow-up scheduling',
-                    'Information organization', 'Automated communication'
-                  ].map((item, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-                      <span className="text-sm text-slate-700 font-medium">{item}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="p-5 bg-slate-50 border-l-4 border-slate-300 italic text-slate-600 text-sm">
-                  AI is not positioned as a replacement for the doctor. Instead, our approach is to use technology as a support layer around professional healthcare. Clinical decisions remain within the appropriate professional framework.
-                </div>
+              <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="/book-appointment"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#E31E24] px-6 py-3.5 font-semibold text-white shadow-sm transition hover:bg-red-700"
+                >
+                  Book Appointment
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+
+                <Link
+                  href="/search"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-6 py-3.5 font-semibold text-slate-800 transition hover:border-slate-400 hover:bg-slate-50"
+                >
+                  Find a Doctor
+                </Link>
               </div>
+            </div>
 
-              <div>
-                <h3 className="text-[#E31E24] font-bold tracking-wide uppercase text-sm mb-4">Communication</h3>
-                <h2 className="text-3xl font-bold text-slate-900 mb-6">AI-Assisted Patient Communication</h2>
-                <p className="text-slate-600 leading-relaxed text-lg mb-6">
-                  Patients frequently have questions after leaving a consultation. Instead of forcing patients to navigate complicated healthcare systems for every basic follow-up interaction, Consult Your Doctor is designed to provide an intelligent digital communication layer.
-                </p>
-                <div className="space-y-4">
-                  <p className="text-slate-700 font-medium">The system can help patients:</p>
-                  <ul className="space-y-3">
-                    {[
-                      'Understand their next steps & review information',
-                      'Respond to structured follow-up questions & receive reminders',
-                      'Prepare information for their next consultation',
-                      'Navigate available healthcare services',
-                      'Request appropriate follow-up support',
-                      'Escalate relevant situations to healthcare professionals',
-                    ].map((item, i) => (
-                      <li key={i} className="flex items-start gap-3">
-                        <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#E31E24] shrink-0" />
-                        <span className="text-slate-600">{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="mt-6 text-lg font-bold text-slate-900">
-                    The objective is simple: Make the patient's next healthcare decision easier to navigate.
+            <div className="relative">
+              <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_24px_70px_-30px_rgba(15,23,42,0.35)] sm:p-7">
+                <div className="rounded-2xl bg-slate-950 p-7 text-white">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-red-300">
+                        Our purpose
+                      </p>
+                      <h2 className="mt-3 text-2xl font-bold leading-tight">
+                        From consultation to continuity.
+                      </h2>
+                    </div>
+                  </div>
+
+                  <p className="mt-5 leading-7 text-slate-300">
+                    We aim to make healthcare easier to navigate by creating a structured digital layer
+                    between a consultation and the patient&apos;s next healthcare decision.
                   </p>
                 </div>
-              </div>
-            </div>
 
-            {/* FLOW CHART SECTION */}
-            <div className="bg-slate-50 rounded-3xl p-10 md:p-16 text-center border border-slate-100">
-              <h3 className="text-[#E31E24] font-bold tracking-wide uppercase text-sm mb-4">Post-Consultation Intelligence</h3>
-              <h2 className="text-3xl font-bold text-slate-900 mb-6">The Continuous Journey</h2>
-              <p className="text-slate-600 leading-relaxed max-w-2xl mx-auto mb-16">
-                The consultation is only the beginning. After a patient completes a consultation, the platform can create a structured digital pathway based on the information and instructions available.
-              </p>
-
-              <div className="max-w-4xl mx-auto">
-                <div className="flex flex-col md:flex-row flex-wrap items-center justify-center gap-2 md:gap-4 text-sm font-semibold text-slate-700">
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   {[
-                    'Doctor Consultation',
-                    'Clinical Instructions',
-                    'AI-Assisted Follow-Up',
-                    'Required Investigations',
-                    'Healthcare Navigation',
-                    'Patient Updates',
-                    'Follow-Up Consultation',
-                    'Continuing Care',
-                  ].map((step, idx, arr) => (
-                    <div key={step} className="flex flex-col md:flex-row items-center gap-2 md:gap-4">
-                      <div className={`px-5 py-3 rounded-xl border ${idx === 0 || idx === arr.length - 1 ? 'bg-slate-900 text-white border-slate-900' : 'bg-white border-slate-200 shadow-sm'}`}>
-                        {step}
-                      </div>
-                      {idx < arr.length - 1 && (
-                        <>
-                          <ArrowRight className="w-5 h-5 text-slate-300 hidden md:block" />
-                          <ArrowDown className="w-5 h-5 text-slate-300 block md:hidden my-1" />
-                        </>
-                      )}
+                    ['Consultation', 'Connect with care'],
+                    ['Follow-up', 'Stay on track'],
+                    ['Diagnostics', 'Coordinate next steps'],
+                    ['Continuity', 'Keep the journey connected'],
+                  ].map(([title, text]) => (
+                    <div key={title} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="font-semibold text-slate-900">{title}</p>
+                      <p className="mt-1 text-sm text-slate-500">{text}</p>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
-
           </div>
         </section>
 
-        {/* PARTNERSHIPS & STAKEHOLDERS */}
-        <section className="py-24 bg-slate-50">
-          <div className="max-w-[1200px] mx-auto px-6 md:px-12">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-5xl font-bold text-slate-900 tracking-tight mb-6">
-                Healthcare Ecosystem
-              </h2>
-              <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed">
-                We are designed to work alongside existing healthcare providers rather than replace them. Through partnerships, healthcare organizations can extend their patient relationship beyond the consultation itself.
-              </p>
-            </div>
-
-            <div className="grid lg:grid-cols-3 gap-8 mb-16">
-              {/* For Hospitals */}
-              <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
-                <Building2 className="w-10 h-10 text-rose-500 mb-6" />
-                <h3 className="text-2xl font-bold text-slate-900 mb-4">For Hospitals</h3>
-                <p className="text-slate-600 mb-6">Hospitals can use the ecosystem to strengthen their post-consultation patient engagement.</p>
-                <ul className="space-y-4 text-sm text-slate-600">
-                  <li><strong>Patient Follow-Up:</strong> Structured digital follow-up after consultations and procedures.</li>
-                  <li><strong>Appointment Continuity:</strong> Helping patients navigate their next appointment.</li>
-                  <li><strong>Investigation Coordination:</strong> Connecting recommended investigations with appropriate services.</li>
-                  <li><strong>Operational Efficiency:</strong> Reducing unnecessary administrative friction through digital workflows.</li>
-                </ul>
+        {/* TRUST STRIP */}
+        <section className="border-b border-slate-100 bg-slate-50">
+          <div className="mx-auto grid max-w-[1200px] gap-px px-6 py-8 sm:grid-cols-2 md:px-10 lg:grid-cols-4">
+            {trustPoints.map(({ icon: Icon, title, description }) => (
+              <div key={title} className="px-5 py-4">
+                <div className="flex items-start gap-4">
+                  <div className="rounded-xl border border-red-100 bg-white p-2.5 text-[#E31E24] shadow-sm">
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900">{title}</h3>
+                    <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
+                  </div>
+                </div>
               </div>
-
-              {/* For Doctors */}
-              <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
-                <StethoscopeIcon className="w-10 h-10 text-emerald-500 mb-6" />
-                <h3 className="text-2xl font-bold text-slate-900 mb-4">For Doctors</h3>
-                <p className="text-slate-600 mb-6">Provide healthcare professionals with a digital extension of the patient relationship.</p>
-                <ul className="space-y-3 text-sm text-slate-600">
-                  <li className="flex gap-2"><div className="w-1.5 h-1.5 mt-1.5 rounded-full bg-slate-300" />Structured patient follow-up</li>
-                  <li className="flex gap-2"><div className="w-1.5 h-1.5 mt-1.5 rounded-full bg-slate-300" />Better-organized patient information</li>
-                  <li className="flex gap-2"><div className="w-1.5 h-1.5 mt-1.5 rounded-full bg-slate-300" />Automated administrative communication</li>
-                  <li className="flex gap-2"><div className="w-1.5 h-1.5 mt-1.5 rounded-full bg-slate-300" />Digital appointment coordination</li>
-                </ul>
-                <p className="mt-4 text-sm font-medium text-slate-800">The objective is not to increase workload, but to build technology around the doctor so they can focus on healthcare.</p>
-              </div>
-
-              {/* For Patients */}
-              <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
-                <UserCircle className="w-10 h-10 text-blue-500 mb-6" />
-                <h3 className="text-2xl font-bold text-slate-900 mb-4">For Patients</h3>
-                <p className="text-slate-600 mb-6">Patients remain at the centre of the platform. We aim to provide:</p>
-                <ul className="space-y-4 text-sm text-slate-600">
-                  <li><strong>Accessibility:</strong> Access to healthcare pathways beyond traditional working hours and physical locations.</li>
-                  <li><strong>Continuity:</strong> A structured journey after the consultation.</li>
-                  <li><strong>Clarity:</strong> Better organization of healthcare information and next steps.</li>
-                  <li><strong>Connection:</strong> A bridge between patients and healthcare professionals.</li>
-                </ul>
-              </div>
-            </div>
-            
-            <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center">
-              <h3 className="text-xl font-bold text-slate-900 mb-4">Testing & Diagnostic Connectivity</h3>
-              <p className="text-slate-600 max-w-4xl mx-auto">
-                A major component of the platform is the connection between consultation, investigation and follow-up care. When a professional recommends laboratory testing or imaging, the platform helps create a structured pathway: 
-                <strong> Consultation &rarr; Recommended Investigation &rarr; Booking &rarr; Result Availability &rarr; Follow-Up &rarr; Doctor Review.</strong>
-              </p>
-            </div>
+            ))}
           </div>
         </section>
 
-        {/* FROM GERMANY TO ASIA */}
-        <section className="py-24 bg-white border-t border-slate-100">
-          <div className="max-w-[1200px] mx-auto px-6 md:px-12">
-            <div className="grid lg:grid-cols-2 gap-16 items-center">
+        {/* VISION + PROBLEM */}
+        <section className="bg-white py-20 md:py-24">
+          <div className="mx-auto max-w-[1200px] px-6 md:px-10">
+            <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
               <div>
-                <h3 className="text-[#E31E24] font-bold tracking-wide uppercase text-sm mb-4">Global Reach</h3>
-                <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-6 leading-tight">From Germany to Asia</h2>
-                <p className="text-slate-600 leading-relaxed text-lg mb-6">
-                  Consult Your Doctor is being developed with a strong foundation in Germany, with a long-term ambition to expand across Asian healthcare markets. Germany provides an important environment for developing a healthcare technology model built around structured healthcare delivery, data protection, professional standards and responsible digital innovation.
+                <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#E31E24]">Our Vision</p>
+                <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">
+                  A healthcare journey that feels connected.
+                </h2>
+                <p className="mt-6 text-lg leading-8 text-slate-600">
+                  A consultation may last only a few minutes, but a patient&apos;s healthcare journey often
+                  continues for days or weeks. Questions arise, investigations are needed, instructions can
+                  be forgotten and follow-up may be delayed.
                 </p>
-                <p className="text-slate-600 leading-relaxed text-lg mb-6">
-                  Our expansion strategy is designed to recognize that healthcare cannot simply be copied from one country to another. Every market has its own infrastructure, regulations, language, patient behaviour, and clinical workflows.
-                </p>
-                <p className="font-bold text-slate-900 text-lg border-l-4 border-[#E31E24] pl-4">
-                  Therefore, our international strategy is based on local adaptation with a common technological foundation.
+                <p className="mt-5 leading-7 text-slate-600">
+                  Our vision is to create a structured digital layer that helps patients understand, follow,
+                  monitor and continue their healthcare journey responsibly.
                 </p>
               </div>
-              
-              <div className="bg-slate-50 p-10 rounded-3xl border border-slate-100">
-                <Globe className="w-12 h-12 text-slate-800 mb-6" />
-                <h3 className="text-2xl font-bold text-slate-900 mb-4">Our Asian Expansion Vision</h3>
-                <p className="text-slate-600 mb-6">
-                  Asia represents one of the world's most diverse and rapidly developing healthcare environments. WHO's South-East Asia Region identifies digital health and AI as important tools for strengthening healthcare systems. We aim to build a scalable model capable of adapting to these environments.
+
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-7 md:p-9">
+                <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#E31E24]">
+                  The gap we are solving
                 </p>
-                <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Expansion Markets include:</p>
-                <div className="flex flex-wrap gap-2">
-                  {['India', 'Singapore', 'Malaysia', 'Indonesia', 'Thailand', 'Vietnam', 'Philippines', 'Bangladesh', 'Sri Lanka', 'Nepal'].map(country => (
-                    <span key={country} className="px-3 py-1.5 bg-white border border-slate-200 rounded-full text-sm font-medium text-slate-700">
-                      {country}
-                    </span>
+                <h3 className="mt-3 text-2xl font-bold text-slate-950">What happens after the consultation?</h3>
+
+                <div className="mt-6 space-y-4">
+                  {[
+                    'Understanding the diagnosis or clinical assessment',
+                    'Remembering medication and care instructions',
+                    'Booking laboratory tests or imaging',
+                    'Keeping track of follow-up requirements',
+                    'Managing questions that appear later',
+                  ].map((item) => (
+                    <div key={item} className="flex items-start gap-3">
+                      <p className="leading-6 text-slate-600">{item}</p>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -318,71 +301,287 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* THE CORE PLATFORM (PREVIOUS OLD CONTENT RE-INTEGRATED) */}
-        <section className="py-24 bg-slate-900 text-white overflow-hidden relative">
-          <div className="max-w-[1200px] mx-auto px-6 md:px-12 relative z-10">
-            <div className="mb-16 text-center">
-              <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-6">
-                The Platform Architecture
+        {/* PRINCIPLES */}
+        <section className="border-y border-slate-100 bg-slate-50 py-20 md:py-24">
+          <div className="mx-auto max-w-[1200px] px-6 md:px-10">
+            <div className="mx-auto max-w-3xl text-center">
+              <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#E31E24]">
+                How the platform works
+              </p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">
+                Five principles guide the patient journey.
               </h2>
-              <p className="text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-                Our technology evolves around interconnected layers designed for scale and adaptability.
+              <p className="mt-5 text-lg leading-8 text-slate-600">
+                The platform is designed to make healthcare navigation more structured, understandable and
+                continuous.
               </p>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[
-                { icon: Users, name: 'Patient Layer', desc: 'Digital patient interaction and healthcare navigation.', color: 'text-blue-400' },
-                { icon: Brain, name: 'AI Layer', desc: 'Intelligent assistance, structured assessments and communication.', color: 'text-purple-400' },
-                { icon: Stethoscope, name: 'Clinical Layer', desc: 'Doctors, specialists and healthcare professionals.', color: 'text-emerald-400' },
-                { icon: Microscope, name: 'Diagnostic Layer', desc: 'Laboratory and diagnostic service connectivity.', color: 'text-amber-400' },
-                { icon: Building2, name: 'Hospital Layer', desc: 'Hospital and clinic integration.', color: 'text-rose-400' },
-                { icon: RefreshCw, name: 'Follow-Up Layer', desc: 'Post-consultation workflows and continuing care.', color: 'text-teal-400' },
-                { icon: Database, name: 'Data Layer', desc: 'Secure and appropriately governed healthcare information.', color: 'text-indigo-400' },
-                { icon: Plug, name: 'Integration Layer', desc: 'Connections with healthcare systems and partner organizations.', color: 'text-cyan-400' },
-              ].map((layer) => {
-                const Icon = layer.icon
-                return (
-                  <div key={layer.name} className="bg-white/5 rounded-2xl p-6 border border-white/10 hover:bg-white/10 transition-colors">
-                    <Icon className={`w-8 h-8 ${layer.color} mb-4`} />
-                    <h3 className="text-lg font-bold mb-2">{layer.name}</h3>
-                    <p className="text-slate-400 text-sm leading-relaxed">{layer.desc}</p>
+            <div className="mt-12 grid gap-5 md:grid-cols-5">
+              {principles.map((item, index) => (
+                <div
+                  key={item.title}
+                  className="group rounded-2xl border border-slate-200 bg-white p-6 transition duration-300 hover:-translate-y-1 hover:border-red-200 hover:shadow-lg hover:shadow-slate-200/60"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-sm font-extrabold text-[#E31E24]">
+                    {String(index + 1).padStart(2, '0')}
                   </div>
-                )
-              })}
-            </div>
-          </div>
-        </section>
-
-        {/* DATA PRIVACY & TRUST */}
-        <section className="py-24 bg-white">
-          <div className="max-w-[1200px] mx-auto px-6 md:px-12 text-center">
-            <h3 className="text-[#E31E24] font-bold tracking-wide uppercase text-sm mb-4">Foundation</h3>
-            <h2 className="text-3xl md:text-5xl font-bold text-slate-900 mb-8">Data Privacy & Trust</h2>
-            <p className="text-slate-600 text-lg leading-relaxed max-w-3xl mx-auto mb-16">
-              Healthcare information is highly sensitive. Trust is at the centre of our platform philosophy. Our technology strategy is designed around these core principles:
-            </p>
-            
-            <div className="flex flex-wrap justify-center gap-4 max-w-4xl mx-auto">
-              {[
-                'Privacy by design',
-                'Appropriate data governance',
-                'Secure information handling',
-                'Access controls',
-                'Consent-based information sharing',
-                'Responsible AI practices',
-                'Interoperability',
-                'Regulatory compliance',
-                'Transparent patient communication',
-              ].map((item, i) => (
-                <div key={i} className="px-5 py-3 bg-slate-50 border border-slate-200 rounded-full text-slate-700 font-medium shadow-sm">
-                  {item}
+                  <h3 className="mt-5 text-lg font-bold text-slate-950">{item.title}</h3>
+                  <p className="mt-3 text-sm leading-6 text-slate-500">{item.description}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
+        {/* CARE JOURNEY */}
+        <section className="bg-white py-20 md:py-24">
+          <div className="mx-auto max-w-[1200px] px-6 md:px-10">
+            <div className="grid gap-12 lg:grid-cols-[.8fr_1.2fr] lg:items-start">
+              <div>
+                <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#E31E24]">
+                  Post-consultation continuity
+                </p>
+                <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">
+                  The consultation is only the beginning.
+                </h2>
+                <p className="mt-5 text-lg leading-8 text-slate-600">
+                  After a consultation, the platform can help create a more structured path for instructions,
+                  investigations, communication and follow-up.
+                </p>
+
+                <div className="mt-7 rounded-2xl border border-red-100 bg-red-50 p-5">
+                  <div className="flex items-start gap-3">
+                    <p className="text-sm leading-6 text-slate-700">
+                      Our objective is simple: make the patient&apos;s next healthcare decision easier to navigate.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative">
+                <div className="absolute bottom-8 left-[19px] top-8 w-px bg-slate-200" />
+                <div className="space-y-3">
+                  {journey.map((step, index) => (
+                    <div key={step} className="relative flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                      <div className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-950 text-sm font-bold text-white">
+                        {index + 1}
+                      </div>
+                      <div className="flex flex-1 items-center justify-between gap-4">
+                        <p className="font-semibold text-slate-800">{step}</p>
+                        {index < journey.length - 1 && (
+                          <ArrowRight className="hidden h-4 w-4 text-slate-300 sm:block" />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* AI */}
+        <section className="border-y border-slate-100 bg-slate-50 py-20 md:py-24">
+          <div className="mx-auto max-w-[1200px] px-6 md:px-10">
+            <div className="grid gap-10 rounded-[30px] bg-slate-950 p-7 text-white md:p-10 lg:grid-cols-[.9fr_1.1fr] lg:p-12">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-red-300">
+                  AI-assisted support
+                </div>
+                <h2 className="mt-5 text-3xl font-bold tracking-tight md:text-4xl">
+                  Technology around the doctor, not instead of the doctor.
+                </h2>
+                <p className="mt-5 leading-7 text-slate-300">
+                  Our AI-integrated assistance layer can help organize information, support structured
+                  follow-up and improve patient communication after a consultation.
+                </p>
+
+                <div className="mt-7 rounded-2xl border border-white/10 bg-white/5 p-5">
+                  <div className="flex items-start gap-3">
+                    <p className="text-sm leading-6 text-slate-300">
+                      AI is not positioned as a replacement for a doctor. Clinical decisions remain within
+                      the appropriate professional healthcare framework.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                {[
+                  'AI-assisted questionnaires',
+                  'Post-consultation follow-ups',
+                  'Patient instruction reminders',
+                  'Investigation guidance',
+                  'Follow-up scheduling',
+                  'Information organization',
+                  'Automated communication',
+                  'Professional escalation pathways',
+                ].map((item) => (
+                  <div key={item} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="flex items-center gap-3">
+                      <p className="text-sm font-medium text-slate-200">{item}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ECOSYSTEM */}
+        <section className="bg-white py-20 md:py-24">
+          <div className="mx-auto max-w-[1200px] px-6 md:px-10">
+            <div className="max-w-3xl">
+              <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#E31E24]">
+                Healthcare ecosystem
+              </p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">
+                Designed to work alongside healthcare providers.
+              </h2>
+              <p className="mt-5 text-lg leading-8 text-slate-600">
+                Consult Your Doctor is designed as a coordinated layer that connects the people and services
+                already involved in a patient&apos;s care.
+              </p>
+            </div>
+
+            <div className="mt-12 grid gap-6 md:grid-cols-2">
+              {ecosystem.map(({ icon: Icon, label, title, description, points }) => (
+                <div key={label} className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <p className="text-sm font-bold uppercase tracking-[0.14em] text-[#E31E24]">{label}</p>
+                      <h3 className="mt-1 text-xl font-bold text-slate-950">{title}</h3>
+                    </div>
+                  </div>
+
+                  <p className="mt-5 leading-7 text-slate-600">{description}</p>
+
+                  <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                    {points.map((point) => (
+                      <div key={point} className="flex items-start gap-2">
+                        <p className="text-sm leading-6 text-slate-600">{point}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* GLOBAL */}
+        <section className="border-y border-slate-100 bg-slate-50 py-20 md:py-24">
+          <div className="mx-auto grid max-w-[1200px] gap-10 px-6 md:px-10 lg:grid-cols-2 lg:items-center">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#E31E24]">Global vision</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">
+                A common technology foundation, adapted to local healthcare systems.
+              </h2>
+              <p className="mt-5 text-lg leading-8 text-slate-600">
+                Consult Your Doctor is being developed with a strong foundation in Germany and a long-term
+                ambition to expand across Asian healthcare markets.
+              </p>
+              <p className="mt-5 leading-7 text-slate-600">
+                Every market has its own regulations, languages, patient behaviours, infrastructure and
+                clinical workflows. Our approach is based on local adaptation rather than one-size-fits-all
+                healthcare.
+              </p>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm md:p-9">
+              <div className="flex items-center gap-3">
+                <div>
+                  <p className="font-bold text-slate-950">Expansion vision</p>
+                  <p className="text-sm text-slate-500">Germany → selected Asian markets</p>
+                </div>
+              </div>
+
+              <div className="mt-7 flex flex-wrap gap-2">
+                {[
+                  'India',
+                  'Singapore',
+                  'Malaysia',
+                  'Indonesia',
+                  'Thailand',
+                  'Vietnam',
+                  'Philippines',
+                  'Bangladesh',
+                  'Sri Lanka',
+                  'Nepal',
+                ].map((country) => (
+                  <span
+                    key={country}
+                    className="rounded-full border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm font-medium text-slate-700"
+                  >
+                    {country}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* PRIVACY */}
+        <section className="bg-white py-20 md:py-24">
+          <div className="mx-auto max-w-[1200px] px-6 md:px-10">
+            <div className="rounded-[30px] border border-slate-200 bg-slate-50 p-7 md:p-10 lg:p-12">
+              <div className="grid gap-10 lg:grid-cols-[.75fr_1.25fr] lg:items-start">
+                <div>
+                  <p className="mt-6 text-sm font-bold uppercase tracking-[0.16em] text-[#E31E24]">
+                    Data privacy & trust
+                  </p>
+                  <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">
+                    Trust is part of the product.
+                  </h2>
+                  <p className="mt-5 leading-7 text-slate-600">
+                    Healthcare information is highly sensitive. Our platform philosophy is built around
+                    responsible data practices, security and transparent patient communication.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {privacyPoints.map((item) => (
+                    <div key={item} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+                      <p className="text-sm font-semibold text-slate-700">{item}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* FINAL CTA */}
+        <section className="bg-slate-950">
+          <div className="mx-auto flex max-w-[1200px] flex-col gap-8 px-6 py-16 md:px-10 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-sm font-bold uppercase tracking-[0.16em] text-red-300">Your next step</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-white md:text-4xl">
+                Find the right care, with a clearer path forward.
+              </h2>
+              <p className="mt-4 leading-7 text-slate-300">
+                Search doctors, explore healthcare services or book an appointment through Consult Your Doctor.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/search"
+                className="inline-flex items-center justify-center rounded-xl bg-white px-6 py-3.5 font-semibold text-slate-950 transition hover:bg-slate-100"
+              >
+                Find a Doctor
+              </Link>
+              <Link
+                href="/book-appointment"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#E31E24] px-6 py-3.5 font-semibold text-white transition hover:bg-red-700"
+              >
+                Book Appointment
+                <CalendarCheck2 className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   )

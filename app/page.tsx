@@ -119,8 +119,8 @@ export default async function Home() {
       </section>
 
       {/* Trust Strip (Marquee) */}
-      <section className="bg-white border-b border-gray-200 py-4 overflow-hidden">
-        <div className="flex w-max animate-marquee gap-8 md:gap-16 items-center text-sm font-semibold text-gray-700">
+      <section className="bg-[#E31E24] py-4 overflow-hidden">
+        <div className="flex w-max animate-marquee gap-8 md:gap-16 items-center text-sm font-semibold text-white">
           {[1, 2].map((set) => (
             <div key={set} className="flex gap-8 md:gap-16 items-center shrink-0">
               <div className="flex items-center gap-2 shrink-0"><span>Trusted Platform</span></div>
@@ -142,11 +142,11 @@ export default async function Home() {
       </section>
 
       {/* Popular Specialities */}
-      <section className="bg-gray-50 py-16 border-t border-gray-100">
+      <section className="bg-[#E31E24] py-16">
         <div className="max-w-[1440px] mx-auto px-4 md:px-8">
           <div className="flex justify-between items-center mb-8 gap-4">
-            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 whitespace-nowrap">Popular Specialities</h2>
-            <Link href="/search" className="text-[#E31E24] text-xs sm:text-sm font-semibold flex items-center whitespace-nowrap shrink-0">
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white whitespace-nowrap">Popular Specialities</h2>
+            <Link href="/search" className="text-white hover:text-red-100 text-xs sm:text-sm font-semibold flex items-center whitespace-nowrap shrink-0 transition-colors">
               View All <span className="hidden sm:inline ml-1">Specialities</span> <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1" />
             </Link>
           </div>
@@ -166,7 +166,7 @@ export default async function Home() {
 
 
       {/* About Platform */}
-      <section className="bg-white py-16 md:py-20 border-t border-gray-100">
+      <section className="bg-white py-16 md:py-20">
         <div className="max-w-[1440px] mx-auto px-4 md:px-8">
           <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-10 lg:gap-16 items-center">
 
@@ -254,43 +254,49 @@ export default async function Home() {
       </section>
 
       {/* Featured Hospitals */}
-      <section className="bg-white py-16 border-t border-gray-100">
+      <section className="bg-[#E31E24] py-16">
         <div className="max-w-[1440px] mx-auto px-4 md:px-8">
           <div className="flex justify-between items-center mb-8 gap-4">
-            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 whitespace-nowrap">Featured Hospitals</h2>
-            <Link href="/search" className="text-[#E31E24] text-xs sm:text-sm font-semibold flex items-center whitespace-nowrap shrink-0">
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white whitespace-nowrap">Featured Hospitals</h2>
+            <Link href="/search" className="text-white hover:text-red-100 text-xs sm:text-sm font-semibold flex items-center whitespace-nowrap shrink-0 transition-colors">
               View All <span className="hidden sm:inline ml-1">Hospitals</span> <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1" />
             </Link>
           </div>
-          <Carousel itemWidth={260} gap={24}>
-            {featuredHospitals?.map((hospital, i) => (
-              <div key={hospital.id} className="w-[85vw] sm:w-[320px] lg:w-[260px] shrink-0 snap-start bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
-                <div className="h-32 w-full relative flex items-center justify-center bg-gray-100 overflow-hidden">
-                  {hospital.image_url ? (
-                    <Image src={hospital.image_url} alt={hospital.name} fill className="object-cover" />
-                  ) : (
-                    <Building2 className="w-12 h-12 text-gray-300" />
-                  )}
-                  <div className="absolute bottom-2 right-2 bg-yellow-400 text-xs font-bold px-2 py-1 rounded flex items-center gap-1 text-gray-900 z-10">
-                    <Star className="w-3 h-3 fill-current" /> 4.5
-                  </div>
+          <div className="overflow-hidden relative -mx-4 px-4 md:mx-0 md:px-0 pb-6 pt-2">
+            <div className="flex w-max animate-marquee gap-6">
+              {[1, 2].map((set) => (
+                <div key={set} className="flex gap-6 shrink-0">
+                  {featuredHospitals?.map((hospital, i) => (
+                    <div key={`${set}-${hospital.id}`} className="w-[85vw] sm:w-[320px] lg:w-[260px] shrink-0 bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
+                      <div className="h-32 w-full relative flex items-center justify-center bg-gray-100 overflow-hidden">
+                        {hospital.image_url ? (
+                          <Image src={hospital.image_url} alt={hospital.name} fill className="object-cover" />
+                        ) : (
+                          <Building2 className="w-12 h-12 text-gray-300" />
+                        )}
+                        <div className="absolute bottom-2 right-2 bg-yellow-400 text-xs font-bold px-2 py-1 rounded flex items-center gap-1 text-gray-900 z-10">
+                          <Star className="w-3 h-3 fill-current" /> 4.5
+                        </div>
+                      </div>
+                      <div className="p-4 flex-1 flex flex-col">
+                        <h3 className="font-bold text-gray-900 mb-1">{hospital.name}</h3>
+                        <p className="text-xs text-gray-500 mb-2">{hospital.city}</p>
+                        <p className="text-xs font-medium text-gray-600 mb-4 truncate" title={hospital.address}>{hospital.address}</p>
+                        <Link href={`/hospitals/${hospital.id}`} className="mt-auto block text-center w-full py-2 border border-[#E31E24] text-[#E31E24] text-sm font-semibold hover:bg-red-50 transition-colors rounded-full cursor-pointer">
+                          View Doctors
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="p-4 flex-1 flex flex-col">
-                  <h3 className="font-bold text-gray-900 mb-1">{hospital.name}</h3>
-                  <p className="text-xs text-gray-500 mb-2">{hospital.city}</p>
-                  <p className="text-xs font-medium text-gray-600 mb-4 truncate" title={hospital.address}>{hospital.address}</p>
-                  <Link href={`/hospitals/${hospital.id}`} className="mt-auto block text-center w-full py-2 border border-[#E31E24] text-[#E31E24] text-sm font-semibold hover:bg-red-50 transition-colors rounded-full cursor-pointer">
-                    View Doctors
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </Carousel>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Top Doctors */}
-      <section className="bg-gray-50 py-16 border-t border-gray-100">
+      <section className="bg-white py-16">
         <div className="max-w-[1440px] mx-auto px-4 md:px-8">
           <div className="flex justify-between items-center mb-8 gap-4">
             <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 whitespace-nowrap">Top Doctors</h2>
@@ -298,73 +304,107 @@ export default async function Home() {
               View All <span className="hidden sm:inline ml-1">Doctors</span> <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1" />
             </Link>
           </div>
-          <Carousel itemWidth={340} gap={24}>
-            {topDoctors?.map((doc: any, i: number) => (
-              <div key={doc.id} className="w-[85vw] sm:w-[380px] lg:w-[340px] shrink-0 snap-start bg-white border border-gray-200 rounded-xl p-4 flex gap-4 hover:shadow-md transition-shadow">
-                <div className="w-20 h-24 bg-gray-100 rounded-lg shrink-0 flex items-center justify-center relative overflow-hidden">
-                  {doc.image_url ? (
-                    <Image src={doc.image_url} alt={doc.profiles?.full_name} fill className="object-cover" />
-                  ) : (
-                    <UserCircle className="w-10 h-10 text-gray-300" />
-                  )}
+          <div className="overflow-hidden relative -mx-4 px-4 md:mx-0 md:px-0 pb-6 pt-2">
+            <div className="flex w-max animate-marquee gap-6">
+              {[1, 2].map((set) => (
+                <div key={set} className="flex gap-6 shrink-0">
+                  {topDoctors?.map((doc: any, i: number) => (
+                    <div key={`${set}-${doc.id}`} className="w-[85vw] sm:w-[380px] lg:w-[340px] shrink-0 bg-white border border-gray-200 rounded-xl p-4 flex gap-4 hover:shadow-md transition-shadow">
+                      <div className="w-20 h-24 bg-gray-100 rounded-lg shrink-0 flex items-center justify-center relative overflow-hidden">
+                        {doc.image_url ? (
+                          <Image src={doc.image_url} alt={doc.profiles?.full_name} fill className="object-cover" />
+                        ) : (
+                          <UserCircle className="w-10 h-10 text-gray-300" />
+                        )}
+                      </div>
+                      <div className="flex flex-col flex-1">
+                        <h3 className="font-bold text-gray-900 text-sm mb-0.5">{doc.profiles?.full_name}</h3>
+                        <p className="text-[10px] text-gray-500 mb-0.5">{doc.departments?.name || doc.specialty}</p>
+                        <p className="text-[10px] text-gray-500 mb-2 truncate" title={`${doc.hospitals?.name}, ${doc.hospitals?.city}`}>{doc.hospitals?.name}, {doc.hospitals?.city}</p>
+                        <p className="text-[10px] font-medium text-gray-700 mb-0.5"><span className="text-[#E31E24]">{doc.experience_years}</span> Years Exp.</p>
+                        <p className="text-[10px] font-medium text-gray-700 mb-3"><span className="text-[#E31E24]">₹{doc.consultation_fee}</span> Consultation Fee</p>
+                        <div className="mt-auto flex justify-between items-center">
+                          <span className="text-[10px] text-green-600 font-medium flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Available</span>
+                          <Link href={`/doctors/${doc.id}`} className="px-4 py-1.5 bg-[#E31E24] text-white text-xs font-semibold hover:bg-red-700 transition-colors rounded-full text-center">
+                            View
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex flex-col flex-1">
-                  <h3 className="font-bold text-gray-900 text-sm mb-0.5">{doc.profiles?.full_name}</h3>
-                  <p className="text-[10px] text-gray-500 mb-0.5">{doc.departments?.name || doc.specialty}</p>
-                  <p className="text-[10px] text-gray-500 mb-2 truncate" title={`${doc.hospitals?.name}, ${doc.hospitals?.city}`}>{doc.hospitals?.name}, {doc.hospitals?.city}</p>
-                  <p className="text-[10px] font-medium text-gray-700 mb-0.5"><span className="text-[#E31E24]">{doc.experience_years}</span> Years Exp.</p>
-                  <p className="text-[10px] font-medium text-gray-700 mb-3"><span className="text-[#E31E24]">₹{doc.consultation_fee}</span> Consultation Fee</p>
-                  <div className="mt-auto flex justify-between items-center">
-                    <span className="text-[10px] text-green-600 font-medium flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Available</span>
-                    <Link href={`/doctors/${doc.id}`} className="px-4 py-1.5 bg-[#E31E24] text-white text-xs font-semibold hover:bg-red-700 transition-colors rounded-full text-center">
-                      View
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </Carousel>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Why Choose */}
-      <section className="bg-white py-16 border-t border-gray-100">
-        <div className="max-w-[1440px] mx-auto px-4 md:px-8 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-12">Why Choose Consult Your Doctor?</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              {
-                title: 'Continuous Care',
-                desc: 'Your healthcare journey stays connected beyond the initial consultation.'
-              },
-              {
-                title: 'Patient-Centred Experience',
-                desc: 'Healthcare navigation designed around patients, clarity and convenience.'
-              },
-              {
-                title: 'Connected Healthcare Network',
-                desc: 'Doctors, hospitals and diagnostic services connected through one coordinated platform.'
-              },
-              {
-                title: 'Responsible AI Assistance',
-                desc: 'Technology supports follow-ups and healthcare navigation while keeping professionals in control.'
-              },
-              {
-                title: 'Simplified Healthcare Navigation',
-                desc: 'From consultation and testing to reports and follow-up, we make the next step easier to understand.'
-              },
-              {
-                title: 'Privacy & Trust',
-                desc: 'Healthcare information is handled with security, responsible data practices and appropriate safeguards.'
-              },
-            ].map((item, i) => (
-              <div key={i} className="bg-white p-6 rounded-xl border border-gray-200 text-left flex gap-4 hover:shadow-md transition-shadow">
-                <div>
-                  <h3 className="font-bold text-gray-900 mb-2">{item.title}</h3>
-                  <p className="text-xs text-gray-600 leading-relaxed">{item.desc}</p>
-                </div>
+      <section className="bg-[#E31E24] py-16 md:py-20">
+        <div className="max-w-[1440px] mx-auto px-4 md:px-8">
+          <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-10 lg:gap-16 items-center">
+            
+            {/* Left Content */}
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-white text-xs font-bold uppercase tracking-[0.12em] mb-5">
+                Why Choose Us
               </div>
-            ))}
+
+              <h2 className="text-3xl md:text-4xl lg:text-[42px] font-bold text-white tracking-tight leading-tight">
+                Your Health, Our Priority
+              </h2>
+
+              <p className="mt-5 text-red-100 leading-7 max-w-2xl">
+                We are committed to providing you with the most seamless and connected healthcare experience.
+              </p>
+              
+              <p className="mt-4 text-red-100 leading-7 max-w-2xl">
+                Discover why thousands of patients trust Consult Your Doctor for their medical journey, from initial consultation to complete recovery.
+              </p>
+            </div>
+
+            {/* Highlight Cards */}
+            <div className="grid sm:grid-cols-2 gap-4">
+              {[
+                {
+                  title: 'Continuous Care',
+                  desc: 'Your healthcare journey stays connected beyond the initial consultation.'
+                },
+                {
+                  title: 'Patient-Centred',
+                  desc: 'Healthcare navigation designed around patients, clarity and convenience.'
+                },
+                {
+                  title: 'Connected Network',
+                  desc: 'Doctors, hospitals and diagnostic services connected through one coordinated platform.'
+                },
+                {
+                  title: 'Responsible AI',
+                  desc: 'Technology supports follow-ups and healthcare navigation while keeping professionals in control.'
+                },
+                {
+                  title: 'Simplified Navigation',
+                  desc: 'From consultation and testing to reports and follow-up, we make the next step easier to understand.'
+                },
+                {
+                  title: 'Privacy & Trust',
+                  desc: 'Healthcare information is handled with security, responsible data practices and appropriate safeguards.'
+                },
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className="group rounded-2xl border border-gray-200 bg-gray-50/70 p-6 hover:bg-white hover:border-red-200 hover:shadow-lg hover:shadow-gray-200/60 transition-all duration-300"
+                >
+                  <h3 className="mt-5 text-lg font-bold text-gray-900">
+                    {item.title}
+                  </h3>
+                  <p className="mt-2 text-sm text-gray-600 leading-6">
+                    {item.desc}
+                  </p>
+                </div>
+              ))}
+            </div>
+
           </div>
         </div>
       </section>

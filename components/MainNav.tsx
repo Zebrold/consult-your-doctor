@@ -13,11 +13,8 @@ const links: NavLink[] = [
   { href: '/search?type=doctor', label: 'Find Doctors' },
   { href: '/search?type=hospital', label: 'Hospitals' },
   // { href: '#', label: 'Health Check Packages' },
-  { href: '#', label: 'Diagnostics' },
-  { href: '#', label: 'Medical Tourism' },
-  { href: '#', label: 'Corporate Health' },
+  { href: '/diagnostics', label: 'Diagnostics' },
   { href: '/about', label: 'About Us' },
-  { href: '/contact', label: 'Contact Us' },
 ]
 
 export function MainNav({ mobile }: { mobile?: boolean }) {

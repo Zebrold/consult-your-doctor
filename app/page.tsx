@@ -78,9 +78,9 @@ export default async function Home() {
               Book appointments with trusted hospitals and specialists, pay securely online, and receive dedicated executive assistance throughout your healthcare journey.
             </p>
             <div className="flex flex-wrap gap-4 pt-4">
-              <a href="#book-consultation-form" className="px-6 py-3 bg-[#E31E24] text-white font-semibold hover:bg-red-700 transition-colors rounded-full cursor-pointer inline-block">
-                Book Appointment
-              </a>
+              <Link href="/diagnostics" className="px-6 py-3 bg-[#E31E24] text-white font-semibold hover:bg-red-700 transition-colors rounded-full cursor-pointer inline-block">
+                Find Diagnostics
+              </Link>
               <Link href="/search" className="px-6 py-3 bg-white text-gray-800 border border-gray-300 font-semibold hover:bg-gray-50 transition-colors rounded-full cursor-pointer inline-block">
                 Find a Doctor
               </Link>
@@ -115,7 +115,7 @@ export default async function Home() {
             </div>
           </div>
 
-          <div id="book-consultation-form" className="w-full flex justify-center lg:w-auto lg:block">
+          <div id="book-consultation-form" className="w-full flex justify-center lg:w-[420px] lg:shrink-0 lg:block">
             <BookConsultationForm />
           </div>
         </div>

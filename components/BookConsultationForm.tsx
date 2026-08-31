@@ -174,7 +174,7 @@ function BookConsultationFormInner() {
 
 
   return (
-    <div className="w-full max-w-lg bg-white rounded-xl shadow-2xl border border-gray-100 p-8 relative z-10">
+    <div className="w-full max-w-lg min-w-[340px] md:min-w-[420px] bg-white rounded-xl shadow-2xl border border-gray-100 p-8 relative z-10">
       <h3 className="text-2xl font-black text-gray-900 mb-6 tracking-tight">Book Consultation</h3>
       
       {isLoading ? (

@@ -5,7 +5,7 @@ export function Footer() {
   return (
     <footer className="w-full bg-[#1A2C46] text-white py-12 md:py-16">
       <div className="max-w-[1440px] mx-auto px-4 md:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-8 lg:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-8 gap-8 lg:gap-4">
           {/* Logo & Description Column */}
           <div className="lg:col-span-2 space-y-4 pr-0 lg:pr-8">
             <Link href="/" className="flex items-center gap-2 mb-6">
@@ -24,7 +24,7 @@ export function Footer() {
               <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Careers</Link></li>
               <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Blog</Link></li>
               <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Press & Media</Link></li>
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Contact Us</Link></li>
+
             </ul>
           </div>
 
@@ -35,8 +35,8 @@ export function Footer() {
               <li><Link href="/search" className="text-gray-300 hover:text-white transition-colors text-sm">Find Doctors</Link></li>
               <li><Link href="/search?type=hospital" className="text-gray-300 hover:text-white transition-colors text-sm">Find Hospitals</Link></li>
               <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Health Check Packages</Link></li>
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Diagnostics</Link></li>
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Medical Tourism</Link></li>
+              <li><Link href="/diagnostics" className="text-gray-300 hover:text-white transition-colors text-sm">Diagnostics</Link></li>
+
             </ul>
           </div>
 
@@ -58,6 +58,17 @@ export function Footer() {
               <li><Link href="/login/doctor" className="text-gray-300 hover:text-white transition-colors text-sm">Doctor Login</Link></li>
               <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Benefits</Link></li>
               <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Resources</Link></li>
+              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Support</Link></li>
+            </ul>
+          </div>
+
+          {/* For Executives Column */}
+          <div className="space-y-6">
+            <h3 className="text-lg font-bold text-white tracking-wide">For Executives</h3>
+            <ul className="space-y-3">
+              <li><Link href="/login/executive" className="text-gray-300 hover:text-white transition-colors text-sm">Executive Login</Link></li>
+              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">How It Works</Link></li>
+              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Benefits</Link></li>
               <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Support</Link></li>
             </ul>
           </div>

@@ -31,10 +31,7 @@ export async function Header() {
 
         {/* Actions Area */}
         <div className="flex items-center gap-2 md:gap-6">
-          <div className="hidden md:flex items-center gap-2 text-sm text-gray-600 font-medium">
-            <Headset className="w-5 h-5" />
-            <span>24/7 Support</span>
-          </div>
+
 
           <div className="flex items-center gap-2 md:gap-3 ml-auto">
             {user ? (

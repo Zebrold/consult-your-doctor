@@ -89,26 +89,22 @@ export default async function Home() {
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-12 border-t border-gray-200 mt-8">
               <div>
-                <div className="flex items-center gap-2 text-[#E31E24] font-bold text-xl">
-                  <UserCheck className="w-5 h-5" /> 500+
+                <div className="flex items-center gap-2 text-[#E31E24] font-bold text-xl">500+
                 </div>
                 <div className="text-xs text-gray-500 uppercase font-semibold mt-1">Doctors</div>
               </div>
               <div>
-                <div className="flex items-center gap-2 text-[#E31E24] font-bold text-xl">
-                  <Building2 className="w-5 h-5" /> 100+
+                <div className="flex items-center gap-2 text-[#E31E24] font-bold text-xl">100+
                 </div>
                 <div className="text-xs text-gray-500 uppercase font-semibold mt-1">Partner Hospitals</div>
               </div>
               <div>
-                <div className="flex items-center gap-2 text-[#E31E24] font-bold text-xl">
-                  <Heart className="w-5 h-5" /> 1 Lakh+
+                <div className="flex items-center gap-2 text-[#E31E24] font-bold text-xl">1 Lakh+
                 </div>
                 <div className="text-xs text-gray-500 uppercase font-semibold mt-1">Happy Patients</div>
               </div>
               <div>
-                <div className="flex items-center gap-2 text-[#E31E24] font-bold text-xl">
-                  <PhoneCall className="w-5 h-5" /> 24/7
+                <div className="flex items-center gap-2 text-[#E31E24] font-bold text-xl">24/7
                 </div>
                 <div className="text-xs text-gray-500 uppercase font-semibold mt-1">Executive Support</div>
               </div>
@@ -126,12 +122,12 @@ export default async function Home() {
         <div className="flex w-max animate-marquee gap-8 md:gap-16 items-center text-sm font-semibold text-gray-700">
           {[1, 2].map((set) => (
             <div key={set} className="flex gap-8 md:gap-16 items-center shrink-0">
-              <div className="flex items-center gap-2 shrink-0"><ShieldCheck className="w-5 h-5 text-[#E31E24]" /> <span>Trusted Platform</span></div>
-              <div className="flex items-center gap-2 shrink-0"><PhoneCall className="w-5 h-5 text-[#E31E24]" /> <span>24/7 Support</span></div>
-              <div className="flex items-center gap-2 shrink-0"><CheckCircle2 className="w-5 h-5 text-[#E31E24]" /> <span>Verified Doctors</span></div>
-              <div className="flex items-center gap-2 shrink-0"><CreditCard className="w-5 h-5 text-[#E31E24]" /> <span>Secure Payments</span></div>
-              <div className="flex items-center gap-2 shrink-0"><Building2 className="w-5 h-5 text-[#E31E24]" /> <span>NABH Hospitals</span></div>
-              <div className="flex items-center gap-2 shrink-0"><Heart className="w-5 h-5 text-[#E31E24]" /> <span>End-to-End Care</span></div>
+              <div className="flex items-center gap-2 shrink-0"><span>Trusted Platform</span></div>
+              <div className="flex items-center gap-2 shrink-0"><span>24/7 Support</span></div>
+              <div className="flex items-center gap-2 shrink-0"><span>Verified Doctors</span></div>
+              <div className="flex items-center gap-2 shrink-0"><span>Secure Payments</span></div>
+              <div className="flex items-center gap-2 shrink-0"><span>NABH Hospitals</span></div>
+              <div className="flex items-center gap-2 shrink-0"><span>End-to-End Care</span></div>
             </div>
           ))}
         </div>

@@ -46,31 +46,30 @@ export default async function DoctorProfilePage(
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
       <Header />
-      
+
       <main className="flex-1 py-12">
         <div className="max-w-[1440px] mx-auto px-4 md:px-8">
-          
+
           <div className="grid lg:grid-cols-3 gap-8 items-start">
-            
+
             {/* Left Column: Doctor Profile Card */}
             <div className="lg:col-span-2 space-y-8">
-              
+
               {/* Main Profile Info */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8 flex flex-col md:flex-row gap-6 md:gap-8 items-start relative">
                 <div className="w-32 h-32 md:w-40 md:h-40 bg-gray-100 rounded-2xl flex items-center justify-center relative overflow-hidden shrink-0 border-4 border-white shadow-md">
-                   {doctor.image_url ? (
-                     <Image src={doctor.image_url} alt={doctor.profiles?.full_name} fill className="object-cover" />
-                   ) : (
-                     <UserCircle className="w-20 h-20 text-gray-300" />
-                   )}
+                  {doctor.image_url ? (
+                    <Image src={doctor.image_url} alt={doctor.profiles?.full_name} fill className="object-cover" />
+                  ) : (
+                    <UserCircle className="w-20 h-20 text-gray-300" />
+                  )}
                 </div>
-                
+
                 <div className="flex-1">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h1 className="text-3xl font-black text-gray-900 mb-2">{doctor.profiles?.full_name}</h1>
                       <div className="flex items-center gap-2 text-[#E31E24] font-bold text-lg mb-4">
-                        <Stethoscope className="w-5 h-5" />
                         {doctor.departments?.name || doctor.specialty}
                       </div>
                     </div>
@@ -85,7 +84,6 @@ export default async function DoctorProfilePage(
                       </div>
                     </div>
                     <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                      <Award className="w-5 h-5 text-gray-500" />
                       <div>
                         <p className="text-xs text-gray-500 font-medium">Qualification</p>
                         <p className="text-sm text-gray-900 font-bold truncate max-w-[120px]">{doctor.qualification || 'MBBS, MD'}</p>
@@ -98,7 +96,6 @@ export default async function DoctorProfilePage(
               {/* About & Symptoms */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
                 <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-[#E31E24]" />
                   About Doctor
                 </h2>
                 <div className="prose prose-sm text-gray-600 max-w-none mb-8 leading-relaxed">
@@ -126,7 +123,7 @@ export default async function DoctorProfilePage(
 
             {/* Right Column: Hospital & Booking */}
             <div className="space-y-6">
-              
+
               {/* Booking Card */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                 <div className="flex justify-between items-center mb-6 pb-6 border-b border-gray-100">
@@ -153,7 +150,7 @@ export default async function DoctorProfilePage(
                   </div>
                 )}
 
-                <Link 
+                <Link
                   href={`/?doctor_id=${doctor.id}&hospital_id=${doctor.hospital_id}&city=${encodeURIComponent(doctor.hospitals?.city || '')}&specialty=${encodeURIComponent(doctor.specialty || doctor.departments?.name || '')}#book-consultation-form`}
                   className="w-full flex items-center justify-center px-6 py-3.5 bg-[#E31E24] text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-sm"
                 >
@@ -179,7 +176,7 @@ export default async function DoctorProfilePage(
                   </div>
                 </div>
               </div>
-              
+
             </div>
           </div>
 

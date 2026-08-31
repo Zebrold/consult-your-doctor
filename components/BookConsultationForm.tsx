@@ -5,6 +5,7 @@ import { MapPin, Building2, Stethoscope, UserCircle, Calendar, Loader2, Activity
 import { createClient } from '@/lib/supabase/client'
 import { createAppointment } from '@/app/actions/booking'
 import { useSearchParams } from 'next/navigation'
+import { InlineAuthModal } from '@/components/InlineAuthModal'
 
 function BookConsultationFormInner() {
   const supabase = createClient()
@@ -28,8 +29,13 @@ function BookConsultationFormInner() {
   // Loading states
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  
+  // Auth state
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
 
   const initRef = useRef(false)
+  const formRef = useRef<HTMLFormElement>(null)
 
   // Initial Fetch & URL Pre-fill
   useEffect(() => {
@@ -38,6 +44,10 @@ function BookConsultationFormInner() {
       const urlHospital = searchParams.get('hospital_id')
       const urlSpecialty = searchParams.get('specialty')
       const urlDoctor = searchParams.get('doctor_id')
+
+      // Check auth status
+      const { data: { session } } = await supabase.auth.getSession()
+      setIsAuthenticated(!!session)
 
       // Fetch base cities
       const { data: cityData } = await supabase.from('hospitals').select('city').eq('status', 'active')
@@ -175,6 +185,24 @@ function BookConsultationFormInner() {
     fetchSchedules()
   }, [selectedDoctor])
 
+  const handleSubmit = (e: React.FormEvent) => {
+    if (bookingType === 'consultation' && !isAuthenticated) {
+      e.preventDefault()
+      setShowAuthModal(true)
+      return
+    }
+    setIsSubmitting(true)
+  }
+
+  const handleAuthSuccess = async () => {
+    setShowAuthModal(false)
+    setIsAuthenticated(true)
+    
+    // Programmatically submit the form after modal closes
+    setTimeout(() => {
+      formRef.current?.requestSubmit()
+    }, 100)
+  }
 
   return (
     <div className="w-full max-w-lg min-w-[340px] md:min-w-[420px] bg-white rounded-xl shadow-2xl border border-gray-100 p-8 relative z-10">
@@ -187,9 +215,10 @@ function BookConsultationFormInner() {
           <Loader2 className="w-8 h-8 text-[#E31E24] animate-spin" />
         </div>
       ) : (
-        <form
-          action={bookingType === 'consultation' ? async (formData) => { await createAppointment(formData) } : async () => { alert('Diagnostics booking coming soon!'); setIsSubmitting(false); }}
-          onSubmit={() => setIsSubmitting(true)}
+        <form 
+          ref={formRef}
+          action={bookingType === 'consultation' ? async (formData) => { await createAppointment(formData) } : async () => { alert('Diagnostics booking coming soon!'); setIsSubmitting(false); }} 
+          onSubmit={handleSubmit} 
           className="space-y-5"
         >
 
@@ -366,19 +395,28 @@ function BookConsultationFormInner() {
             </>
           )}
 
-          <button
+          <button 
             type="submit"
             disabled={isSubmitting}
             className="w-full py-3.5 bg-[#E31E24] text-white font-bold text-lg hover:bg-red-700 transition-colors mt-4 disabled:opacity-50 rounded-xl shadow-lg shadow-red-200/50 flex items-center justify-center gap-2"
           >
             {isSubmitting ? (
-              <><Loader2 className="w-5 h-5 animate-spin" /> Processing...</>
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Booking...
+              </>
             ) : (
               'Book Now'
             )}
           </button>
         </form>
       )}
+
+      <InlineAuthModal 
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={handleAuthSuccess}
+      />
     </div>
   )
 }

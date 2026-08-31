@@ -100,6 +100,52 @@ export async function verifyOTP(prevState: any, formData: FormData) {
   redirect('/')
 }
 
+export async function verifyOTPInline(prevState: any, formData: FormData) {
+  let phone = formData.get('phone') as string
+  const token = formData.get('token') as string
+  const fullName = formData.get('fullName') as string | null
+  const role = formData.get('role') as string | null
+  const isRegister = formData.get('isRegister') === 'true'
+
+  if (!phone || !token) {
+    return { error: 'Phone number and OTP are required.', success: false }
+  }
+
+  phone = formatPhoneNumber(phone)
+
+  const supabase = await createClient()
+
+  const { data, error } = await supabase.auth.verifyOtp({
+    phone,
+    token,
+    type: 'sms'
+  })
+
+  if (error) {
+    return { error: error.message, success: false, phone, fullName, role, isRegister }
+  }
+
+  if (data.user && isRegister) {
+    const profileData: any = {
+      id: data.user.id,
+      full_name: fullName,
+      phone_number: phone,
+      role: role,
+    }
+
+    // Insert or update profile
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert(profileData)
+
+    if (profileError) {
+      return { error: `Profile creation failed: ${profileError.message}`, success: false, phone, fullName, role, isRegister }
+    }
+  }
+
+  return { success: true, user: data.user }
+}
+
 export async function logout() {
   const supabase = await createClient()
   await supabase.auth.signOut()

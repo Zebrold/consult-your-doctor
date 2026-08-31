@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, Suspense } from 'react'
-import { MapPin, Building2, Stethoscope, UserCircle, Calendar, Loader2 } from 'lucide-react'
+import { MapPin, Building2, Stethoscope, UserCircle, Calendar, Loader2, Activity } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { createAppointment } from '@/app/actions/booking'
 import { useSearchParams } from 'next/navigation'
@@ -17,11 +17,14 @@ function BookConsultationFormInner() {
   const [schedules, setSchedules] = useState<any[]>([])
 
   // State for selected values
+  const [bookingType, setBookingType] = useState<'consultation' | 'diagnostics'>('consultation')
   const [selectedCity, setSelectedCity] = useState<string>('')
   const [selectedHospital, setSelectedHospital] = useState<string>('')
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('')
   const [selectedDoctor, setSelectedDoctor] = useState<string>('')
-  
+  const [selectedDiagnostic, setSelectedDiagnostic] = useState<string>('')
+  const [diagnosticDate, setDiagnosticDate] = useState<string>('')
+
   // Loading states
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -46,12 +49,12 @@ function BookConsultationFormInner() {
         setSelectedCity(urlCity)
         const { data: hData } = await supabase.from('hospitals').select('id, name').eq('city', urlCity).eq('status', 'active')
         setHospitals(hData || [])
-        
+
         if (urlHospital) {
           setSelectedHospital(urlHospital)
           const { data: specData } = await supabase.from('doctors').select('specialty').eq('hospital_id', urlHospital)
           if (specData) setSpecialties(Array.from(new Set(specData.map(d => d.specialty))))
-          
+
           if (urlSpecialty) {
             setSelectedSpecialty(urlSpecialty)
             const { data: docData } = await supabase
@@ -60,7 +63,7 @@ function BookConsultationFormInner() {
               .eq('hospital_id', urlHospital)
               .eq('specialty', urlSpecialty)
             setDoctors(docData || [])
-            
+
             if (urlDoctor) {
               setSelectedDoctor(urlDoctor)
               const { data: schedData } = await supabase
@@ -92,7 +95,7 @@ function BookConsultationFormInner() {
     setSelectedSpecialty('')
     setSelectedDoctor('')
     setSchedules([])
-    
+
     async function fetchHospitals() {
       if (!selectedCity) {
         setHospitals([])
@@ -110,7 +113,7 @@ function BookConsultationFormInner() {
     setSelectedSpecialty('')
     setSelectedDoctor('')
     setSchedules([])
-    
+
     async function fetchSpecialties() {
       if (!selectedHospital) {
         setSpecialties([])
@@ -131,7 +134,7 @@ function BookConsultationFormInner() {
     if (!initRef.current) return
     setSelectedDoctor('')
     setSchedules([])
-    
+
     async function fetchDoctors() {
       if (!selectedSpecialty || !selectedHospital) {
         setDoctors([])
@@ -145,7 +148,7 @@ function BookConsultationFormInner() {
         `)
         .eq('hospital_id', selectedHospital)
         .eq('specialty', selectedSpecialty)
-        
+
       setDoctors(data || [])
     }
     fetchDoctors()
@@ -166,7 +169,7 @@ function BookConsultationFormInner() {
         .eq('is_booked', false)
         .gte('start_time', new Date().toISOString())
         .order('start_time', { ascending: true })
-        
+
       setSchedules(data || [])
     }
     fetchSchedules()
@@ -175,21 +178,45 @@ function BookConsultationFormInner() {
 
   return (
     <div className="w-full max-w-lg min-w-[340px] md:min-w-[420px] bg-white rounded-xl shadow-2xl border border-gray-100 p-8 relative z-10">
-      <h3 className="text-2xl font-black text-gray-900 mb-6 tracking-tight">Book Consultation</h3>
-      
+      <h3 className="text-2xl font-black text-gray-900 mb-6 tracking-tight">
+        {bookingType === 'consultation' ? 'Book Consultation' : 'Book Diagnostics'}
+      </h3>
+
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
           <Loader2 className="w-8 h-8 text-[#E31E24] animate-spin" />
         </div>
       ) : (
-        <form action={async (formData) => { await createAppointment(formData) }} onSubmit={() => setIsSubmitting(true)} className="space-y-5">
-          
+        <form
+          action={bookingType === 'consultation' ? async (formData) => { await createAppointment(formData) } : async () => { alert('Diagnostics booking coming soon!'); setIsSubmitting(false); }}
+          onSubmit={() => setIsSubmitting(true)}
+          className="space-y-5"
+        >
+
+          {/* Booking Type Toggle */}
+          <div className="flex p-1 bg-gray-100 rounded-xl mb-6">
+            <button
+              type="button"
+              onClick={() => setBookingType('consultation')}
+              className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${bookingType === 'consultation' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:cursor-pointer'}`}
+            >
+              Consultation
+            </button>
+            <button
+              type="button"
+              onClick={() => setBookingType('diagnostics')}
+              className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${bookingType === 'diagnostics' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:cursor-pointer'}`}
+            >
+              Diagnostics
+            </button>
+          </div>
+
           {/* Location */}
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1.5">Location (City)</label>
             <div className="relative">
               <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <select 
+              <select
                 value={selectedCity}
                 onChange={(e) => setSelectedCity(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all appearance-none cursor-pointer"
@@ -207,7 +234,7 @@ function BookConsultationFormInner() {
             <label className="block text-sm font-bold text-gray-700 mb-1.5">Hospital</label>
             <div className="relative">
               <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <select 
+              <select
                 name="hospital_id"
                 value={selectedHospital}
                 onChange={(e) => setSelectedHospital(e.target.value)}
@@ -223,77 +250,123 @@ function BookConsultationFormInner() {
             </div>
           </div>
 
-          {/* Speciality */}
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1.5">Specialty</label>
-            <div className="relative">
-              <Stethoscope className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <select 
-                value={selectedSpecialty}
-                onChange={(e) => setSelectedSpecialty(e.target.value)}
-                disabled={!selectedHospital}
-                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <option value="" disabled>Select Specialty</option>
-                {specialties.map(spec => (
-                  <option key={spec} value={spec}>{spec}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          {bookingType === 'consultation' && (
+            <>
+              {/* Speciality */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1.5">Specialty</label>
+                <div className="relative">
+                  <Stethoscope className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <select
+                    value={selectedSpecialty}
+                    onChange={(e) => setSelectedSpecialty(e.target.value)}
+                    disabled={!selectedHospital}
+                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    <option value="" disabled>Select Specialty</option>
+                    {specialties.map(spec => (
+                      <option key={spec} value={spec}>{spec}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-          {/* Doctor */}
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1.5">Doctor</label>
-            <div className="relative">
-              <UserCircle className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <select 
-                name="doctor_id"
-                value={selectedDoctor}
-                onChange={(e) => setSelectedDoctor(e.target.value)}
-                disabled={!selectedSpecialty}
-                required
-                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <option value="" disabled>Select Doctor</option>
-                {doctors.map(d => (
-                  <option key={d.id} value={d.id}>{d.profiles?.full_name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+              {/* Doctor */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1.5">Doctor</label>
+                <div className="relative">
+                  <UserCircle className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <select
+                    name="doctor_id"
+                    value={selectedDoctor}
+                    onChange={(e) => setSelectedDoctor(e.target.value)}
+                    disabled={!selectedSpecialty}
+                    required
+                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    <option value="" disabled>Select Doctor</option>
+                    {doctors.map(d => (
+                      <option key={d.id} value={d.id}>{d.profiles?.full_name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-          {/* Date & Time */}
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1.5">Available Slots</label>
-            <div className="relative">
-              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <select 
-                name="schedule_id"
-                disabled={!selectedDoctor || schedules.length === 0}
-                required
-                defaultValue=""
-                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                {schedules.length === 0 ? (
-                  <option value="" disabled>{selectedDoctor ? 'No slots available' : 'Select Doctor first'}</option>
-                ) : (
-                  <>
-                    <option value="" disabled>Select Date & Time</option>
-                    {schedules.map(s => {
-                      const date = new Date(s.start_time).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
-                      const time = new Date(s.start_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
-                      return (
-                        <option key={s.id} value={s.id}>{date} at {time}</option>
-                      )
-                    })}
-                  </>
-                )}
-              </select>
-            </div>
-          </div>
-          
-          <button 
+              {/* Date & Time */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1.5">Available Slots</label>
+                <div className="relative">
+                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <select
+                    name="schedule_id"
+                    disabled={!selectedDoctor || schedules.length === 0}
+                    required
+                    defaultValue=""
+                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {schedules.length === 0 ? (
+                      <option value="" disabled>{selectedDoctor ? 'No slots available' : 'Select Doctor first'}</option>
+                    ) : (
+                      <>
+                        <option value="" disabled>Select Date & Time</option>
+                        {schedules.map(s => {
+                          const date = new Date(s.start_time).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
+                          const time = new Date(s.start_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+                          return (
+                            <option key={s.id} value={s.id}>{date} at {time}</option>
+                          )
+                        })}
+                      </>
+                    )}
+                  </select>
+                </div>
+              </div>
+            </>
+          )}
+
+          {bookingType === 'diagnostics' && (
+            <>
+              {/* Diagnostic Type */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1.5">Diagnostic Test</label>
+                <div className="relative">
+                  <Activity className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <select
+                    value={selectedDiagnostic}
+                    onChange={(e) => setSelectedDiagnostic(e.target.value)}
+                    required={bookingType === 'diagnostics'}
+                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all appearance-none cursor-pointer"
+                  >
+                    <option value="" disabled>Select Diagnostic Test</option>
+                    <option value="xray">X-Ray</option>
+                    <option value="ct-scan">CT Scan</option>
+                    <option value="mri">MRI Scan</option>
+                    <option value="ultrasound">Ultrasound</option>
+                    <option value="blood-test">Blood Tests</option>
+                    <option value="ecg">ECG / EKG</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Date */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1.5">Preferred Date</label>
+                <div className="relative">
+                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="date"
+                    value={diagnosticDate}
+                    onChange={(e) => setDiagnosticDate(e.target.value)}
+                    required={bookingType === 'diagnostics'}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all cursor-pointer"
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          <button
             type="submit"
             disabled={isSubmitting}
             className="w-full py-3.5 bg-[#E31E24] text-white font-bold text-lg hover:bg-red-700 transition-colors mt-4 disabled:opacity-50 rounded-xl shadow-lg shadow-red-200/50 flex items-center justify-center gap-2"

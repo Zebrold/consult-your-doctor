@@ -10,7 +10,8 @@ import {
   Heart, Brain, Bone, Stethoscope, Baby, UserCircle, Eye, Activity,
   Search, ShieldCheck, CreditCard, Building2, UserPlus, UserCheck, Calendar,
   FileText, Clock, FileDigit, PhoneCall, CheckCircle2, MapPin, Search as SearchIcon,
-  ChevronRight, Star, Headset
+  ChevronRight, Star, Headset, Globe2,
+  ArrowRight
 } from 'lucide-react'
 
 export const revalidate = 0
@@ -163,6 +164,95 @@ export default async function Home() {
         </div>
       </section>
 
+
+      {/* About Platform */}
+      <section className="bg-white py-16 md:py-20 border-t border-gray-100">
+        <div className="max-w-[1440px] mx-auto px-4 md:px-8">
+          <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-10 lg:gap-16 items-center">
+
+            {/* Left Content */}
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-50 border border-red-100 text-[#E31E24] text-xs font-bold uppercase tracking-[0.12em] mb-5">
+                About Consult Your Doctor
+              </div>
+
+              <h2 className="text-3xl md:text-4xl lg:text-[42px] font-bold text-gray-900 tracking-tight leading-tight">
+                A Connected Healthcare Platform
+              </h2>
+
+              <p className="mt-5 text-gray-600 leading-7 max-w-2xl">
+                Consult Your Doctor is building a healthcare technology platform that connects patients,
+                doctors, hospitals and diagnostic services throughout the healthcare journey.
+              </p>
+
+              <p className="mt-4 text-gray-600 leading-7 max-w-2xl">
+                From consultation and AI-assisted follow-up to testing, doctor review and continuing care,
+                our goal is to make healthcare more{' '}
+                <span className="font-semibold text-gray-900">
+                  connected, accessible and easier to navigate.
+                </span>
+              </p>
+
+              <p className="mt-4 text-gray-600 leading-7 max-w-2xl">
+                Built around{' '}
+                <span className="font-semibold text-gray-900">
+                  responsible AI, patient-centred design, privacy and professional healthcare oversight
+                </span>
+                , the platform is designed to adapt across different healthcare markets.
+              </p>
+
+              <Link
+                href="/about"
+                className="mt-7 inline-flex items-center gap-2 text-[#E31E24] font-semibold hover:text-red-700 transition-colors group"
+              >
+                Learn More About Us
+                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+              </Link>
+            </div>
+
+            {/* Highlight Cards */}
+            <div className="grid sm:grid-cols-2 gap-4">
+              {[
+                {
+                  title: 'Connected Care',
+                  desc: 'Patients, doctors, hospitals and diagnostics working together.',
+                },
+                {
+                  title: 'Responsible AI',
+                  desc: 'Intelligent assistance with appropriate human oversight.',
+                },
+                {
+                  title: 'Privacy & Trust',
+                  desc: 'Secure and responsible handling of healthcare information.',
+                },
+                {
+                  title: 'Multi-Market Platform',
+                  desc: 'Technology designed to adapt across different healthcare systems.',
+                },
+              ].map((item) => {
+
+                return (
+                  <div
+                    key={item.title}
+                    className="group rounded-2xl border border-gray-200 bg-gray-50/70 p-6 hover:bg-white hover:border-red-200 hover:shadow-lg hover:shadow-gray-200/60 transition-all duration-300"
+                  >
+
+                    <h3 className="mt-5 text-lg font-bold text-gray-900">
+                      {item.title}
+                    </h3>
+
+                    <p className="mt-2 text-sm text-gray-600 leading-6">
+                      {item.desc}
+                    </p>
+                  </div>
+                )
+              })}
+            </div>
+
+          </div>
+        </div>
+      </section>
+
       {/* Featured Hospitals */}
       <section className="bg-white py-16 border-t border-gray-100">
         <div className="max-w-[1440px] mx-auto px-4 md:px-8">
@@ -243,17 +333,32 @@ export default async function Home() {
           <h2 className="text-2xl font-bold text-gray-900 mb-12">Why Choose Consult Your Doctor?</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { icon: PhoneCall, title: 'Executive Assistance', desc: 'A dedicated executive supports you from booking to hospital visit.' },
-              { icon: Building2, title: 'Verified Hospitals', desc: 'Partner with trusted multi-specialty hospitals across India.' },
-              { icon: CreditCard, title: 'Secure Payment', desc: 'Encrypted payments with multiple safe options.' },
-              { icon: Clock, title: 'Priority Appointment', desc: 'Get quicker access to specialists with priority scheduling.' },
-              { icon: FileDigit, title: 'Digital Medical Records', desc: 'Store prescriptions and reports securely in your digital locker.' },
-              { icon: Headset, title: '24/7 Support', desc: 'Dedicated support whenever you need us.' },
+              {
+                title: 'Continuous Care',
+                desc: 'Your healthcare journey stays connected beyond the initial consultation.'
+              },
+              {
+                title: 'Patient-Centred Experience',
+                desc: 'Healthcare navigation designed around patients, clarity and convenience.'
+              },
+              {
+                title: 'Connected Healthcare Network',
+                desc: 'Doctors, hospitals and diagnostic services connected through one coordinated platform.'
+              },
+              {
+                title: 'Responsible AI Assistance',
+                desc: 'Technology supports follow-ups and healthcare navigation while keeping professionals in control.'
+              },
+              {
+                title: 'Simplified Healthcare Navigation',
+                desc: 'From consultation and testing to reports and follow-up, we make the next step easier to understand.'
+              },
+              {
+                title: 'Privacy & Trust',
+                desc: 'Healthcare information is handled with security, responsible data practices and appropriate safeguards.'
+              },
             ].map((item, i) => (
               <div key={i} className="bg-white p-6 rounded-xl border border-gray-200 text-left flex gap-4 hover:shadow-md transition-shadow">
-                <div className="shrink-0 mt-1">
-                  <item.icon className="w-8 h-8 text-[#E31E24]" strokeWidth={1.5} />
-                </div>
                 <div>
                   <h3 className="font-bold text-gray-900 mb-2">{item.title}</h3>
                   <p className="text-xs text-gray-600 leading-relaxed">{item.desc}</p>

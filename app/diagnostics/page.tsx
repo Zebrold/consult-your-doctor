@@ -1,5 +1,8 @@
 import { Header } from '@/components/Header'
 import Link from 'next/link'
+import { SearchFiltersSidebar } from '@/components/SearchFiltersSidebar'
+import { Suspense } from 'react'
+import { createClient } from '@/lib/supabase/server'
 import {
   Activity,
   ArrowRight,
@@ -222,7 +225,18 @@ const trustPoints = [
   },
 ]
 
-export default function DiagnosticsPage() {
+export default async function DiagnosticsPage(props: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+  const supabase = await createClient()
+
+  // Fetch distinct filters dynamically
+  const { data: dbDoctors } = await supabase.from('doctors').select('specialty')
+  const { data: dbHospitals } = await supabase.from('hospitals').select('city, name')
+
+  const fetchedSpecialties = Array.from(new Set((dbDoctors || []).map(d => d.specialty).filter(Boolean))).sort()
+  const fetchedCities = Array.from(new Set((dbHospitals || []).map(h => h.city).filter(Boolean))).sort()
+  const fetchedHospitals = Array.from(new Set((dbHospitals || []).map(h => h.name).filter(Boolean))).sort()
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <Header />
@@ -319,27 +333,41 @@ export default function DiagnosticsPage() {
         </section>
 
         {/* SERVICES */}
-        <section id="diagnostic-services" className="bg-white py-20 md:py-24">
-          <div className="mx-auto max-w-[1200px] px-6 md:px-10">
-            <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-              <div className="max-w-3xl">
-                <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#E31E24]">
-                  Diagnostic services
-                </p>
-                <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">
-                  Find the test you need.
-                </h2>
-                <p className="mt-5 text-lg leading-8 text-slate-600">
-                  Browse common diagnostic services with estimated duration, preparation information and indicative pricing.
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                Indicative prices only • Final cost depends on provider
-              </div>
+        <section id="diagnostic-services" className="bg-slate-50/50 py-12">
+          <div className="max-w-[1440px] mx-auto px-4 md:px-8 flex flex-col lg:flex-row gap-8">
+            
+            {/* Left Sidebar */}
+            <div className="w-full lg:w-[280px] shrink-0">
+              <Suspense fallback={<div className="h-40 bg-slate-100 animate-pulse rounded-2xl"></div>}>
+                <SearchFiltersSidebar 
+                  specialties={fetchedSpecialties as string[]} 
+                  cities={fetchedCities as string[]} 
+                  hospitals={fetchedHospitals as string[]}
+                />
+              </Suspense>
             </div>
 
-            <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {/* Right Main Content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between mb-8">
+                <div className="max-w-3xl">
+                  <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#E31E24]">
+                    Diagnostic services
+                  </p>
+                  <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">
+                    Find the test you need.
+                  </h2>
+                  <p className="mt-5 text-lg leading-8 text-slate-600">
+                    Browse common diagnostic services with estimated duration, preparation information and indicative pricing.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
+                  Indicative prices only • Final cost depends on provider
+                </div>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {diagnosticServices.map((service) => {
                 const Icon = service.icon
 
@@ -396,8 +424,8 @@ export default function DiagnosticsPage() {
               })}
             </div>
           </div>
-        </section>
-
+        </div>
+      </section>
         {/* HOW IT WORKS */}
         <section className="border-y border-slate-100 bg-slate-50 py-20 md:py-24">
           <div className="mx-auto max-w-[1200px] px-6 md:px-10">

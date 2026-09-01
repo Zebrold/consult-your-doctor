@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useFormState, useFormStatus } from 'react-dom'
+import { useState, useActionState } from 'react'
+import { useFormStatus } from 'react-dom'
 import { sendOTP, verifyOTPInline } from '@/app/actions/auth'
 import { Loader2, X, Phone, User, KeyRound } from 'lucide-react'
 
@@ -39,8 +39,8 @@ export function InlineAuthModal({ isOpen, onClose, onSuccess }: InlineAuthModalP
   const [fullName, setFullName] = useState('')
   
   // Form states
-  const [sendState, sendAction] = useFormState(sendOTP, null)
-  const [verifyState, verifyAction] = useFormState(verifyOTPInline, null)
+  const [sendState, sendAction] = useActionState(sendOTP, null)
+  const [verifyState, verifyAction] = useActionState(verifyOTPInline, null)
 
   // Handle successful send
   if (sendState?.success && step === 'phone') {

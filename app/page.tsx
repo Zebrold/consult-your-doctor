@@ -119,8 +119,8 @@ export default async function Home() {
       </section>
 
       {/* Trust Strip (Marquee) */}
-      <section className="bg-[#E31E24] py-4 overflow-hidden">
-        <div className="flex w-max animate-marquee gap-8 md:gap-16 items-center text-sm font-semibold text-white">
+      <section className="bg-white border-b border-gray-200 py-4 overflow-hidden">
+        <div className="flex w-max animate-marquee gap-8 md:gap-16 items-center text-sm font-semibold text-gray-700">
           {[1, 2].map((set) => (
             <div key={set} className="flex gap-8 md:gap-16 items-center shrink-0">
               <div className="flex items-center gap-2 shrink-0"><span>Trusted Platform</span></div>
@@ -142,11 +142,11 @@ export default async function Home() {
       </section>
 
       {/* Popular Specialities */}
-      <section className="bg-[#E31E24] py-16">
+      <section className="bg-gray-50 py-16 border-t border-gray-100">
         <div className="max-w-[1440px] mx-auto px-4 md:px-8">
           <div className="flex justify-between items-center mb-8 gap-4">
-            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white whitespace-nowrap">Popular Specialities</h2>
-            <Link href="/search" className="text-white hover:text-red-100 text-xs sm:text-sm font-semibold flex items-center whitespace-nowrap shrink-0 transition-colors">
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 whitespace-nowrap">Popular Specialities</h2>
+            <Link href="/search" className="text-[#E31E24] text-xs sm:text-sm font-semibold flex items-center whitespace-nowrap shrink-0">
               View All <span className="hidden sm:inline ml-1">Specialities</span> <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1" />
             </Link>
           </div>
@@ -166,7 +166,7 @@ export default async function Home() {
 
 
       {/* About Platform */}
-      <section className="bg-white py-16 md:py-20">
+      <section className="bg-white py-16 md:py-20 border-t border-gray-100">
         <div className="max-w-[1440px] mx-auto px-4 md:px-8">
           <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-10 lg:gap-16 items-center">
 
@@ -254,11 +254,11 @@ export default async function Home() {
       </section>
 
       {/* Featured Hospitals */}
-      <section className="bg-[#E31E24] py-16">
+      <section className="bg-white py-16 border-t border-gray-100">
         <div className="max-w-[1440px] mx-auto px-4 md:px-8">
           <div className="flex justify-between items-center mb-8 gap-4">
-            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white whitespace-nowrap">Featured Hospitals</h2>
-            <Link href="/search" className="text-white hover:text-red-100 text-xs sm:text-sm font-semibold flex items-center whitespace-nowrap shrink-0 transition-colors">
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 whitespace-nowrap">Featured Hospitals</h2>
+            <Link href="/search" className="text-[#E31E24] text-xs sm:text-sm font-semibold flex items-center whitespace-nowrap shrink-0">
               View All <span className="hidden sm:inline ml-1">Hospitals</span> <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1" />
             </Link>
           </div>
@@ -296,7 +296,7 @@ export default async function Home() {
       </section>
 
       {/* Top Doctors */}
-      <section className="bg-white py-16">
+      <section className="bg-gray-50 py-16 border-t border-gray-100">
         <div className="max-w-[1440px] mx-auto px-4 md:px-8">
           <div className="flex justify-between items-center mb-8 gap-4">
             <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 whitespace-nowrap">Top Doctors</h2>
@@ -340,25 +340,25 @@ export default async function Home() {
       </section>
 
       {/* Why Choose */}
-      <section className="bg-[#E31E24] py-16 md:py-20">
+      <section className="bg-white py-16 md:py-20 border-t border-gray-100">
         <div className="max-w-[1440px] mx-auto px-4 md:px-8">
           <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-10 lg:gap-16 items-center">
             
             {/* Left Content */}
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-white text-xs font-bold uppercase tracking-[0.12em] mb-5">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-50 border border-red-100 text-[#E31E24] text-xs font-bold uppercase tracking-[0.12em] mb-5">
                 Why Choose Us
               </div>
 
-              <h2 className="text-3xl md:text-4xl lg:text-[42px] font-bold text-white tracking-tight leading-tight">
+              <h2 className="text-3xl md:text-4xl lg:text-[42px] font-bold text-gray-900 tracking-tight leading-tight">
                 Your Health, Our Priority
               </h2>
 
-              <p className="mt-5 text-red-100 leading-7 max-w-2xl">
+              <p className="mt-5 text-gray-600 leading-7 max-w-2xl">
                 We are committed to providing you with the most seamless and connected healthcare experience.
               </p>
               
-              <p className="mt-4 text-red-100 leading-7 max-w-2xl">
+              <p className="mt-4 text-gray-600 leading-7 max-w-2xl">
                 Discover why thousands of patients trust Consult Your Doctor for their medical journey, from initial consultation to complete recovery.
               </p>
             </div>

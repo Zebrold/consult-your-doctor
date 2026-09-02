@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { Plus, Building2, MapPin } from 'lucide-react'
 import Image from 'next/image'
-import { HospitalActionMenu } from '@/app/admin/hospitals/HospitalActionMenu'
+import { HospitalActionMenu } from '@/app/admin/(dashboard)/hospitals/HospitalActionMenu'
 
 export const revalidate = 0
 

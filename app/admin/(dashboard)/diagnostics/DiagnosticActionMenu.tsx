@@ -1,7 +1,7 @@
 'use client'
 
-import { Activity, useState } from 'react'
-import { MoreVertical, KeyRound, Trash2, Loader2, AlertTriangle } from 'lucide-react'
+import { useState } from 'react'
+import { Activity, MoreVertical, KeyRound, Trash2, Loader2, AlertTriangle } from 'lucide-react'
 import { ManageDiagnosticCredentialsModal } from '@/components/ManageDiagnosticCredentialsModal'
 import { EditDiagnosticTestsModal } from '@/components/EditDiagnosticTestsModal'
 import { deleteDiagnosticCenter } from '@/app/actions/admin'

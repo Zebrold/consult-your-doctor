@@ -38,7 +38,30 @@ export function DiagnosticPatientList({ bookings }: DiagnosticPatientListProps) 
   const filteredBookings = bookings.filter(booking => {
     let matches = true
     if (filterTest && booking.test_name !== filterTest) matches = false
-    if (filterDate && booking.preferred_date !== filterDate) matches = false
+    
+    if (filterDate && booking.preferred_date) {
+      console.log('--- FILTER CHECK ---')
+      console.log('booking.preferred_date:', booking.preferred_date, typeof booking.preferred_date)
+      console.log('filterDate:', filterDate, typeof filterDate)
+      
+      // Create local dates for comparison to avoid string format mismatches
+      const bDateObj = new Date(booking.preferred_date)
+      const fDateObj = new Date(filterDate) // from "YYYY-MM-DD"
+
+      
+      const bYear = bDateObj.getFullYear()
+      const bMonth = bDateObj.getMonth()
+      const bDay = bDateObj.getDate()
+      
+      const fYear = fDateObj.getFullYear()
+      const fMonth = fDateObj.getMonth()
+      const fDay = fDateObj.getDate()
+      
+      if (bYear !== fYear || bMonth !== fMonth || bDay !== fDay) {
+        matches = false
+      }
+    }
+    
     return matches
   })
 
@@ -115,7 +138,7 @@ export function DiagnosticPatientList({ bookings }: DiagnosticPatientListProps) 
                   <div>
                     <h4 className="font-bold text-gray-900">{booking.profiles?.full_name || 'Unknown Patient'}</h4>
                     <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                      <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {booking.profiles?.phone || 'N/A'}</span>
+                      <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {booking.profiles?.phone_number || 'N/A'}</span>
                       <span className="flex items-center gap-1 font-mono bg-gray-100 px-2 py-0.5 rounded text-xs">ID: {booking.id.slice(0,8)}</span>
                     </div>
                   </div>

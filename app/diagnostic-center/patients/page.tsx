@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { DiagnosticPatientList } from '@/components/DiagnosticPatientList'
 
@@ -18,14 +19,15 @@ export default async function DiagnosticPatientsPage() {
     return <div className="p-8">No diagnostic center assigned.</div>
   }
 
-  // Fetch bookings for this diagnostic center
-  const { data: bookings } = await supabase
+  // Fetch bookings for this diagnostic center using the admin client to bypass profiles RLS
+  const adminSupabase = createAdminClient()
+  const { data: bookings } = await adminSupabase
     .from('diagnostic_bookings')
     .select(`
       *,
       profiles (
         full_name,
-        phone,
+        phone_number,
         email
       )
     `)

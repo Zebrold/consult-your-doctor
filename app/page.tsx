@@ -408,6 +408,45 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      {/* App Download Section */}
+      <section className="bg-gray-100 py-16 md:py-0 md:pt-16 border-t border-gray-200 relative overflow-hidden">
+        <div className="max-w-[1440px] mx-auto px-4 md:px-8 relative z-10">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-10">
+            <div className="md:w-1/2 text-left pb-16">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-100 border border-red-200 text-red-600 text-xs font-bold uppercase tracking-[0.12em] mb-5">
+                Get The App
+              </div>
+              <h2 className="text-3xl md:text-4xl lg:text-[42px] font-bold text-gray-900 tracking-tight leading-tight">
+                Healthcare at your fingertips
+              </h2>
+              <p className="mt-5 text-gray-600 leading-7 max-w-lg text-lg">
+                Book appointments, access medical records, and consult with top doctors anytime, anywhere. Experience seamless healthcare on the go.
+              </p>
+              
+              <div className="mt-10 flex items-center gap-4">
+                <button className="px-6 py-3 bg-[#E31E24] text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20">
+                  Download for iOS
+                </button>
+                <button className="px-6 py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors shadow-lg">
+                  Download for Android
+                </button>
+              </div>
+            </div>
+            
+            <div className="md:w-1/2 flex justify-center md:justify-end items-end relative h-full">
+              <Image 
+                src="/app_download.png" 
+                alt="Download App" 
+                width={600} 
+                height={600} 
+                className="w-full max-w-[500px] h-auto object-contain drop-shadow-2xl md:-mb-10 hover:-translate-y-4 transition-transform duration-500 ease-out" 
+                priority
+              />
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   )
 }

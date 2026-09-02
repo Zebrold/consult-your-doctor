@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { MapPin, Building2, Stethoscope, UserCircle, Calendar, Loader2, Activity } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { createAppointment } from '@/app/actions/booking'
+import { createAppointment, createDiagnosticBooking } from '@/app/actions/booking'
 import { useSearchParams } from 'next/navigation'
 import { InlineAuthModal } from '@/components/InlineAuthModal'
 
@@ -12,7 +12,9 @@ function BookConsultationFormInner() {
   const searchParams = useSearchParams()
   // State for dropdown options
   const [cities, setCities] = useState<string[]>([])
+  const [diagCities, setDiagCities] = useState<string[]>([])
   const [hospitals, setHospitals] = useState<any[]>([])
+  const [centers, setCenters] = useState<any[]>([])
   const [specialties, setSpecialties] = useState<any[]>([])
   const [doctors, setDoctors] = useState<any[]>([])
   const [schedules, setSchedules] = useState<any[]>([])
@@ -21,6 +23,7 @@ function BookConsultationFormInner() {
   const [bookingType, setBookingType] = useState<'consultation' | 'diagnostics'>('consultation')
   const [selectedCity, setSelectedCity] = useState<string>('')
   const [selectedHospital, setSelectedHospital] = useState<string>('')
+  const [selectedCenter, setSelectedCenter] = useState<string>('')
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('')
   const [selectedDoctor, setSelectedDoctor] = useState<string>('')
   const [selectedDiagnostic, setSelectedDiagnostic] = useState<string>('')
@@ -53,6 +56,11 @@ function BookConsultationFormInner() {
       const { data: cityData } = await supabase.from('hospitals').select('city').eq('status', 'active')
       if (cityData) {
         setCities(Array.from(new Set(cityData.map(h => h.city))))
+      }
+      
+      const { data: diagCityData } = await supabase.from('diagnostic_centers').select('city').eq('status', 'active')
+      if (diagCityData) {
+        setDiagCities(Array.from(new Set(diagCityData.map(c => c.city))))
       }
 
       if (urlCity) {
@@ -98,24 +106,35 @@ function BookConsultationFormInner() {
     initialize()
   }, [searchParams])
 
-  // Fetch Hospitals when City changes
+  // Fetch Hospitals and Centers when City changes
   useEffect(() => {
     if (!initRef.current) return
     setSelectedHospital('')
     setSelectedSpecialty('')
     setSelectedDoctor('')
     setSchedules([])
+    setSelectedCenter('')
 
-    async function fetchHospitals() {
+    async function fetchFacilities() {
       if (!selectedCity) {
         setHospitals([])
+        setCenters([])
         return
       }
-      const { data } = await supabase.from('hospitals').select('id, name').eq('city', selectedCity).eq('status', 'active')
-      setHospitals(data || [])
+      const { data: hData } = await supabase.from('hospitals').select('id, name').eq('city', selectedCity).eq('status', 'active')
+      setHospitals(hData || [])
+      
+      const { data: cData } = await supabase.from('diagnostic_centers').select('id, name, address, available_tests').eq('city', selectedCity).eq('status', 'active')
+      setCenters(cData || [])
     }
-    fetchHospitals()
+    fetchFacilities()
   }, [selectedCity])
+
+  // Reset city when booking type changes
+  useEffect(() => {
+    if (!initRef.current) return
+    setSelectedCity('')
+  }, [bookingType])
 
   // Fetch Specialties when Hospital changes
   useEffect(() => {
@@ -186,7 +205,7 @@ function BookConsultationFormInner() {
   }, [selectedDoctor])
 
   const handleSubmit = (e: React.FormEvent) => {
-    if (bookingType === 'consultation' && !isAuthenticated) {
+    if (!isAuthenticated) {
       e.preventDefault()
       setShowAuthModal(true)
       return
@@ -217,7 +236,7 @@ function BookConsultationFormInner() {
       ) : (
         <form 
           ref={formRef}
-          action={bookingType === 'consultation' ? async (formData) => { await createAppointment(formData) } : async () => { alert('Diagnostics booking coming soon!'); setIsSubmitting(false); }} 
+          action={bookingType === 'consultation' ? async (formData) => { await createAppointment(formData) } : async (formData) => { await createDiagnosticBooking(formData) }} 
           onSubmit={handleSubmit} 
           className="space-y-5"
         >
@@ -251,29 +270,8 @@ function BookConsultationFormInner() {
                 className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all appearance-none cursor-pointer"
               >
                 <option value="" disabled>Select City</option>
-                {cities.map(city => (
+                {(bookingType === 'consultation' ? cities : diagCities).map(city => (
                   <option key={city} value={city}>{city}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Hospital */}
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1.5">Hospital</label>
-            <div className="relative">
-              <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <select
-                name="hospital_id"
-                value={selectedHospital}
-                onChange={(e) => setSelectedHospital(e.target.value)}
-                disabled={!selectedCity}
-                required
-                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <option value="" disabled>Select Hospital</option>
-                {hospitals.map(h => (
-                  <option key={h.id} value={h.id}>{h.name}</option>
                 ))}
               </select>
             </div>
@@ -281,6 +279,27 @@ function BookConsultationFormInner() {
 
           {bookingType === 'consultation' && (
             <>
+              {/* Hospital */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1.5">Hospital</label>
+                <div className="relative">
+                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <select
+                    name="hospital_id"
+                    value={selectedHospital}
+                    onChange={(e) => setSelectedHospital(e.target.value)}
+                    disabled={!selectedCity}
+                    required
+                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    <option value="" disabled>Select Hospital</option>
+                    {hospitals.map(h => (
+                      <option key={h.id} value={h.id}>{h.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               {/* Speciality */}
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1.5">Specialty</label>
@@ -355,24 +374,50 @@ function BookConsultationFormInner() {
 
           {bookingType === 'diagnostics' && (
             <>
+              {/* Diagnostic Center */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1.5">Diagnostic Center</label>
+                <div className="relative">
+                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <select
+                    name="center_id"
+                    value={selectedCenter}
+                    onChange={(e) => setSelectedCenter(e.target.value)}
+                    disabled={!selectedCity}
+                    required
+                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    <option value="" disabled>Select Diagnostic Center</option>
+                    {centers.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                {selectedCenter && (
+                  <div className="mt-2 text-sm text-gray-500 bg-gray-50 p-3 rounded-lg border border-gray-100 flex items-start gap-2">
+                    <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-gray-400" />
+                    <span>{centers.find(c => c.id === selectedCenter)?.address || 'Address not available'}</span>
+                  </div>
+                )}
+              </div>
+
               {/* Diagnostic Type */}
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1.5">Diagnostic Test</label>
                 <div className="relative">
                   <Activity className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <select
+                    name="test_name"
                     value={selectedDiagnostic}
                     onChange={(e) => setSelectedDiagnostic(e.target.value)}
                     required={bookingType === 'diagnostics'}
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all appearance-none cursor-pointer"
+                    disabled={!selectedCenter}
+                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <option value="" disabled>Select Diagnostic Test</option>
-                    <option value="xray">X-Ray</option>
-                    <option value="ct-scan">CT Scan</option>
-                    <option value="mri">MRI Scan</option>
-                    <option value="ultrasound">Ultrasound</option>
-                    <option value="blood-test">Blood Tests</option>
-                    <option value="ecg">ECG / EKG</option>
+                    {centers.find(c => c.id === selectedCenter)?.available_tests?.map((test: string) => (
+                      <option key={test} value={test.toLowerCase().replace(/ /g, '-')}>{test}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -383,6 +428,7 @@ function BookConsultationFormInner() {
                 <div className="relative">
                   <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
+                    name="preferred_date"
                     type="date"
                     value={diagnosticDate}
                     onChange={(e) => setDiagnosticDate(e.target.value)}

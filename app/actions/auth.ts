@@ -207,6 +207,8 @@ export async function staffLogin(prevState: any, formData: FormData) {
     redirect('/hospital/dashboard')
   } else if (expectedRole === 'super_admin') {
     redirect('/admin/dashboard')
+  } else if (expectedRole === 'diagnostic_admin') {
+    redirect('/diagnostic-center/dashboard')
   }
 }
 

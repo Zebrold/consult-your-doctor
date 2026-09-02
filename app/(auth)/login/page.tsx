@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { User, UserSquare, Stethoscope, Building2, ShieldCheck, ChevronRight } from 'lucide-react'
+import { User, UserSquare, Stethoscope, Building2, ShieldCheck, ChevronRight, Activity } from 'lucide-react'
 
 export const metadata = {
   title: 'Login - Consult Your Doctor',
@@ -33,6 +33,13 @@ const roles = [
     desc: 'Assist patients with bookings and manage logistics.',
     icon: UserSquare,
     href: '/login/executive',
+  },
+  {
+    id: 'diagnostic',
+    title: 'Diagnostic Center',
+    desc: 'Manage your center, tests, and appointments.',
+    icon: Activity,
+    href: '/login/diagnostic',
   },
   {
     id: 'admin',

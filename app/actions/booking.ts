@@ -45,3 +45,43 @@ export async function createAppointment(formData: FormData) {
   // 4. Redirect to the checkout page
   redirect(`/patient/checkout/${appointment.id}`)
 }
+
+export async function createDiagnosticBooking(formData: FormData) {
+  const supabase = await createClient()
+  
+  // 1. Verify User Authentication
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) {
+    // If not logged in, redirect to login page.
+    redirect('/login/patient')
+  }
+
+  // 2. Parse form data
+  const centerId = formData.get('center_id') as string
+  const testName = formData.get('test_name') as string
+  const preferredDate = formData.get('preferred_date') as string
+
+  if (!centerId || !testName || !preferredDate) {
+    return { error: 'Please select a center, a test, and a preferred date.' }
+  }
+
+  // 3. Insert Booking
+  const { error } = await supabase
+    .from('diagnostic_bookings')
+    .insert({
+      patient_id: user.id,
+      center_id: centerId,
+      test_name: testName,
+      preferred_date: preferredDate,
+      status: 'pending'
+    })
+
+  if (error) {
+    console.error('Error creating diagnostic booking:', error)
+    return { error: 'Failed to book diagnostic test.' }
+  }
+
+  // 4. Redirect to patient dashboard
+  redirect(`/patient/dashboard`)
+}

@@ -18,10 +18,17 @@ export async function createStaffAccount(formData: FormData) {
   const password = formData.get('password') as string
   const fullName = formData.get('fullName') as string
   const role = formData.get('role') as string
-  const hospitalId = formData.get('hospitalId') as string
+  const hospitalId = formData.get('hospitalId') as string || null
+  const diagnosticCenterId = formData.get('diagnosticCenterId') as string || null
 
-  if (!password || !fullName || !role || !hospitalId) {
-    return { error: 'All fields are required.' }
+  if (!password || !fullName || !role) {
+    return { error: 'Name, Role, and Password are required.' }
+  }
+
+  if (role === 'diagnostic_admin' && !diagnosticCenterId) {
+    return { error: 'Diagnostic Center is required.' }
+  } else if (role !== 'diagnostic_admin' && role !== 'executive' && !hospitalId) {
+    return { error: 'Hospital is required.' }
   }
 
   // 2. Initialize Supabase Admin Client
@@ -61,12 +68,13 @@ export async function createStaffAccount(formData: FormData) {
     return { error: authError.message }
   }
 
-  // 4. Insert the profile with role and hospital
+  // 4. Insert the profile with role and associated entity
   const { error: profileError } = await supabase.from('profiles').insert({
     id: newAuthUser.user.id,
     role: role,
     full_name: fullName,
     hospital_id: hospitalId,
+    diagnostic_center_id: diagnosticCenterId,
     staff_id: adminId
   })
 
@@ -155,6 +163,44 @@ export async function createHospital(formData: FormData) {
   await supabase.from('departments').insert(deptsInsert)
 
   revalidatePath('/admin/hospitals')
+  return { success: true }
+}
+
+export async function createDiagnosticCenter(formData: FormData) {
+  const supabase = await createClient()
+  
+  // Verify caller is Super Admin
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'super_admin') return { error: 'Forbidden. Super Admin only.' }
+
+  const name = formData.get('name') as string
+  const city = formData.get('city') as string
+  const address = formData.get('address') as string
+  const available_tests = formData.getAll('tests') as string[]
+
+  if (!name || !city) return { error: 'Name and City are required.' }
+
+  // Generate a dummy email
+  const generatedEmail = `info@${name.toLowerCase().replace(/[^a-z0-9]/g, '')}.internal`
+
+  const { data: newCenter, error } = await supabase.from('diagnostic_centers').insert({
+    name,
+    city,
+    address,
+    available_tests,
+    contact_email: generatedEmail,
+    status: 'active'
+  }).select().single()
+
+  if (error) {
+    console.error(error)
+    return { error: 'Failed to create diagnostic center' }
+  }
+
+  revalidatePath('/admin/diagnostics')
   return { success: true }
 }
 
@@ -313,6 +359,66 @@ export async function createHospitalCredentials(formData: FormData) {
   return { success: true }
 }
 
+export async function createDiagnosticCredentials(formData: FormData) {
+  const supabase = await createClient()
+
+  // Verify caller is Super Admin
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'super_admin') return { error: 'Unauthorized' }
+
+  const centerId = formData.get('centerId') as string
+  const centerName = formData.get('centerName') as string
+  const adminId = formData.get('adminId') as string
+  const password = formData.get('password') as string
+
+  if (!centerId || !adminId || !password) return { error: 'Missing required fields' }
+
+  // Admin auth client to create users
+  const adminAuthClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const emailForAuth = `${adminId.toLowerCase()}@cyd.internal`
+
+  // 1. Check if auth user exists
+  const { data: existing } = await adminAuthClient.auth.admin.listUsers()
+  if (existing.users.some(u => u.email === emailForAuth)) {
+    return { error: 'This Admin ID is already in use.' }
+  }
+
+  // 2. Create Auth User
+  const { data: newAuthUser, error: authError } = await adminAuthClient.auth.admin.createUser({
+    email: emailForAuth,
+    password,
+    email_confirm: true,
+    user_metadata: { role: 'diagnostic_admin', full_name: `${centerName} Admin` }
+  })
+
+  if (authError) {
+    console.error('Failed to create diagnostic admin auth user:', authError)
+    return { error: authError.message }
+  }
+
+  // 3. Insert the profile
+  const { error: profileError } = await supabase.from('profiles').insert({
+    id: newAuthUser.user.id,
+    role: 'diagnostic_admin',
+    full_name: `${centerName} Admin`,
+    diagnostic_center_id: centerId,
+    staff_id: adminId
+  })
+
+  if (profileError) {
+    console.error('Failed to create profile for diagnostic admin:', profileError)
+    return { error: 'Failed to create profile.' }
+  }
+
+  return { success: true }
+}
+
 export async function updateDoctorEmail(doctorId: string, email: string) {
   const supabase = await createClient()
 
@@ -450,6 +556,52 @@ export async function deleteHospital(hospitalId: string) {
   } catch (err: any) {
     console.error('Delete hospital error:', err)
     return { error: err.message || 'Failed to delete hospital.' }
+  }
+}
+
+export async function deleteDiagnosticCenter(centerId: string) {
+  const supabase = await createClient()
+  
+  // 1. Verify caller is Super Admin
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized' }
+
+  const { data: adminProfile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (adminProfile?.role !== 'super_admin') return { error: 'Forbidden. Super Admin only.' }
+
+  const adminAuthClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+
+  try {
+    // 2. Find all diagnostic_admin profiles for this center
+    const { data: admins } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('diagnostic_center_id', centerId)
+
+    // 3. Delete those auth users (this cascades to their profiles)
+    if (admins && admins.length > 0) {
+      for (const admin of admins) {
+        await adminAuthClient.auth.admin.deleteUser(admin.id)
+      }
+    }
+
+    // 4. Delete the diagnostic center itself
+    const { error: deleteError } = await supabase
+      .from('diagnostic_centers')
+      .delete()
+      .eq('id', centerId)
+
+    if (deleteError) throw deleteError
+
+    revalidatePath('/admin/diagnostics')
+    return { success: true }
+  } catch (err: any) {
+    console.error('Delete center error:', err)
+    return { error: err.message || 'Failed to delete center.' }
   }
 }
 

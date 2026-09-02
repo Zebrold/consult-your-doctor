@@ -85,3 +85,22 @@ export async function createDiagnosticBooking(formData: FormData) {
   // 4. Redirect to patient dashboard
   redirect(`/patient/dashboard`)
 }
+
+export async function updateDiagnosticBookingStatus(bookingId: string, status: string) {
+  const supabase = await createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized' }
+
+  const { error } = await supabase
+    .from('diagnostic_bookings')
+    .update({ status })
+    .eq('id', bookingId)
+
+  if (error) {
+    console.error('Error updating status:', error)
+    return { error: 'Failed to update status' }
+  }
+
+  return { success: true }
+}

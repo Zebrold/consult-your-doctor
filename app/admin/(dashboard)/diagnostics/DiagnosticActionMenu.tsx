@@ -1,18 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { Activity, useState } from 'react'
 import { MoreVertical, KeyRound, Trash2, Loader2, AlertTriangle } from 'lucide-react'
 import { ManageDiagnosticCredentialsModal } from '@/components/ManageDiagnosticCredentialsModal'
 import { EditDiagnosticTestsModal } from '@/components/EditDiagnosticTestsModal'
 import { deleteDiagnosticCenter } from '@/app/actions/admin'
 
-export function DiagnosticActionMenu({ 
-  centerId, 
+export function DiagnosticActionMenu({
+  centerId,
   centerName,
   initialTests = [],
   initialPrices = {}
-}: { 
-  centerId: string, 
+}: {
+  centerId: string,
   centerName: string,
   initialTests?: string[],
   initialPrices?: Record<string, number>
@@ -37,7 +37,7 @@ export function DiagnosticActionMenu({
 
   return (
     <div className="relative">
-      <button 
+      <button
         onClick={() => setIsOpen(!isOpen)}
         className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
       >
@@ -48,14 +48,14 @@ export function DiagnosticActionMenu({
         <>
           <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
           <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-20">
-            <button 
+            <button
               onClick={() => { setShowManageCreds(true); setIsOpen(false) }}
               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
             >
               <KeyRound className="w-4 h-4 text-blue-600" />
               Manage Credentials
             </button>
-            <button 
+            <button
               onClick={() => { setShowEditTests(true); setIsOpen(false) }}
               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
             >
@@ -63,7 +63,7 @@ export function DiagnosticActionMenu({
               Edit Tests & Prices
             </button>
             <div className="h-px bg-gray-100 my-1 mx-2" />
-            <button 
+            <button
               onClick={() => { setShowDeleteConfirm(true); setIsOpen(false) }}
               className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 font-medium"
             >
@@ -76,22 +76,22 @@ export function DiagnosticActionMenu({
 
       {/* Existing Credentials Modal */}
       {showManageCreds && (
-        <ManageDiagnosticCredentialsModal 
-          centerId={centerId} 
-          centerName={centerName} 
-          onClose={() => setShowManageCreds(false)} 
+        <ManageDiagnosticCredentialsModal
+          centerId={centerId}
+          centerName={centerName}
+          onClose={() => setShowManageCreds(false)}
           isOpen={showManageCreds}
         />
       )}
 
       {/* Edit Tests & Prices Modal */}
       {showEditTests && (
-        <EditDiagnosticTestsModal 
-          centerId={centerId} 
-          centerName={centerName} 
+        <EditDiagnosticTestsModal
+          centerId={centerId}
+          centerName={centerName}
           initialTests={initialTests}
           initialPrices={initialPrices}
-          onClose={() => setShowEditTests(false)} 
+          onClose={() => setShowEditTests(false)}
           isOpen={showEditTests}
         />
       )}
@@ -109,15 +109,15 @@ export function DiagnosticActionMenu({
                 Are you sure you want to permanently delete <strong>{centerName}</strong>? This action cannot be undone.
               </p>
             </div>
-            
+
             <div className="flex gap-3">
-              <button 
+              <button
                 onClick={() => setShowDeleteConfirm(false)}
                 className="flex-1 py-3 font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
               >
                 Cancel
               </button>
-              <button 
+              <button
                 disabled={isDeleting}
                 onClick={handleDelete}
                 className="flex-1 py-3 font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors flex justify-center items-center gap-2 disabled:opacity-50"

@@ -8,7 +8,7 @@ export default async function AdminDashboard() {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login/admin')
+  if (!user) redirect('/admin')
 
   // Fetch Global Data
   const { data: hospitals } = await supabase.from('hospitals').select('id')

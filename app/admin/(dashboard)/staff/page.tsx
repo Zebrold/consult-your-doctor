@@ -14,7 +14,7 @@ export default async function AdminStaff() {
   )
   
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login/admin')
+  if (!user) redirect('/admin')
 
   // Verify super admin
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()

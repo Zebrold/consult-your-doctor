@@ -48,35 +48,47 @@ export async function middleware(request: NextRequest) {
     const role = profile?.role || 'patient'
 
     let dashboardPath = '/patient/dashboard'
-    if (role === 'doctor') dashboardPath = '/doctor/dashboard'
-    else if (role === 'executive') dashboardPath = '/executive/dashboard'
-    else if (role === 'hospital_admin') dashboardPath = '/hospital/dashboard'
-    else if (role === 'super_admin') dashboardPath = '/admin/dashboard'
+    let allowedPrefix = '/'
+    
+    if (role === 'doctor') {
+      dashboardPath = '/doctor/dashboard'
+      allowedPrefix = '/doctor'
+    } else if (role === 'executive') {
+      dashboardPath = '/executive/dashboard'
+      allowedPrefix = '/executive'
+    } else if (role === 'hospital_admin') {
+      dashboardPath = '/hospital/dashboard'
+      allowedPrefix = '/hospital'
+    } else if (role === 'diagnostic_admin') {
+      dashboardPath = '/diagnostic/dashboard'
+      allowedPrefix = '/diagnostic'
+    } else if (role === 'super_admin') {
+      dashboardPath = '/admin/dashboard'
+      allowedPrefix = '/admin'
+    }
 
-    if (path === '/login' || path === '/signup' || path === '/login/patient' || path === '/login/doctor' || path === '/login/hospital' || path === '/login/executive' || path === '/login/admin') {
+    // Always redirect logged-in users away from auth pages
+    if (path === '/login' || path === '/signup' || path === '/login/patient' || path === '/login/doctor' || path === '/login/hospital' || path === '/login/executive' || path === '/login/diagnostic' || path === '/admin') {
       return NextResponse.redirect(new URL(dashboardPath, request.url))
     }
 
-    // If they hit the home page, redirect staff to their dashboard, but allow patients and super admins
-    if (path === '/' && role !== 'super_admin' && role !== 'patient') {
+    // STRICT CONFINEMENT: If they are not a patient, they can ONLY visit their allowedPrefix
+    if (role !== 'patient' && !path.startsWith(allowedPrefix) && !path.startsWith('/auth/signout')) {
       return NextResponse.redirect(new URL(dashboardPath, request.url))
     }
 
-    // Role-based protection
-    if (path.startsWith('/patient') && role !== 'patient') {
-      return NextResponse.redirect(new URL(dashboardPath, request.url))
-    }
-    if ((path.startsWith('/doctor/') || path === '/doctor') && role !== 'doctor') {
-       return NextResponse.redirect(new URL(dashboardPath, request.url))
-    }
-    if (path.startsWith('/executive') && role !== 'executive') {
-       return NextResponse.redirect(new URL(dashboardPath, request.url))
-    }
-    if ((path.startsWith('/hospital/') || path === '/hospital') && role !== 'hospital_admin') {
-       return NextResponse.redirect(new URL(dashboardPath, request.url))
-    }
-    if (path.startsWith('/admin/dashboard') && role !== 'super_admin') {
-       return NextResponse.redirect(new URL(dashboardPath, request.url))
+    // Role-based protection for patients trying to access staff routes
+    if (role === 'patient') {
+      const isTryingToAccessOtherRolePath = 
+        path.startsWith('/doctor') || 
+        path.startsWith('/executive') || 
+        path.startsWith('/hospital') || 
+        path.startsWith('/diagnostic') || 
+        path.startsWith('/admin')
+        
+      if (isTryingToAccessOtherRolePath) {
+        return NextResponse.redirect(new URL(dashboardPath, request.url))
+      }
     }
   } else {
     // Not logged in

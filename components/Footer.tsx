@@ -44,8 +44,8 @@ export function Footer() {
           <div className="space-y-6">
             <h3 className="text-base font-bold text-white tracking-wide whitespace-nowrap">For Hospitals</h3>
             <ul className="space-y-3">
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">List Your Hospital</Link></li>
               <li><Link href="/login/hospital" className="text-gray-300 hover:text-white transition-colors text-sm">Hospital Login</Link></li>
+              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">List Your Hospital</Link></li>
               <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Resource Center</Link></li>
               <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Partnerships</Link></li>
             </ul>
@@ -83,7 +83,7 @@ export function Footer() {
               <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Support</Link></li>
             </ul>
           </div>
-          
+
           {/* Policies Column (Need to increase grid cols to 7 if we want 2 col span for first, or 1 col span for all. Current is 6 cols: 2 + 1 + 1 + 1 + 1 = 6) */}
           <div className="space-y-6">
             <h3 className="text-base font-bold text-white tracking-wide whitespace-nowrap">Policies</h3>
@@ -95,7 +95,7 @@ export function Footer() {
             </ul>
           </div>
         </div>
-        
+
         {/* Footer Bottom */}
         <div className="mt-12 pt-8 border-t border-gray-700/50 flex flex-col md:flex-row items-center justify-between text-gray-400 text-xs">
           <p>&copy; {new Date().getFullYear()} Consult Your Doctor. All rights reserved.</p>

@@ -236,7 +236,16 @@ function BookConsultationFormInner() {
       ) : (
         <form 
           ref={formRef}
-          action={bookingType === 'consultation' ? async (formData) => { await createAppointment(formData) } : async (formData) => { await createDiagnosticBooking(formData) }} 
+          action={async (formData) => {
+            const res = bookingType === 'consultation' 
+              ? await createAppointment(formData) 
+              : await createDiagnosticBooking(formData)
+            
+            if (res?.error) {
+              alert(res.error)
+              setIsSubmitting(false)
+            }
+          }} 
           onSubmit={handleSubmit} 
           className="space-y-5"
         >

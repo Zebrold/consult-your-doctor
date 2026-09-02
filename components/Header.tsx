@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { logout } from '@/app/actions/auth'
 import { MobileDashboardMenu } from '@/components/MobileDashboardMenu'
 import { MainNav } from '@/components/MainNav'
+import { HeaderAuthButtons } from '@/components/HeaderAuthButtons'
 
 export async function Header() {
   const supabase = await createClient()
@@ -60,20 +61,7 @@ export async function Header() {
               </form>
             </div>
           ) : (
-            <>
-              <Link
-                href="/login"
-                className="px-4 md:px-5 py-2 border border-gray-300 rounded-full cursor-pointer text-xs md:text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors inline-block whitespace-nowrap"
-              >
-                Login
-              </Link>
-              <Link
-                href="/login/patient?type=signup"
-                className="px-4 md:px-5 py-2 bg-[#E31E24] rounded-full text-xs md:text-sm font-semibold text-white hover:bg-red-700 transition-colors inline-block whitespace-nowrap"
-              >
-                Register
-              </Link>
-            </>
+            <HeaderAuthButtons />
           )}
           <div className="ml-1 lg:hidden">
             <MobileDashboardMenu>{mainNavLinks}</MobileDashboardMenu>

@@ -180,6 +180,18 @@ export async function createDiagnosticCenter(formData: FormData) {
   const city = formData.get('city') as string
   const address = formData.get('address') as string
   const available_tests = formData.getAll('tests') as string[]
+  
+  // Extract prices for each test
+  const test_prices: Record<string, number> = {}
+  for (const test of available_tests) {
+    const priceStr = formData.get(`price_${test}`)
+    if (priceStr) {
+      const price = parseFloat(priceStr as string)
+      if (!isNaN(price)) {
+        test_prices[test] = price
+      }
+    }
+  }
 
   if (!name || !city) return { error: 'Name and City are required.' }
 
@@ -191,6 +203,7 @@ export async function createDiagnosticCenter(formData: FormData) {
     city,
     address,
     available_tests,
+    test_prices,
     contact_email: generatedEmail,
     status: 'active'
   }).select().single()
@@ -198,6 +211,32 @@ export async function createDiagnosticCenter(formData: FormData) {
   if (error) {
     console.error(error)
     return { error: 'Failed to create diagnostic center' }
+  }
+
+  revalidatePath('/admin/diagnostics')
+  return { success: true }
+}
+
+export async function updateDiagnosticTestsAndPrices(centerId: string, available_tests: string[], test_prices: Record<string, number>) {
+  const supabase = await createClient()
+  
+  // Verify caller is Super Admin
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'super_admin') return { error: 'Forbidden. Super Admin only.' }
+
+  if (!centerId) return { error: 'Center ID is required.' }
+
+  const { error } = await supabase.from('diagnostic_centers').update({
+    available_tests,
+    test_prices
+  }).eq('id', centerId)
+
+  if (error) {
+    console.error(error)
+    return { error: 'Failed to update tests and prices' }
   }
 
   revalidatePath('/admin/diagnostics')

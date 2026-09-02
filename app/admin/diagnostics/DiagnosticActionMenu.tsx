@@ -3,13 +3,24 @@
 import { useState } from 'react'
 import { MoreVertical, KeyRound, Trash2, Loader2, AlertTriangle } from 'lucide-react'
 import { ManageDiagnosticCredentialsModal } from '@/components/ManageDiagnosticCredentialsModal'
-// Add this server action to admin.ts: export async function deleteDiagnosticCenter(id: string) { ... }
+import { EditDiagnosticTestsModal } from '@/components/EditDiagnosticTestsModal'
 import { deleteDiagnosticCenter } from '@/app/actions/admin'
 
-export function DiagnosticActionMenu({ centerId, centerName }: { centerId: string, centerName: string }) {
+export function DiagnosticActionMenu({ 
+  centerId, 
+  centerName,
+  initialTests = [],
+  initialPrices = {}
+}: { 
+  centerId: string, 
+  centerName: string,
+  initialTests?: string[],
+  initialPrices?: Record<string, number>
+}) {
   const [isOpen, setIsOpen] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showManageCreds, setShowManageCreds] = useState(false)
+  const [showEditTests, setShowEditTests] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
   const handleDelete = async () => {
@@ -44,6 +55,13 @@ export function DiagnosticActionMenu({ centerId, centerName }: { centerId: strin
               <KeyRound className="w-4 h-4 text-blue-600" />
               Manage Credentials
             </button>
+            <button 
+              onClick={() => { setShowEditTests(true); setIsOpen(false) }}
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+            >
+              <Activity className="w-4 h-4 text-indigo-600" />
+              Edit Tests & Prices
+            </button>
             <div className="h-px bg-gray-100 my-1 mx-2" />
             <button 
               onClick={() => { setShowDeleteConfirm(true); setIsOpen(false) }}
@@ -63,6 +81,18 @@ export function DiagnosticActionMenu({ centerId, centerName }: { centerId: strin
           centerName={centerName} 
           onClose={() => setShowManageCreds(false)} 
           isOpen={showManageCreds}
+        />
+      )}
+
+      {/* Edit Tests & Prices Modal */}
+      {showEditTests && (
+        <EditDiagnosticTestsModal 
+          centerId={centerId} 
+          centerName={centerName} 
+          initialTests={initialTests}
+          initialPrices={initialPrices}
+          onClose={() => setShowEditTests(false)} 
+          isOpen={showEditTests}
         />
       )}
 

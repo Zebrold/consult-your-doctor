@@ -124,7 +124,7 @@ function BookConsultationFormInner() {
       const { data: hData } = await supabase.from('hospitals').select('id, name').eq('city', selectedCity).eq('status', 'active')
       setHospitals(hData || [])
       
-      const { data: cData } = await supabase.from('diagnostic_centers').select('id, name, address, available_tests').eq('city', selectedCity).eq('status', 'active')
+      const { data: cData } = await supabase.from('diagnostic_centers').select('id, name, address, available_tests, test_prices').eq('city', selectedCity).eq('status', 'active')
       setCenters(cData || [])
     }
     fetchFacilities()
@@ -424,9 +424,16 @@ function BookConsultationFormInner() {
                     className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <option value="" disabled>Select Diagnostic Test</option>
-                    {centers.find(c => c.id === selectedCenter)?.available_tests?.map((test: string) => (
-                      <option key={test} value={test.toLowerCase().replace(/ /g, '-')}>{test}</option>
-                    ))}
+                    {centers.find(c => c.id === selectedCenter)?.available_tests?.map((test: string) => {
+                      const center = centers.find(c => c.id === selectedCenter)
+                      const price = center?.test_prices?.[test]
+                      const priceDisplay = price ? ` - ₹${price}` : ''
+                      return (
+                        <option key={test} value={test.toLowerCase().replace(/ /g, '-')}>
+                          {test}{priceDisplay}
+                        </option>
+                      )
+                    })}
                   </select>
                 </div>
               </div>

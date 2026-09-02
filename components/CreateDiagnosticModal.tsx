@@ -17,6 +17,7 @@ export function CreateDiagnosticModal() {
   const [isOpen, setIsOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [selectedTests, setSelectedTests] = useState<string[]>(STANDARD_TESTS)
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -83,12 +84,43 @@ export function CreateDiagnosticModal() {
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">Available Tests</label>
                 <div className="grid grid-cols-2 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                  {STANDARD_TESTS.map(test => (
-                    <label key={test} className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" name="tests" value={test} defaultChecked className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500" />
-                      <span className="text-sm font-medium text-gray-700">{test}</span>
-                    </label>
-                  ))}
+                  {STANDARD_TESTS.map(test => {
+                    const isSelected = selectedTests.includes(test)
+                    return (
+                      <div key={test} className="flex flex-col gap-2 p-3 bg-white border border-gray-100 rounded-lg">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            name="tests" 
+                            value={test} 
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedTests([...selectedTests, test])
+                              } else {
+                                setSelectedTests(selectedTests.filter(t => t !== test))
+                              }
+                            }}
+                            className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500" 
+                          />
+                          <span className="text-sm font-medium text-gray-700">{test}</span>
+                        </label>
+                        {isSelected && (
+                          <div className="flex items-center gap-2 pl-6">
+                            <span className="text-xs text-gray-500 font-bold">₹</span>
+                            <input 
+                              type="number" 
+                              name={`price_${test}`} 
+                              placeholder="Price" 
+                              required 
+                              min="0"
+                              className="w-full text-sm border border-gray-200 rounded p-1.5 outline-none focus:border-indigo-500"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
 

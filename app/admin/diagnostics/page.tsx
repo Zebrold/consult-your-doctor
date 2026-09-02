@@ -23,7 +23,9 @@ export default async function AdminDiagnostics() {
       name,
       city,
       contact_email,
-      status
+      status,
+      available_tests,
+      test_prices
     `)
     .order('name', { ascending: true })
 
@@ -114,7 +116,12 @@ export default async function AdminDiagnostics() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end">
-                        <DiagnosticActionMenu centerId={c.id} centerName={c.name} />
+                        <DiagnosticActionMenu 
+                          centerId={c.id} 
+                          centerName={c.name} 
+                          initialTests={c.available_tests || []}
+                          initialPrices={c.test_prices || {}}
+                        />
                       </div>
                     </td>
                   </tr>

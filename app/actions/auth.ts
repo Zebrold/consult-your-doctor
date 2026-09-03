@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 
 // Helper function to format phone number to E.164 (+91)
 function formatPhoneNumber(phone: string) {
@@ -97,6 +98,11 @@ export async function verifyOTP(prevState: any, formData: FormData) {
     }
   }
 
+  // Fetch the role to set the cookie
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
+  const cookieStore = await cookies()
+  cookieStore.set('user-role', profile?.role || 'patient', { maxAge: 7200, path: '/' })
+
   redirect('/')
 }
 
@@ -143,12 +149,19 @@ export async function verifyOTPInline(prevState: any, formData: FormData) {
     }
   }
 
+  // Fetch the role to set the cookie
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
+  const cookieStore = await cookies()
+  cookieStore.set('user-role', profile?.role || 'patient', { maxAge: 7200, path: '/' })
+
   return { success: true, user: data.user }
 }
 
 export async function logout() {
   const supabase = await createClient()
   await supabase.auth.signOut()
+  const cookieStore = await cookies()
+  cookieStore.delete('user-role')
   redirect('/')
 }
 
@@ -198,6 +211,9 @@ export async function staffLogin(prevState: any, formData: FormData) {
     await supabase.auth.signOut()
     return { error: `Unauthorized. You are not a ${expectedRole.replace('_', ' ')}.` }
   }
+
+  const cookieStore = await cookies()
+  cookieStore.set('user-role', expectedRole, { maxAge: 7200, path: '/' })
 
   if (expectedRole === 'doctor') {
     redirect('/doctor/dashboard')

@@ -24,11 +24,6 @@ import {
   Users,
 } from 'lucide-react'
 
-export const metadata = {
-  title: 'About Us | Consult Your Doctor',
-  description:
-    'Learn how Consult Your Doctor connects patients, doctors, hospitals and diagnostics through a more coordinated healthcare journey.',
-}
 
 const principles = [
   {

@@ -42,8 +42,8 @@ export async function createAppointment(formData: FormData) {
     return { error: 'Failed to book appointment. The time slot might have just been taken.' }
   }
 
-  // 4. Redirect to the checkout page
-  redirect(`/patient/checkout/${appointment.id}`)
+  // 4. Return URL to redirect on the client
+  return { success: true, url: `/patient/checkout/${appointment.id}` }
 }
 
 export async function createDiagnosticBooking(formData: FormData) {
@@ -67,23 +67,25 @@ export async function createDiagnosticBooking(formData: FormData) {
   }
 
   // 3. Insert Booking
-  const { error } = await supabase
+  const { data: booking, error } = await supabase
     .from('diagnostic_bookings')
     .insert({
       patient_id: user.id,
       center_id: centerId,
       test_name: testName,
       preferred_date: preferredDate,
-      status: 'pending'
+      status: 'pending_payment'
     })
+    .select('id')
+    .single()
 
-  if (error) {
+  if (error || !booking) {
     console.error('Error creating diagnostic booking:', error)
     return { error: 'Failed to book diagnostic test.' }
   }
 
-  // 4. Redirect to patient dashboard
-  redirect(`/patient/dashboard`)
+  // 4. Return URL to redirect on the client
+  return { success: true, url: `/patient/checkout/diagnostic/${booking.id}` }
 }
 
 export async function updateDiagnosticBookingStatus(bookingId: string, status: string) {
@@ -100,6 +102,31 @@ export async function updateDiagnosticBookingStatus(bookingId: string, status: s
   if (error) {
     console.error('Error updating status:', error)
     return { error: 'Failed to update status' }
+  }
+
+  return { success: true }
+}
+
+export async function verifyAndCheckInDiagnostic(bookingId: string, inputId: string) {
+  const supabase = await createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized' }
+
+  // We are expecting the inputId to be the first 8 chars of the bookingId (case-insensitive)
+  if (bookingId.slice(0, 8).toUpperCase() !== inputId.toUpperCase()) {
+    return { error: 'Invalid Booking ID.' }
+  }
+
+  // Update the booking status to visited
+  const { error } = await supabase
+    .from('diagnostic_bookings')
+    .update({ status: 'visited' })
+    .eq('id', bookingId)
+
+  if (error) {
+    console.error('Error checking in:', error)
+    return { error: 'Failed to check in patient.' }
   }
 
   return { success: true }

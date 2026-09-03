@@ -42,8 +42,9 @@ export async function generateDoctorSlots(formData: FormData) {
   const [startHour, startMin] = startTimeStr.split(':').map(Number)
   const [endHour, endMin] = endTimeStr.split(':').map(Number)
 
-  const startDate = new Date(`${startDateStr}T00:00:00`)
-  const endDate = new Date(`${endDateStr}T00:00:00`)
+  // Use Z to parse strictly as UTC midnight to safely iterate over days
+  const startDate = new Date(`${startDateStr}T00:00:00Z`)
+  const endDate = new Date(`${endDateStr}T00:00:00Z`)
   
   if (endDate < startDate) {
     return { error: 'End date must be on or after start date' }
@@ -60,13 +61,15 @@ export async function generateDoctorSlots(formData: FormData) {
 
   while (currentDate <= endDate && daysProcessed < maxDays) {
     // Check if the current day of the week is active
-    // getDay() returns 0 for Sunday, 1 for Monday...
-    if (activeDays.includes(currentDate.getDay())) {
-      const currentDayStartTime = new Date(currentDate.getTime())
-      currentDayStartTime.setHours(startHour, startMin, 0, 0)
-      
-      const currentDayEndTime = new Date(currentDate.getTime())
-      currentDayEndTime.setHours(endHour, endMin, 0, 0)
+    if (activeDays.includes(currentDate.getUTCDay())) {
+      const year = currentDate.getUTCFullYear()
+      const month = String(currentDate.getUTCMonth() + 1).padStart(2, '0')
+      const date = String(currentDate.getUTCDate()).padStart(2, '0')
+      const dateString = `${year}-${month}-${date}`
+
+      // Explicitly construct times in India Standard Time (+05:30)
+      const currentDayStartTime = new Date(`${dateString}T${startTimeStr}:00+05:30`)
+      const currentDayEndTime = new Date(`${dateString}T${endTimeStr}:00+05:30`)
 
       if (currentDayEndTime <= currentDayStartTime) {
          return { error: 'End time must be after start time' }
@@ -89,8 +92,8 @@ export async function generateDoctorSlots(formData: FormData) {
       }
     }
     
-    // Move to next day
-    currentDate.setDate(currentDate.getDate() + 1)
+    // Move to next day safely in UTC
+    currentDate.setUTCDate(currentDate.getUTCDate() + 1)
     daysProcessed++;
   }
 

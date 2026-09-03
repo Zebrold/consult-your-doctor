@@ -1,12 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Header } from '@/components/Header'
-import { CheckCircle2, AlertCircle, IndianRupee, MapPin, Calendar, Clock, User, Stethoscope, Building2 } from 'lucide-react'
+import { CheckCircle2, AlertCircle, IndianRupee, MapPin, Calendar, Activity, Building2 } from 'lucide-react'
 import Link from 'next/link'
 import { PayUCheckoutForm } from '@/components/PayUCheckoutForm'
 
-export default async function CheckoutPage({ params }: { params: Promise<{ appointmentId: string }> }) {
-  const { appointmentId } = await params
+export default async function DiagnosticCheckoutPage({ params }: { params: Promise<{ bookingId: string }> }) {
+  const { bookingId } = await params
   const supabase = await createClient()
   
   // Verify User
@@ -15,39 +15,34 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
     redirect('/login/patient')
   }
 
-  // Fetch Appointment Details
-  const { data: appointment, error } = await supabase
-    .from('appointments')
+  // Fetch Booking Details
+  const { data: booking, error } = await supabase
+    .from('diagnostic_bookings')
     .select(`
       id,
       status,
-      doctors (
-        specialty,
-        consultation_fee,
-        profiles ( full_name )
-      ),
-      hospitals (
+      test_name,
+      preferred_date,
+      diagnostic_centers (
         name,
         address,
-        city
-      ),
-      schedules (
-        start_time
+        city,
+        test_prices
       )
     `)
-    .eq('id', appointmentId)
+    .eq('id', bookingId)
     .eq('patient_id', user.id)
     .single()
 
-  if (error || !appointment) {
+  if (error || !booking) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
         <Header />
         <main className="flex-1 max-w-[1440px] w-full mx-auto px-4 py-12">
           <div className="max-w-2xl mx-auto bg-white p-12 rounded-2xl shadow-sm text-center">
             <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-6" />
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Appointment Not Found</h1>
-            <p className="text-gray-600 mb-8">We couldn't find the appointment you're looking for.</p>
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Booking Not Found</h1>
+            <p className="text-gray-600 mb-8">We couldn't find the diagnostic booking you're looking for.</p>
             <Link href="/" className="px-6 py-3 bg-[#E31E24] text-white rounded-full font-bold hover:bg-red-700 transition-colors">
               Go Home
             </Link>
@@ -57,14 +52,23 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
     )
   }
 
-  // Format Date and Time
-  const doctor: any = appointment.doctors
-  const hospital: any = appointment.hospitals
-  const schedule: any = appointment.schedules
+  const center: any = booking.diagnostic_centers
+  const formattedDate = new Date(booking.preferred_date).toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
   
-  const appointmentDate = new Date(schedule.start_time)
-  const formattedDate = appointmentDate.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-  const formattedTime = appointmentDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+  // Find price from the test_prices JSONB object
+  const testKey = booking.test_name.toLowerCase().replace(/ /g, '-')
+  let rawPrice = 0
+  if (center.test_prices) {
+    const matchingKey = Object.keys(center.test_prices).find(
+      key => key.toLowerCase().replace(/ /g, '-') === testKey
+    )
+    if (matchingKey) {
+      rawPrice = center.test_prices[matchingKey]
+    }
+  }
+  const testPrice = Number(rawPrice)
+  const platformFee = 29
+  const totalPayable = testPrice + platformFee
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
@@ -77,26 +81,25 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-6">
               <CheckCircle2 className="w-8 h-8 text-green-600" />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Slot Reserved Successfully</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">Booking Initiated Successfully</h1>
             <p className="text-gray-600 text-lg">
-              Your appointment slot has been reserved. Please complete the advance payment to confirm your booking.
+              Your diagnostic test booking has been initiated. Please complete the payment to confirm your slot.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-8">
             {/* Left Column - Details */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-              <h2 className="text-xl font-bold text-gray-900 mb-6 pb-4 border-b border-gray-100">Appointment Details</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-6 pb-4 border-b border-gray-100">Booking Details</h2>
               
               <div className="space-y-6">
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-                    <User className="w-5 h-5 text-blue-600" />
+                    <Activity className="w-5 h-5 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500 font-medium">Doctor</p>
-                    <p className="text-gray-900 font-bold">Dr. {doctor.profiles.full_name}</p>
-                    <p className="text-sm text-gray-600">{doctor.specialty}</p>
+                    <p className="text-sm text-gray-500 font-medium">Diagnostic Test</p>
+                    <p className="text-gray-900 font-bold capitalize">{booking.test_name}</p>
                   </div>
                 </div>
 
@@ -105,25 +108,18 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
                     <Building2 className="w-5 h-5 text-[#E31E24]" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500 font-medium">Hospital</p>
-                    <p className="text-gray-900 font-bold">{hospital.name}</p>
-                    <p className="text-sm text-gray-600">{hospital.address}, {hospital.city}</p>
+                    <p className="text-sm text-gray-500 font-medium">Diagnostic Center</p>
+                    <p className="text-gray-900 font-bold">{center.name}</p>
+                    <p className="text-sm text-gray-600">{center.address}, {center.city}</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div className="flex items-start gap-3 bg-gray-50 p-4 rounded-xl">
                     <Calendar className="w-5 h-5 text-gray-500 shrink-0" />
                     <div>
-                      <p className="text-xs text-gray-500 font-medium">Date</p>
+                      <p className="text-xs text-gray-500 font-medium">Preferred Date</p>
                       <p className="text-sm font-bold text-gray-900">{formattedDate}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 bg-gray-50 p-4 rounded-xl">
-                    <Clock className="w-5 h-5 text-gray-500 shrink-0" />
-                    <div>
-                      <p className="text-xs text-gray-500 font-medium">Time</p>
-                      <p className="text-sm font-bold text-gray-900">{formattedTime}</p>
                     </div>
                   </div>
                 </div>
@@ -136,19 +132,19 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
               
               <div className="flex-1 space-y-4">
                 <div className="flex justify-between items-center text-gray-600">
-                  <span>Consultation Fee</span>
-                  <span className="font-semibold text-gray-900">₹{doctor.consultation_fee}</span>
+                  <span className="capitalize">{booking.test_name} Fee</span>
+                  <span className="font-semibold text-gray-900">₹{testPrice}</span>
                 </div>
                 <div className="flex justify-between items-center text-gray-600">
                   <span>Platform Fee</span>
-                  <span className="font-semibold text-gray-900">₹49</span>
+                  <span className="font-semibold text-gray-900">₹{platformFee}</span>
                 </div>
                 
                 <div className="pt-6 mt-6 border-t border-dashed border-gray-200">
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-bold text-gray-900">Total Payable</span>
                     <span className="text-2xl font-black text-[#E31E24]">
-                      ₹{(Number(doctor.consultation_fee) + 49).toFixed(2)}
+                      ₹{totalPayable.toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -157,9 +153,9 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
               {/* Payment Actions */}
               <div className="mt-8 space-y-3">
                 <PayUCheckoutForm 
-                  txnid={appointmentId}
-                  amount={Number(doctor.consultation_fee) + 49}
-                  productinfo="Consultation"
+                  txnid={bookingId}
+                  amount={totalPayable}
+                  productinfo="Diagnostic"
                   firstname={user.user_metadata?.full_name || 'Patient'}
                   email={user.email || 'patient@example.com'}
                   phone={user.phone || '9999999999'}

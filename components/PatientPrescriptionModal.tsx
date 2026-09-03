@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { FileText, Download, X } from 'lucide-react'
 
 interface MedicalRecord {
@@ -10,6 +11,11 @@ interface MedicalRecord {
 
 export function PatientPrescriptionModal({ record, doctorName }: { record: MedicalRecord, doctorName: string }) {
   const [isOpen, setIsOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   return (
     <>
@@ -21,8 +27,8 @@ export function PatientPrescriptionModal({ record, doctorName }: { record: Medic
         View Prescription
       </button>
 
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
+      {isOpen && mounted && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <div className="flex items-center gap-3">
@@ -65,7 +71,8 @@ export function PatientPrescriptionModal({ record, doctorName }: { record: Medic
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )

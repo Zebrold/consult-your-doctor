@@ -4,12 +4,13 @@ import { useState, useEffect, useRef, Suspense } from 'react'
 import { MapPin, Building2, Stethoscope, UserCircle, Calendar, Loader2, Activity } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { createAppointment, createDiagnosticBooking } from '@/app/actions/booking'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { InlineAuthModal } from '@/components/InlineAuthModal'
 
 function BookConsultationFormInner() {
   const supabase = createClient()
   const searchParams = useSearchParams()
+  const router = useRouter()
   // State for dropdown options
   const [cities, setCities] = useState<string[]>([])
   const [diagCities, setDiagCities] = useState<string[]>([])
@@ -244,6 +245,8 @@ function BookConsultationFormInner() {
             if (res?.error) {
               alert(res.error)
               setIsSubmitting(false)
+            } else if (res?.url) {
+              router.push(res.url)
             }
           }} 
           onSubmit={handleSubmit} 

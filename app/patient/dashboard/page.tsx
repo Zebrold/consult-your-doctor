@@ -176,7 +176,7 @@ export default async function PatientDashboard() {
                       <div className="flex flex-col gap-1.5">
                         <span className={`w-fit px-3 py-1 text-[10px] font-bold rounded-full tracking-wider ${
                           booking.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                          booking.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                          booking.status === 'pending_payment' ? 'bg-yellow-100 text-yellow-700' :
                           booking.status === 'completed' ? 'bg-blue-100 text-blue-700' :
                           'bg-gray-100 text-gray-700'
                         }`}>
@@ -218,6 +218,12 @@ export default async function PatientDashboard() {
                         </div>
                       </div>
                     </div>
+
+                    {booking.status === 'pending_payment' && (
+                      <a href={`/patient/checkout/diagnostic/${booking.id}`} className="mt-6 block w-full py-2.5 bg-[#E31E24] text-white text-center font-semibold rounded-xl hover:bg-red-700 transition-colors">
+                        Complete Payment
+                      </a>
+                    )}
                   </div>
                 )
               })}

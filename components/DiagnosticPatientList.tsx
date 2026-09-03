@@ -164,12 +164,15 @@ export function DiagnosticPatientList({ bookings }: DiagnosticPatientListProps) 
                     onChange={(e) => handleStatusChange(booking.id, e.target.value)}
                     className={`text-sm font-bold px-3 py-1.5 rounded-lg border outline-none cursor-pointer transition-colors ${
                       booking.status === 'completed' ? 'bg-green-50 text-green-700 border-green-200 focus:ring-green-500' :
-                      booking.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200 focus:ring-yellow-500' :
+                      booking.status === 'visited' ? 'bg-blue-50 text-blue-700 border-blue-200 focus:ring-blue-500' :
+                      booking.status === 'pending' || booking.status === 'pending_payment' ? 'bg-yellow-50 text-yellow-700 border-yellow-200 focus:ring-yellow-500' :
                       'bg-gray-50 text-gray-700 border-gray-200'
                     }`}
                   >
+                    <option value="pending_payment">Pending Payment</option>
                     <option value="pending">Pending</option>
                     <option value="confirmed">Confirmed</option>
+                    <option value="visited">Checked In</option>
                     <option value="completed">Completed</option>
                     <option value="cancelled">Cancelled</option>
                   </select>

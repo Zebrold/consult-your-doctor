@@ -110,8 +110,8 @@ export default async function DoctorSchedulePage(props: { params: Promise<{ id: 
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                   {schedules?.map(slot => {
-                    const start = new Date(slot.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    const end = new Date(slot.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    const start = new Date(slot.start_time).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })
+                    const end = new Date(slot.end_time).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })
                     return (
                       <div 
                         key={slot.id} 

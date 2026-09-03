@@ -1,4 +1,10 @@
+import { Metadata } from 'next'
 import { Suspense } from 'react'
+
+export const metadata: Metadata = {
+  title: 'Find Top Doctors Online',
+  description: 'Book appointments with trusted hospitals and specialists, pay securely online, and receive dedicated executive assistance throughout your healthcare journey.',
+}
 import { Header } from '@/components/Header'
 import { HomeSearchBar } from '@/components/HomeSearchBar'
 import { BookConsultationForm } from '@/components/BookConsultationForm'

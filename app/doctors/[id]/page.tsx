@@ -5,7 +5,39 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
+import { Metadata } from 'next'
+
 export const revalidate = 0
+
+export async function generateMetadata(
+  props: { params: Promise<{ id: string }> }
+): Promise<Metadata> {
+  const params = await props.params
+  const id = params.id
+  const supabase = await createClient()
+
+  const { data: doctor } = await supabase
+    .from('doctors')
+    .select(`
+      profiles!inner(full_name),
+      departments(name),
+      specialty
+    `)
+    .eq('id', id)
+    .single()
+
+  if (!doctor) {
+    return { title: 'Doctor Not Found' }
+  }
+
+  const name = doctor.profiles?.full_name
+  const spec = doctor.departments?.name || doctor.specialty || 'Specialist'
+
+  return {
+    title: `${name} - ${spec}`,
+    description: `Book a consultation with ${name}, an expert in ${spec} at Consult Your Doctor.`,
+  }
+}
 
 export default async function DoctorProfilePage(
   props: {

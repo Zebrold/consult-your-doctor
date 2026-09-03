@@ -1,4 +1,9 @@
+import { Metadata } from 'next'
 import { redirect } from 'next/navigation'
+
+export const metadata: Metadata = {
+  title: 'Executive Dashboard',
+}
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import Image from 'next/image'

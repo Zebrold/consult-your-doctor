@@ -14,8 +14,25 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Consult Your Doctor | Online Medical Consultation",
-  description: "Consult your doctor online",
+  metadataBase: new URL("https://consultyourdoctor.de"),
+  title: {
+    default: "Consult Your Doctor | Online Medical Consultation",
+    template: "%s | Consult Your Doctor",
+  },
+  description: "Book appointments and consult your doctor online effortlessly. Connecting you with top healthcare professionals.",
+  openGraph: {
+    title: "Consult Your Doctor | Online Medical Consultation",
+    description: "Book appointments and consult your doctor online effortlessly.",
+    url: "https://consultyourdoctor.de",
+    siteName: "Consult Your Doctor",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Consult Your Doctor | Online Medical Consultation",
+    description: "Book appointments and consult your doctor online effortlessly.",
+  },
   icons: {
     icon: "/logo.svg"
   }

@@ -1,8 +1,11 @@
 import { Header } from '@/components/Header'
 import { Mail, MapPin, Phone } from 'lucide-react'
 
-export const metadata = {
-  title: 'Contact Us - Consult Your Doctor',
+import { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Contact Us',
+  description: 'Get in touch with Consult Your Doctor. We are here to help you with your healthcare needs.',
 }
 
 export default function ContactPage() {

@@ -1,4 +1,10 @@
+import { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
+
+export const metadata: Metadata = {
+  title: 'Search Doctors and Hospitals',
+  description: 'Search for top doctors, specialists, and partner hospitals near you.',
+}
 import { Header } from '@/components/Header'
 import { Search, MapPin, Star, UserCircle, Building2, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'

@@ -5,7 +5,32 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
+import { Metadata } from 'next'
+
 export const revalidate = 0
+
+export async function generateMetadata(
+  props: { params: Promise<{ id: string }> }
+): Promise<Metadata> {
+  const params = await props.params
+  const id = params.id
+  const supabase = await createClient()
+
+  const { data: hospital } = await supabase
+    .from('hospitals')
+    .select('name, city')
+    .eq('id', id)
+    .single()
+
+  if (!hospital) {
+    return { title: 'Hospital Not Found' }
+  }
+
+  return {
+    title: `${hospital.name} in ${hospital.city}`,
+    description: `View details, doctors, and book consultations at ${hospital.name} in ${hospital.city} through Consult Your Doctor.`,
+  }
+}
 
 export default async function HospitalProfilePage(
   props: {

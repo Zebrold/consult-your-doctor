@@ -1,4 +1,10 @@
+import { Metadata } from 'next'
 import { Header } from '@/components/Header'
+
+export const metadata: Metadata = {
+  title: 'About Us',
+  description: 'Learn about Consult Your Doctor, a connected healthcare platform designed to make healthcare more accessible and easier to navigate.',
+}
 import Link from 'next/link'
 import {
   ArrowRight,

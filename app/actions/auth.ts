@@ -98,6 +98,10 @@ export async function verifyOTP(prevState: any, formData: FormData) {
     }
   }
 
+  if (!data.user) {
+    return { error: 'Verification failed: user is null', success: false, phone, fullName, role, isRegister }
+  }
+
   // Fetch the role to set the cookie
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
   const cookieStore = await cookies()
@@ -147,6 +151,10 @@ export async function verifyOTPInline(prevState: any, formData: FormData) {
     if (profileError) {
       return { error: `Profile creation failed: ${profileError.message}`, success: false, phone, fullName, role, isRegister }
     }
+  }
+
+  if (!data.user) {
+    return { error: 'Verification failed: user is null', success: false, phone, fullName, role, isRegister }
   }
 
   // Fetch the role to set the cookie

@@ -30,8 +30,10 @@ export async function generateMetadata(
     return { title: 'Doctor Not Found' }
   }
 
-  const name = doctor.profiles?.full_name
-  const spec = doctor.departments?.name || doctor.specialty || 'Specialist'
+  const profiles: any = doctor.profiles
+  const departments: any = doctor.departments
+  const name = profiles?.full_name || profiles?.[0]?.full_name
+  const spec = departments?.name || departments?.[0]?.name || doctor.specialty || 'Specialist'
 
   return {
     title: `${name} - ${spec}`,

@@ -34,7 +34,9 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  // Use getSession() instead of getUser() in middleware for performance (no network request)
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user
 
   // Standard protected paths
   const isProtectedRoute = path.startsWith('/patient') || 
@@ -44,8 +46,13 @@ export async function middleware(request: NextRequest) {
                            path.startsWith('/admin/dashboard')
 
   if (user) {
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-    const role = profile?.role || 'patient'
+    let role = request.cookies.get('user-role')?.value
+    if (!role) {
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+      role = profile?.role || 'patient'
+      // Set the cookie for future requests to avoid DB queries
+      supabaseResponse.cookies.set('user-role', role as string, { maxAge: 7200, path: '/' })
+    }
 
     let dashboardPath = '/patient/dashboard'
     let allowedPrefix = '/'

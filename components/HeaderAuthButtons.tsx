@@ -17,9 +17,9 @@ export function HeaderAuthButtons() {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="px-4 md:px-5 py-2 bg-[#E31E24] rounded-full text-xs md:text-sm font-semibold text-white hover:bg-red-700 transition-colors inline-flex items-center gap-2 whitespace-nowrap shadow-sm"
+        className="px-6 md:px-7 py-2 md:py-2.5 bg-[var(--color-secondary)] rounded-full text-xs md:text-sm font-bold text-[var(--color-on-secondary)] hover:opacity-90 transition-all shadow-sm whitespace-nowrap"
       >
-        <span className="hidden md:inline">Login</span>
+        <span className="hidden md:inline">Login / Register</span>
       </button>
 
       {isOpen && (

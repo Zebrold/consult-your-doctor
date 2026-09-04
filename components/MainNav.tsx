@@ -49,8 +49,8 @@ export function MainNav({ mobile }: { mobile?: boolean }) {
               key={idx}
               href={link.href}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${isActive
-                  ? 'bg-red-50 text-[#E31E24] font-bold'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium'
+                  ? 'bg-[var(--color-surface-variant)] text-[var(--color-secondary)] font-bold'
+                  : 'text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-container-low)] hover:text-[var(--color-on-surface)] font-medium'
                 }`}
             >
               {link.label}
@@ -63,8 +63,8 @@ export function MainNav({ mobile }: { mobile?: boolean }) {
             key={idx}
             href={link.href}
             className={`transition-colors ${isActive
-                ? 'text-[#E31E24] font-bold'
-                : 'hover:text-[#E31E24] text-gray-700 font-semibold'
+                ? 'text-[var(--color-secondary)] font-bold'
+                : 'text-[var(--color-on-surface-variant)] hover:text-[var(--color-secondary)] font-semibold'
               }`}
           >
             {link.label}

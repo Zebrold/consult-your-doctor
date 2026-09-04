@@ -3,15 +3,18 @@ import Image from 'next/image'
 
 export function Footer() {
   return (
-    <footer className="w-full bg-[#1A2C46] text-white py-12 md:py-16">
-      <div className="max-w-[1440px] mx-auto px-4 md:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-9 gap-8 lg:gap-4">
+    <footer className="w-full bg-[var(--color-primary-container)] text-white py-16 px-4 md:px-8 mt-12">
+      <div className="max-w-[1280px] mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-9 gap-8 lg:gap-4 mb-16">
           {/* Logo & Description Column */}
-          <div className="lg:col-span-2 space-y-4 pr-0 lg:pr-8">
-            <Link href="/" className="flex items-center gap-2 mb-6">
-              <Image src="/logo.png" alt="Consult your Doctor Logo" width={180} height={45} className="h-9 w-auto object-contain" priority />
-            </Link>
-            <p className="text-gray-300 text-sm leading-relaxed">
+          <div className="lg:col-span-2 space-y-6 pr-0 lg:pr-8">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[var(--color-secondary)] text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                stethoscope
+              </span>
+              <span className="text-xl text-white font-bold tracking-tight hidden sm:block">Consult Your Doctor</span>
+            </div>
+            <p className="text-white/70 text-sm leading-relaxed max-w-xs">
               Your personal healthcare concierge. We connect patients with top doctors, hospitals and executives with complete support.
             </p>
           </div>

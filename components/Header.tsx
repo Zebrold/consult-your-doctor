@@ -20,12 +20,15 @@ export async function Header() {
   const mainNavLinks = <MainNav mobile />
 
   return (
-    <header className="w-full bg-white flex border-b border-gray-200 transition-colors">
-      <div className="max-w-[1440px] mx-auto w-full flex items-center justify-between py-3 px-4 md:px-8">
+    <header className="w-full bg-white/90 backdrop-blur-md sticky top-0 z-50 border-b border-[var(--color-surface-variant)] transition-colors">
+      <div className="max-w-[1280px] mx-auto w-full flex items-center justify-between py-4 px-4 md:px-10">
         {/* Left: Logo Area */}
         <div className="flex items-center gap-2">
-          <Link href="/" className="flex items-center shrink-0">
-            <Image src="/logo.png" alt="Consult your Doctor Logo" width={300} height={70} className="h-10 md:h-13 w-auto object-contain" priority />
+          <Link href="/" className="flex items-center shrink-0 gap-2">
+            <span className="material-symbols-outlined text-[var(--color-primary)] text-3xl font-bold" style={{ fontVariationSettings: "'FILL' 1" }}>
+              stethoscope
+            </span>
+            <span className="text-[var(--color-primary)] text-xl font-bold tracking-tight hidden sm:block">Consult Your Doctor</span>
           </Link>
         </div>
 
@@ -41,19 +44,19 @@ export async function Header() {
               {profile?.role === 'patient' && (
                 <Link
                   href="/patient/dashboard"
-                  className="px-3 md:px-4 py-2 bg-emerald-600 text-white text-xs md:text-sm font-bold rounded-full hover:bg-emerald-700 transition-colors"
+                  className="px-4 py-2 bg-[var(--color-secondary)] text-[var(--color-on-secondary)] text-sm font-bold rounded-full hover:opacity-90 transition-opacity"
                 >
-                  My Appointments
+                  Dashboard
                 </Link>
               )}
-              <div className="hidden sm:flex items-center gap-2 text-sm font-semibold text-gray-700 bg-gray-50 px-4 py-2 rounded-full border border-gray-200">
-                <UserCircle2 className="w-5 h-5 text-[#E31E24]" />
+              <div className="hidden sm:flex items-center gap-2 text-sm font-semibold text-[var(--color-on-surface)] bg-[var(--color-surface-container-low)] px-4 py-2 rounded-full border border-[var(--color-surface-variant)]">
+                <UserCircle2 className="w-5 h-5 text-[var(--color-primary)]" />
                 <span>Hello, {profile?.full_name || 'Patient'}</span>
               </div>
               <form action={logout}>
                 <button
                   type="submit"
-                  className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-full cursor-pointer text-xs md:text-sm font-semibold text-gray-700 transition-colors"
+                  className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 bg-[var(--color-surface-container-lowest)] hover:bg-[var(--color-surface-variant)] border border-[var(--color-surface-variant)] rounded-full cursor-pointer text-sm font-semibold text-[var(--color-on-surface)] transition-colors"
                 >
                   <LogOut className="w-4 h-4" />
                   <span className="hidden sm:inline">Logout</span>

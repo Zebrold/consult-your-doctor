@@ -1,298 +1,351 @@
-import { Metadata } from 'next'
-import { createClient } from '@/lib/supabase/server'
-import { Header } from '@/components/Header'
-import { Footer } from '@/components/Footer'
-import { Search, MapPin, Star, UserCircle, Building2, CheckCircle2 } from 'lucide-react'
-import Link from 'next/link'
-import Image from 'next/image'
-import { Suspense } from 'react'
+import { Search, Star, BadgeCheck, Hospital, Plus, Minus, LocateFixed, MapPin } from "lucide-react";
 
-export const metadata: Metadata = {
-  title: 'Search Doctors and Hospitals | Consult Your Doctor',
-  description: 'Search for top doctors, specialists, and partner hospitals near you.',
-}
-
-export const revalidate = 0
-
-export default async function SearchPage(
-  props: {
-    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
-  }
-) {
-  const searchParams = await props.searchParams;
-  const type = searchParams.type as string || 'doctor'
-  const query = searchParams.query as string || ''
-  const city = searchParams.city as string || ''
-  const specialty = searchParams.specialty as string || ''
-  const hospital_id = searchParams.hospital_id as string || ''
-
-  const specialtiesParam = searchParams.specialties as string || ''
-  const filterSpecialties = specialtiesParam ? specialtiesParam.split(',') : []
-
-  const supabase = await createClient()
-
-  const { data: dbDoctors } = await supabase.from('doctors').select('specialty')
-  const fetchedSpecialties = Array.from(new Set((dbDoctors || []).map(d => d.specialty).filter(Boolean))).sort()
-
-  let results: any[] = []
-  let error: any = null
-
-  if (type === 'hospital') {
-    let queryBuilder = supabase.from('hospitals').select('*')
-    if (query) queryBuilder = queryBuilder.ilike('name', `%${query}%`)
-    if (city) queryBuilder = queryBuilder.ilike('city', `%${city}%`)
-
-    const response = await queryBuilder
-    results = response.data || []
-    error = response.error
-  } else {
-    let queryBuilder = supabase
-      .from('doctors')
-      .select(`
-        *,
-        profiles!inner(full_name),
-        hospitals!inner(name, city),
-        departments!inner(name)
-      `)
-
-    if (query) {
-      if (type === 'specialty' || type === 'symptoms') {
-        queryBuilder = queryBuilder.ilike('specialty', `%${query}%`)
-      } else {
-        queryBuilder = queryBuilder.ilike('profiles.full_name', `%${query}%`)
-      }
-    }
-
-    if (city) queryBuilder = queryBuilder.ilike('hospitals.city', `%${city}%`)
-    if (specialty) queryBuilder = queryBuilder.ilike('specialty', `%${specialty}%`)
-    if (hospital_id) queryBuilder = queryBuilder.eq('hospital_id', hospital_id)
-    if (filterSpecialties.length > 0) queryBuilder = queryBuilder.in('specialty', filterSpecialties)
-
-    const response = await queryBuilder
-    results = response.data || []
-    error = response.error
-  }
-
+export default function SearchPage() {
   return (
-    <div className="min-h-screen bg-[var(--color-surface)] flex flex-col font-sans">
-      <Header />
-
-      <main className="w-full flex-grow flex flex-col md:flex-row relative max-h-none md:h-[calc(100vh-80px)]">
-        {/* Left Panel: Search & List */}
-        <div className="w-full md:w-[40%] flex flex-col bg-[var(--color-surface)] border-r border-[var(--color-surface-variant)] z-10 shadow-lg overflow-hidden h-full">
-          {/* Sticky Search Header */}
-          <div className="p-6 bg-[var(--color-surface)] flex-shrink-0 z-20 border-b border-[var(--color-surface-variant)]">
-            <h1 className="text-3xl font-extrabold text-[var(--color-primary)] mb-6 tracking-tight">
-              Find {type === 'hospital' ? 'Hospitals' : 'Specialist'}
-            </h1>
-            
-            {/* Search Input */}
-            <form action="/search" method="GET" className="relative mb-4">
-              <input type="hidden" name="type" value={type} />
-              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">search</span>
-              <input 
-                name="query"
-                defaultValue={query}
-                className="w-full bg-white border border-[var(--color-surface-variant)] rounded-full py-3.5 pl-12 pr-4 focus:outline-none focus:border-[var(--color-secondary)] focus:ring-4 focus:ring-[var(--color-secondary)]/10 transition-all text-sm text-[var(--color-primary)] placeholder-gray-400 shadow-sm" 
-                placeholder={`Search by ${type === 'hospital' ? 'name or city' : 'name, condition, or specialty'}...`}
-                type="text"
-              />
-            </form>
-
-            {/* Horizontal Filters (Specialties) */}
-            {type !== 'hospital' && fetchedSpecialties.length > 0 && (
-              <div className="flex gap-2 overflow-x-auto pb-2 pt-2 scrollbar-hide">
-                <Link 
-                  href={`/search?type=doctor`} 
-                  className={`flex-shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition-colors ${
-                    !specialty && filterSpecialties.length === 0
-                      ? 'bg-[var(--color-secondary)]/10 border-2 border-[var(--color-secondary)] text-[var(--color-secondary)]'
-                      : 'bg-white border border-[var(--color-outline-variant)] text-[var(--color-primary)] hover:border-[var(--color-secondary)]'
-                  }`}
-                >
-                  All
-                </Link>
-                {fetchedSpecialties.map((spec: any) => {
-                  const isActive = specialty === spec || filterSpecialties.includes(spec)
-                  return (
-                    <Link 
-                      key={spec}
-                      href={`/search?type=doctor&specialty=${encodeURIComponent(spec)}`}
-                      className={`flex-shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition-colors ${
-                        isActive
-                          ? 'bg-[var(--color-secondary)]/10 border-2 border-[var(--color-secondary)] text-[var(--color-secondary)]'
-                          : 'bg-white border border-[var(--color-outline-variant)] text-[var(--color-primary)] hover:border-[var(--color-secondary)]'
-                      }`}
-                    >
-                      {spec}
-                    </Link>
-                  )
-                })}
-              </div>
-            )}
+    <div className="w-full h-[calc(100vh-88px)] min-h-[600px] flex flex-col md:flex-row overflow-hidden relative">
+      {/* Left Panel: Search & List */}
+      <div className="w-full md:w-[40%] h-full flex flex-col bg-indigo-gray-50 border-r border-indigo-gray-200 z-10 shadow-[4px_0px_24px_rgba(15,23,42,0.04)] overflow-hidden">
+        {/* Sticky Search Header */}
+        <div className="p-6 bg-indigo-gray-50 flex-shrink-0 z-20">
+          <h1 className="font-headline-lg text-headline-lg text-on-surface mb-6">Find Specialist</h1>
+          {/* Search Input */}
+          <div className="relative mb-4">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-gray-600 w-5 h-5" />
+            <input
+              className="w-full bg-white border border-indigo-gray-200 rounded-full py-3 pl-12 pr-4 focus:outline-none focus:border-vibrant-blue focus:ring-4 focus:ring-vibrant-blue/10 transition-all font-body-md text-on-surface placeholder:text-indigo-gray-600 shadow-sm"
+              placeholder="Search by name, condition, or specialty..."
+              type="text"
+            />
           </div>
-
-          {/* List Scroll Area */}
-          <div className="flex-grow overflow-y-auto px-6 pb-6 pt-4 space-y-4 bg-gray-50/50 h-full">
-            {error && (
-              <div className="p-4 bg-red-50 text-red-700 border border-red-200 rounded-xl mb-4 text-sm font-bold">
-                Error loading results: {error.message}
-              </div>
-            )}
-
-            {results && results.length > 0 ? (
-              results.map((item: any) => {
-                if (type === 'hospital') {
-                  return (
-                    <div key={item.id} className="bg-white p-5 rounded-2xl border border-[var(--color-surface-variant)] shadow-sm hover:shadow-md transition-all group">
-                      <div className="flex items-start gap-4">
-                        <div className="w-16 h-16 rounded-full bg-[var(--color-surface-container-high)] flex items-center justify-center text-[var(--color-primary)] shrink-0 border-2 border-[var(--color-surface-container-low)] group-hover:border-[var(--color-secondary)] transition-colors overflow-hidden relative">
-                          {item.image_url ? (
-                            <Image src={item.image_url} alt={item.name} fill className="object-cover" />
-                          ) : (
-                            <span className="material-symbols-outlined text-[32px]">local_hospital</span>
-                          )}
-                        </div>
-                        <div className="flex-grow">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h3 className="text-base font-bold text-[var(--color-primary)]">{item.name}</h3>
-                              <p className="text-xs text-[var(--color-on-surface-variant)] mt-1">{item.city}</p>
-                            </div>
-                            <div className="flex items-center gap-1 bg-[var(--color-surface-container-low)] px-2 py-1 rounded-full">
-                              <span className="material-symbols-outlined text-[14px] text-[var(--color-secondary)]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                              <span className="text-xs font-bold text-[var(--color-primary)]">4.5</span>
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap gap-2 mt-3">
-                            <span className="bg-green-50 text-green-700 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Open 24/7</span>
-                            <span className="bg-gray-100 text-gray-700 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Multi-specialty</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-4 pt-4 border-t border-[var(--color-surface-variant)] flex gap-3">
-                        <Link href={`/hospitals/${item.id}`} className="flex-grow text-center bg-white border-2 border-[var(--color-surface-variant)] text-[var(--color-primary)] rounded-full py-2 text-xs font-bold hover:bg-gray-50 transition-colors">
-                          View Details
-                        </Link>
-                        <Link href={`/search?type=doctor&hospital_id=${item.id}`} className="flex-grow text-center bg-[var(--color-secondary)] text-white rounded-full py-2 text-xs font-bold hover:opacity-90 transition-opacity shadow-sm">
-                          Find Doctors Here
-                        </Link>
-                      </div>
-                    </div>
-                  )
-                }
-
-                // Doctor Card
-                return (
-                  <div key={item.id} className="bg-white p-5 rounded-2xl border border-[var(--color-surface-variant)] shadow-sm hover:shadow-md transition-all group">
-                    <div className="flex items-start gap-4">
-                      <div className="w-16 h-16 rounded-full overflow-hidden shrink-0 border-2 border-transparent group-hover:border-[var(--color-secondary)] transition-colors relative bg-gray-100 flex items-center justify-center">
-                        {item.image_url ? (
-                          <Image src={item.image_url} alt={item.profiles?.full_name} fill className="object-cover" />
-                        ) : (
-                          <UserCircle className="w-10 h-10 text-gray-400" />
-                        )}
-                      </div>
-                      <div className="flex-grow">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <h3 className="text-base font-bold text-[var(--color-primary)]">{item.profiles?.full_name}</h3>
-                              <span className="material-symbols-outlined text-[var(--color-secondary)] text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
-                            </div>
-                            <p className="text-xs text-[var(--color-on-surface-variant)] mt-1">{item.specialty}</p>
-                          </div>
-                          <div className="flex items-center gap-1 bg-[var(--color-surface-container-low)] px-2 py-1 rounded-full">
-                            <span className="material-symbols-outlined text-[14px] text-[var(--color-secondary)]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                            <span className="text-xs font-bold text-[var(--color-primary)]">4.9</span>
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap gap-2 mt-3">
-                          <span className="bg-green-50 text-green-700 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Available Today</span>
-                          <span className="bg-gray-100 text-gray-700 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">{item.experience_years} yrs exp</span>
-                        </div>
-                        <div className="mt-2 text-xs text-gray-500 flex items-center gap-1">
-                          <Building2 className="w-3 h-3" /> {item.hospitals?.name}, {item.hospitals?.city}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-4 pt-4 border-t border-[var(--color-surface-variant)] flex gap-3">
-                      <Link href={`/doctors/${item.id}`} className="flex-grow text-center bg-white border-2 border-[var(--color-surface-variant)] text-[var(--color-primary)] rounded-full py-2 text-xs font-bold hover:bg-gray-50 transition-colors">
-                        View Profile
-                      </Link>
-                      <button className="flex-grow text-center bg-[var(--color-secondary)] text-white rounded-full py-2 text-xs font-bold hover:opacity-90 transition-opacity shadow-sm">
-                        Book Now
-                      </button>
-                    </div>
-                  </div>
-                )
-              })
-            ) : (
-              <div className="py-12 flex flex-col items-center justify-center text-center bg-white rounded-2xl border border-[var(--color-surface-variant)]">
-                <Search className="w-12 h-12 text-gray-300 mb-4" />
-                <h3 className="text-lg font-bold text-[var(--color-primary)] mb-2">No results found</h3>
-                <p className="text-sm text-[var(--color-on-surface-variant)] max-w-[250px]">
-                  Try adjusting your search criteria or checking another city.
-                </p>
-                <Link href="/search" className="mt-6 px-6 py-2 bg-[var(--color-surface-container-low)] text-[var(--color-primary)] text-xs font-bold rounded-full hover:bg-[var(--color-surface-variant)] transition-colors">
-                  Clear Filters
-                </Link>
-              </div>
-            )}
+          {/* Horizontal Filters */}
+          <div className="flex gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-2 pt-2">
+            <button className="flex-shrink-0 bg-white border border-indigo-gray-200 rounded-full px-4 py-1.5 font-label-sm text-label-sm text-indigo-gray-900 hover:border-vibrant-blue transition-colors">Cardiology</button>
+            <button className="flex-shrink-0 bg-primary-container/10 border-2 border-vibrant-blue rounded-full px-4 py-1.5 font-label-sm text-label-sm text-vibrant-blue">Neurology</button>
+            <button className="flex-shrink-0 bg-white border border-indigo-gray-200 rounded-full px-4 py-1.5 font-label-sm text-label-sm text-indigo-gray-900 hover:border-vibrant-blue transition-colors">Orthopedics</button>
+            <button className="flex-shrink-0 bg-white border border-indigo-gray-200 rounded-full px-4 py-1.5 font-label-sm text-label-sm text-indigo-gray-900 hover:border-vibrant-blue transition-colors">Pediatrics</button>
+            <button className="flex-shrink-0 bg-white border border-indigo-gray-200 rounded-full px-4 py-1.5 font-label-sm text-label-sm text-indigo-gray-900 hover:border-vibrant-blue transition-colors">Oncology</button>
           </div>
         </div>
 
-        {/* Right Panel: Interactive Map */}
-        <div className="hidden md:block w-[60%] h-full relative bg-[var(--color-surface-container-low)] overflow-hidden">
-          <div className="absolute inset-0 opacity-50 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHBhdGggZD0iTTAgMGg0MHY0MEgweiIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik0wIDEwaDQwTTAgMjBoNDBNMCAzMGg0ME0xMCAwdjQwTTIwIDB2NDBNMzAgMHY0MCIgc3Ryb2tlPSIjZGFlMmZkIiBzdHJva2Utd2lkdGg9IjAuNSIvPjwvc3ZnPg==')]"></div>
-          <Image 
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-EtPvnshPCg3CPHZPVsmudZBNVbu304Wc6d6IUUZPPgVJIArxIab5s52Rlr3LpA8dBF0T8tCFMSm9TGpBk25OHrNvgHDbTlvdB4CbT7Dw4LYrtIllPYSMDe2Q88cTOeMGf4pjWTZikQWEL_h6qAxnMzzeUVDUAeGrahZjyhZdl1bAIqUIDin_0qGCJjSp1KXkfLWhkjf3hDY8itk9SpDfRpHCT0dVdsrMu1wUYKAwlxGKPaSsv8iksg" 
-            alt="Map"
-            fill
-            className="object-cover mix-blend-multiply opacity-60 pointer-events-none"
-          />
-
-          {/* Map Controls */}
-          <div className="absolute top-6 right-6 flex flex-col gap-2 z-20">
-            <button className="bg-white/80 backdrop-blur-md w-10 h-10 rounded-full flex items-center justify-center text-[var(--color-primary)] shadow-sm hover:scale-105 transition-transform border border-white">
-              <span className="material-symbols-outlined">add</span>
-            </button>
-            <button className="bg-white/80 backdrop-blur-md w-10 h-10 rounded-full flex items-center justify-center text-[var(--color-primary)] shadow-sm hover:scale-105 transition-transform border border-white">
-              <span className="material-symbols-outlined">remove</span>
-            </button>
-            <button className="bg-white/80 backdrop-blur-md w-10 h-10 rounded-full flex items-center justify-center text-[var(--color-secondary)] shadow-sm hover:scale-105 transition-transform mt-2 border border-white">
-              <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>my_location</span>
-            </button>
-          </div>
-
-          {/* Map Pins (Simulated based on first 2 results for visual) */}
-          {results && results.length > 0 && (
-            <div className="absolute top-[45%] left-[45%] z-20 transform -translate-x-1/2 -translate-y-full group cursor-pointer">
-              <div className="relative flex flex-col items-center">
-                <div className="bg-[var(--color-secondary)] border-2 border-white rounded-full p-1 shadow-lg scale-110">
-                  <div className="w-10 h-10 rounded-full overflow-hidden relative border-2 border-white bg-white flex items-center justify-center">
-                    {type === 'hospital' ? (
-                      <span className="material-symbols-outlined text-[20px] text-[var(--color-secondary)]">local_hospital</span>
-                    ) : (
-                      <span className="material-symbols-outlined text-[20px] text-[var(--color-secondary)]">person</span>
-                    )}
+        {/* Doctor List Scroll Area */}
+        <div className="flex-grow overflow-y-auto px-6 pb-6 pt-2 space-y-4">
+          {/* Doctor Card 1 */}
+          <div className="bg-white p-4 rounded-xl border border-indigo-gray-200 shadow-[0_2px_8px_rgba(0,102,255,0.04)] hover:shadow-[0_8px_24px_rgba(0,102,255,0.08)] transition-all cursor-pointer group">
+            <div className="flex items-start gap-4">
+              <img
+                className="w-16 h-16 rounded-full object-cover border-2 border-surface-container-low group-hover:border-vibrant-blue transition-colors"
+                alt="Professional headshot of a middle-aged male doctor"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDWc57_zZUdQwNO2B8RXkAs3zlNI8izFrfsZeodKLcmYhSQqAAfPv89HSxwb2emQU2tmeuUAkwgecYY3Gm_v2ByAUbNr09Gz4ez2lpq87y-Y99LDm_vYuxpKCo27tyDwfQ5Hfah0Wh9GcqKdFVDKHXul3TplsD6mLhdSFPaTHh36aZhXAXpvFXa_k3e1QP3cK_p6JZyjf84TUyXcQ9LKlcGdwjdy1WvYQriQghNO1qB0Lo6UXLw-WoANw"
+              />
+              <div className="flex-grow">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-title-md text-title-md text-on-surface">Dr. Alistair Finch</h3>
+                    <p className="font-label-sm text-label-sm text-indigo-gray-600 mt-1">Chief of Neurology</p>
+                  </div>
+                  <div className="flex items-center gap-1 bg-surface-container-low px-2 py-1 rounded-full">
+                    <Star className="w-3.5 h-3.5 text-vibrant-blue fill-current" />
+                    <span className="font-label-sm text-label-sm text-on-surface">4.9</span>
                   </div>
                 </div>
-                <div className="w-4 h-4 bg-[var(--color-secondary)] transform rotate-45 -mt-2 shadow-sm"></div>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <span className="bg-fresh-teal/10 text-fresh-teal font-label-sm text-label-sm px-2.5 py-1 rounded-full">Available Today</span>
+                  <span className="bg-indigo-gray-50 text-indigo-gray-600 font-label-sm text-label-sm px-2.5 py-1 rounded-full">15 yrs exp</span>
+                </div>
               </div>
             </div>
-          )}
+            <div className="mt-4 pt-4 border-t border-indigo-gray-50 flex gap-3">
+              <button className="flex-grow bg-white border-[1.5px] border-indigo-gray-200 text-indigo-gray-900 rounded-full py-2 font-label-sm text-label-sm hover:bg-indigo-gray-50 transition-colors">View Profile</button>
+              <button className="flex-grow bg-vibrant-blue text-white rounded-full py-2 font-label-sm text-label-sm hover:scale-[1.02] transition-transform shadow-[0_4px_12px_rgba(0,102,255,0.2)]">Book Now</button>
+            </div>
+          </div>
 
-          {/* Search Area Badge */}
-          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-md rounded-full px-6 py-3 shadow-lg border border-white flex items-center gap-3 z-20 w-max">
-            <span className="material-symbols-outlined text-[var(--color-secondary)]" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
-            <span className="text-sm text-[var(--color-primary)] font-bold">
-              Searching in: <span className="text-[var(--color-secondary)]">{city || 'All Locations'}</span>
-            </span>
+          {/* Doctor Card 2 */}
+          <div className="bg-primary-container/5 p-4 rounded-xl border-2 border-vibrant-blue shadow-[0_8px_24px_rgba(0,102,255,0.08)] transition-all cursor-pointer group">
+            <div className="flex items-start gap-4">
+              <img
+                className="w-16 h-16 rounded-full object-cover border-2 border-vibrant-blue"
+                alt="Professional headshot of a younger female doctor"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuB8eBSjqTY2h0TGKVxi_btHYwppEAxtWmuW2ea13C6edhPmBumaNlEQDLNC5cYI-YwqWXclwzBdk770gv85ompz800-IDr41y0WLjZ7P8igpNx1xTMk0AmeRkFyiuY8Ijpll-qcGfpfTRsoQsjReX6f6kJKwf0sMdZd1lCKd9IjTNBaSPPOCcEV4WuMM1LqasFlpjJX7MXh1L4rwhcJ0azxajWnlT1r7qVbCnCiUxxgLKFUq4IBwB9TCw"
+              />
+              <div className="flex-grow">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-title-md text-title-md text-on-surface">Dr. Sarah Jenkins</h3>
+                      <BadgeCheck className="text-vibrant-blue w-4 h-4" />
+                    </div>
+                    <p className="font-label-sm text-label-sm text-indigo-gray-600 mt-1">Neurological Surgery</p>
+                  </div>
+                  <div className="flex items-center gap-1 bg-surface-container-low px-2 py-1 rounded-full">
+                    <Star className="w-3.5 h-3.5 text-vibrant-blue fill-current" />
+                    <span className="font-label-sm text-label-sm text-on-surface">5.0</span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <span className="bg-fresh-teal/10 text-fresh-teal font-label-sm text-label-sm px-2.5 py-1 rounded-full">Next Avail: Tomorrow</span>
+                  <span className="bg-indigo-gray-50 text-indigo-gray-600 font-label-sm text-label-sm px-2.5 py-1 rounded-full">8 yrs exp</span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-indigo-gray-200/50 flex gap-3">
+              <button className="flex-grow bg-white border-[1.5px] border-indigo-gray-200 text-indigo-gray-900 rounded-full py-2 font-label-sm text-label-sm hover:bg-indigo-gray-50 transition-colors">View Profile</button>
+              <button className="flex-grow bg-vibrant-blue text-white rounded-full py-2 font-label-sm text-label-sm hover:scale-[1.02] transition-transform shadow-[0_4px_12px_rgba(0,102,255,0.2)]">Book Now</button>
+            </div>
+          </div>
+
+          {/* Doctor Card 3 */}
+          <div className="bg-white p-4 rounded-xl border border-indigo-gray-200 shadow-[0_2px_8px_rgba(0,102,255,0.04)] hover:shadow-[0_8px_24px_rgba(0,102,255,0.08)] transition-all cursor-pointer group">
+            <div className="flex items-start gap-4">
+              <img
+                className="w-16 h-16 rounded-full object-cover border-2 border-surface-container-low group-hover:border-vibrant-blue transition-colors"
+                alt="Professional portrait of an older male doctor"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuCeL1HNuUxCxkPPmFOKy0mcOqeWdHsN5mx6zvkDPD-BiEFKteLBHnBYQTIscYbwrzSgHjdNDCHM3SLhpzIn-QLPsvlgRZXSgFkx62g_FZ6Qi6g9B5BSVsH4KceCZoAgsgKzmaoMpBgO5cg1b7cCwMA9hkt_mLhmb4SvLAgx6yQ5sOvSBenu6J2Vz7BOxFDFNSAeByslj50_azHxtuBvNrJQpkPUbyV7K2hsNIjZ2NHQGW4T4_6ujxvoHA"
+              />
+              <div className="flex-grow">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-title-md text-title-md text-on-surface">Dr. Robert Chen</h3>
+                    <p className="font-label-sm text-label-sm text-indigo-gray-600 mt-1">Pediatric Neurology</p>
+                  </div>
+                  <div className="flex items-center gap-1 bg-surface-container-low px-2 py-1 rounded-full">
+                    <Star className="w-3.5 h-3.5 text-vibrant-blue fill-current" />
+                    <span className="font-label-sm text-label-sm text-on-surface">4.8</span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <span className="bg-soft-coral/10 text-soft-coral font-label-sm text-label-sm px-2.5 py-1 rounded-full">Waitlist Only</span>
+                  <span className="bg-indigo-gray-50 text-indigo-gray-600 font-label-sm text-label-sm px-2.5 py-1 rounded-full">22 yrs exp</span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-indigo-gray-50 flex gap-3">
+              <button className="flex-grow bg-white border-[1.5px] border-indigo-gray-200 text-indigo-gray-900 rounded-full py-2 font-label-sm text-label-sm hover:bg-indigo-gray-50 transition-colors">View Profile</button>
+              <button className="flex-grow bg-white border-[1.5px] border-vibrant-blue text-vibrant-blue rounded-full py-2 font-label-sm text-label-sm hover:bg-vibrant-blue/5 transition-colors">Join Waitlist</button>
+            </div>
+          </div>
+
+          {/* Doctor Card 4 */}
+          <div className="bg-white p-4 rounded-xl border border-indigo-gray-200 shadow-[0_2px_8px_rgba(0,102,255,0.04)] hover:shadow-[0_8px_24px_rgba(0,102,255,0.08)] transition-all cursor-pointer group">
+            <div className="flex items-start gap-4">
+              <img
+                className="w-16 h-16 rounded-full object-cover border-2 border-surface-container-low group-hover:border-vibrant-blue transition-colors"
+                alt="Professional headshot of a doctor."
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuB8eBSjqTY2h0TGKVxi_btHYwppEAxtWmuW2ea13C6edhPmBumaNlEQDLNC5cYI-YwqWXclwzBdk770gv85ompz800-IDr41y0WLjZ7P8igpNx1xTMk0AmeRkFyiuY8Ijpll-qcGfpfTRsoQsjReX6f6kJKwf0sMdZd1lCKd9IjTNBaSPPOCcEV4WuMM1LqasFlpjJX7MXh1L4rwhcJ0azxajWnlT1r7qVbCnCiUxxgLKFUq4IBwB9TCw"
+              />
+              <div className="flex-grow">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-title-md text-title-md text-on-surface">Dr. Emily Rivera</h3>
+                    <p className="font-label-sm text-label-sm text-indigo-gray-600 mt-1">Cardiology Specialist</p>
+                  </div>
+                  <div className="flex items-center gap-1 bg-surface-container-low px-2 py-1 rounded-full">
+                    <Star className="w-3.5 h-3.5 text-vibrant-blue fill-current" />
+                    <span className="font-label-sm text-label-sm text-on-surface">4.7</span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <span className="bg-fresh-teal/10 text-fresh-teal font-label-sm text-label-sm px-2.5 py-1 rounded-full">Available Today</span>
+                  <span className="bg-indigo-gray-50 text-indigo-gray-600 font-label-sm text-label-sm px-2.5 py-1 rounded-full">10 yrs exp</span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-indigo-gray-50 flex gap-3">
+              <button className="flex-grow bg-white border-[1.5px] border-indigo-gray-200 text-indigo-gray-900 rounded-full py-2 font-label-sm text-label-sm hover:bg-indigo-gray-50 transition-colors">View Profile</button>
+              <button className="flex-grow bg-vibrant-blue text-white rounded-full py-2 font-label-sm text-label-sm hover:scale-[1.02] transition-transform shadow-[0_4px_12px_rgba(0,102,255,0.2)]">Book Now</button>
+            </div>
+          </div>
+
+          {/* Doctor Card 5 */}
+          <div className="bg-white p-4 rounded-xl border border-indigo-gray-200 shadow-[0_2px_8px_rgba(0,102,255,0.04)] hover:shadow-[0_8px_24px_rgba(0,102,255,0.08)] transition-all cursor-pointer group">
+            <div className="flex items-start gap-4">
+              <img
+                className="w-16 h-16 rounded-full object-cover border-2 border-surface-container-low group-hover:border-vibrant-blue transition-colors"
+                alt="Professional headshot of a doctor."
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDWc57_zZUdQwNO2B8RXkAs3zlNI8izFrfsZeodKLcmYhSQqAAfPv89HSxwb2emQU2tmeuUAkwgecYY3Gm_v2ByAUbNr09Gz4ez2lpq87y-Y99LDm_vYuxpKCo27tyDwfQ5Hfah0Wh9GcqKdFVDKHXul3TplsD6mLhdSFPaTHh36aZhXAXpvFXa_k3e1QP3cK_p6JZyjf84TUyXcQ9LKlcGdwjdy1WvYQriQghNO1qB0Lo6UXLw-WoANw"
+              />
+              <div className="flex-grow">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-title-md text-title-md text-on-surface">Dr. Michael Scott</h3>
+                    <p className="font-label-sm text-label-sm text-indigo-gray-600 mt-1">Orthopedic Surgeon</p>
+                  </div>
+                  <div className="flex items-center gap-1 bg-surface-container-low px-2 py-1 rounded-full">
+                    <Star className="w-3.5 h-3.5 text-vibrant-blue fill-current" />
+                    <span className="font-label-sm text-label-sm text-on-surface">4.6</span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <span className="bg-fresh-teal/10 text-fresh-teal font-label-sm text-label-sm px-2.5 py-1 rounded-full">Next Avail: Mon</span>
+                  <span className="bg-indigo-gray-50 text-indigo-gray-600 font-label-sm text-label-sm px-2.5 py-1 rounded-full">14 yrs exp</span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-indigo-gray-50 flex gap-3">
+              <button className="flex-grow bg-white border-[1.5px] border-indigo-gray-200 text-indigo-gray-900 rounded-full py-2 font-label-sm text-label-sm hover:bg-indigo-gray-50 transition-colors">View Profile</button>
+              <button className="flex-grow bg-vibrant-blue text-white rounded-full py-2 font-label-sm text-label-sm hover:scale-[1.02] transition-transform shadow-[0_4px_12px_rgba(0,102,255,0.2)]">Book Now</button>
+            </div>
+          </div>
+
+          {/* Doctor Card 6 */}
+          <div className="bg-white p-4 rounded-xl border border-indigo-gray-200 shadow-[0_2px_8px_rgba(0,102,255,0.04)] hover:shadow-[0_8px_24px_rgba(0,102,255,0.08)] transition-all cursor-pointer group">
+            <div className="flex items-start gap-4">
+              <img
+                className="w-16 h-16 rounded-full object-cover border-2 border-surface-container-low group-hover:border-vibrant-blue transition-colors"
+                alt="Professional headshot of a doctor."
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuCeL1HNuUxCxkPPmFOKy0mcOqeWdHsN5mx6zvkDPD-BiEFKteLBHnBYQTIscYbwrzSgHjdNDCHM3SLhpzIn-QLPsvlgRZXSgFkx62g_FZ6Qi6g9B5BSVsH4KceCZoAgsgKzmaoMpBgO5cg1b7cCwMA9hkt_mLhmb4SvLAgx6yQ5sOvSBenu6J2Vz7BOxFDFNSAeByslj50_azHxtuBvNrJQpkPUbyV7K2hsNIjZ2NHQGW4T4_6ujxvoHA"
+              />
+              <div className="flex-grow">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-title-md text-title-md text-on-surface">Dr. Lisa Cuddy</h3>
+                    <p className="font-label-sm text-label-sm text-indigo-gray-600 mt-1">Endocrinology</p>
+                  </div>
+                  <div className="flex items-center gap-1 bg-surface-container-low px-2 py-1 rounded-full">
+                    <Star className="w-3.5 h-3.5 text-vibrant-blue fill-current" />
+                    <span className="font-label-sm text-label-sm text-on-surface">4.9</span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <span className="bg-soft-coral/10 text-soft-coral font-label-sm text-label-sm px-2.5 py-1 rounded-full">Waitlist Only</span>
+                  <span className="bg-indigo-gray-50 text-indigo-gray-600 font-label-sm text-label-sm px-2.5 py-1 rounded-full">18 yrs exp</span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-indigo-gray-50 flex gap-3">
+              <button className="flex-grow bg-white border-[1.5px] border-indigo-gray-200 text-indigo-gray-900 rounded-full py-2 font-label-sm text-label-sm hover:bg-indigo-gray-50 transition-colors">View Profile</button>
+              <button className="flex-grow bg-white border-[1.5px] border-vibrant-blue text-vibrant-blue rounded-full py-2 font-label-sm text-label-sm hover:bg-vibrant-blue/5 transition-colors">Join Waitlist</button>
+            </div>
+          </div>
+
+          {/* Hospital Card 7 */}
+          <div className="bg-white p-4 rounded-xl border border-indigo-gray-200 shadow-[0_2px_8px_rgba(0,102,255,0.04)] hover:shadow-[0_8px_24px_rgba(0,102,255,0.08)] transition-all cursor-pointer group">
+            <div className="flex items-start gap-4">
+              <div className="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center border-2 border-surface-container-low group-hover:border-vibrant-blue transition-colors text-vibrant-blue">
+                <Hospital className="w-8 h-8" />
+              </div>
+              <div className="flex-grow">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-title-md text-title-md text-on-surface">City General Hospital</h3>
+                    <p className="font-label-sm text-label-sm text-indigo-gray-600 mt-1">Medical Center</p>
+                  </div>
+                  <div className="flex items-center gap-1 bg-surface-container-low px-2 py-1 rounded-full">
+                    <Star className="w-3.5 h-3.5 text-vibrant-blue fill-current" />
+                    <span className="font-label-sm text-label-sm text-on-surface">4.5</span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <span className="bg-fresh-teal/10 text-fresh-teal font-label-sm text-label-sm px-2.5 py-1 rounded-full">Open 24/7</span>
+                  <span className="bg-indigo-gray-50 text-indigo-gray-600 font-label-sm text-label-sm px-2.5 py-1 rounded-full">Multi-specialty</span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-indigo-gray-50 flex gap-3">
+              <button className="flex-grow bg-white border-[1.5px] border-indigo-gray-200 text-indigo-gray-900 rounded-full py-2 font-label-sm text-label-sm hover:bg-indigo-gray-50 transition-colors">View Details</button>
+              <button className="flex-grow bg-vibrant-blue text-white rounded-full py-2 font-label-sm text-label-sm hover:scale-[1.02] transition-transform shadow-[0_4px_12px_rgba(0,102,255,0.2)]">Find Doctors Here</button>
+            </div>
+          </div>
+
+          {/* Doctor Card 8 */}
+          <div className="bg-white p-4 rounded-xl border border-indigo-gray-200 shadow-[0_2px_8px_rgba(0,102,255,0.04)] hover:shadow-[0_8px_24px_rgba(0,102,255,0.08)] transition-all cursor-pointer group">
+            <div className="flex items-start gap-4">
+              <img
+                className="w-16 h-16 rounded-full object-cover border-2 border-surface-container-low group-hover:border-vibrant-blue transition-colors"
+                alt="Professional headshot of a doctor."
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuB8eBSjqTY2h0TGKVxi_btHYwppEAxtWmuW2ea13C6edhPmBumaNlEQDLNC5cYI-YwqWXclwzBdk770gv85ompz800-IDr41y0WLjZ7P8igpNx1xTMk0AmeRkFyiuY8Ijpll-qcGfpfTRsoQsjReX6f6kJKwf0sMdZd1lCKd9IjTNBaSPPOCcEV4WuMM1LqasFlpjJX7MXh1L4rwhcJ0azxajWnlT1r7qVbCnCiUxxgLKFUq4IBwB9TCw"
+              />
+              <div className="flex-grow">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-title-md text-title-md text-on-surface">Dr. Gregory House</h3>
+                    <p className="font-label-sm text-label-sm text-indigo-gray-600 mt-1">Diagnostic Medicine</p>
+                  </div>
+                  <div className="flex items-center gap-1 bg-surface-container-low px-2 py-1 rounded-full">
+                    <Star className="w-3.5 h-3.5 text-vibrant-blue fill-current" />
+                    <span className="font-label-sm text-label-sm text-on-surface">5.0</span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <span className="bg-fresh-teal/10 text-fresh-teal font-label-sm text-label-sm px-2.5 py-1 rounded-full">Available Today</span>
+                  <span className="bg-indigo-gray-50 text-indigo-gray-600 font-label-sm text-label-sm px-2.5 py-1 rounded-full">25 yrs exp</span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-indigo-gray-50 flex gap-3">
+              <button className="flex-grow bg-white border-[1.5px] border-indigo-gray-200 text-indigo-gray-900 rounded-full py-2 font-label-sm text-label-sm hover:bg-indigo-gray-50 transition-colors">View Profile</button>
+              <button className="flex-grow bg-vibrant-blue text-white rounded-full py-2 font-label-sm text-label-sm hover:scale-[1.02] transition-transform shadow-[0_4px_12px_rgba(0,102,255,0.2)]">Book Now</button>
+            </div>
           </div>
         </div>
-      </main>
-      <Footer />
+      </div>
+
+      {/* Right Panel: Interactive Map */}
+      <div className="hidden md:block w-[60%] h-full relative bg-surface-container-low">
+        {/* Simulated Map Background */}
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHBhdGggZD0iTTAgMGg0MHY0MEgweiIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik0wIDEwaDQwTTAgMjBoNDBNMCAzMGg0ME0xMCAwdjQwTTIwIDB2NDBNMzAgMHY0MCIgc3Ryb2tlPSIjZGFlMmZkIiBzdHJva2Utd2lkdGg9IjAuNSIvPjwvc3ZnPg==')] opacity-50"></div>
+        <img
+          className="w-full h-full object-cover mix-blend-multiply opacity-40"
+          alt="Map Background"
+          src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-EtPvnshPCg3CPHZPVsmudZBNVbu304Wc6d6IUUZPPgVJIArxIab5s52Rlr3LpA8dBF0T8tCFMSm9TGpBk25OHrNvgHDbTlvdB4CbT7Dw4LYrtIllPYSMDe2Q88cTOeMGf4pjWTZikQWEL_h6qAxnMzzeUVDUAeGrahZjyhZdl1bAIqUIDin_0qGCJjSp1KXkfLWhkjf3hDY8itk9SpDfRpHCT0dVdsrMu1wUYKAwlxGKPaSsv8iksg"
+        />
+        
+        {/* Map Controls */}
+        <div className="absolute top-6 right-6 flex flex-col gap-2 z-20">
+          <button className="bg-white/70 backdrop-blur border border-white/40 w-10 h-10 rounded-full flex items-center justify-center text-on-surface shadow-sm hover:scale-105 transition-transform">
+            <Plus className="w-5 h-5" />
+          </button>
+          <button className="bg-white/70 backdrop-blur border border-white/40 w-10 h-10 rounded-full flex items-center justify-center text-on-surface shadow-sm hover:scale-105 transition-transform">
+            <Minus className="w-5 h-5" />
+          </button>
+          <button className="bg-white/70 backdrop-blur border border-white/40 w-10 h-10 rounded-full flex items-center justify-center text-vibrant-blue shadow-sm hover:scale-105 transition-transform mt-2">
+            <LocateFixed className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Map Pins */}
+        <div className="absolute top-[35%] left-[45%] z-20 transform -translate-x-1/2 -translate-y-full group cursor-pointer">
+          <div className="relative flex flex-col items-center">
+            <div className="bg-white border-2 border-indigo-gray-200 rounded-full p-1 shadow-lg group-hover:border-vibrant-blue group-hover:scale-110 transition-all">
+              <img
+                className="w-10 h-10 rounded-full object-cover"
+                alt="Dr. Finch"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuByUya9cl-ZGScaoK0KAinFv8hdtgRWMsWijHPyOmAA8X9Em3njUFtRbavcDxYCa7iIkkVTN4HzNVCJqsn5OmB6atAwAGdNZJK3CDNqk6wsupdm1BBl4XEKytczCVYfmekAFgP5qIIAz0GDQHHWiChY8fzYGSQZaJlUm9nbY7Rs5bPe00O_qUq60teYTl8yeVjnqEhWAWYufYM8XpZrMgQCUBYUz9QvldN2alXPieNMVT4nkyx4sA3SEQ"
+              />
+            </div>
+            <div className="w-4 h-4 bg-white border-b-2 border-r-2 border-indigo-gray-200 transform rotate-45 -mt-2 group-hover:border-vibrant-blue transition-colors"></div>
+          </div>
+        </div>
+
+        {/* Active Map Pin */}
+        <div className="absolute top-[55%] left-[60%] z-30 transform -translate-x-1/2 -translate-y-full group cursor-pointer">
+          <div className="relative flex flex-col items-center">
+            {/* Popover Tooltip */}
+            <div className="absolute bottom-full mb-4 w-48 bg-white/70 backdrop-blur rounded-xl p-3 shadow-xl border border-white/50 opacity-100 transform scale-100 transition-all origin-bottom">
+              <h4 className="font-title-md text-title-md text-on-surface text-sm">Dr. Sarah Jenkins</h4>
+              <p className="font-label-sm text-label-sm text-vibrant-blue mt-0.5">Neurological Surgery</p>
+              <p className="font-label-sm text-label-sm text-indigo-gray-600 mt-1">2.4 miles away</p>
+            </div>
+            <div className="bg-vibrant-blue border-2 border-white rounded-full p-1 shadow-[0_8px_16px_rgba(0,102,255,0.3)] scale-110">
+              <img
+                className="w-10 h-10 rounded-full object-cover border-2 border-white"
+                alt="Dr. Jenkins"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDUHImPU8lrEX8H1AsK9Nl6-ZaMJ1k8WRK_ZTyasQbF3zqDtNy1QZeaide6TGBjLDPscisEsFJS-Kq5S_vz8zCLxfmpuhGaGystzmHdQV2F6d714r6vsYf7gJ0jK4rm5WvzrkB7XcpcEQ9lmEku7sg6IJPzVWkX1TOJwWbMQJlgN0qeE4oGsqG5e1hrCrQMiDoMNYEoHffj_WyZeW6lOk-OsOLoF2qeWtxmJli26OXBCaaGwSplHRPFSg"
+              />
+            </div>
+            <div className="w-4 h-4 bg-vibrant-blue transform rotate-45 -mt-2 shadow-sm"></div>
+          </div>
+        </div>
+
+        {/* Search Area Over Map */}
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-white/80 backdrop-blur rounded-full px-6 py-3 shadow-lg border border-white/50 flex items-center gap-3 z-20">
+          <MapPin className="text-vibrant-blue w-5 h-5 fill-vibrant-blue/20" />
+          <span className="font-body-md text-on-surface font-semibold">
+            Searching in: <span className="text-vibrant-blue">Downtown Medical District</span>
+          </span>
+          <button className="ml-4 font-label-sm text-label-sm text-indigo-gray-600 hover:text-vibrant-blue transition-colors underline">Change</button>
+        </div>
+      </div>
     </div>
-  )
+  );
 }

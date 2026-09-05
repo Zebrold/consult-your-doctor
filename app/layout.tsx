@@ -1,10 +1,16 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Manrope } from "next/font/google";
 import "./globals.css";
+import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 
 const inter = Inter({
   variable: "--font-inter",
+  subsets: ["latin"],
+});
+
+const manrope = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin"],
 });
 
@@ -33,14 +39,19 @@ export const metadata: Metadata = {
   }
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html
       lang="en"
-      className={`${inter.variable} h-full antialiased scroll-smooth`}
+      className={`${inter.variable} ${manrope.variable} h-full antialiased scroll-smooth light`}
     >
-      <body suppressHydrationWarning className="min-h-full flex flex-col overflow-x-hidden">
-        <main className="flex-1">
+      <body suppressHydrationWarning className="min-h-screen flex flex-col font-sans pt-[88px] overflow-x-hidden text-on-surface bg-background">
+        <Header />
+        <main className="flex-grow">
           {children}
         </main>
         <Footer />

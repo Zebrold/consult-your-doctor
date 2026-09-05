@@ -1,109 +1,112 @@
-import Link from 'next/link'
-import Image from 'next/image'
+import Link from "next/link";
+import { Info, ArrowRight, Stethoscope } from "lucide-react";
 
 export function Footer() {
   return (
-    <footer className="w-full bg-[var(--color-primary-container)] text-white py-16 px-4 md:px-8 mt-12">
-      <div className="max-w-[1280px] mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-9 gap-8 lg:gap-4 mb-16">
-          {/* Logo & Description Column */}
-          <div className="lg:col-span-2 space-y-6 pr-0 lg:pr-8">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[var(--color-secondary)] text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>
-                stethoscope
-              </span>
-              <span className="text-xl text-white font-bold tracking-tight hidden sm:block">Consult Your Doctor</span>
+    <>
+      <section className="py-20 px-margin-x-desktop bg-surface-container-low border-t border-surface-variant">
+        <div className="max-w-container-max mx-auto reveal-up active">
+          <div className="max-w-3xl space-y-6">
+            <div className="inline-flex items-center gap-2 bg-tertiary-fixed text-on-tertiary-fixed px-3 py-1 rounded-full text-xs font-bold tracking-wider">
+              <Info className="w-4 h-4" />
+              ABOUT CONSULT YOUR DOCTOR
             </div>
-            <p className="text-white/70 text-sm leading-relaxed max-w-xs">
-              Your personal healthcare concierge. We connect patients with top doctors, hospitals and executives with complete support.
+            <h2 className="font-headline-lg text-headline-lg text-primary">
+              A Connected Healthcare Platform
+            </h2>
+            <p className="font-body-lg text-body-lg text-on-surface-variant">
+              Consult Your Doctor is a pioneering health-tech ecosystem designed to bridge the gap between patients, top-tier medical specialists, renowned hospitals, and advanced diagnostic facilities. We streamline your entire medical journey through intelligent routing and frictionless scheduling.
             </p>
-          </div>
-
-          {/* Company Column */}
-          <div className="space-y-6">
-            <h3 className="text-base font-bold text-white tracking-wide whitespace-nowrap">Company</h3>
-            <ul className="space-y-3">
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">About Us</Link></li>
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Careers</Link></li>
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Blog</Link></li>
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Press & Media</Link></li>
-
-            </ul>
-          </div>
-
-          {/* For Patients Column */}
-          <div className="space-y-6">
-            <h3 className="text-base font-bold text-white tracking-wide whitespace-nowrap">For Patients</h3>
-            <ul className="space-y-3">
-              <li><Link href="/search" className="text-gray-300 hover:text-white transition-colors text-sm">Find Doctors</Link></li>
-              <li><Link href="/search?type=hospital" className="text-gray-300 hover:text-white transition-colors text-sm">Find Hospitals</Link></li>
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Health Check Packages</Link></li>
-              <li><Link href="/diagnostics" className="text-gray-300 hover:text-white transition-colors text-sm">Diagnostics</Link></li>
-
-            </ul>
-          </div>
-
-          {/* For Hospitals Column */}
-          <div className="space-y-6">
-            <h3 className="text-base font-bold text-white tracking-wide whitespace-nowrap">For Hospitals</h3>
-            <ul className="space-y-3">
-              <li><Link href="/login/hospital" className="text-gray-300 hover:text-white transition-colors text-sm">Hospital Login</Link></li>
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">List Your Hospital</Link></li>
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Resource Center</Link></li>
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Partnerships</Link></li>
-            </ul>
-          </div>
-
-          {/* For Doctors Column & Policies combined for space, or just keep it 6 cols as defined in grid */}
-          <div className="space-y-6">
-            <h3 className="text-base font-bold text-white tracking-wide whitespace-nowrap">For Doctors</h3>
-            <ul className="space-y-3">
-              <li><Link href="/login/doctor" className="text-gray-300 hover:text-white transition-colors text-sm">Doctor Login</Link></li>
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Benefits</Link></li>
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Resources</Link></li>
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Support</Link></li>
-            </ul>
-          </div>
-
-          {/* For Executives Column */}
-          <div className="space-y-6">
-            <h3 className="text-base font-bold text-white tracking-wide whitespace-nowrap">For Executives</h3>
-            <ul className="space-y-3">
-              <li><Link href="/login/executive" className="text-gray-300 hover:text-white transition-colors text-sm">Executive Login</Link></li>
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">How It Works</Link></li>
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Benefits</Link></li>
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Support</Link></li>
-            </ul>
-          </div>
-
-          {/* For Diagnostics Column */}
-          <div className="space-y-6">
-            <h3 className="text-base font-bold text-white tracking-wide whitespace-nowrap">For Diagnostics</h3>
-            <ul className="space-y-3">
-              <li><Link href="/login/diagnostic" className="text-gray-300 hover:text-white transition-colors text-sm">Center Login</Link></li>
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">How It Works</Link></li>
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Benefits</Link></li>
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Support</Link></li>
-            </ul>
-          </div>
-
-          {/* Policies Column (Need to increase grid cols to 7 if we want 2 col span for first, or 1 col span for all. Current is 6 cols: 2 + 1 + 1 + 1 + 1 = 6) */}
-          <div className="space-y-6">
-            <h3 className="text-base font-bold text-white tracking-wide whitespace-nowrap">Policies</h3>
-            <ul className="space-y-3">
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Privacy Policy</Link></li>
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Terms of Use</Link></li>
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Refund Policy</Link></li>
-              <li><Link href="#" className="text-gray-300 hover:text-white transition-colors text-sm">Cookie Policy</Link></li>
-            </ul>
+            <p className="font-body-md text-body-md text-on-surface-variant">
+              Built on a foundation of responsible AI and uncompromising patient-centred design, our platform ensures your health data remains secure while giving you immediate access to second opinions, emergency care coordinators, and personalized wellness plans from anywhere in the world.
+            </p>
+            <div className="pt-2">
+              <Link href="/about" className="text-vibrant-blue font-bold text-base hover:underline flex items-center gap-1 cursor-pointer">
+                Learn More About Us <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
         </div>
+      </section>
 
-        {/* Footer Bottom */}
-        <div className="mt-12 pt-8 border-t border-gray-700/50 flex flex-col md:flex-row items-center justify-between text-gray-400 text-xs">
-          <p>&copy; {new Date().getFullYear()} Consult Your Doctor. All rights reserved.</p>
+      <footer className="bg-indigo-gray-900 text-white w-full py-16 px-margin-x-desktop">
+        <div className="max-w-container-max mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-gutter mb-16">
+            {/* Brand Column */}
+            <div className="md:col-span-3 space-y-6">
+              <div className="flex items-center gap-2">
+                <Stethoscope className="text-vibrant-blue w-8 h-8" />
+                <span className="font-display-lg text-xl text-white tracking-tight">
+                  Consult your Doctor
+                </span>
+              </div>
+              <p className="text-white/70 font-body-md max-w-xs">
+                Your personal healthcare concierge. We connect patients with top doctors, hospitals and executives with complete support.
+              </p>
+            </div>
+            {/* Links Columns */}
+            <div className="md:col-span-9 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
+              <div className="space-y-4">
+                <h4 className="font-title-md text-white font-semibold text-base">Company</h4>
+                <ul className="space-y-2">
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">About Us</Link></li>
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">Careers</Link></li>
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">Blog</Link></li>
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">Press & Media</Link></li>
+                </ul>
+              </div>
+              <div className="space-y-4">
+                <h4 className="font-title-md text-white font-semibold text-base">For Patients</h4>
+                <ul className="space-y-2">
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">Find Doctors</Link></li>
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">Find Hospitals</Link></li>
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">Health Check Packages</Link></li>
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">Diagnostics</Link></li>
+                </ul>
+              </div>
+              <div className="space-y-4">
+                <h4 className="font-title-md text-white font-semibold text-base">For Hospitals</h4>
+                <ul className="space-y-2">
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">List Your Hospital</Link></li>
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">Hospital Login</Link></li>
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">Resource Center</Link></li>
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">Partnerships</Link></li>
+                </ul>
+              </div>
+              <div className="space-y-4">
+                <h4 className="font-title-md text-white font-semibold text-base">For Doctors</h4>
+                <ul className="space-y-2">
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">Doctor Login</Link></li>
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">Benefits</Link></li>
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">Resources</Link></li>
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">Support</Link></li>
+                </ul>
+              </div>
+              <div className="space-y-4">
+                <h4 className="font-title-md text-white font-semibold text-base">For Executives</h4>
+                <ul className="space-y-2">
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">Executive Login</Link></li>
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">How It Works</Link></li>
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">Benefits</Link></li>
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">Support</Link></li>
+                </ul>
+              </div>
+              <div className="space-y-4">
+                <h4 className="font-title-md text-white font-semibold text-base">Policies</h4>
+                <ul className="space-y-2">
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">Privacy Policy</Link></li>
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">Terms of Use</Link></li>
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">Refund Policy</Link></li>
+                  <li><Link className="text-white/70 hover:text-white transition-colors text-sm font-body-md" href="#">Cookie Policy</Link></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <div className="pt-8 border-t border-white/10">
+            <p className="text-white/50 text-sm font-body-md">© {new Date().getFullYear()} Consult Your Doctor. All rights reserved.</p>
+          </div>
         </div>
-      </div>
-    </footer>
-  )
+      </footer>
+    </>
+  );
 }

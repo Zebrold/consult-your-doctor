@@ -6,7 +6,7 @@ import { PatientPrescriptionModal } from '@/components/PatientPrescriptionModal'
 
 export default async function PatientDashboard() {
   const supabase = await createClient()
-  
+
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login/patient')
 
@@ -56,7 +56,7 @@ export default async function PatientDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
       <Header />
-      
+
       <main className="flex-1 max-w-[1440px] w-full mx-auto px-4 py-12">
         <div className="flex justify-between items-end mb-8">
           <div>
@@ -81,19 +81,17 @@ export default async function PatientDashboard() {
               const date = new Date(schedule.start_time)
               const isPassed = date.getTime() < new Date().getTime()
               const hasPrescription = records && records.length > 0
-              
+
               return (
-                <div key={apt.id} className={`rounded-2xl shadow-sm border p-6 flex flex-col transition-all ${
-                  isPassed ? 'bg-gray-50 border-gray-200 opacity-75' : 'bg-white border-gray-100'
-                }`}>
+                <div key={apt.id} className={`rounded-2xl shadow-sm border p-6 flex flex-col transition-all ${isPassed ? 'bg-gray-50 border-gray-200 opacity-75' : 'bg-white border-gray-100'
+                  }`}>
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex flex-col gap-1.5">
-                      <span className={`w-fit px-3 py-1 text-[10px] font-bold rounded-full tracking-wider ${
-                        apt.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                        apt.status === 'pending_payment' ? 'bg-yellow-100 text-yellow-700' :
-                        apt.status === 'completed' ? 'bg-blue-100 text-blue-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
+                      <span className={`w-fit px-3 py-1 text-[10px] font-bold rounded-full tracking-wider ${apt.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                          apt.status === 'pending_payment' ? 'bg-yellow-100 text-yellow-700' :
+                            apt.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+                              'bg-gray-100 text-gray-700'
+                        }`}>
                         {apt.status.replace('_', ' ').toUpperCase()}
                       </span>
                       {isPassed && (
@@ -137,7 +135,7 @@ export default async function PatientDashboard() {
                       </div>
                     </div>
                   </div>
-                  
+
                   {apt.status === 'pending_payment' && (
                     <a href={`/patient/checkout/${apt.id}`} className="mt-6 block w-full py-2.5 bg-[#E31E24] text-white text-center font-semibold rounded-xl hover:bg-red-700 transition-colors">
                       Complete Payment
@@ -146,9 +144,9 @@ export default async function PatientDashboard() {
 
                   {/* Prescription Section */}
                   {hasPrescription && (
-                    <PatientPrescriptionModal 
-                      record={records[0]} 
-                      doctorName={doctor.profiles.full_name} 
+                    <PatientPrescriptionModal
+                      record={records[0]}
+                      doctorName={doctor.profiles.full_name}
                     />
                   )}
                 </div>
@@ -169,17 +167,16 @@ export default async function PatientDashboard() {
               {diagnosticBookings.map(booking => {
                 const center: any = booking.diagnostic_centers
                 const date = new Date(booking.preferred_date)
-                
+
                 return (
                   <div key={booking.id} className="rounded-2xl shadow-sm border p-6 flex flex-col transition-all bg-white border-gray-100">
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex flex-col gap-1.5">
-                        <span className={`w-fit px-3 py-1 text-[10px] font-bold rounded-full tracking-wider ${
-                          booking.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                          booking.status === 'pending_payment' ? 'bg-yellow-100 text-yellow-700' :
-                          booking.status === 'completed' ? 'bg-blue-100 text-blue-700' :
-                          'bg-gray-100 text-gray-700'
-                        }`}>
+                        <span className={`w-fit px-3 py-1 text-[10px] font-bold rounded-full tracking-wider ${booking.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                            booking.status === 'pending_payment' ? 'bg-yellow-100 text-yellow-700' :
+                              booking.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+                                'bg-gray-100 text-gray-700'
+                          }`}>
                           {booking.status.replace('_', ' ').toUpperCase()}
                         </span>
                       </div>

@@ -225,14 +225,14 @@ function BookConsultationFormInner() {
   }
 
   return (
-    <div className="w-full max-w-lg min-w-[340px] md:min-w-[420px] bg-white rounded-xl shadow-2xl border border-gray-100 p-8 relative z-10">
-      <h3 className="text-2xl font-black text-gray-900 mb-6 tracking-tight">
+    <div className="bg-surface-container-lowest rounded-2xl p-8 card-shadow border border-surface-variant w-full max-w-md mx-auto relative z-10">
+      <h3 className="font-title-md text-title-md text-primary text-center mb-6">
         {bookingType === 'consultation' ? 'Book Consultation' : 'Book Diagnostics'}
       </h3>
 
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
-          <Loader2 className="w-8 h-8 text-[#E31E24] animate-spin" />
+          <Loader2 className="w-8 h-8 text-vibrant-blue animate-spin" />
         </div>
       ) : (
         <form 
@@ -250,36 +250,39 @@ function BookConsultationFormInner() {
             }
           }} 
           onSubmit={handleSubmit} 
-          className="space-y-5"
+          className="space-y-4"
         >
 
-          {/* Booking Type Toggle */}
-          <div className="flex p-1 bg-gray-100 rounded-xl mb-6">
+          {/* Toggle Buttons */}
+          <div className="flex bg-surface-container-low rounded-full p-1 mb-6 relative">
+            <div 
+              className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-vibrant-blue rounded-full transition-transform duration-300 ease-in-out ${bookingType === 'diagnostics' ? 'translate-x-full left-1' : 'translate-x-0 left-1'}`}
+            />
             <button
               type="button"
               onClick={() => setBookingType('consultation')}
-              className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${bookingType === 'consultation' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:cursor-pointer'}`}
+              className={`flex-1 relative z-10 py-2.5 rounded-full font-label-sm text-label-sm transition-colors ${bookingType === 'consultation' ? 'text-white' : 'text-on-surface-variant hover:text-primary'}`}
             >
               Consultation
             </button>
             <button
               type="button"
               onClick={() => setBookingType('diagnostics')}
-              className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${bookingType === 'diagnostics' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:cursor-pointer'}`}
+              className={`flex-1 relative z-10 py-2.5 rounded-full font-label-sm text-label-sm transition-colors ${bookingType === 'diagnostics' ? 'text-white' : 'text-on-surface-variant hover:text-primary'}`}
             >
               Diagnostics
             </button>
           </div>
 
           {/* Location */}
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1.5">Location (City)</label>
-            <div className="relative">
-              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <div className="flex flex-col relative">
+            <label className="font-label-sm text-label-sm text-vibrant-blue absolute top-2 left-3 z-10 bg-surface-container-lowest px-1">Location (City)</label>
+            <div className="relative mt-4">
+              <MapPin className="absolute left-3 top-3.5 w-5 h-5 text-vibrant-blue" />
               <select
                 value={selectedCity}
                 onChange={(e) => setSelectedCity(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all appearance-none cursor-pointer"
+                className="w-full pl-10 pr-4 py-3 border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 bg-surface-container-lowest text-body-md outline-none text-on-surface appearance-none cursor-pointer"
               >
                 <option value="" disabled>Select City</option>
                 {(bookingType === 'consultation' ? cities : diagCities).map(city => (
@@ -292,17 +295,17 @@ function BookConsultationFormInner() {
           {bookingType === 'consultation' && (
             <>
               {/* Hospital */}
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5">Hospital</label>
-                <div className="relative">
-                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <div className="flex flex-col relative">
+                <label className="font-label-sm text-label-sm text-vibrant-blue absolute top-2 left-3 z-10 bg-surface-container-lowest px-1">Hospital</label>
+                <div className="relative mt-4">
+                  <Building2 className="absolute left-3 top-3.5 w-5 h-5 text-vibrant-blue" />
                   <select
                     name="hospital_id"
                     value={selectedHospital}
                     onChange={(e) => setSelectedHospital(e.target.value)}
                     disabled={!selectedCity}
                     required
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    className="w-full pl-10 pr-4 py-3 border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 bg-surface-container-lowest text-body-md outline-none text-on-surface disabled:opacity-50 appearance-none cursor-pointer"
                   >
                     <option value="" disabled>Select Hospital</option>
                     {hospitals.map(h => (
@@ -313,15 +316,15 @@ function BookConsultationFormInner() {
               </div>
 
               {/* Speciality */}
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5">Specialty</label>
-                <div className="relative">
-                  <Stethoscope className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <div className="flex flex-col relative">
+                <label className="font-label-sm text-label-sm text-vibrant-blue absolute top-2 left-3 z-10 bg-surface-container-lowest px-1">Specialty</label>
+                <div className="relative mt-4">
+                  <Stethoscope className="absolute left-3 top-3.5 w-5 h-5 text-vibrant-blue" />
                   <select
                     value={selectedSpecialty}
                     onChange={(e) => setSelectedSpecialty(e.target.value)}
                     disabled={!selectedHospital}
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    className="w-full pl-10 pr-4 py-3 border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 bg-surface-container-lowest text-body-md outline-none text-on-surface disabled:opacity-50 appearance-none cursor-pointer"
                   >
                     <option value="" disabled>Select Specialty</option>
                     {specialties.map(spec => (
@@ -332,17 +335,17 @@ function BookConsultationFormInner() {
               </div>
 
               {/* Doctor */}
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5">Doctor</label>
-                <div className="relative">
-                  <UserCircle className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <div className="flex flex-col relative">
+                <label className="font-label-sm text-label-sm text-vibrant-blue absolute top-2 left-3 z-10 bg-surface-container-lowest px-1">Doctor</label>
+                <div className="relative mt-4">
+                  <UserCircle className="absolute left-3 top-3.5 w-5 h-5 text-vibrant-blue" />
                   <select
                     name="doctor_id"
                     value={selectedDoctor}
                     onChange={(e) => setSelectedDoctor(e.target.value)}
                     disabled={!selectedSpecialty}
                     required
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    className="w-full pl-10 pr-4 py-3 border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 bg-surface-container-lowest text-body-md outline-none text-on-surface disabled:opacity-50 appearance-none cursor-pointer"
                   >
                     <option value="" disabled>Select Doctor</option>
                     {doctors.map(d => (
@@ -353,16 +356,16 @@ function BookConsultationFormInner() {
               </div>
 
               {/* Date & Time */}
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5">Available Slots</label>
-                <div className="relative">
-                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <div className="flex flex-col relative">
+                <label className="font-label-sm text-label-sm text-vibrant-blue absolute top-2 left-3 z-10 bg-surface-container-lowest px-1">Available Slots</label>
+                <div className="relative mt-4">
+                  <Calendar className="absolute left-3 top-3.5 w-5 h-5 text-vibrant-blue" />
                   <select
                     name="schedule_id"
                     disabled={!selectedDoctor || schedules.length === 0}
                     required
                     defaultValue=""
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    className="w-full pl-10 pr-4 py-3 border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 bg-surface-container-lowest text-body-md outline-none text-on-surface disabled:opacity-50 appearance-none cursor-pointer"
                   >
                     {schedules.length === 0 ? (
                       <option value="" disabled>{selectedDoctor ? 'No slots available' : 'Select Doctor first'}</option>
@@ -387,17 +390,17 @@ function BookConsultationFormInner() {
           {bookingType === 'diagnostics' && (
             <>
               {/* Diagnostic Center */}
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5">Diagnostic Center</label>
-                <div className="relative">
-                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <div className="flex flex-col relative">
+                <label className="font-label-sm text-label-sm text-vibrant-blue absolute top-2 left-3 z-10 bg-surface-container-lowest px-1">Diagnostic Center</label>
+                <div className="relative mt-4">
+                  <Building2 className="absolute left-3 top-3.5 w-5 h-5 text-vibrant-blue" />
                   <select
                     name="center_id"
                     value={selectedCenter}
                     onChange={(e) => setSelectedCenter(e.target.value)}
                     disabled={!selectedCity}
                     required
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    className="w-full pl-10 pr-4 py-3 border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 bg-surface-container-lowest text-body-md outline-none text-on-surface disabled:opacity-50 appearance-none cursor-pointer"
                   >
                     <option value="" disabled>Select Diagnostic Center</option>
                     {centers.map(c => (
@@ -406,25 +409,25 @@ function BookConsultationFormInner() {
                   </select>
                 </div>
                 {selectedCenter && (
-                  <div className="mt-2 text-sm text-gray-500 bg-gray-50 p-3 rounded-lg border border-gray-100 flex items-start gap-2">
-                    <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-gray-400" />
+                  <div className="mt-2 text-sm text-on-surface-variant bg-surface-container-low p-3 rounded-lg border border-surface-variant flex items-start gap-2">
+                    <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-vibrant-blue" />
                     <span>{centers.find(c => c.id === selectedCenter)?.address || 'Address not available'}</span>
                   </div>
                 )}
               </div>
 
               {/* Diagnostic Type */}
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5">Diagnostic Test</label>
-                <div className="relative">
-                  <Activity className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <div className="flex flex-col relative">
+                <label className="font-label-sm text-label-sm text-vibrant-blue absolute top-2 left-3 z-10 bg-surface-container-lowest px-1">Diagnostic Test</label>
+                <div className="relative mt-4">
+                  <Activity className="absolute left-3 top-3.5 w-5 h-5 text-vibrant-blue" />
                   <select
                     name="test_name"
                     value={selectedDiagnostic}
                     onChange={(e) => setSelectedDiagnostic(e.target.value)}
                     required={bookingType === 'diagnostics'}
                     disabled={!selectedCenter}
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    className="w-full pl-10 pr-4 py-3 border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 bg-surface-container-lowest text-body-md outline-none text-on-surface disabled:opacity-50 appearance-none cursor-pointer"
                   >
                     <option value="" disabled>Select Diagnostic Test</option>
                     {centers.find(c => c.id === selectedCenter)?.available_tests?.map((test: string) => {
@@ -442,10 +445,10 @@ function BookConsultationFormInner() {
               </div>
 
               {/* Date */}
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5">Preferred Date</label>
-                <div className="relative">
-                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <div className="flex flex-col relative">
+                <label className="font-label-sm text-label-sm text-vibrant-blue absolute top-2 left-3 z-10 bg-surface-container-lowest px-1">Preferred Date</label>
+                <div className="relative mt-4">
+                  <Calendar className="absolute left-3 top-3.5 w-5 h-5 text-vibrant-blue" />
                   <input
                     name="preferred_date"
                     type="date"
@@ -453,7 +456,7 @@ function BookConsultationFormInner() {
                     onChange={(e) => setDiagnosticDate(e.target.value)}
                     required={bookingType === 'diagnostics'}
                     min={new Date().toISOString().split('T')[0]}
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white text-gray-900 transition-all cursor-pointer"
+                    className="w-full pl-10 pr-4 py-3 border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 bg-surface-container-lowest text-body-md outline-none text-on-surface cursor-pointer"
                   />
                 </div>
               </div>
@@ -463,7 +466,7 @@ function BookConsultationFormInner() {
           <button 
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-3.5 bg-[#E31E24] text-white font-bold text-lg hover:bg-red-700 transition-colors mt-4 disabled:opacity-50 rounded-xl shadow-lg shadow-red-200/50 flex items-center justify-center gap-2"
+            className="w-full bg-vibrant-blue text-on-primary py-4 rounded-xl font-title-md text-base btn-hover mt-6 shadow-lg shadow-vibrant-blue/20 flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {isSubmitting ? (
               <>
@@ -488,7 +491,7 @@ function BookConsultationFormInner() {
 
 export function BookConsultationForm() {
   return (
-    <Suspense fallback={<div className="flex justify-center items-center h-64 bg-white rounded-xl shadow-2xl p-8"><Loader2 className="w-8 h-8 text-[#E31E24] animate-spin" /></div>}>
+    <Suspense fallback={<div className="flex justify-center items-center h-64 bg-surface-container-lowest rounded-2xl p-8 card-shadow border border-surface-variant"><Loader2 className="w-8 h-8 text-vibrant-blue animate-spin" /></div>}>
       <BookConsultationFormInner />
     </Suspense>
   )

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useState, useActionState } from 'react'
 import { staffLogin, sendPasswordResetOTP, verifyOTPAndUpdatePassword } from '@/app/actions/auth'
-import { ArrowLeft, Loader2, KeyRound } from 'lucide-react'
+import { ArrowLeft, Loader2, KeyRound, ShieldCheck, RefreshCcw, Users, Activity, IdCard, Lock, Unlock, Building2 } from 'lucide-react'
 import Image from 'next/image'
 
 export default function DoctorLoginPage() {
@@ -31,200 +31,176 @@ export default function DoctorLoginPage() {
   }
 
   return (
-    <div className="w-full max-w-[1280px] mx-auto py-8">
-      {/* Breadcrumb / Portal Status */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-2 text-[var(--color-on-surface-variant)] text-sm">
-          {view !== 'login' ? (
-            <button
-              onClick={() => { setView('login'); setResetError('') }}
-              className="flex items-center gap-2 hover:text-[var(--color-secondary)] transition-colors font-bold"
-            >
-              <ArrowLeft className="w-4 h-4" /> Back to Login
-            </button>
-          ) : (
-            <Link href="/login" className="flex items-center gap-2 hover:text-[var(--color-secondary)] transition-colors font-bold">
-              <ArrowLeft className="w-4 h-4" /> Back to Roles
-            </Link>
-          )}
-        </div>
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--color-surface-container-low)] text-[var(--color-secondary)] text-xs font-semibold">
-          <span className="w-2 h-2 rounded-full bg-[var(--color-secondary)] animate-ping"></span>
-          Clinical Node: Active
-        </div>
-      </div>
-
-      {/* Main Workstation Layout Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+    <div className="min-h-screen bg-[#F8F9FC] p-4 lg:p-8 font-sans">
+      <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch mt-8">
         
-        {/* Left Panel: Trust & Enterprise Infrastructure Showcase */}
-        <div className="lg:col-span-6 flex flex-col justify-between p-8 sm:p-10 rounded-2xl bg-[var(--color-surface-container-low)] shadow-[var(--shadow-ambient)] relative overflow-hidden">
-          <div className="absolute -top-24 -left-24 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
-          <div className="absolute -bottom-24 -right-24 w-80 h-80 bg-[var(--color-secondary)]/10 rounded-full blur-3xl pointer-events-none"></div>
-          <div className="relative z-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white text-[var(--color-primary)] rounded-full text-xs font-bold shadow-sm mb-6">
-              <span className="material-symbols-outlined text-[var(--color-secondary)] text-[16px]">verified_user</span>
-              GMC & State Medical Board Verified
+        {/* LEFT PANEL */}
+        <div className="bg-gradient-to-b from-[#F3F5FA] to-[#E9F0FA] rounded-[2rem] p-10 lg:p-14 flex flex-col justify-between relative overflow-hidden">
+          <div className="relative z-10 flex flex-col gap-6">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-sm text-[#0949B3] text-sm font-bold">
+                <ShieldCheck className="w-4 h-4 text-[#1FA67A]" />
+                GMC & State Medical Board Verified
+              </span>
             </div>
-            <h1 className="text-3xl lg:text-4xl font-extrabold text-[var(--color-primary)] tracking-tight mb-4 leading-tight">
-              Integrated Workstation for Accredited Specialists.
-            </h1>
-            <p className="text-base text-[var(--color-on-surface-variant)] mb-8 max-w-lg">
-              Zero-latency multi-disciplinary clinical operations. Instant patient triage, PACS telemetry, and native EHR orchestration inside an encrypted enclave.
-            </p>
             
-            <div className="grid grid-cols-2 gap-4 mb-8">
-              <div className="bg-white p-4 rounded-xl shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-[var(--color-on-surface-variant)] uppercase tracking-wider font-bold">Sync State</span>
-                  <span className="material-symbols-outlined text-[var(--color-secondary)] text-[20px]">sync_saved_locally</span>
+            <div className="mt-8">
+              <h1 className="text-4xl lg:text-[42px] font-black text-[#0949B3] leading-[1.15] tracking-tight max-w-lg">
+                Integrated Workstation for Accredited Specialists.
+              </h1>
+              <p className="text-[17px] text-slate-600 mt-6 leading-relaxed max-w-md font-medium">
+                Zero-latency multi-disciplinary clinical operations. Instant patient triage, PACS telemetry, and native EHR orchestration inside an encrypted enclave.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mt-8">
+              <div className="p-6 rounded-2xl bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-xs font-black text-slate-600 tracking-wider">SYNC STATE</span>
+                  <RefreshCcw className="w-5 h-5 text-[#1FA67A]" />
                 </div>
-                <div className="text-lg font-bold text-[var(--color-primary)]">Epic & Cerner</div>
-                <span className="text-xs text-[var(--color-secondary)] font-bold flex items-center gap-1 mt-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-secondary)]"></span> Realtime HL7 / FHIR
-                </span>
+                <h3 className="text-lg font-black text-[#0949B3] mb-1.5">Epic & Cerner</h3>
+                <p className="text-xs text-slate-600 font-bold flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#1FA67A]"></span>
+                  Realtime HL7 / FHIR
+                </p>
               </div>
-              <div className="bg-white p-4 rounded-xl shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-[var(--color-on-surface-variant)] uppercase tracking-wider font-bold">Active Faculty</span>
-                  <span className="material-symbols-outlined text-[var(--color-primary)] text-[20px]">groups</span>
+              <div className="p-6 rounded-2xl bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-xs font-black text-slate-600 tracking-wider">ACTIVE FACULTY</span>
+                  <Users className="w-5 h-5 text-[#0949B3]" />
                 </div>
-                <div className="text-lg font-bold text-[var(--color-primary)]">1,740+ Doctors</div>
-                <span className="text-xs text-[var(--color-on-surface-variant)] font-semibold flex items-center gap-1 mt-1">
-                  across 42 specialties
-                </span>
+                <h3 className="text-lg font-black text-[#0949B3] mb-1.5">1,740+ Doctors</h3>
+                <p className="text-xs text-slate-600 font-bold">across 42 specialties</p>
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-xl shadow-sm mb-8 border border-[var(--color-surface-variant)]">
-              <div className="flex items-center justify-between mb-3">
+            <div className="mt-4 bg-white rounded-2xl p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-[var(--color-surface-container-high)] flex items-center justify-center text-[var(--color-primary)]">
-                    <span className="material-symbols-outlined text-[20px]">radiology</span>
-                  </div>
+                  <Activity className="w-5 h-5 text-[#0949B3]" />
                   <div>
-                    <p className="text-sm text-[var(--color-primary)] font-bold leading-tight">Cloud PACS Telemetry</p>
-                    <p className="text-xs text-[var(--color-on-surface-variant)]">DICOM 3.0 Compatible · 256-bit AES Enclave</p>
+                    <h3 className="text-sm font-black text-[#0949B3]">Cloud PACS Telemetry</h3>
+                    <p className="text-[11px] font-bold text-slate-500">DICOM 3.0 Compatible · 256-bit AES Enclave</p>
                   </div>
                 </div>
-                <span className="px-2.5 py-1 bg-[var(--color-surface-container-high)] text-[var(--color-primary)] rounded-full text-[11px] font-bold">
+                <span className="bg-[#EAF2FF] text-[#0949B3] px-3 py-1 rounded-full text-xs font-bold">
                   0.12s Latency
                 </span>
               </div>
-              <div className="w-full bg-[var(--color-surface-container-low)] rounded-lg p-2.5 flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-[var(--color-on-surface-variant)] uppercase font-bold">Throughput</span>
-                  <span className="text-sm text-[var(--color-primary)] font-bold">9.8 GB/s Diagnostic Stream</span>
+              <div className="bg-[#F8F9FC] rounded-xl p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black text-slate-500 tracking-wider mb-0.5">THROUGHPUT</p>
+                  <p className="text-[15px] font-black text-[#0949B3]">9.8 GB/s Diagnostic Stream</p>
                 </div>
-                <svg className="w-24 h-5 text-[var(--color-primary)]" fill="none" viewBox="0 0 120 24" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M0 16L20 16L30 4L42 22L54 8L66 18L80 12L92 15L104 7L120 12" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
-                </svg>
+                <div className="w-24 h-6 opacity-80">
+                  <svg viewBox="0 0 100 24" className="w-full h-full" preserveAspectRatio="none">
+                    <path d="M0,12 L15,12 L25,4 L35,20 L45,8 L55,16 L70,12 L100,12" fill="none" stroke="#0949B3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
               </div>
             </div>
           </div>
           
-          <div className="relative z-10 bg-white p-5 rounded-xl shadow-sm mt-auto border border-[var(--color-surface-variant)]">
-            <div className="flex gap-4 items-center">
-              <div className="w-14 h-14 rounded-full overflow-hidden shrink-0 relative bg-gray-200">
+          <div className="relative z-10 mt-8 bg-white/50 backdrop-blur-md rounded-2xl p-6 border border-white/60">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 relative shrink-0">
                 <Image src="https://lh3.googleusercontent.com/aida-public/AB6AXuB6uhXvtzWITDpDpJT9SrPzufUry7hJFYJC2y7Qjy-oD1HI6z6Z9eYzOF9iVadJzQLjQ5BwX7-XRPtbZQUa0WjtAPXJjrVfpq5YtnmaIk3IvKL7Bunvi1GNnIfshpiwOXOzA3Mc69SxnuXW-z2I8Tq9ZycrFUuStuU_1yV_vnqxDV8fva3d5p1oao_NVL7DYwmlpOMrg7eqqOk3iz6rTk-fnoV2UdViTwH1zQGTq6uyejVK25diQLX6oA" alt="Chief Medical Officer" fill className="object-cover" />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-[var(--color-primary)] italic line-clamp-2 leading-relaxed mb-1">
+              <div>
+                <p className="text-[13px] italic text-[#0949B3] font-bold leading-relaxed mb-3">
                   "The speed of accessing synchronous multi-disciplinary records while maintaining full GMC compliance has set a new gold standard for our surgical department."
                 </p>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between">
-                  <p className="text-xs text-[var(--color-primary)] font-bold">Prof. Eleanor Vance, MD, FRCS</p>
-                  <span className="text-[11px] text-[var(--color-on-surface-variant)]">Chief Medical Officer</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-black text-[#0949B3]">Prof. Eleanor Vance, MD, FRCS</span>
+                  <span className="text-xs font-bold text-slate-500 border-l border-slate-300 pl-2">Chief Medical Officer</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right Panel: Doctor Sign In Workstation Form */}
-        <div className="lg:col-span-6 bg-white p-8 sm:p-12 rounded-2xl shadow-xl flex flex-col justify-center border border-[var(--color-surface-variant)]">
+        {/* RIGHT PANEL - Authentication Portal */}
+        <div className="bg-white rounded-[2rem] p-10 lg:p-16 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-center border border-slate-100">
+          
           {view === 'forgot' && (
             <div>
-              <div className="flex flex-col items-center mb-8">
-                <div className="w-16 h-16 bg-[var(--color-secondary)]/10 text-[var(--color-secondary)] rounded-full flex items-center justify-center mb-4">
-                  <KeyRound className="w-8 h-8" />
-                </div>
-                <h2 className="text-3xl font-extrabold text-[var(--color-primary)] tracking-tight">Reset Password</h2>
-                <p className="text-sm text-[var(--color-on-surface-variant)] mt-2 text-center">
+              <button onClick={() => setView('login')} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold mb-8 transition-colors">
+                <ArrowLeft className="w-4 h-4" /> Back to Sign In
+              </button>
+              <div className="flex flex-col items-start mb-8">
+                <h2 className="text-3xl font-black text-[#0949B3] tracking-tight">Reset Password</h2>
+                <p className="text-[15px] text-slate-500 font-medium mt-3 leading-relaxed">
                   Enter your Staff ID to receive a reset OTP on your registered email.
                 </p>
               </div>
 
               {resetError && (
-                <div className="mb-6 p-4 bg-red-50 text-red-700 text-sm rounded-xl border border-red-100 font-bold text-center">
+                <div className="mb-6 p-4 bg-red-50 text-red-700 text-sm rounded-xl border border-red-100 font-bold">
                   {resetError}
                 </div>
               )}
 
               <form onSubmit={handleSendOTP} className="flex flex-col gap-6">
                 <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-[var(--color-on-surface-variant)]">Staff ID</label>
+                  <label className="text-sm font-bold text-slate-700">Staff ID</label>
                   <div className="relative flex items-center">
-                    <span className="material-symbols-outlined absolute left-4 text-gray-400">badge</span>
+                    <IdCard className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <input 
                       required
                       value={staffId}
                       onChange={e => setStaffId(e.target.value)}
                       type="text" 
                       placeholder="e.g. CYDAB1234"
-                      className="w-full pl-12 pr-4 py-3.5 rounded-full bg-gray-50 border-none text-[var(--color-primary)] uppercase placeholder-gray-400 shadow-inner focus:ring-2 focus:ring-[var(--color-secondary)] transition-all outline-none"
+                      className="w-full pl-12 pr-4 py-4 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold uppercase placeholder-slate-400 focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none"
                     />
                   </div>
                 </div>
                 <button 
                   disabled={isResetting || !staffId} 
                   type="submit" 
-                  className="mt-4 w-full py-4 px-6 rounded-full bg-[var(--color-secondary)] text-white text-base font-bold tracking-tight shadow-[var(--shadow-ambient)] hover:opacity-90 transition-all flex justify-center items-center gap-2 group disabled:opacity-50"
+                  className="mt-2 w-full py-4 rounded-full bg-[#096348] text-white text-lg font-black shadow-lg hover:bg-[#075039] transition-all flex justify-center items-center gap-2 disabled:opacity-50"
                 >
-                  {isResetting ? <Loader2 className="w-5 h-5 animate-spin" /> : (
-                    <>
-                      <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">mail</span>
-                      Send Reset Link
-                    </>
-                  )}
+                  {isResetting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Send Reset Link'}
                 </button>
               </form>
             </div>
           )}
 
           {view === 'verify' && (
-            <div className="flex flex-col items-center mb-8">
-              <div className="w-16 h-16 bg-[var(--color-secondary)]/10 text-[var(--color-secondary)] rounded-full flex items-center justify-center mb-4">
-                <KeyRound className="w-8 h-8" />
+            <div>
+              <button onClick={() => setView('login')} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold mb-8 transition-colors">
+                <ArrowLeft className="w-4 h-4" /> Back to Sign In
+              </button>
+              <div className="flex flex-col items-start mb-8">
+                <h2 className="text-3xl font-black text-[#0949B3] tracking-tight">Check Your Email</h2>
+                <p className="text-[15px] text-slate-500 font-medium mt-3 leading-relaxed">
+                  We've sent a magic reset link to your registered email address. Click the link in the email to set a new password.
+                </p>
               </div>
-              <h2 className="text-3xl font-extrabold text-[var(--color-primary)] tracking-tight">Check Your Email</h2>
-              <p className="text-sm text-[var(--color-on-surface-variant)] mt-4 text-center leading-relaxed max-w-sm">
-                We've sent a magic reset link to your registered email address.<br />
-                Click the link in the email to set a new password.
-              </p>
             </div>
           )}
 
           {view === 'login' && (
             <div>
-              <div className="mb-8">
-                <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-secondary)]">Clinician Access</span>
-                <h2 className="text-3xl font-extrabold text-[var(--color-primary)] tracking-tight mt-1 mb-2">
+              <div className="mb-10">
+                <span className="text-[13px] font-black text-[#096348] uppercase tracking-widest mb-3 block">Clinician Access</span>
+                <h2 className="text-4xl font-black text-[#0949B3] leading-[1.15] tracking-tight">
                   Clinical Portal Sign In
                 </h2>
-                <p className="text-sm text-[var(--color-on-surface-variant)]">
+                <p className="text-slate-600 text-[15px] font-medium mt-4 leading-relaxed max-w-sm">
                   Restricted to authorized medical practitioners and verified health board specialists.
                 </p>
               </div>
 
               {state?.error && (
-                <div className="mb-6 p-4 bg-red-50 text-red-700 text-sm rounded-xl border border-red-100 text-center font-bold">
+                <div className="mb-6 p-4 bg-red-50 text-red-700 text-sm rounded-xl border border-red-100 font-bold">
                   {state.error}
                 </div>
               )}
 
               {resetSuccess && (
-                <div className="mb-6 p-4 bg-green-50 text-green-700 text-sm rounded-xl border border-green-100 text-center font-bold">
+                <div className="mb-6 p-4 bg-green-50 text-green-700 text-sm rounded-xl border border-green-100 font-bold">
                   {resetSuccess}
                 </div>
               )}
@@ -233,57 +209,59 @@ export default function DoctorLoginPage() {
                 <input type="hidden" name="role" value="doctor" />
                 
                 <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-[var(--color-on-surface-variant)]">GMC Number or Staff ID</label>
+                  <label className="text-sm font-bold text-slate-700">GMC Number or Staff ID</label>
                   <div className="relative flex items-center">
-                    <span className="material-symbols-outlined absolute left-4 text-gray-400">badge</span>
+                    <IdCard className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <input 
                       required 
                       name="staffId" 
                       type="text" 
                       placeholder="e.g. CYDAB1234" 
-                      className="w-full pl-12 pr-4 py-3.5 rounded-full bg-gray-50 border-none text-[var(--color-primary)] uppercase placeholder-gray-400 shadow-inner focus:ring-2 focus:ring-[var(--color-secondary)] transition-all outline-none" 
+                      className="w-full pl-12 pr-4 py-4 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold uppercase placeholder-slate-400 focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none" 
                     />
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
                   <div className="flex justify-between items-center mb-1">
-                    <label className="text-sm font-semibold text-[var(--color-on-surface-variant)]">Clinical Master Password</label>
+                    <label className="text-sm font-bold text-slate-700">Clinical Master Password</label>
                     <button
                       type="button"
                       onClick={() => { setView('forgot'); setResetError(''); setResetSuccess('') }}
-                      className="text-xs font-bold text-[var(--color-secondary)] hover:underline"
+                      className="text-[13px] font-black text-[#096348] hover:underline"
                     >
                       Forgot Password?
                     </button>
                   </div>
                   <div className="relative flex items-center">
-                    <span className="material-symbols-outlined absolute left-4 text-gray-400">lock</span>
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <input 
                       required 
                       name="password" 
                       type="password" 
                       placeholder="••••••••" 
-                      className="w-full pl-12 pr-4 py-3.5 rounded-full bg-gray-50 border-none text-[var(--color-primary)] placeholder-gray-400 shadow-inner focus:ring-2 focus:ring-[var(--color-secondary)] transition-all outline-none" 
+                      className="w-full pl-12 pr-4 py-4 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold placeholder-slate-400 focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none tracking-widest" 
                     />
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 pt-2">
-                  <input className="mt-1 w-4 h-4 rounded text-[var(--color-secondary)] focus:ring-[var(--color-secondary)] cursor-pointer accent-[var(--color-secondary)]" id="workstationPersist" type="checkbox"/>
-                  <label className="text-xs text-[var(--color-on-surface-variant)] leading-snug cursor-pointer font-medium" htmlFor="workstationPersist">
-                    Maintain active session on this secure clinical endpoint <span className="text-[var(--color-primary)] font-bold">(Hospital intranet or registered device only)</span>
+                <div className="flex items-start gap-3 mt-2">
+                  <div className="pt-1">
+                    <input className="w-4 h-4 rounded border-slate-300 text-[#0949B3] focus:ring-[#0949B3] cursor-pointer" id="workstationPersist" type="checkbox"/>
+                  </div>
+                  <label className="text-sm text-slate-600 font-medium cursor-pointer leading-relaxed" htmlFor="workstationPersist">
+                    Maintain active session on this secure clinical endpoint <span className="text-[#0949B3] font-bold">(Hospital intranet or registered device only)</span>
                   </label>
                 </div>
 
                 <button 
                   disabled={isPending} 
                   type="submit" 
-                  className="mt-2 w-full py-4 px-6 rounded-full bg-[var(--color-secondary)] text-white text-base font-bold tracking-tight shadow-[var(--shadow-ambient)] hover:opacity-90 transition-all flex justify-center items-center gap-2 group disabled:opacity-50"
+                  className="mt-4 w-full py-4 rounded-full bg-[#096348] text-white text-lg font-black shadow-[0_8px_20px_-8px_rgba(9,99,72,0.6)] hover:bg-[#075039] transition-all flex justify-center items-center gap-2 disabled:opacity-50"
                 >
                   {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                     <>
-                      <span className="material-symbols-outlined group-hover:rotate-12 transition-transform">lock_open</span>
+                      <Unlock className="w-5 h-5" />
                       Sign In to Clinical Portal
                     </>
                   )}
@@ -293,17 +271,15 @@ export default function DoctorLoginPage() {
           )}
 
           {/* Registration Footer Callout */}
-          <div className="mt-8 pt-6 border-t border-[var(--color-surface-variant)] flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="mt-10 pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[var(--color-surface-container-high)] flex items-center justify-center text-[var(--color-primary)] shrink-0">
-                <span className="material-symbols-outlined text-[20px]">domain_add</span>
-              </div>
+              <Building2 className="w-8 h-8 text-[#0949B3]" />
               <div>
-                <p className="text-sm text-[var(--color-primary)] font-bold">New practitioner?</p>
-                <p className="text-xs text-[var(--color-on-surface-variant)]">Accreditation verified via GMC checks</p>
+                <p className="text-sm font-black text-[#0949B3]">New practitioner?</p>
+                <p className="text-xs font-bold text-slate-500">Accreditation verified via GMC checks</p>
               </div>
             </div>
-            <button type="button" className="px-4 py-2 rounded-full border-2 border-[var(--color-outline-variant)] text-[var(--color-primary)] text-sm font-bold shadow-sm hover:bg-[var(--color-surface-container-low)] transition-all whitespace-nowrap">
+            <button type="button" className="px-6 py-2.5 rounded-full border-2 border-slate-200 text-[#0949B3] text-sm font-black hover:border-[#0949B3] transition-all whitespace-nowrap">
               Register Practice
             </button>
           </div>

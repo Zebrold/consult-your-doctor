@@ -5,6 +5,7 @@ import { ShieldPlus, Award, MonitorSmartphone, User, Building2, BriefcaseMedical
 import { ScrollReveal } from "@/components/ScrollReveal";
 import { BookConsultationForm } from "@/components/BookConsultationForm";
 import { FeaturedHospitalsClient } from "@/components/FeaturedHospitalsClient";
+import QuickSearch from '@/components/QuickSearch';
 
 export default async function Home() {
   const supabase = await createClient();
@@ -30,7 +31,7 @@ export default async function Home() {
   return (
     <>
       <ScrollReveal />
-      
+
       {/* Hero Section */}
       <section className="px-4 md:px-margin-x-desktop py-16 md:py-20 max-w-container-max mx-auto overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
@@ -76,13 +77,9 @@ export default async function Home() {
       </section>
 
       {/* Patient Testimonials / Search Quick Links */}
-      <section className="py-16 px-4 md:px-margin-x-desktop bg-surface-container-lowest border-b border-surface-variant">
+      <section className="py-16 px-4 md:px-margin-x-desktop bg-white border-b border-surface-variant">
         <div className="max-w-container-max mx-auto reveal-up">
-          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-8 mb-12 border-b border-surface-variant pb-4">
-            <Link href="/search?type=doctor" className="flex items-center gap-2 pb-2 border-b-2 border-primary text-primary font-bold text-sm cursor-pointer"><User className="text-vibrant-blue w-5 h-5" /> Search Doctor</Link>
-            <Link href="/search?type=hospital" className="flex items-center gap-2 pb-2 text-on-surface-variant hover:text-primary font-semibold text-sm cursor-pointer"><Building2 className="text-outline w-5 h-5" /> Search Hospital</Link>
-            <Link href="/search?type=doctor" className="flex items-center gap-2 pb-2 text-on-surface-variant hover:text-primary font-semibold text-sm cursor-pointer"><BriefcaseMedical className="text-outline w-5 h-5" /> Search by Speciality</Link>
-          </div>
+          <QuickSearch />
         </div>
       </section>
 
@@ -122,12 +119,12 @@ export default async function Home() {
               View All Doctors <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
             {topDoctors?.map((doctor, idx) => {
               const profile = doctor.profiles as any;
               const hospital = doctor.hospitals as any;
-              
+
               return (
                 <div key={doctor.id} className={`h-full bg-surface-container-lowest rounded-2xl border border-surface-variant overflow-hidden card-shadow card-hover flex flex-col reveal-up delay-${idx * 100}`}>
                   <div className="aspect-[16/9] w-full relative bg-surface-variant flex-shrink-0">
@@ -135,7 +132,7 @@ export default async function Home() {
                       <img alt={profile?.full_name} className="w-full h-full object-cover" src={profile.avatar_url} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-indigo-gray-100">
-                         <User className="w-16 h-16 text-indigo-gray-400" />
+                        <User className="w-16 h-16 text-indigo-gray-400" />
                       </div>
                     )}
                   </div>

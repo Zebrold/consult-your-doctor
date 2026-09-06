@@ -17,7 +17,7 @@ function SubmitButton({ children, pendingText }: { children: React.ReactNode, pe
     <button
       type="submit"
       disabled={pending}
-      className="w-full py-3 bg-[#E31E24] text-white font-bold rounded-xl hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center"
+      className="w-full py-3 bg-vibrant-blue text-white font-bold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center shadow-lg shadow-vibrant-blue/20"
     >
       {pending ? (
         <>
@@ -62,7 +62,7 @@ export function InlineAuthModal({ isOpen, onClose, onSuccess }: InlineAuthModalP
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden relative">
+      <div className="bg-surface-container-lowest rounded-2xl w-full max-w-md shadow-2xl overflow-hidden relative border border-surface-variant">
         <button 
           onClick={onClose}
           className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-10"
@@ -71,10 +71,10 @@ export function InlineAuthModal({ isOpen, onClose, onSuccess }: InlineAuthModalP
         </button>
 
         <div className="p-8">
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">
+          <h2 className="text-2xl font-bold text-on-surface mb-2">
             {step === 'phone' ? 'Verify your identity' : 'Enter OTP'}
           </h2>
-          <p className="text-sm text-slate-500 mb-6">
+          <p className="text-sm text-vibrant-blue mb-6">
             {step === 'phone' 
               ? 'Please login or register to confirm your booking.' 
               : `We've sent a 6-digit code to ${phone}.`}
@@ -86,9 +86,9 @@ export function InlineAuthModal({ isOpen, onClose, onSuccess }: InlineAuthModalP
               <input type="hidden" name="role" value="patient" />
 
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5">Full Name</label>
+                <label className="block text-sm font-bold text-on-surface mb-1.5">Full Name</label>
                 <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-indigo-gray-500" />
                   <input
                     type="text"
                     name="fullName"
@@ -96,7 +96,7 @@ export function InlineAuthModal({ isOpen, onClose, onSuccess }: InlineAuthModalP
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="John Doe"
                     required
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white transition-all"
+                    className="w-full pl-12 pr-4 py-3 border border-outline-variant rounded-xl text-sm font-medium outline-none focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 bg-surface-container-low focus:bg-surface-container-lowest transition-all text-on-surface"
                   />
                 </div>
               </div>
@@ -104,7 +104,7 @@ export function InlineAuthModal({ isOpen, onClose, onSuccess }: InlineAuthModalP
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1.5">Phone Number</label>
                 <div className="relative">
-                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-indigo-gray-500" />
                   <input
                     type="tel"
                     name="phone"
@@ -112,7 +112,7 @@ export function InlineAuthModal({ isOpen, onClose, onSuccess }: InlineAuthModalP
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="9876543210"
                     required
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white transition-all"
+                    className="w-full pl-12 pr-4 py-3 border border-outline-variant rounded-xl text-sm font-medium outline-none focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 bg-surface-container-low focus:bg-surface-container-lowest transition-all text-on-surface"
                   />
                 </div>
               </div>
@@ -137,14 +137,14 @@ export function InlineAuthModal({ isOpen, onClose, onSuccess }: InlineAuthModalP
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1.5">6-Digit Code</label>
                 <div className="relative">
-                  <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-indigo-gray-500" />
                   <input
                     type="text"
                     name="token"
                     placeholder="123456"
                     required
                     maxLength={6}
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-bold tracking-widest outline-none focus:border-[#E31E24] focus:ring-1 focus:ring-[#E31E24] bg-gray-50 focus:bg-white transition-all text-center"
+                    className="w-full pl-12 pr-4 py-3 border border-outline-variant rounded-xl text-sm font-bold tracking-widest outline-none focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 bg-surface-container-low focus:bg-surface-container-lowest transition-all text-center text-on-surface"
                   />
                 </div>
               </div>

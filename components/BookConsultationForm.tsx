@@ -48,6 +48,8 @@ function BookConsultationFormInner() {
       const urlHospital = searchParams.get('hospital_id')
       const urlSpecialty = searchParams.get('specialty')
       const urlDoctor = searchParams.get('doctor_id')
+      const urlBooking = searchParams.get('booking')
+      const urlCenterId = searchParams.get('center_id')
 
       // Check auth status
       const { data: { session } } = await supabase.auth.getSession()
@@ -64,7 +66,25 @@ function BookConsultationFormInner() {
         setDiagCities(Array.from(new Set(diagCityData.map(c => c.city))))
       }
 
-      if (urlCity) {
+      // Switch to diagnostics mode if URL says so
+      if (urlBooking === 'diagnostics') {
+        setBookingType('diagnostics')
+
+        if (urlCity) {
+          setSelectedCity(urlCity)
+          // Fetch diagnostic centers for this city
+          const { data: cData } = await supabase
+            .from('diagnostic_centers')
+            .select('id, name, address, available_tests, test_prices')
+            .eq('city', urlCity)
+            .eq('status', 'active')
+          setCenters(cData || [])
+
+          if (urlCenterId) {
+            setSelectedCenter(urlCenterId)
+          }
+        }
+      } else if (urlCity) {
         setSelectedCity(urlCity)
         const { data: hData } = await supabase.from('hospitals').select('id, name').eq('city', urlCity).eq('status', 'active')
         setHospitals(hData || [])

@@ -1,9 +1,12 @@
 'use client'
 
-import { Search, Star, BadgeCheck, Hospital, Plus, Minus, LocateFixed, MapPin, User, ChevronDown, TestTubeDiagonal, IndianRupee, Building2, Activity } from "lucide-react"
+import { Search, Star, BadgeCheck, Hospital, MapPin, User, ChevronDown, TestTubeDiagonal, IndianRupee, Building2, Activity } from "lucide-react"
 import { useState, useEffect, useMemo, Suspense } from "react"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import Link from "next/link"
+import dynamic from 'next/dynamic'
+
+const MapWithMarkers = dynamic(() => import('./MapWithMarkers'), { ssr: false })
 
 function SearchClientInner({ 
   type,
@@ -64,31 +67,34 @@ function SearchClientInner({
   // Determine which items to show on map
   const listItems = type === 'diagnostic' ? diagnosticCenters : type === 'hospital' ? filteredHospitals : doctors;
 
-  // Generate pseudo-random coordinates for map pins based on items ID
-  const mapPins = useMemo(() => {
+  // Format for MapWithMarkers
+  const mapItems = useMemo(() => {
     return listItems.map((item) => {
-      // Hash function to get consistent x, y for an item
-      let hash = 0
-      for (let i = 0; i < item.id.length; i++) {
-        hash = item.id.charCodeAt(i) + ((hash << 5) - hash)
+      const isDoctor = type === 'doctor';
+      const isDiag = type === 'diagnostic';
+      const profile = isDoctor ? item.profiles : null;
+      const name = isDoctor ? (profile?.full_name || 'Unknown') : item.name;
+      const subtitle = isDoctor ? item.specialty : isDiag ? (item.available_tests?.slice(0, 2).join(', ') || '') : item.city;
+
+      return {
+        id: item.id,
+        name,
+        city: item.city || item.hospitals?.city || '',
+        subtitle
       }
-      // Map to roughly 15% to 85% range for top and left
-      const top = 15 + (Math.abs(hash) % 70)
-      const left = 15 + (Math.abs(hash >> 8) % 70)
-      return { ...item, top, left }
-    })
-  }, [listItems])
+    }).filter(i => i.city) // Ensure we have a city to map
+  }, [listItems, type])
 
   // Dynamic heading and placeholder based on type
   const heading = type === 'diagnostic' ? 'Find Diagnostics' : type === 'hospital' ? 'Find Hospitals' : 'Find Specialist';
   const placeholder = type === 'diagnostic' ? 'Search diagnostic centers...' : type === 'hospital' ? 'Search hospitals by name...' : 'Search by name or condition...';
 
   return (
-    <div className="w-full h-[calc(100vh-88px)] min-h-[600px] flex flex-col md:flex-row overflow-hidden relative">
+    <div className="w-full flex flex-col md:flex-row relative">
       {/* Left Panel: Search & List */}
-      <div className="w-full md:w-[40%] h-full flex flex-col bg-indigo-gray-50 border-r border-indigo-gray-200 z-10 shadow-[4px_0px_24px_rgba(15,23,42,0.04)] overflow-hidden">
+      <div className="w-full md:w-[40%] flex flex-col bg-indigo-gray-50 border-r border-indigo-gray-200 z-10 shadow-[4px_0px_24px_rgba(15,23,42,0.04)]">
         {/* Sticky Search Header */}
-        <div className="p-6 bg-indigo-gray-50 flex-shrink-0 z-20">
+        <div className="p-6 bg-indigo-gray-50 sticky top-[80px] z-30 shadow-sm">
           <h1 className="font-headline-lg text-headline-lg text-on-surface mb-6">
             {heading}
           </h1>
@@ -183,8 +189,8 @@ function SearchClientInner({
           )}
         </div>
 
-        {/* List Scroll Area */}
-        <div className="flex-grow overflow-y-auto px-6 pb-6 pt-2 space-y-4">
+        {/* List Area */}
+        <div className="flex-grow px-6 pb-6 pt-2 space-y-4">
 
           {/* === DIAGNOSTIC CENTERS === */}
           {type === 'diagnostic' ? (
@@ -415,83 +421,19 @@ function SearchClientInner({
         </div>
       </div>
 
-      {/* Right Panel: Interactive Map */}
-      <div className="hidden md:block w-[60%] h-full relative bg-surface-container-low">
-        {/* Simulated Map Background */}
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHBhdGggZD0iTTAgMGg0MHY0MEgweiIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik0wIDEwaDQwTTAgMjBoNDBNMCAzMGg0ME0xMCAwdjQwTTIwIDB2NDBNMzAgMHY0MCIgc3Ryb2tlPSIjZGFlMmZkIiBzdHJva2Utd2lkdGg9IjAuNSIvPjwvc3ZnPg==')] opacity-50 z-10 pointer-events-none"></div>
-        <iframe 
-          className="w-full h-full absolute inset-0 opacity-40 pointer-events-none filter grayscale contrast-125 saturate-50"
-          src="https://www.openstreetmap.org/export/embed.html?bbox=72.80%2C18.90%2C77.40%2C28.70&layer=mapnik" 
-          frameBorder="0"
-          scrolling="no"
+      {/* Right Panel: Live Map */}
+      <div className="hidden md:block w-[60%] sticky top-[80px] h-[calc(100vh-80px)] bg-surface-container-low overflow-hidden relative">
+        <MapWithMarkers
+          items={mapItems}
+          activeId={activeDoctorId}
+          onHover={(id) => setActiveDoctorId(id)}
         />
-        
-        {/* Map Controls */}
-        <div className="absolute top-6 right-6 flex flex-col gap-2 z-20">
-          <button className="bg-white/70 backdrop-blur border border-white/40 w-10 h-10 rounded-full flex items-center justify-center text-on-surface shadow-sm hover:scale-105 transition-transform">
-            <Plus className="w-5 h-5" />
-          </button>
-          <button className="bg-white/70 backdrop-blur border border-white/40 w-10 h-10 rounded-full flex items-center justify-center text-on-surface shadow-sm hover:scale-105 transition-transform">
-            <Minus className="w-5 h-5" />
-          </button>
-          <button className="bg-white/70 backdrop-blur border border-white/40 w-10 h-10 rounded-full flex items-center justify-center text-vibrant-blue shadow-sm hover:scale-105 transition-transform mt-2">
-            <LocateFixed className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Map Pins */}
-        {mapPins.map((item) => {
-          const isDoctor = type === 'doctor';
-          const isDiag = type === 'diagnostic';
-          const profile = isDoctor ? item.profiles : null;
-          const isSelected = activeDoctorId === item.id;
-          const name = isDoctor ? (profile?.full_name || 'Unknown') : item.name;
-          const subtitle = isDoctor ? item.specialty : isDiag ? (item.available_tests?.slice(0, 2).join(', ') || '') : item.city;
-          const subSubtitle = isDoctor ? item.hospitals?.name : (item.address || item.city || '');
-
-          // If an item is selected, ONLY show that item's pin
-          if (activeDoctorId && !isSelected) return null
-
-          return (
-            <div 
-              key={item.id}
-              className={`absolute z-30 transform -translate-x-1/2 -translate-y-full group cursor-pointer transition-all duration-300 ${isSelected ? 'scale-110 z-40' : 'scale-100 z-20 hover:z-40'}`}
-              style={{ top: `${item.top}%`, left: `${item.left}%` }}
-              onMouseEnter={() => setActiveDoctorId(item.id)}
-              onMouseLeave={() => setActiveDoctorId(null)}
-            >
-              <div className="relative flex flex-col items-center">
-                {/* Popover Tooltip */}
-                <div className={`absolute bottom-full mb-4 w-48 bg-white/90 backdrop-blur rounded-xl p-3 shadow-xl border border-white/50 origin-bottom transition-all duration-200 ${isSelected ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none group-hover:opacity-100 group-hover:scale-100'}`}>
-                  <h4 className="font-title-md text-title-md text-on-surface text-sm truncate">{name}</h4>
-                  <p className="font-label-sm text-label-sm text-vibrant-blue mt-0.5 truncate">{subtitle}</p>
-                  <p className="font-label-sm text-label-sm text-indigo-gray-600 mt-1 truncate">{subSubtitle}</p>
-                </div>
-                
-                <div className={`border-2 p-1 shadow-lg transition-colors bg-white ${isDoctor ? 'rounded-full' : 'rounded-xl'} ${isSelected ? 'border-vibrant-blue shadow-[0_8px_16px_rgba(0,102,255,0.3)]' : 'border-indigo-gray-200 group-hover:border-vibrant-blue'}`}>
-                  {item.image_url ? (
-                    <img
-                      className={`w-10 h-10 object-cover border-2 transition-colors ${isDoctor ? 'rounded-full' : 'rounded-lg'} ${isSelected ? 'border-white' : 'border-transparent'}`}
-                      alt={name}
-                      src={item.image_url}
-                    />
-                  ) : (
-                    <div className={`w-10 h-10 flex items-center justify-center bg-indigo-gray-100 text-indigo-gray-400 ${isDoctor ? 'rounded-full' : 'rounded-lg'}`}>
-                      {isDiag ? <TestTubeDiagonal className="w-5 h-5 text-vibrant-blue" /> : isDoctor ? <User className="w-5 h-5" /> : <Hospital className="w-5 h-5" />}
-                    </div>
-                  )}
-                </div>
-                <div className={`w-4 h-4 border-b-2 border-r-2 transform rotate-45 -mt-2 transition-colors bg-white ${isSelected ? 'border-vibrant-blue shadow-sm bg-vibrant-blue border-white' : 'border-indigo-gray-200 group-hover:border-vibrant-blue'}`}></div>
-              </div>
-            </div>
-          )
-        })}
 
         {/* Search Area Over Map */}
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-white/80 backdrop-blur rounded-full px-6 py-3 shadow-lg border border-white/50 flex items-center gap-3 z-20">
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-white/80 backdrop-blur rounded-full px-6 py-3 shadow-lg border border-white/50 flex items-center gap-3 z-[1000] pointer-events-none">
           <MapPin className="text-vibrant-blue w-5 h-5 fill-vibrant-blue/20" />
           <span className="font-body-md text-on-surface font-semibold">
-            Searching in: <span className="text-vibrant-blue">{currentCity || 'All Locations'}</span>
+            Showing {mapItems.length} results
           </span>
         </div>
       </div>

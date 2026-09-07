@@ -33,9 +33,9 @@ export default function DoctorLoginPage() {
   return (
     <div className="min-h-screen bg-[#F8F9FC] p-4 lg:p-8 font-sans">
       <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch mt-8">
-        
+
         {/* LEFT PANEL */}
-        <div className="bg-gradient-to-b from-[#F3F5FA] to-[#E9F0FA] rounded-[2rem] p-10 lg:p-14 flex flex-col justify-between relative overflow-hidden">
+        <div className="bg-gradient-to-b from-[#F3F5FA] to-[#E9F0FA] rounded-[2rem] p-6 lg:p-14 flex flex-col justify-between relative overflow-hidden order-2 lg:order-1">
           <div className="relative z-10 flex flex-col gap-6">
             <div className="flex items-center gap-3">
               <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-sm text-[#0949B3] text-sm font-bold">
@@ -43,9 +43,9 @@ export default function DoctorLoginPage() {
                 GMC & State Medical Board Verified
               </span>
             </div>
-            
+
             <div className="mt-8">
-              <h1 className="text-4xl lg:text-[42px] font-black text-[#0949B3] leading-[1.15] tracking-tight max-w-lg">
+              <h1 className="text-3xl lg:text-[42px] font-black text-[#0949B3] leading-[1.15] tracking-tight max-w-lg">
                 Integrated Workstation for Accredited Specialists.
               </h1>
               <p className="text-[17px] text-slate-600 mt-6 leading-relaxed max-w-md font-medium">
@@ -53,7 +53,7 @@ export default function DoctorLoginPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mt-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
               <div className="p-6 rounded-2xl bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-xs font-black text-slate-600 tracking-wider">SYNC STATE</span>
@@ -101,7 +101,7 @@ export default function DoctorLoginPage() {
               </div>
             </div>
           </div>
-          
+
           <div className="relative z-10 mt-8 bg-white/50 backdrop-blur-md rounded-2xl p-6 border border-white/60">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 relative shrink-0">
@@ -121,8 +121,8 @@ export default function DoctorLoginPage() {
         </div>
 
         {/* RIGHT PANEL - Authentication Portal */}
-        <div className="bg-white rounded-[2rem] p-10 lg:p-16 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-center border border-slate-100">
-          
+        <div className="bg-white rounded-[2rem] p-6 lg:p-16 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-start border border-slate-100 order-1 lg:order-2">
+
           {view === 'forgot' && (
             <div>
               <button onClick={() => setView('login')} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold mb-8 transition-colors">
@@ -146,19 +146,19 @@ export default function DoctorLoginPage() {
                   <label className="text-sm font-bold text-slate-700">Staff ID</label>
                   <div className="relative flex items-center">
                     <IdCard className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                    <input 
+                    <input
                       required
                       value={staffId}
                       onChange={e => setStaffId(e.target.value)}
-                      type="text" 
+                      type="text"
                       placeholder="e.g. CYDAB1234"
                       className="w-full pl-12 pr-4 py-4 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold uppercase placeholder-slate-400 focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none"
                     />
                   </div>
                 </div>
-                <button 
-                  disabled={isResetting || !staffId} 
-                  type="submit" 
+                <button
+                  disabled={isResetting || !staffId}
+                  type="submit"
                   className="mt-2 w-full py-4 rounded-full bg-[#096348] text-white text-lg font-black shadow-lg hover:bg-[#075039] transition-all flex justify-center items-center gap-2 disabled:opacity-50"
                 >
                   {isResetting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Send Reset Link'}
@@ -183,6 +183,9 @@ export default function DoctorLoginPage() {
 
           {view === 'login' && (
             <div>
+              <Link href="/login/patient" className="flex w-fit items-center gap-2 text-slate-500 hover:text-slate-800 font-bold mb-6 transition-colors">
+                <ArrowLeft className="w-4 h-4" /> Back to roles
+              </Link>
               <div className="mb-10">
                 <span className="text-[13px] font-black text-[#096348] uppercase tracking-widest mb-3 block">Clinician Access</span>
                 <h2 className="text-4xl font-black text-[#0949B3] leading-[1.15] tracking-tight">
@@ -207,17 +210,17 @@ export default function DoctorLoginPage() {
 
               <form action={formAction} className="flex flex-col gap-6">
                 <input type="hidden" name="role" value="doctor" />
-                
+
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-bold text-slate-700">GMC Number or Staff ID</label>
                   <div className="relative flex items-center">
                     <IdCard className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                    <input 
-                      required 
-                      name="staffId" 
-                      type="text" 
-                      placeholder="e.g. CYDAB1234" 
-                      className="w-full pl-12 pr-4 py-4 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold uppercase placeholder-slate-400 focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none" 
+                    <input
+                      required
+                      name="staffId"
+                      type="text"
+                      placeholder="e.g. CYDAB1234"
+                      className="w-full pl-12 pr-4 py-4 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold uppercase placeholder-slate-400 focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none"
                     />
                   </div>
                 </div>
@@ -235,28 +238,28 @@ export default function DoctorLoginPage() {
                   </div>
                   <div className="relative flex items-center">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                    <input 
-                      required 
-                      name="password" 
-                      type="password" 
-                      placeholder="••••••••" 
-                      className="w-full pl-12 pr-4 py-4 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold placeholder-slate-400 focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none tracking-widest" 
+                    <input
+                      required
+                      name="password"
+                      type="password"
+                      placeholder="••••••••"
+                      className="w-full pl-12 pr-4 py-4 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold placeholder-slate-400 focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none tracking-widest"
                     />
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3 mt-2">
                   <div className="pt-1">
-                    <input className="w-4 h-4 rounded border-slate-300 text-[#0949B3] focus:ring-[#0949B3] cursor-pointer" id="workstationPersist" type="checkbox"/>
+                    <input className="w-4 h-4 rounded border-slate-300 text-[#0949B3] focus:ring-[#0949B3] cursor-pointer" id="workstationPersist" type="checkbox" />
                   </div>
                   <label className="text-sm text-slate-600 font-medium cursor-pointer leading-relaxed" htmlFor="workstationPersist">
                     Maintain active session on this secure clinical endpoint <span className="text-[#0949B3] font-bold">(Hospital intranet or registered device only)</span>
                   </label>
                 </div>
 
-                <button 
-                  disabled={isPending} 
-                  type="submit" 
+                <button
+                  disabled={isPending}
+                  type="submit"
                   className="mt-4 w-full py-4 rounded-full bg-[#096348] text-white text-lg font-black shadow-[0_8px_20px_-8px_rgba(9,99,72,0.6)] hover:bg-[#075039] transition-all flex justify-center items-center gap-2 disabled:opacity-50"
                 >
                   {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : (

@@ -4,24 +4,28 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 
-// Helper function to format phone number to E.164 (+91)
-function formatPhoneNumber(phone: string) {
+function formatPhoneNumber(phone: string, countryCode: string = '+44') {
+  if (phone.startsWith('+')) return phone
   let cleaned = phone.replace(/\D/g, '')
-  if (cleaned.length === 10) {
-    return `+91${cleaned}`
+  
+  // Clean countryCode (extract only digits and +)
+  let cleanedCC = countryCode.replace(/[^\d+]/g, '')
+  if (!cleanedCC.startsWith('+')) {
+    cleanedCC = '+' + cleanedCC
   }
-  if (cleaned.startsWith('91') && cleaned.length === 12) {
+
+  const ccDigits = cleanedCC.replace('+', '')
+  // If user already typed the country code without plus
+  if (cleaned.startsWith(ccDigits)) {
     return `+${cleaned}`
   }
-  // Fallback to prepending + if not matching above (e.g. they typed +91... already)
-  if (!phone.startsWith('+')) {
-    return `+${cleaned}`
-  }
-  return phone
+
+  return `${cleanedCC}${cleaned}`
 }
 
 export async function sendOTP(prevState: any, formData: FormData) {
   let phone = formData.get('phone') as string
+  const countryCode = formData.get('countryCode') as string || '+44'
   const fullName = formData.get('fullName') as string | null
   const role = formData.get('role') as string | null
   const isRegister = formData.get('isRegister') === 'true'
@@ -34,7 +38,7 @@ export async function sendOTP(prevState: any, formData: FormData) {
     return { error: 'Full name and role are required for registration.', success: false }
   }
 
-  phone = formatPhoneNumber(phone)
+  phone = formatPhoneNumber(phone, countryCode)
 
   const supabase = await createClient()
 

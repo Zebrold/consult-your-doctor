@@ -3,33 +3,7 @@ import { Info, ArrowRight, Stethoscope } from "lucide-react";
 
 export function Footer() {
   return (
-    <>
-      <section className="py-20 px-margin-x-desktop bg-surface-container-low border-t border-surface-variant">
-        <div className="max-w-container-max mx-auto reveal-up active">
-          <div className="max-w-3xl space-y-6">
-            <div className="inline-flex items-center gap-2 bg-tertiary-fixed text-on-tertiary-fixed px-3 py-1 rounded-full text-xs font-bold tracking-wider">
-              <Info className="w-4 h-4" />
-              ABOUT CONSULT YOUR DOCTOR
-            </div>
-            <h2 className="font-headline-lg text-headline-lg text-primary">
-              A Connected Healthcare Platform
-            </h2>
-            <p className="font-body-lg text-body-lg text-on-surface-variant">
-              Consult Your Doctor is a pioneering health-tech ecosystem designed to bridge the gap between patients, top-tier medical specialists, renowned hospitals, and advanced diagnostic facilities. We streamline your entire medical journey through intelligent routing and frictionless scheduling.
-            </p>
-            <p className="font-body-md text-body-md text-on-surface-variant">
-              Built on a foundation of responsible AI and uncompromising patient-centred design, our platform ensures your health data remains secure while giving you immediate access to second opinions, emergency care coordinators, and personalized wellness plans from anywhere in the world.
-            </p>
-            <div className="pt-2">
-              <Link href="/about" className="text-vibrant-blue font-bold text-base hover:underline flex items-center gap-1 cursor-pointer">
-                Learn More About Us <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <footer className="bg-indigo-gray-900 text-white w-full py-16 px-margin-x-desktop">
+    <footer className="bg-indigo-gray-900 text-white w-full py-16 px-margin-x-desktop">
         <div className="max-w-container-max mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-gutter mb-16">
             {/* Brand Column */}
@@ -106,7 +80,6 @@ export function Footer() {
             <p className="text-white/50 text-sm font-body-md">© {new Date().getFullYear()} Consult Your Doctor. All rights reserved.</p>
           </div>
         </div>
-      </footer>
-    </>
+    </footer>
   );
 }

@@ -75,7 +75,7 @@ export function PayUCheckoutForm({
       <button 
         onClick={handlePayment} 
         disabled={isLoading}
-        className="w-full py-4 bg-[#E31E24] text-white font-bold text-lg rounded-xl hover:bg-red-700 transition-all shadow-lg shadow-red-200/50 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+        className="w-full py-4 bg-vibrant-blue text-white font-bold text-lg rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-vibrant-blue/20 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
       >
         {isLoading ? (
           <>

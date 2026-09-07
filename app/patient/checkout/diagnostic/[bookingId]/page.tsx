@@ -43,7 +43,7 @@ export default async function DiagnosticCheckoutPage({ params }: { params: Promi
             <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-6" />
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Booking Not Found</h1>
             <p className="text-gray-600 mb-8">We couldn't find the diagnostic booking you're looking for.</p>
-            <Link href="/" className="px-6 py-3 bg-[#E31E24] text-white rounded-full font-bold hover:bg-red-700 transition-colors">
+            <Link href="/" className="px-6 py-3 bg-vibrant-blue text-white rounded-full font-bold hover:bg-blue-700 transition-colors">
               Go Home
             </Link>
           </div>
@@ -104,8 +104,8 @@ export default async function DiagnosticCheckoutPage({ params }: { params: Promi
                 </div>
 
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center shrink-0">
-                    <Building2 className="w-5 h-5 text-[#E31E24]" />
+                  <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+                    <Building2 className="w-5 h-5 text-vibrant-blue" />
                   </div>
                   <div>
                     <p className="text-sm text-gray-500 font-medium">Diagnostic Center</p>
@@ -143,7 +143,7 @@ export default async function DiagnosticCheckoutPage({ params }: { params: Promi
                 <div className="pt-6 mt-6 border-t border-dashed border-gray-200">
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-bold text-gray-900">Total Payable</span>
-                    <span className="text-2xl font-black text-[#E31E24]">
+                    <span className="text-2xl font-black text-vibrant-blue">
                       ₹{totalPayable.toFixed(2)}
                     </span>
                   </div>

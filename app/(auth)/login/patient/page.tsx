@@ -28,7 +28,7 @@ function PatientLoginForm() {
   return (
     <div className="min-h-screen bg-[#F8F9FC] p-4 lg:p-8 font-sans">
       {/* Top Status Bar */}
-      <div className="max-w-[1400px] mx-auto flex items-center justify-between mb-8">
+      <div className="max-w-[1400px] mx-auto hidden lg:flex items-center justify-between mb-8">
         <div className="flex items-center gap-3 text-sm font-semibold text-slate-700">
           <ShieldCheck className="w-5 h-5 text-vibrant-blue" />
           <span>Secure Gateway 4.2 <span className="text-slate-400 mx-2">•</span> TLS 1.3 / AES-256 GCM</span>
@@ -41,7 +41,7 @@ function PatientLoginForm() {
       <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
         
         {/* LEFT PANEL */}
-        <div className="bg-gradient-to-b from-[#F2F5FB] to-[#E3F8F9] rounded-[2rem] p-10 lg:p-14 flex flex-col justify-between relative overflow-hidden">
+        <div className="bg-gradient-to-b from-[#F2F5FB] to-[#E3F8F9] rounded-[2rem] p-6 lg:p-14 flex flex-col justify-between relative overflow-hidden order-2 lg:order-1">
           <div className="relative z-10 flex flex-col gap-6">
             <div className="flex items-center gap-3">
               <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-sm text-vibrant-blue text-sm font-bold">
@@ -53,17 +53,17 @@ function PatientLoginForm() {
               </span>
             </div>
             
-            <div className="mt-8">
+            <div className="mt-6 lg:mt-8">
               <span className="text-sm text-vibrant-blue font-black uppercase tracking-[0.1em] block mb-4">Connected Medical Record</span>
-              <h1 className="text-5xl lg:text-6xl font-black text-[#1A2530] leading-[1.1] tracking-tight">
-                One secure key<br/>to your entire<br/>health journey.
+              <h1 className="text-4xl lg:text-6xl font-black text-[#1A2530] leading-[1.1] tracking-tight">
+                One secure key<br className="hidden lg:block"/>to your entire<br className="hidden lg:block"/>health journey.
               </h1>
               <p className="text-lg text-slate-600 mt-6 leading-relaxed max-w-md font-medium">
                 Access real-time pathology reports, encrypted video consultations, electronic prescriptions, and synchronized vitals instantly.
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mt-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
               <div className="p-6 rounded-2xl bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
                 <div className="w-10 h-10 rounded-full bg-[#EAF2FF] flex items-center justify-center text-vibrant-blue mb-4">
                   <FileText className="w-5 h-5" />
@@ -113,15 +113,12 @@ function PatientLoginForm() {
         </div>
 
         {/* RIGHT PANEL - Authentication Portal */}
-        <div className="bg-white rounded-[2rem] p-10 lg:p-16 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-center border border-slate-100">
+        <div className="bg-white rounded-[2rem] p-6 lg:p-16 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-center border border-slate-100 order-1 lg:order-2">
           
           <div className="mb-10">
-            <span className="text-sm font-bold text-vibrant-blue uppercase tracking-widest mb-4 block">Authentication Portal</span>
-            <div className="flex items-start justify-between">
-              <h2 className="text-4xl lg:text-5xl font-black text-[#1A2530] leading-[1.15] tracking-tight max-w-sm">
-                Sign in with Mobile Number
-              </h2>
-              <div className="bg-[#F1F5F9] rounded-full p-1.5 flex shadow-inner shrink-0">
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-4">
+              <span className="text-sm font-bold text-vibrant-blue uppercase tracking-widest text-center xl:text-left">Authentication Portal</span>
+              <div className="bg-[#F1F5F9] rounded-full p-1.5 flex shadow-inner shrink-0 w-fit">
                 <button className="bg-vibrant-blue text-white px-6 py-2 rounded-full text-sm font-bold shadow-md">
                   Patient Portal
                 </button>
@@ -134,6 +131,9 @@ function PatientLoginForm() {
                 </button>
               </div>
             </div>
+            <h2 className="text-2xl sm:text-[28px] md:text-[32px] lg:text-[34px] xl:text-[40px] font-black text-[#1A2530] leading-[1.15] tracking-tight sm:whitespace-nowrap mt-4 xl:mt-0">
+              Sign in with Mobile Number
+            </h2>
             <p className="text-slate-500 text-lg font-medium mt-6">
               Enter your registered mobile number to receive a secure one-time verification code.
             </p>
@@ -184,32 +184,53 @@ function PatientLoginForm() {
                   <MessageSquare className="w-4 h-4" /> SMS Verification
                 </span>
               </div>
-              <div className="flex gap-2">
-                <div className="w-24 px-3 py-4 rounded-xl border border-slate-200 flex items-center justify-between bg-white cursor-pointer">
-                  <span className="font-bold text-slate-700 text-sm">GB +44</span>
-                  <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                </div>
-                <div className="relative flex-1 flex">
-                  <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <input 
-                    type="tel" 
-                    name={step === 1 ? "phone" : "phoneDisplay"}
-                    required
-                    defaultValue={phoneVal}
-                    disabled={step === 2}
-                    placeholder="7123 456789"
-                    className="w-full pl-12 pr-32 py-4 rounded-xl border border-slate-200 text-[#1A2530] font-semibold placeholder-slate-300 focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue outline-none transition-all disabled:bg-slate-50 disabled:text-slate-400"
-                  />
-                  {step === 1 && (
-                    <button 
-                      type="submit"
-                      disabled={isSendPending}
-                      className="absolute right-2 top-2 bottom-2 px-4 rounded-lg bg-blue-50 text-vibrant-blue font-bold text-sm hover:bg-blue-100 transition-colors border border-blue-100 disabled:opacity-50"
+              <div className="flex flex-col gap-3">
+                <div className="flex gap-2">
+                  <div className="relative w-[100px] sm:w-[110px] shrink-0">
+                    <select 
+                      name="countryCode" 
+                      className="w-full h-full pl-3 pr-8 py-4 rounded-xl border border-slate-200 bg-white font-bold text-slate-700 text-sm appearance-none outline-none focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue cursor-pointer disabled:bg-slate-50 disabled:text-slate-400"
+                      defaultValue="+44"
+                      disabled={step === 2}
                     >
-                      {isSendPending ? 'Sending...' : 'Send OTP'}
-                    </button>
-                  )}
+                      <option value="+44">GB +44</option>
+                      <option value="+1">US +1</option>
+                      <option value="+91">IN +91</option>
+                      <option value="+61">AU +61</option>
+                    </select>
+                    <svg className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                  </div>
+                  <div className="relative flex-1 flex">
+                    <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <input 
+                      type="tel" 
+                      name={step === 1 ? "phone" : "phoneDisplay"}
+                      required
+                      defaultValue={phoneVal}
+                      disabled={step === 2}
+                      placeholder="7123 456789"
+                      className="w-full pl-12 pr-4 sm:pr-32 py-4 rounded-xl border border-slate-200 text-[#1A2530] font-semibold placeholder-slate-300 focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue outline-none transition-all disabled:bg-slate-50 disabled:text-slate-400"
+                    />
+                    {step === 1 && (
+                      <button 
+                        type="submit"
+                        disabled={isSendPending}
+                        className="hidden sm:block absolute right-2 top-2 bottom-2 px-4 rounded-lg bg-blue-50 text-vibrant-blue font-bold text-sm hover:bg-blue-100 transition-colors border border-blue-100 disabled:opacity-50"
+                      >
+                        {isSendPending ? 'Sending...' : 'Send OTP'}
+                      </button>
+                    )}
+                  </div>
                 </div>
+                {step === 1 && (
+                  <button 
+                    type="submit"
+                    disabled={isSendPending}
+                    className="sm:hidden w-full py-4 rounded-xl bg-blue-50 text-vibrant-blue font-bold text-[15px] hover:bg-blue-100 transition-colors border border-blue-100 disabled:opacity-50"
+                  >
+                    {isSendPending ? 'Sending...' : 'Send OTP'}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -227,9 +248,9 @@ function PatientLoginForm() {
                     key={i}
                     type="text"
                     maxLength={1}
-                    name={i === 1 ? "token" : undefined} // Only first one needs name for simple submission, or handle properly in real app
+                    name={i === 1 ? "token" : undefined}
                     disabled={step === 1}
-                    className="w-[calc(16.66%-10px)] aspect-square text-center text-2xl font-black rounded-xl border border-slate-200 text-[#1A2530] focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue outline-none transition-all placeholder-slate-300 shadow-sm"
+                    className="flex-1 max-w-[64px] aspect-square text-center text-xl sm:text-2xl font-black rounded-xl border border-slate-200 text-[#1A2530] focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue outline-none transition-all placeholder-slate-300 shadow-sm"
                     placeholder="•"
                   />
                 ))}

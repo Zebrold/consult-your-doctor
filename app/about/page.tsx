@@ -153,23 +153,25 @@ export default function AboutPage() {
             <div className="flex flex-col gap-stack-sm font-body-md text-body-md text-indigo-gray-900">
               <div className="flex items-center gap-base">
                 <MapPin className="w-5 h-5 text-vibrant-blue" />
-                <span className="">100 Innovation Drive, London, UK</span>
+                <span className="">Bockenheimer Landstrasse 17-19, 60325 Frankfurt am Main, Germany</span>
               </div>
               <div className="flex items-center gap-base">
                 <Mail className="w-5 h-5 text-vibrant-blue" />
-                <span className="">contact@consultourdoctor.com</span>
+                <span className="">info@zebrold.de</span>
               </div>
               <div className="flex items-center gap-base">
                 <Phone className="w-5 h-5 text-vibrant-blue" />
-                <span className="">+44 20 7946 0958</span>
+                <span className="">+496921004800</span>
               </div>
             </div>
           </div>
           <div className="w-full md:w-2/3 h-[400px] rounded-xl overflow-hidden shadow-[0px_4px_20px_rgba(0,102,255,0.05)] border border-indigo-gray-200/50">
-            <img
-              className="w-full h-full object-cover"
-              alt="London HQ Map"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuCbc5EBdO03Y1lQX7SZykP0ZReUnJZpLKc2JnY8YVkeocf5k6bRf77EF_8jBQxuo2iQ012ZtZxnt5efr5xYtieRr6JhEaAOyYXgQF2T2a42kYVjx8z0SeDswxAfDo73lWvTEaSsHJJ6qBxVQEqRD5XRYyUK_g7fU0WAraXe3R-yY0Xv42ZAMc_SRpUDXJJ__JH_LtkWDwxO9-qqKdNCntRhzECYKsuBCwL00o0zWjG5XLdTgYJ7zbBLZg"
+            <iframe
+              className="w-full h-full border-0"
+              src="https://www.openstreetmap.org/export/embed.html?bbox=8.6600%2C50.1150%2C8.6750%2C50.1220&layer=mapnik&marker=50.1185%2C8.6675"
+              allowFullScreen
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
             />
           </div>
         </div>

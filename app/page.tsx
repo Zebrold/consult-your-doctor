@@ -110,12 +110,12 @@ export default async function Home() {
       {/* Top Rated Doctors Section */}
       <section className="py-24 px-4 md:px-margin-x-desktop bg-surface">
         <div className="max-w-container-max mx-auto reveal-up">
-          <div className="flex flex-col md:flex-row justify-between items-center mb-12 gap-4">
-            <div className="text-center md:text-left">
-              <h2 className="font-headline-lg text-headline-lg text-primary mb-2">Top Rated Doctors</h2>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-12">
+            <div>
+              <h2 className="font-headline-lg text-2xl md:text-headline-lg text-primary font-bold">Top Rated Doctors</h2>
               <p className="font-body-md text-on-surface-variant max-w-2xl">Book appointments with some of our most highly-rated and experienced medical professionals.</p>
             </div>
-            <Link href="/search?type=doctor" className="text-vibrant-blue font-bold text-sm hover:underline flex items-center gap-1 cursor-pointer">
+            <Link href="/search?type=doctor" className="text-vibrant-blue font-bold text-sm hover:underline flex items-center gap-1 cursor-pointer whitespace-nowrap">
               View All Doctors <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
@@ -173,9 +173,9 @@ export default async function Home() {
       {/* Popular Specialities */}
       <section className="py-16 px-4 md:px-margin-x-desktop bg-surface">
         <div className="max-w-container-max mx-auto reveal-up">
-          <div className="flex justify-between items-end mb-8">
-            <h2 className="font-headline-lg text-headline-lg text-primary">Popular Specialities</h2>
-            <Link href="/search?type=doctor" className="text-vibrant-blue font-bold text-sm hover:underline flex items-center gap-1 cursor-pointer">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-8">
+            <h2 className="font-headline-lg text-2xl md:text-headline-lg text-primary font-bold">Popular Specialities</h2>
+            <Link href="/search?type=doctor" className="text-vibrant-blue font-bold text-sm hover:underline flex items-center gap-1 cursor-pointer whitespace-nowrap">
               View All Specialities <ChevronRight className="w-4 h-4" />
             </Link>
           </div>

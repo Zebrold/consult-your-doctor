@@ -44,7 +44,7 @@ const footerSections = [
   {
     title: "For Executives",
     links: [
-      { label: "Executive Login", href: "/login/corporate" },
+      { label: "Executive Login", href: "/login/executive" },
       { label: "How It Works", href: "/about" },
       { label: "Benefits", href: "/about" },
       { label: "Support", href: "/about" },

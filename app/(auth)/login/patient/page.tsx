@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useActionState, useEffect } from 'react'
+import { useState, useActionState, useEffect, useRef } from 'react'
 import { ArrowLeft, User, Shield, ShieldCheck, FileText, FileCheck, Smartphone, MessageSquare, Lock, CheckCircle2 } from 'lucide-react'
 import { sendOTP, verifyOTP } from '@/app/actions/auth'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+import { COUNTRY_CODES } from '@/lib/countryCodes'
 
 function PatientLoginForm() {
   const [step, setStep] = useState<1 | 2>(1)
@@ -15,9 +16,46 @@ function PatientLoginForm() {
   const [sendOTPState, sendOTPAction, isSendPending] = useActionState(sendOTP, null)
   const [verifyOTPState, verifyOTPAction, isVerifyPending] = useActionState(verifyOTP, null)
 
+  const [otp, setOtp] = useState(['', '', '', '', '', ''])
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([])
+
+  const handleOtpChange = (index: number, value: string) => {
+    if (value.length > 1) return // Paste is handled separately
+    const newOtp = [...otp]
+    newOtp[index] = value
+    setOtp(newOtp)
+
+    // Auto focus next
+    if (value !== '' && index < 5) {
+      otpRefs.current[index + 1]?.focus()
+    }
+  }
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && otp[index] === '' && index > 0) {
+      otpRefs.current[index - 1]?.focus()
+    }
+  }
+
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault()
+    const pastedData = e.clipboardData.getData('text/plain').slice(0, 6)
+    if (!/^\d+$/.test(pastedData)) return
+
+    const newOtp = [...otp]
+    for (let i = 0; i < pastedData.length; i++) {
+      if (i < 6) newOtp[i] = pastedData[i]
+    }
+    setOtp(newOtp)
+    const nextIndex = Math.min(pastedData.length, 5)
+    otpRefs.current[nextIndex]?.focus()
+  }
+
   useEffect(() => {
     if (sendOTPState?.success) {
       setStep(2)
+      // Focus first OTP input when step changes
+      setTimeout(() => otpRefs.current[0]?.focus(), 100)
     }
   }, [sendOTPState])
 
@@ -39,7 +77,7 @@ function PatientLoginForm() {
       </div>
 
       <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
-        
+
         {/* LEFT PANEL */}
         <div className="bg-gradient-to-b from-[#F2F5FB] to-[#E3F8F9] rounded-[2rem] p-6 lg:p-14 flex flex-col justify-between relative overflow-hidden order-2 lg:order-1">
           <div className="relative z-10 flex flex-col gap-6">
@@ -52,11 +90,11 @@ function PatientLoginForm() {
                 HIPAA & ISO 27001
               </span>
             </div>
-            
+
             <div className="mt-6 lg:mt-8">
               <span className="text-sm text-vibrant-blue font-black uppercase tracking-[0.1em] block mb-4">Connected Medical Record</span>
               <h1 className="text-4xl lg:text-6xl font-black text-[#1A2530] leading-[1.1] tracking-tight">
-                One secure key<br className="hidden lg:block"/>to your entire<br className="hidden lg:block"/>health journey.
+                One secure key<br className="hidden lg:block" />to your entire<br className="hidden lg:block" />health journey.
               </h1>
               <p className="text-lg text-slate-600 mt-6 leading-relaxed max-w-md font-medium">
                 Access real-time pathology reports, encrypted video consultations, electronic prescriptions, and synchronized vitals instantly.
@@ -92,7 +130,7 @@ function PatientLoginForm() {
               </div>
             </div>
           </div>
-          
+
           <div className="relative z-10 mt-8 bg-white/40 backdrop-blur-md rounded-2xl p-6 border border-white/60">
             <div className="flex items-center gap-4 mb-4">
               <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 relative shrink-0">
@@ -114,7 +152,7 @@ function PatientLoginForm() {
 
         {/* RIGHT PANEL - Authentication Portal */}
         <div className="bg-white rounded-[2rem] p-6 lg:p-16 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-center border border-slate-100 order-1 lg:order-2">
-          
+
           <div className="mb-10">
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-4">
               <span className="text-sm font-bold text-vibrant-blue uppercase tracking-widest text-center xl:text-left">Authentication Portal</span>
@@ -122,7 +160,7 @@ function PatientLoginForm() {
                 <button className="bg-vibrant-blue text-white px-6 py-2 rounded-full text-sm font-bold shadow-md">
                   Patient Portal
                 </button>
-                <button 
+                <button
                   type="button"
                   onClick={() => router.push('/login/doctor')}
                   className="text-slate-500 hover:text-slate-700 px-6 py-2 rounded-full text-sm font-bold transition-colors"
@@ -145,14 +183,14 @@ function PatientLoginForm() {
                 {sendOTPState?.error || verifyOTPState?.error}
               </div>
             )}
-            
+
             {/* Hidden Fields */}
             <input type="hidden" name="isRegister" value="true" />
+            <input type="hidden" name="role" value="patient" />
             {step === 2 && (
               <>
                 <input type="hidden" name="phone" value={phoneVal} />
                 <input type="hidden" name="fullName" value={nameVal} />
-                <input type="hidden" name="role" value={roleVal} />
               </>
             )}
 
@@ -165,8 +203,8 @@ function PatientLoginForm() {
               </div>
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   name="fullName"
                   required
                   defaultValue={nameVal}
@@ -187,23 +225,24 @@ function PatientLoginForm() {
               <div className="flex flex-col gap-3">
                 <div className="flex gap-2">
                   <div className="relative w-[100px] sm:w-[110px] shrink-0">
-                    <select 
-                      name="countryCode" 
+                    <select
+                      name="countryCode"
                       className="w-full h-full pl-3 pr-8 py-4 rounded-xl border border-slate-200 bg-white font-bold text-slate-700 text-sm appearance-none outline-none focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue cursor-pointer disabled:bg-slate-50 disabled:text-slate-400"
-                      defaultValue="+44"
+                      defaultValue="+49"
                       disabled={step === 2}
                     >
-                      <option value="+44">GB +44</option>
-                      <option value="+1">US +1</option>
-                      <option value="+91">IN +91</option>
-                      <option value="+61">AU +61</option>
+                      {COUNTRY_CODES.sort((a, b) => a.code.localeCompare(b.code)).map((country) => (
+                        <option key={country.code} value={country.dialCode}>
+                          {country.code} {country.dialCode}
+                        </option>
+                      ))}
                     </select>
                     <svg className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                   </div>
                   <div className="relative flex-1 flex">
                     <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                    <input 
-                      type="tel" 
+                    <input
+                      type="tel"
                       name={step === 1 ? "phone" : "phoneDisplay"}
                       required
                       defaultValue={phoneVal}
@@ -212,7 +251,7 @@ function PatientLoginForm() {
                       className="w-full pl-12 pr-4 sm:pr-32 py-4 rounded-xl border border-slate-200 text-[#1A2530] font-semibold placeholder-slate-300 focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue outline-none transition-all disabled:bg-slate-50 disabled:text-slate-400"
                     />
                     {step === 1 && (
-                      <button 
+                      <button
                         type="submit"
                         disabled={isSendPending}
                         className="hidden sm:block absolute right-2 top-2 bottom-2 px-4 rounded-lg bg-blue-50 text-vibrant-blue font-bold text-sm hover:bg-blue-100 transition-colors border border-blue-100 disabled:opacity-50"
@@ -223,7 +262,7 @@ function PatientLoginForm() {
                   </div>
                 </div>
                 {step === 1 && (
-                  <button 
+                  <button
                     type="submit"
                     disabled={isSendPending}
                     className="sm:hidden w-full py-4 rounded-xl bg-blue-50 text-vibrant-blue font-bold text-[15px] hover:bg-blue-100 transition-colors border border-blue-100 disabled:opacity-50"
@@ -243,12 +282,18 @@ function PatientLoginForm() {
                 </span>
               </div>
               <div className="flex gap-3 justify-between">
-                {[1,2,3,4,5,6].map((i) => (
-                  <input 
-                    key={i}
+                {/* Hidden input for full token */}
+                <input type="hidden" name="token" value={otp.join('')} />
+                {otp.map((digit, index) => (
+                  <input
+                    key={index}
+                    ref={(el) => { otpRefs.current[index] = el; }}
                     type="text"
                     maxLength={1}
-                    name={i === 1 ? "token" : undefined}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(index, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                    onPaste={handleOtpPaste}
                     disabled={step === 1}
                     className="flex-1 max-w-[64px] aspect-square text-center text-xl sm:text-2xl font-black rounded-xl border border-slate-200 text-[#1A2530] focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue outline-none transition-all placeholder-slate-300 shadow-sm"
                     placeholder="•"
@@ -257,7 +302,7 @@ function PatientLoginForm() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between mt-4">
+            {/* <div className="flex items-center justify-between mt-4">
               <label className="flex items-center gap-3 cursor-pointer">
                 <div className="w-5 h-5 rounded border-2 border-slate-300 flex items-center justify-center"></div>
                 <span className="text-sm font-bold text-slate-500">Remember this verified device for 30 days</span>
@@ -265,18 +310,18 @@ function PatientLoginForm() {
               <span className="text-xs font-bold text-[#1FA67A] flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4" /> 256-bit Safe
               </span>
-            </div>
+            </div> */}
 
-            <button 
+            <button
               type={step === 2 ? "submit" : "button"}
               disabled={step === 1 || isVerifyPending}
-              onClick={() => { if(step === 1) alert("Please enter your mobile number and click 'Send OTP' first.") }}
+              onClick={() => { if (step === 1) alert("Please enter your mobile number and click 'Send OTP' first.") }}
               className={`w-full py-4 rounded-full text-white text-lg font-black shadow-lg transition-all flex items-center justify-center gap-2 mt-4 ${step === 2 ? 'bg-vibrant-blue hover:bg-blue-700 shadow-blue-500/30' : 'bg-slate-300 cursor-not-allowed'}`}
             >
               <Lock className="w-5 h-5" />
               <span>{isVerifyPending ? 'Verifying...' : 'Verify OTP & Sign In'}</span>
             </button>
-            
+
             <div className="text-center mt-2">
               <p className="text-sm font-bold text-slate-500">
                 New to Consult Your Doctor? <Link href="/signup" className="text-vibrant-blue hover:underline">Create an accredited account</Link>

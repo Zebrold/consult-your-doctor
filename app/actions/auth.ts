@@ -31,11 +31,11 @@ export async function sendOTP(prevState: any, formData: FormData) {
   const isRegister = formData.get('isRegister') === 'true'
 
   if (!phone) {
-    return { error: 'Phone number is required.', success: false }
+    return { error: 'Phone number is required.', success: false, phone, fullName, role, isRegister }
   }
   
   if (isRegister && (!fullName || !role)) {
-    return { error: 'Full name and role are required for registration.', success: false }
+    return { error: 'Full name and role are required for registration.', success: false, phone, fullName, role, isRegister }
   }
 
   phone = formatPhoneNumber(phone, countryCode)
@@ -53,7 +53,7 @@ export async function sendOTP(prevState: any, formData: FormData) {
   })
 
   if (error) {
-    return { error: error.message, success: false }
+    return { error: error.message, success: false, phone, fullName, role, isRegister }
   }
 
   return { success: true, phone, fullName, role, isRegister }

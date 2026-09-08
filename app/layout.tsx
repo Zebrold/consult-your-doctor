@@ -3,6 +3,7 @@ import { Inter, Manrope } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { ConditionalLayout } from "@/components/ConditionalLayout";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -63,15 +64,11 @@ export default function RootLayout({
     >
       <body
         suppressHydrationWarning
-        className="min-h-screen flex flex-col font-sans pt-[88px] overflow-x-hidden text-on-surface bg-background"
+        className="font-sans overflow-x-hidden text-on-surface bg-background"
       >
-        <Header />
-
-        <main className="flex-grow">
+        <ConditionalLayout header={<Header />} footer={<Footer />}>
           {children}
-        </main>
-
-        <Footer />
+        </ConditionalLayout>
       </body>
     </html>
   );

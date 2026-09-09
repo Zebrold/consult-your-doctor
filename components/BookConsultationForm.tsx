@@ -7,7 +7,7 @@ import { createAppointment, createDiagnosticBooking } from '@/app/actions/bookin
 import { useSearchParams, useRouter } from 'next/navigation'
 import { InlineAuthModal } from '@/components/InlineAuthModal'
 
-function BookConsultationFormInner() {
+export function BookConsultationFormInner({ defaultType = 'consultation' }: { defaultType?: 'consultation' | 'diagnostics' }) {
   const supabase = createClient()
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -21,7 +21,7 @@ function BookConsultationFormInner() {
   const [schedules, setSchedules] = useState<any[]>([])
 
   // State for selected values
-  const [bookingType, setBookingType] = useState<'consultation' | 'diagnostics'>('consultation')
+  const [bookingType, setBookingType] = useState<'consultation' | 'diagnostics'>(defaultType)
   const [selectedCity, setSelectedCity] = useState<string>('')
   const [selectedHospital, setSelectedHospital] = useState<string>('')
   const [selectedCenter, setSelectedCenter] = useState<string>('')
@@ -67,7 +67,7 @@ function BookConsultationFormInner() {
       }
 
       // Switch to diagnostics mode if URL says so
-      if (urlBooking === 'diagnostics') {
+      if (urlBooking === 'diagnostics' || defaultType === 'diagnostics') {
         setBookingType('diagnostics')
 
         if (urlCity) {
@@ -509,10 +509,10 @@ function BookConsultationFormInner() {
   )
 }
 
-export function BookConsultationForm() {
+export function BookConsultationForm({ defaultType = 'consultation' }: { defaultType?: 'consultation' | 'diagnostics' }) {
   return (
     <Suspense fallback={<div className="flex justify-center items-center h-64 bg-surface-container-lowest rounded-2xl p-8 card-shadow border border-surface-variant"><Loader2 className="w-8 h-8 text-vibrant-blue animate-spin" /></div>}>
-      <BookConsultationFormInner />
+      <BookConsultationFormInner defaultType={defaultType} />
     </Suspense>
   )
 }

@@ -20,7 +20,7 @@ export function ConditionalLayout({
     pathname?.startsWith("/doctor/dashboard") ||
     pathname?.startsWith("/admin/dashboard") ||
     pathname?.startsWith("/diagnostic/dashboard") ||
-    pathname?.startsWith("/patient/dashboard");
+    pathname?.startsWith("/patient");
 
   if (isDashboard) {
     return <>{children}</>;

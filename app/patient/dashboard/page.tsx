@@ -1,23 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import Image from 'next/image'
 import {
-  Stethoscope, Bell, HelpCircle, User, BadgeCheck, Medal, ArrowRight,
-  Calendar, FileText, MessageSquare, Pill, MonitorCheck, CheckCircle2, ChevronRight, UserCircle, Ticket, Droplet, Clock,
-  Store, TrendingUp, RefreshCw, Circle, Download
+  Award, Droplet, Calendar, Mail, Phone, Edit, Download, Contact, ChevronRight, Users,
+  Wallet, Heart, Sliders, HelpCircle, LogOut, Activity, ArrowRight, CalendarDays, FileText,
+  TestTube, CheckCircle2, FolderOpen, User, Lock, MapPin, PhoneCall, HeartPulse, RefreshCw,
+  Wind, AlertTriangle, AlertCircle, Stethoscope, MessageSquare, Share2, Cloud, ShieldCheck,
+  Home, Search, Calendar as CalendarIcon
 } from 'lucide-react'
-import { Header } from '@/components/Header'
-import { PatientDashboardActions } from '@/components/PatientDashboardActions'
-import { ConsultationsList, DiagnosticBookingsList, RecordsAndMedicationsList } from '@/components/PatientDashboardLists'
-import { Footer } from '@/components/Footer'
-
-const getStatusColor = (status: string) => {
-  const s = (status || '').toLowerCase();
-  if (s === 'completed') return 'text-fresh-teal font-semibold';
-  if (s === 'cancelled') return 'text-[#E31E24] font-semibold';
-  if (s === 'pending_payment' || s === 'pending') return 'text-orange-500 font-semibold';
-  if (s === 'scheduled' || s === 'confirmed') return 'text-primary font-semibold';
-  return 'text-outline';
-}
+import { PatientSidebar } from '@/components/PatientSidebar'
 
 export default async function PatientDashboard() {
   const supabase = await createClient()
@@ -28,7 +20,14 @@ export default async function PatientDashboard() {
   // Fetch user profile for name
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name')
+    .select('*')
+    .eq('id', user.id)
+    .single()
+
+  // Fetch patient details
+  const { data: patientDetails } = await supabase
+    .from('patient_details')
+    .select('*')
     .eq('id', user.id)
     .single()
 
@@ -86,269 +85,387 @@ export default async function PatientDashboard() {
     }))
   ) || []
 
-  const firstName = profile?.full_name?.split(' ')[0] || 'Patient'
+  const fullName = profile?.full_name || 'Patient'
+  const email = user.email
+  const phone = user.phone || '+91 98204 77210' // Placeholder if not available
+
+  const upcomingAppointments = appointments?.filter(a => a.status === 'scheduled' || a.status === 'confirmed') || []
+  const nextAppointment = upcomingAppointments.length > 0 ? upcomingAppointments[0] : null
+  const completedLabs = diagnosticBookings?.filter(b => b.status === 'completed') || []
+  const nextLab = completedLabs.length > 0 ? completedLabs[0] : null
+  const totalDocuments = prescriptions.length
+
+  const nextApptDoctor = nextAppointment ? (nextAppointment.doctors as any)?.profiles?.full_name : 'No upcoming appointments'
+  const nextApptDate = nextAppointment ? new Date((nextAppointment.schedules as any)?.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''
+
+  const nextLabName = nextLab ? nextLab.test_name : 'No recent lab reports'
+  const nextLabCenter = nextLab ? (nextLab.diagnostic_centers as any)?.name : ''
 
   return (
-    <div className="bg-background font-body-md text-body-md text-on-surface min-h-screen">
-      <Header />
-
-      <main className="w-full pt-20 bg-background pb-12">
+    <div className="bg-background font-body-md text-body-md text-on-surface antialiased min-h-screen">
+      <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-24">
         <div className="flex flex-col w-full">
-          <div className="w-full max-w-7xl mx-auto px-margin-x-mobile lg:px-margin-x-desktop py-stack-md flex flex-col gap-stack-lg">
+          {/* Subtle ambient background glow */}
+          <div className="relative w-full overflow-hidden">
+            <div className="absolute -top-32 -right-20 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="absolute top-80 -left-20 w-80 h-80 bg-fresh-teal/5 rounded-full blur-3xl pointer-events-none"></div>
 
-            <section className="relative overflow-hidden rounded-2xl bg-surface-container-lowest p-stack-md lg:p-stack-lg shadow-sm">
-              <div className="absolute -right-24 -top-24 w-96 h-96 rounded-full bg-primary-fixed/30 blur-3xl pointer-events-none"></div>
-              <div className="absolute right-1/3 -bottom-20 w-80 h-80 rounded-full bg-secondary-fixed/20 blur-3xl pointer-events-none"></div>
-              <div className="relative z-10 flex flex-col gap-stack-md">
+            {/* Main Two-Column Layout */}
+            <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-8">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start max-w-[1440px] mx-auto">
 
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-base">
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                      {/* <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-primary font-label-sm text-label-sm">
-                        <BadgeCheck className="w-[15px] h-[15px]" />
-                        ABHA ID: 91-8204-7721-0941
-                      </span>
-                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-fresh-teal/10 text-secondary font-label-sm text-label-sm">
-                        <span className="w-1.5 h-1.5 rounded-full bg-fresh-teal animate-pulse"></span>
-                        2FA Secure Biometrics
-                      </span>
-                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-surface-container-high text-on-surface font-label-sm text-label-sm">
-                        <Medal className="w-[14px] h-[14px]" />
-                        Care Tier: Premium Gold
-                      </span> */}
+                {/* ==================== LEFT COLUMN (30% -> 4 cols) ==================== */}
+                <PatientSidebar user={user} profile={profile} patientDetails={patientDetails} activeAppointmentsCount={upcomingAppointments.length} />
+
+                {/* ==================== RIGHT COLUMN (70% -> 8 cols) ==================== */}
+                <div className="lg:col-span-8 flex flex-col gap-6">
+                  {/* 1. Key Counts */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between">
+                        <div className="w-10 h-10 rounded-xl bg-vibrant-blue/10 text-vibrant-blue flex items-center justify-center">
+                          <CalendarDays className="w-[24px] h-[24px]" />
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-sm text-label-sm font-bold">Active</span>
+                      </div>
+                      <div className="mt-4">
+                        <div className="flex items-baseline gap-2">
+                          <span className="font-display-lg text-headline-lg font-extrabold text-on-surface leading-none">{upcomingAppointments.length}</span>
+                          <span className="font-title-md text-body-md font-bold text-on-surface-variant">Upcoming</span>
+                        </div>
+                        <div className="mt-2.5 p-2 bg-surface-container-low rounded-lg flex items-center gap-2">
+                          <FileText className="w-[16px] h-[16px] text-vibrant-blue shrink-0" />
+                          <p className="font-label-sm text-label-sm text-on-surface truncate">
+                            <strong className="font-bold">Dr. {nextApptDoctor}</strong>: {nextApptDate}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <h1 className="font-display-lg text-headline-lg lg:text-display-lg text-indigo-gray-900 tracking-tight">
-                      Welcome back, <span className="text-primary-container">{firstName}</span>
-                    </h1>
-                    <p className="font-body-md text-body-md text-indigo-gray-600">
-                      Your clinical records are synchronized. {diagnosticBookings?.length || 0} diagnostic panel(s) and {appointments?.length || 0} consultation(s) are logged.
-                    </p>
+
+                    <div className="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between">
+                        <div className="w-10 h-10 rounded-xl bg-fresh-teal/10 text-fresh-teal flex items-center justify-center">
+                          <TestTube className="w-[24px] h-[24px]" />
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-full bg-secondary-container/40 text-on-secondary-container font-label-sm text-label-sm font-bold">Verified</span>
+                      </div>
+                      <div className="mt-4">
+                        <div className="flex items-baseline gap-2">
+                          <span className="font-display-lg text-headline-lg font-extrabold text-on-surface leading-none">{completedLabs.length}</span>
+                          <span className="font-title-md text-body-md font-bold text-on-surface-variant">Completed</span>
+                        </div>
+                        <div className="mt-2.5 p-2 bg-surface-container-low rounded-lg flex items-center gap-2">
+                          <CheckCircle2 className="w-[16px] h-[16px] text-fresh-teal shrink-0" />
+                          <p className="font-label-sm text-label-sm text-on-surface truncate">
+                            <strong className="font-bold">{nextLabCenter || 'Lab'}</strong>: {nextLabName}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between">
+                        <div className="w-10 h-10 rounded-xl bg-surface-variant text-on-primary-fixed-variant flex items-center justify-center">
+                          <FolderOpen className="w-[24px] h-[24px]" />
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm font-semibold">Cloud Sync</span>
+                      </div>
+                      <div className="mt-4">
+                        <div className="flex items-baseline gap-2">
+                          <span className="font-display-lg text-headline-lg font-extrabold text-on-surface leading-none">{totalDocuments}</span>
+                          <span className="font-title-md text-body-md font-bold text-on-surface-variant">Documents</span>
+                        </div>
+                        <div className="mt-2.5 p-2 bg-surface-container-low rounded-lg flex items-center gap-2">
+                          <FileText className="w-[16px] h-[16px] text-primary shrink-0" />
+                          <p className="font-label-sm text-label-sm text-on-surface truncate">
+                            Prescriptions • Radiology • Summaries
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-3 p-3 rounded-xl bg-surface-container-low self-start lg:self-auto">
-                    <div className="w-12 h-12 rounded-lg bg-surface-container-lowest overflow-hidden flex-shrink-0 flex items-center justify-center">
-                      <img className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBtWxMz-eBvW1Ghk-RB4rK_hV39P8xTp2-LAveOPB4ndQBjUedzAxfQV6QciuxuRL7jy1-1pZ3eLC8F3QtPXcL3MS9SOgHQObqu5rIpnyHVY3oOaIziLd_iaUh26Ua1LaxgXu_ziK6iNy_DdCsBcSrxlYS-NZs-KJREy099iSwMiofbVBdIfYe9EJnHXj55PzQDV3HhMZtUalBxUS1ExCkpkGzd1u2bhGsCkinBy982ZsgkmmRNc6I9Bw" alt="Care Concierge" />
-                    </div>
-                    <div className="text-left leading-snug">
-                      <p className="font-label-sm text-label-sm text-indigo-gray-900 font-semibold">Care Concierge Online</p>
-                      <p className="font-label-sm text-label-sm text-fresh-teal">Sister Maya (RN, BSN)</p>
-                      <button className="font-label-sm text-label-sm text-primary hover:underline font-semibold mt-0.5 inline-flex items-center gap-1" type="button">
-                        <span>Instant Message</span>
-                        <ArrowRight className="w-[13px] h-[13px]" />
+                  {/* 2. Personal Information & Medical History Panel */}
+                  <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm flex flex-col gap-6">
+                    <div className="flex items-center justify-between pb-3 border-b-0">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-vibrant-blue/10 flex items-center justify-center text-vibrant-blue">
+                          <User className="w-[20px] h-[20px]" />
+                        </div>
+                        <div>
+                          <h3 className="font-title-md text-title-md font-bold text-on-surface">Personal Information</h3>
+                          <p className="font-body-md text-label-sm text-on-surface-variant">Official identification synced with ABDM Government Registry</p>
+                        </div>
+                      </div>
+                      <button className="text-vibrant-blue hover:text-primary font-label-sm text-label-sm font-semibold inline-flex items-center gap-1" type="button">
+                        <Lock className="w-[16px] h-[16px]" /> Request Update
                       </button>
                     </div>
-                  </div>
-                </div>
 
-                <PatientDashboardActions />
-              </div>
-            </section>
-
-            <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-base">
-              <div className="p-base rounded-2xl bg-surface-container-lowest shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                  <span className="font-label-sm text-label-sm text-indigo-gray-600 uppercase tracking-wider font-semibold">Upcoming Visits</span>
-                  <div className="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center text-primary">
-                    <Calendar className="w-[20px] h-[20px]" />
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <p className="font-headline-lg text-headline-lg text-indigo-gray-900 font-bold leading-none">{appointments?.length || 0} <span className="font-title-md text-title-md font-semibold text-outline">Total</span></p>
-                  {appointments && appointments.length > 0 && (
-                    <div className="mt-2.5 p-2 rounded-lg bg-surface-container-low flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-fresh-teal"></span>
-                      <p className="font-label-sm text-label-sm text-indigo-gray-900 truncate">Next: {new Date((appointments[0] as any).schedules.start_time).toLocaleDateString('en-IN')}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-base rounded-2xl bg-surface-container-lowest shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                  <span className="font-label-sm text-label-sm text-indigo-gray-600 uppercase tracking-wider font-semibold">Lab Diagnostics</span>
-                  <div className="w-9 h-9 rounded-lg bg-secondary-container/40 flex items-center justify-center text-secondary">
-                    <FileText className="w-[20px] h-[20px]" />
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <div className="flex items-center gap-2">
-                    <p className="font-headline-lg text-headline-lg text-indigo-gray-900 font-bold leading-none">{diagnosticBookings?.length || 0} Total</p>
-                    {diagnosticBookings && diagnosticBookings.length > 0 && <span className="px-2 py-0.5 rounded-full bg-fresh-teal/10 text-secondary font-label-sm text-[11px] font-semibold">Ready</span>}
-                  </div>
-                  {diagnosticBookings && diagnosticBookings.length > 0 && (
-                    <div className="mt-2.5 p-2 rounded-lg bg-fresh-teal/5 flex items-center gap-1.5 text-secondary">
-                      <MessageSquare className="w-[16px] h-[16px]" />
-                      <p className="font-label-sm text-label-sm truncate">SMS Dispatched &amp; Download Available</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-base rounded-2xl bg-surface-container-lowest shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                  <span className="font-label-sm text-label-sm text-indigo-gray-600 uppercase tracking-wider font-semibold">Prescriptions</span>
-                  <div className="w-9 h-9 rounded-lg bg-primary-fixed flex items-center justify-center text-primary">
-                    <Pill className="w-[20px] h-[20px]" />
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <p className="font-headline-lg text-headline-lg text-indigo-gray-900 font-bold leading-none">{prescriptions.length} <span className="font-title-md text-title-md font-semibold text-outline">Total</span></p>
-                  {prescriptions.length > 0 && (
-                    <div className="mt-2.5 flex items-center justify-between text-indigo-gray-600 font-label-sm text-label-sm">
-                      <span>Latest issue:</span>
-                      <span className="font-semibold text-primary px-2 py-0.5 rounded bg-surface-container">{new Date(prescriptions[0].date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* <div className="p-base rounded-2xl bg-surface-container-lowest shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                  <span className="font-label-sm text-label-sm text-indigo-gray-600 uppercase tracking-wider font-semibold">Biometrics &amp; Sync</span>
-                  <div className="w-9 h-9 rounded-lg bg-surface-container-high flex items-center justify-center text-primary-container">
-                    <MonitorCheck className="w-[20px] h-[20px]" />
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-title-md text-title-md font-bold text-indigo-gray-900">118/76</span>
-                    <span className="font-label-sm text-label-sm text-indigo-gray-600">mmHg</span>
-                    <span className="font-label-sm text-label-sm text-outline">|</span>
-                    <span className="font-title-md text-title-md font-bold text-indigo-gray-900">68</span>
-                    <span className="font-label-sm text-label-sm text-indigo-gray-600">bpm</span>
-                  </div>
-                  <div className="mt-2.5 flex items-center gap-1.5 text-indigo-gray-600 font-label-sm text-label-sm">
-                    <CheckCircle2 className="w-[15px] h-[15px] text-fresh-teal" />
-                    <span className="truncate">HbA1c 5.6% · Synced Apple Health</span>
-                  </div>
-                </div>
-              </div> */}
-            </section>
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start">
-
-              <div className="lg:col-span-8 flex flex-col gap-stack-lg">
-
-                <section className="space-y-base">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-primary-container"></span>
-                      <h2 className="font-title-md text-title-md text-indigo-gray-900 font-bold">Recent Clinical Consultations</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div className="p-3.5 bg-surface-container-low rounded-xl flex flex-col gap-1">
+                        <span className="font-label-sm text-label-sm text-outline">Full Legal Name</span>
+                        <span className="font-body-md text-body-md font-semibold text-on-surface">{fullName}</span>
+                      </div>
+                      <div className="p-3.5 bg-surface-container-low rounded-xl flex flex-col gap-1">
+                        <span className="font-label-sm text-label-sm text-outline">Date of Birth &amp; Gender</span>
+                        <span className="font-body-md text-body-md font-semibold text-on-surface">
+                          {patientDetails?.date_of_birth ? new Date(patientDetails.date_of_birth).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : 'Not provided'} • {patientDetails?.gender || 'Not provided'}
+                        </span>
+                      </div>
+                      <div className="p-3.5 bg-surface-container-low rounded-xl flex flex-col gap-1 md:col-span-2">
+                        <span className="font-label-sm text-label-sm text-outline">Registered Residential Address</span>
+                        <div className="flex items-start gap-2">
+                          <MapPin className="text-on-surface-variant w-[18px] h-[18px] mt-0.5" />
+                          <span className="font-body-md text-body-md font-medium text-on-surface">
+                            {patientDetails?.address || 'Not provided'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="p-3.5 bg-surface-container-low rounded-xl flex flex-col gap-1 md:col-span-2">
+                        <span className="font-label-sm text-label-sm text-outline">Primary Emergency Contact</span>
+                        {patientDetails?.emergency_contact_name ? (
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-1">
+                            <div className="flex items-center gap-2">
+                              <PhoneCall className="text-soft-coral w-[20px] h-[20px]" />
+                              <span className="font-body-md text-body-md font-bold text-on-surface">{patientDetails.emergency_contact_name}</span>
+                              {patientDetails.emergency_contact_relation && (
+                                <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm font-medium">{patientDetails.emergency_contact_relation}</span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 font-body-md text-label-sm font-semibold text-vibrant-blue">
+                              <Phone className="w-[16px] h-[16px]" /> {patientDetails.emergency_contact_phone || 'Not provided'}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="font-body-md text-body-md font-medium text-on-surface mt-1">Not provided</span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <ConsultationsList appointments={appointments || []} />
-                </section>
 
-                <section className="space-y-base">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-fresh-teal"></span>
-                      <h2 className="font-title-md text-title-md text-indigo-gray-900 font-bold">Recent Diagnostic Reports &amp; SMS Dispatches</h2>
+                  {/* 3. Health Vitals & Real-Time Baseline */}
+                  <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm flex flex-col gap-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-fresh-teal/15 flex items-center justify-center text-fresh-teal">
+                          <HeartPulse className="w-[20px] h-[20px]" />
+                        </div>
+                        <div>
+                          <h3 className="font-title-md text-title-md font-bold text-on-surface">Health Vitals &amp; Baseline</h3>
+                          <p className="font-body-md text-label-sm text-on-surface-variant">Continuous telemetry synced via Apple HealthKit &amp; ABDM gateway</p>
+                        </div>
+                      </div>
+                      <span className="px-3 py-1 rounded-full bg-fresh-teal/10 text-fresh-teal font-label-sm text-label-sm font-bold flex items-center gap-1 self-start sm:self-auto">
+                        <RefreshCw className="w-[14px] h-[14px]" /> Synced 14m ago
+                      </span>
                     </div>
-                    {/* <a className="font-label-sm text-label-sm text-primary hover:underline font-semibold flex items-center gap-1" href="#">
-                      All Records ({diagnosticBookings?.length || 0}) <ChevronRight className="w-[16px] h-[16px]" />
-                    </a> */}
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="p-4 rounded-xl bg-surface-container-low flex flex-col justify-between">
+                        <div className="flex items-center justify-between">
+                          <span className="font-label-sm text-label-sm text-on-surface-variant font-semibold">Blood Pressure</span>
+                          <Heart className="text-vibrant-blue w-[18px] h-[18px]" />
+                        </div>
+                        <div className="my-3">
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="font-headline-lg text-headline-lg font-bold text-on-surface">118/76</span>
+                            <span className="font-label-sm text-label-sm text-on-surface-variant">mmHg</span>
+                          </div>
+                          <span className="inline-block mt-1 font-label-sm text-label-sm font-bold text-fresh-teal">Optimal / Normal</span>
+                        </div>
+                        <div className="w-full h-8 pt-1">
+                          <svg className="w-full h-full text-vibrant-blue" fill="none" viewBox="0 0 100 24">
+                            <path d="M0 16 L20 16 L26 6 L32 20 L38 12 L44 16 L100 16" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
+                          </svg>
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-surface-container-low flex flex-col justify-between">
+                        <div className="flex items-center justify-between">
+                          <span className="font-label-sm text-label-sm text-on-surface-variant font-semibold">Resting Heart Rate</span>
+                          <Activity className="text-soft-coral w-[18px] h-[18px]" />
+                        </div>
+                        <div className="my-3">
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="font-headline-lg text-headline-lg font-bold text-on-surface">71</span>
+                            <span className="font-label-sm text-label-sm text-on-surface-variant">bpm</span>
+                          </div>
+                          <span className="inline-block mt-1 font-label-sm text-label-sm font-bold text-fresh-teal">Resting Steady</span>
+                        </div>
+                        <div className="w-full h-8 pt-1">
+                          <svg className="w-full h-full text-soft-coral" fill="none" viewBox="0 0 100 24">
+                            <path d="M0 14 Q25 8 50 14 T100 14" stroke="currentColor" strokeLinecap="round" strokeWidth="2"></path>
+                          </svg>
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-surface-container-low flex flex-col justify-between">
+                        <div className="flex items-center justify-between">
+                          <span className="font-label-sm text-label-sm text-on-surface-variant font-semibold">Blood Oxygen (SpO2)</span>
+                          <Wind className="text-fresh-teal w-[18px] h-[18px]" />
+                        </div>
+                        <div className="my-3">
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="font-headline-lg text-headline-lg font-bold text-on-surface">99%</span>
+                            <span className="font-label-sm text-label-sm text-on-surface-variant">Oxygen Sat</span>
+                          </div>
+                          <span className="inline-block mt-1 font-label-sm text-label-sm font-bold text-fresh-teal">Optimal Saturation</span>
+                        </div>
+                        <div className="w-full h-8 flex items-center">
+                          <div className="w-full bg-surface-variant h-2 rounded-full overflow-hidden">
+                            <div className="bg-fresh-teal h-full rounded-full" style={{ width: '99%' }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <DiagnosticBookingsList diagnosticBookings={diagnosticBookings || []} />
-                </section>
-              </div>
 
-              <div className="lg:col-span-4 flex flex-col gap-stack-lg">
+                  {/* 4. Allergies & Critical Alerts */}
+                  <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm flex flex-col gap-5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-soft-coral/15 flex items-center justify-center text-soft-coral">
+                          <AlertTriangle className="w-[20px] h-[20px]" />
+                        </div>
+                        <h3 className="font-title-md text-title-md font-bold text-on-surface">Allergies &amp; Clinical Alerts</h3>
+                      </div>
+                      <span className="font-label-sm text-label-sm text-outline">Updated: 12 Jan 2026</span>
+                    </div>
 
-                <RecordsAndMedicationsList prescriptions={prescriptions || []} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="p-4 rounded-xl bg-error-container/30 flex items-start gap-3">
+                        <AlertCircle className="text-tertiary w-[22px] h-[22px] shrink-0 mt-0.5" />
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-2">
+                            <span className="font-title-md text-body-md font-bold text-on-error-container">Penicillin Group</span>
+                            <span className="px-2 py-0.5 rounded-full bg-soft-coral text-on-error font-label-sm text-label-sm font-bold uppercase tracking-wider">Critical</span>
+                          </div>
+                          <p className="font-body-md text-label-sm text-on-error-container/90 mt-1">Severe anaphylactic response. Strict contraindication for Beta-Lactam antibiotics.</p>
+                        </div>
+                      </div>
 
-                {/* <div className="pt-2 flex flex-col gap-base">
-                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-surface-container">
+                      <div className="p-4 rounded-xl bg-surface-container-low flex items-start gap-3">
+                        <Stethoscope className="text-vibrant-blue w-[22px] h-[22px] shrink-0 mt-0.5" />
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-2">
+                            <span className="font-title-md text-body-md font-bold text-on-surface">Mild Exercise Asthma</span>
+                            <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm font-bold">Managed</span>
+                          </div>
+                          <p className="font-body-md text-label-sm text-on-surface-variant mt-1">Prescribed rescue inhaler (Albuterol 90mcg PRN). Seasonal triggers during humidity shifts.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {nextApptDoctor !== 'No upcoming appointments' && (
+                      <div className="p-4 rounded-xl bg-surface-container-low flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-full bg-primary-fixed flex items-center justify-center text-primary shrink-0">
+                            <User className="w-6 h-6" />
+                          </div>
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                              <span className="font-title-md text-body-md font-bold text-on-surface">Dr. {nextApptDoctor}</span>
+                              <span className="font-label-sm text-label-sm text-vibrant-blue font-bold px-2 py-0.5 bg-primary-fixed rounded">Upcoming Consult</span>
+                            </div>
+                            <span className="font-label-sm text-label-sm text-on-surface-variant">Scheduled for {nextApptDate}</span>
+                          </div>
+                        </div>
+                        <button className="py-2 px-4 rounded-full bg-vibrant-blue text-on-primary font-label-sm text-label-sm font-semibold hover:bg-primary transition-colors flex items-center justify-center gap-1.5 self-start sm:self-auto shrink-0" type="button">
+                          <MessageSquare className="w-[16px] h-[16px]" /> Message Clinic
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 5. Connected Health Channels */}
+                  <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm flex flex-col gap-6">
+                    <div className="flex items-center justify-between pb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-fresh-teal/15 flex items-center justify-center text-secondary">
+                          <Share2 className="w-[20px] h-[20px]" />
+                        </div>
+                        <div>
+                          <h3 className="font-title-md text-title-md font-bold text-on-surface">Connected Health Channels</h3>
+                          <p className="font-body-md text-label-sm text-on-surface-variant">Real-time clinical delivery pipelines and patient dispatch gateways</p>
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full bg-fresh-teal/10 text-fresh-teal font-label-sm text-label-sm font-bold flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-fresh-teal"></span> 3 Channels Online
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="p-4 rounded-xl bg-surface-container-low flex flex-col justify-between gap-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-full bg-fresh-teal/20 text-fresh-teal flex items-center justify-center">
+                              <MessageSquare className="w-[20px] h-[20px]" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-title-md text-label-sm font-bold text-on-surface">WhatsApp Rx Sync</span>
+                              <span className="font-label-sm text-label-sm text-on-surface-variant">{phone}</span>
+                            </div>
+                          </div>
+                          <div className="w-10 h-6 rounded-full bg-fresh-teal flex items-center justify-end px-1 cursor-pointer">
+                            <div className="w-4 h-4 rounded-full bg-surface-container-lowest shadow-sm"></div>
+                          </div>
+                        </div>
+                        <p className="font-body-md text-label-sm text-on-surface-variant">Instant PDF prescriptions sent directly after clinical sign-off.</p>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-surface-container-low flex flex-col justify-between gap-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-full bg-vibrant-blue/20 text-vibrant-blue flex items-center justify-center">
+                              <MessageSquare className="w-[20px] h-[20px]" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-title-md text-label-sm font-bold text-on-surface">SMS Critical Alerts</span>
+                              <span className="font-label-sm text-label-sm text-on-surface-variant">Priority 1 Gateway</span>
+                            </div>
+                          </div>
+                          <div className="w-10 h-6 rounded-full bg-fresh-teal flex items-center justify-end px-1 cursor-pointer">
+                            <div className="w-4 h-4 rounded-full bg-surface-container-lowest shadow-sm"></div>
+                          </div>
+                        </div>
+                        <p className="font-body-md text-label-sm text-on-surface-variant">Instant notification if lab markers deviate outside clinical baselines.</p>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-surface-container-low flex flex-col justify-between gap-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-full bg-secondary-container/50 text-on-secondary-container flex items-center justify-center">
+                              <Cloud className="w-[20px] h-[20px]" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-title-md text-label-sm font-bold text-on-surface">ABHA Locker</span>
+                              <span className="font-label-sm text-label-sm text-on-surface-variant">National PHR Node</span>
+                            </div>
+                          </div>
+                          <div className="w-10 h-6 rounded-full bg-fresh-teal flex items-center justify-end px-1 cursor-pointer">
+                            <div className="w-4 h-4 rounded-full bg-surface-container-lowest shadow-sm"></div>
+                          </div>
+                        </div>
+                        <p className="font-body-md text-label-sm text-on-surface-variant">Encrypted consent-driven record replication across pan-India clinics.</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-surface-container text-on-surface-variant font-label-sm text-label-sm">
                       <div className="flex items-center gap-2">
-                        <Clock className="w-[18px] h-[18px] text-primary" />
-                        <span className="font-label-sm text-label-sm text-indigo-gray-900 font-medium">WhatsApp Reminders</span>
+                        <ShieldCheck className="text-fresh-teal w-[18px] h-[18px]" />
+                        <span>End-to-end 256-bit encrypted data store. Compliant with DISHA, ABDM M3, and HIPAA patient data mandates.</span>
                       </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input defaultChecked className="sr-only peer" type="checkbox" />
-                        <div className="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-fresh-teal"></div>
-                      </label>
-                    </div>
-                    <button className="w-full py-2.5 rounded-full bg-primary-container text-on-primary-container font-label-sm text-label-sm font-semibold hover:bg-primary transition-all shadow-sm flex items-center justify-center gap-1.5" type="button">
-                      <Store className="w-[18px] h-[18px]" />
-                      Express Refill to Home
-                    </button>
-                  </div> */}
-
-
-              {/* <section className="p-stack-md rounded-2xl bg-surface-container-lowest shadow-sm flex flex-col gap-base border border-outline-variant/20">
-                  <div className="flex items-center justify-between">
-                    <h2 className="font-title-md text-title-md text-indigo-gray-900 font-bold">Preventative Care Journey</h2>
-                    <TrendingUp className="text-outline w-[20px] h-[20px]" />
-                  </div>
-
-                  <div className="p-base rounded-xl bg-surface-container-low flex items-center gap-4">
-                    <div className="relative w-16 h-16 flex-shrink-0 flex items-center justify-center">
-                      <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
-                        <path className="text-surface-container-highest" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3.5"></path>
-                        <path className="text-fresh-teal" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeDasharray="75, 100" strokeLinecap="round" strokeWidth="3.5"></path>
-                      </svg>
-                      <div className="absolute inset-0 flex items-center justify-center font-title-md text-body-md font-bold text-indigo-gray-900">
-                        75%
-                      </div>
-                    </div>
-                    <div>
-                      <p className="font-label-sm text-label-sm text-primary font-semibold">Cardiac Wellness Track</p>
-                      <p className="font-title-md text-body-md text-indigo-gray-900 font-bold">Step 3 of 4 Complete</p>
-                      <p className="font-label-sm text-label-sm text-outline mt-0.5">Awaiting cardiologist synthesis</p>
+                      <Link href="#" className="font-bold text-vibrant-blue hover:underline shrink-0 ml-2">Audit Logs</Link>
                     </div>
                   </div>
 
-                  <div className="space-y-2 text-indigo-gray-600 font-label-sm text-label-sm">
-                    <div className="flex items-center gap-2 text-indigo-gray-900 font-medium">
-                      <CheckCircle2 className="text-fresh-teal w-[18px] h-[18px]" />
-                      <span>1. Baseline Blood &amp; Lipid Evaluation</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-indigo-gray-900 font-medium">
-                      <CheckCircle2 className="text-fresh-teal w-[18px] h-[18px]" />
-                      <span>2. Contrast High-Resolution MRI</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-primary font-semibold">
-                      <RefreshCw className="text-primary w-[18px] h-[18px] animate-spin" />
-                      <span>3. Physician Diagnostic Synthesis</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-outline">
-                      <Circle className="w-[18px] h-[18px]" />
-                      <span>4. Personalized Lifestyle &amp; Rx Plan</span>
-                    </div>
-                  </div>
-
-                  <div className="pt-base border-t border-outline-variant/30 space-y-base mt-2">
-                    <p className="font-label-sm text-label-sm text-indigo-gray-900 uppercase tracking-wider font-semibold">Clinically Curated For You</p>
-                    <a className="group flex items-center gap-3 p-2 rounded-xl hover:bg-surface-container-low transition-colors" href="#">
-                      <div className="w-12 h-12 rounded-lg bg-surface-container overflow-hidden flex-shrink-0">
-                        <img className="w-full h-full object-cover group-hover:scale-105 transition-transform" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAIaFfWfNRhQsKFm6WUP03qXmrvJka6MPVs1ktu5khNPLt6XnyLy64OYRA5ZGLgyU0KXfhbb7S53PqID6dFdlrFz7lBijbhL3DElLgKdCr0HndBJY1mG9zaQlU7yeScVUyrKffVvD--ynvcNPC6FDxz_jQg2IGy-lxR1IOuTPIc-WNC2mcvKzcBgPfHIhq9AlidGOtUa_8f8n5Bx4RxUDboqSdqL4MVyVCRUPVPQg9JUz72rCXHqzAiUg" alt="Article 1" />
-                      </div>
-                      <div className="leading-tight">
-                        <p className="font-label-sm text-label-sm font-semibold text-indigo-gray-900 group-hover:text-primary transition-colors line-clamp-2">
-                          Navigating Post-Cardiac MRI: Understanding Your Myocardial Strain Score
-                        </p>
-                        <span className="font-label-sm text-[11px] text-outline mt-1 inline-block">3 min read · Reviewed by Cardiology</span>
-                      </div>
-                    </a>
-                    <a className="group flex items-center gap-3 p-2 rounded-xl hover:bg-surface-container-low transition-colors" href="#">
-                      <div className="w-12 h-12 rounded-lg bg-surface-container overflow-hidden flex-shrink-0">
-                        <img className="w-full h-full object-cover group-hover:scale-105 transition-transform" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDOrJ8A8QzdqVGYuQqjcbpf41AaGylKqQDG4_7VzFI5OLECX0HcQaHHAzuUSsFAnsiCNDFSaf6SG-MFYmYcFcbzav8mqHDvvUZm_bIVZnp-Zk_N_jHVx4P9PutKgwftph7-khFTs-sJFbEO4u1o_bSbli6OHTtJCLeCNwK90N0dY38-KOTx3hB6DYDqKuro33ckutdm8PfVs2HwROzJOCq2ovl1vq9fcRE4qUBV2i_W-umhR6Y35B17kA" alt="Article 2" />
-                      </div>
-                      <div className="leading-tight">
-                        <p className="font-label-sm text-label-sm font-semibold text-indigo-gray-900 group-hover:text-primary transition-colors line-clamp-2">
-                          Optimal Hydration Schedules for Beta-Blocker Efficacy
-                        </p>
-                        <span className="font-label-sm text-[11px] text-outline mt-1 inline-block">4 min read · Pharmacology team</span>
-                      </div>
-                    </a>
-                  </div>
-                </section> */}
+                </div>
+              </div>
             </div>
           </div>
         </div>
+      </main>
     </div>
-      </main >
-    <Footer />
-    </div >
   )
 }

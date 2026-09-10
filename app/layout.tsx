@@ -19,17 +19,17 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://consultyourdoctor.de"),
 
   title: {
-    default: "Consult Your Doctor | Online Medical Consultation",
+    default: "Consult Your Doctor | AI-Powered Doctors and Personalized Medication Support",
     template: "%s | Consult Your Doctor",
   },
 
   description:
-    "Book appointments and consult your doctor online effortlessly. Connecting you with top healthcare professionals.",
+    "AI-powered doctors provide personalized medical advice and support medication planning to make your healthcare decisions easier.",
 
   openGraph: {
-    title: "Consult Your Doctor | Online Medical Consultation",
+    title: "Consult Your Doctor | AI-Powered Doctors and Personalized Medication Support",
     description:
-      "Book appointments and consult your doctor online effortlessly.",
+      "AI-powered doctors provide personalized medical advice and support medication planning to make your healthcare decisions easier.",
     url: "https://consultyourdoctor.de",
     siteName: "Consult Your Doctor",
     locale: "en_US",
@@ -38,9 +38,9 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title: "Consult Your Doctor | Online Medical Consultation",
+    title: "Consult Your Doctor | AI-Powered Doctors and Personalized Medication Support",
     description:
-      "Book appointments and consult your doctor online effortlessly.",
+      "AI-powered doctors provide personalized medical advice and support medication planning to make your healthcare decisions easier.",
   },
 
   icons: {

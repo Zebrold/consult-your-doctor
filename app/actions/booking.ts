@@ -131,3 +131,107 @@ export async function verifyAndCheckInDiagnostic(bookingId: string, inputId: str
 
   return { success: true }
 }
+
+export async function finalizeConsultationAppointment(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const doctorId = formData.get('doctor_id') as string
+  const hospitalId = formData.get('hospital_id') as string
+  const appointmentDate = formData.get('appointment_date') as string
+  const appointmentTime = formData.get('appointment_time') as string
+  const consultationMode = formData.get('consultation_mode') as string
+  const patientName = formData.get('patient_name') as string
+  const explicitScheduleId = formData.get('schedule_id') as string
+  const patientPhone = formData.get('patient_phone') as string
+  const patientEmail = formData.get('patient_email') as string
+  const reason = formData.get('reason') as string
+
+  if (!doctorId) {
+    return { error: 'Doctor ID is required.' }
+  }
+
+  // If user is not logged in, allow instant preview success
+  if (!user) {
+    return { success: true }
+  }
+
+  try {
+    const { createAdminClient } = await import('@/lib/supabase/admin')
+    const adminClient = createAdminClient()
+
+    let scheduleId: string | null = explicitScheduleId || null
+
+    if (scheduleId) {
+      // Mark the selected hospital-generated slot as booked
+      await adminClient.from('schedules').update({ is_booked: true }).eq('id', scheduleId)
+    } else {
+      // Find unbooked schedule or create if none exists
+      const { data: existingSchedule } = await adminClient
+        .from('schedules')
+        .select('id')
+        .eq('doctor_id', doctorId)
+        .eq('is_booked', false)
+        .order('start_time', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+
+      if (existingSchedule) {
+        scheduleId = existingSchedule.id
+        await adminClient.from('schedules').update({ is_booked: true }).eq('id', scheduleId)
+      } else {
+        const datePart = appointmentDate || new Date().toISOString().split('T')[0]
+        const startTime = new Date(`${datePart}T10:00:00Z`).toISOString()
+        const endTime = new Date(`${datePart}T10:30:00Z`).toISOString()
+        const { data: newSchedule } = await adminClient
+          .from('schedules')
+          .insert({
+            doctor_id: doctorId,
+            start_time: startTime,
+            end_time: endTime,
+            is_booked: true,
+          })
+          .select('id')
+          .maybeSingle()
+
+        if (newSchedule) {
+          scheduleId = newSchedule.id
+        }
+      }
+    }
+
+    let resolvedHospitalId = hospitalId
+    if (!resolvedHospitalId) {
+      const { data: docData } = await adminClient
+        .from('doctors')
+        .select('hospital_id')
+        .eq('id', doctorId)
+        .maybeSingle()
+      if (docData?.hospital_id) {
+        resolvedHospitalId = docData.hospital_id
+      }
+    }
+
+    const { data: appointment, error: aptError } = await adminClient
+      .from('appointments')
+      .insert({
+        patient_id: user.id,
+        doctor_id: doctorId,
+        hospital_id: resolvedHospitalId || null,
+        schedule_id: scheduleId,
+        status: 'confirmed',
+      })
+      .select('id')
+      .maybeSingle()
+
+    if (aptError) {
+      console.error('Error finalizing appointment:', aptError)
+      return { error: 'Failed to create appointment in database.' }
+    }
+
+    return { success: true, url: `/patient/profile` }
+  } catch (err: any) {
+    console.error('Error in finalizeConsultationAppointment:', err)
+    return { error: err.message || 'An unexpected error occurred.' }
+  }
+}

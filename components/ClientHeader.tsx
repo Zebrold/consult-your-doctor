@@ -71,7 +71,7 @@ export function ClientHeader({ user }: { user: any }) {
           {user ? (
             <div className="flex items-center gap-4">
               <Link
-                href={user.user_metadata?.role === "doctor" ? "/doctor/dashboard" : user.user_metadata?.role === "diagnostic_center" ? "/diagnostic/dashboard" : "/patient/dashboard"}
+                href={user.user_metadata?.role === "doctor" ? "/doctor/dashboard" : user.user_metadata?.role === "diagnostic_center" ? "/diagnostic/dashboard" : "/patient/profile"}
                 className="flex items-center gap-2 text-slate-700 font-bold hover:text-vibrant-blue text-[15px] transition-colors"
               >
                 <LayoutDashboard className="w-5 h-5 text-vibrant-blue" />
@@ -130,7 +130,7 @@ export function ClientHeader({ user }: { user: any }) {
           {user ? (
             <div className="flex flex-col gap-4">
               <Link
-                href={user.user_metadata?.role === "doctor" ? "/doctor/dashboard" : user.user_metadata?.role === "diagnostic_center" ? "/diagnostic/dashboard" : "/patient/dashboard"}
+                href={user.user_metadata?.role === "doctor" ? "/doctor/dashboard" : user.user_metadata?.role === "diagnostic_center" ? "/diagnostic/dashboard" : "/patient/profile"}
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="flex items-center gap-3 text-slate-700 font-bold hover:text-vibrant-blue text-lg"
               >

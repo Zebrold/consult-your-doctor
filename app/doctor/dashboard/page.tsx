@@ -1,8 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
-import { Calendar, Clock, User, FileText, CheckCircle2 } from 'lucide-react'
-import { DoctorPrescriptionModal } from '@/components/DoctorPrescriptionModal'
+import { DoctorDashboardClient } from '@/components/DoctorDashboardClient'
 
 export default async function DoctorDashboard() {
   const supabase = await createClient()
@@ -10,9 +9,30 @@ export default async function DoctorDashboard() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login/doctor')
 
-  // Verify doctor
-  const { data: doctor } = await supabase.from('doctors').select('id, profiles!doctors_profile_id_fkey ( full_name )').eq('profile_id', user.id).single()
+  // Verify doctor and fetch profile
+  const { data: doctor } = await supabase.from('doctors').select(`
+    id, 
+    specialty,
+    hospital_id,
+    profiles!doctors_profile_id_fkey ( full_name, image_url )
+  `).eq('profile_id', user.id).single()
+  
   if (!doctor) redirect('/')
+
+  // Fetch hospital name if available
+  let hospitalName = 'Medical Hub'
+  if (doctor.hospital_id) {
+    // Assuming there is a hospitals table, we can fetch the name. If not, fallback.
+    const { data: hospital } = await supabase.from('hospitals').select('name').eq('id', doctor.hospital_id).single()
+    if (hospital?.name) hospitalName = hospital.name
+  }
+
+  // Formatting doctor profile
+  const doctorProfile = {
+    ...doctor,
+    full_name: (doctor.profiles as any)?.full_name || 'Doctor',
+    image_url: (doctor.profiles as any)?.image_url || null,
+  }
 
   // Fetch today's appointments for this doctor
   const todayStart = new Date()
@@ -27,6 +47,7 @@ export default async function DoctorDashboard() {
     .select(`
       id,
       status,
+      patient_id,
       patient:profiles!appointments_patient_id_fkey ( full_name, phone_number ),
       schedules!inner (
         start_time,
@@ -43,104 +64,23 @@ export default async function DoctorDashboard() {
 
   appointments?.sort((a: any, b: any) => new Date(a.schedules.start_time).getTime() - new Date(b.schedules.start_time).getTime())
 
-  // Fetch all-time total appointments for the stat card
-  const { count: totalAppointmentsCount } = await adminClient
-    .from('appointments')
-    .select('*', { count: 'exact', head: true })
-    .eq('doctor_id', doctor.id)
-
+  // Calculate today's stats
+  const total = appointments?.length || 0
   const completed = appointments?.filter(a => a.status === 'completed').length || 0
-  const pending = (appointments?.length || 0) - completed
+  const pending = total - completed
+
+  const todayStats = {
+    total,
+    completed,
+    pending
+  }
 
   return (
-    <div className="p-4 sm:p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Welcome, Dr. {(doctor?.profiles as any)?.full_name?.replace('Dr. ', '') || 'Doctor'}</h1>
-        <p className="text-gray-500">Here is your schedule overview.</p>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-          <p className="text-sm font-medium text-gray-500 mb-1">Total Appointments</p>
-          <p className="text-3xl font-black text-gray-900">{totalAppointmentsCount || 0}</p>
-        </div>
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-          <p className="text-sm font-medium text-blue-600 mb-1">Pending Consultations</p>
-          <p className="text-3xl font-black text-blue-600">{pending}</p>
-        </div>
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-          <p className="text-sm font-medium text-green-600 mb-1">Completed Today</p>
-          <p className="text-3xl font-black text-green-600">{completed}</p>
-        </div>
-      </div>
-
-      {/* Appointments List */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
-          <h2 className="text-lg font-bold text-gray-900">Your Patients</h2>
-        </div>
-
-        <div className="divide-y divide-gray-100">
-          {appointments?.length === 0 ? (
-            <div className="p-12 text-center">
-              <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500 font-medium">No appointments scheduled.</p>
-            </div>
-          ) : (
-            appointments?.map(apt => {
-              const schedule: any = apt.schedules
-              const patient: any = apt.patient
-              const date = new Date(schedule.start_time)
-              const hasPrescription = apt.medical_records && apt.medical_records.length > 0
-
-              return (
-                <div key={apt.id} className="p-6 flex flex-col md:flex-row gap-6 md:items-center hover:bg-gradient-to-r from-gray-50 to-white transition-colors">
-
-                  {/* Time Info */}
-                  <div className="w-32">
-                    <p className="text-xl font-black text-gray-900">{date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>
-                    <p className="text-xs font-bold text-gray-500">{date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</p>
-                  </div>
-
-                  {/* Patient Info */}
-                  <div className="flex-1 flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-                      <User className="w-6 h-6 text-gray-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900">{patient?.full_name || 'Unknown Patient'}</h3>
-                      <p className="text-sm text-gray-500 font-medium">{patient?.phone_number || 'No phone number'}</p>
-                    </div>
-                  </div>
-
-                  {/* Status Badge */}
-                  <div className="flex-1 flex items-center justify-center">
-                    <span className={`px-3 py-1 text-xs font-bold rounded-lg uppercase tracking-wider ${apt.status === 'completed' ? 'bg-green-100 text-green-700' :
-                        apt.status === 'confirmed' ? 'bg-blue-100 text-blue-700' :
-                          apt.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                            'bg-orange-100 text-orange-700'
-                      }`}>
-                      {apt.status.replace('_', ' ')}
-                    </span>
-                  </div>
-                  {/* Actions */}
-                  <div className="flex-1 flex justify-end">
-                    {apt.status === 'completed' || hasPrescription ? (
-                      <div className="px-4 py-2 bg-green-50 text-green-700 font-bold text-sm rounded-xl flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4" /> Prescribed
-                      </div>
-                    ) : apt.status === 'cancelled' ? null : (
-                      <DoctorPrescriptionModal appointmentId={apt.id} patientName={patient?.full_name || 'Unknown Patient'} />
-                    )}
-                  </div>
-
-                </div>
-              )
-            })
-          )}
-        </div>
-      </div>
-    </div>
+    <DoctorDashboardClient 
+      doctorProfile={doctorProfile}
+      appointments={appointments || []}
+      todayStats={todayStats}
+      hospitalName={hospitalName}
+    />
   )
 }

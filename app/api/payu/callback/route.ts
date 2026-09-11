@@ -57,11 +57,11 @@ export async function POST(request: Request) {
       }
 
       // Redirect to the success dashboard
-      return NextResponse.redirect(`${baseUrl}/patient/dashboard?payment=success`, 303);
+      return NextResponse.redirect(`${baseUrl}/patient/profile?payment=success`, 303);
     } else {
       // Payment Failed
       // You can update status to 'failed' if necessary
-      return NextResponse.redirect(`${baseUrl}/patient/dashboard?payment=failed`, 303);
+      return NextResponse.redirect(`${baseUrl}/patient/profile?payment=failed`, 303);
     }
 
   } catch (error: any) {

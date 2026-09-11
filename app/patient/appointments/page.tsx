@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Home, Search, Calendar as CalendarIcon, User } from 'lucide-react'
 import { PatientSidebar } from '@/components/PatientSidebar'
+import { PatientDock } from '@/components/PatientDock'
 import { ConsultationsList, DiagnosticBookingsList, RecordsAndMedicationsList } from '@/components/PatientDashboardLists'
 import { PatientDashboardActions } from '@/components/PatientDashboardActions'
 
@@ -185,6 +186,8 @@ export default async function PatientAppointments() {
           </div>
         </div>
       </main>
+
+      <PatientDock activeTab="book" />
     </div>
   )
 }

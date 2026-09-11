@@ -51,7 +51,6 @@ export async function updatePatientProfile(formData: FormData) {
     return { success: false, error: detailsError.message }
   }
 
-  revalidatePath('/patient/dashboard')
   revalidatePath('/patient/profile')
   
   return { success: true }

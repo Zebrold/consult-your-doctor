@@ -117,15 +117,15 @@ export function PatientSidebar({ user, profile, patientDetails, activeAppointmen
           <span className="font-label-sm text-label-sm uppercase tracking-wider font-bold text-outline">Patient Dashboard</span>
         </div>
 
-        <Link href="/patient/dashboard" className={`flex items-center justify-between p-3 rounded-xl transition-all group ${pathname === '/patient/dashboard' ? 'bg-vibrant-blue text-on-primary shadow-sm' : 'hover:bg-surface-container-low text-on-surface'}`}>
+        <Link href="/patient/profile" className={`flex items-center justify-between p-3 rounded-xl transition-all group ${pathname === '/patient/profile' || pathname === '/patient/dashboard' ? 'bg-vibrant-blue text-on-primary shadow-sm' : 'hover:bg-surface-container-low text-on-surface'}`}>
           <div className="flex items-center gap-3 min-w-0">
-            <Contact className={`w-[20px] h-[20px] ${pathname === '/patient/dashboard' ? '' : 'text-on-surface-variant group-hover:text-vibrant-blue transition-colors'}`} />
+            <Contact className={`w-[20px] h-[20px] ${pathname === '/patient/profile' || pathname === '/patient/dashboard' ? '' : 'text-on-surface-variant group-hover:text-vibrant-blue transition-colors'}`} />
             <div className="flex flex-col min-w-0">
-              <span className={`font-title-md text-label-sm font-bold truncate ${pathname === '/patient/dashboard' ? '' : 'font-semibold'}`}>Personal Information &amp; History</span>
-              <span className={`font-label-sm text-label-sm truncate ${pathname === '/patient/dashboard' ? 'text-on-primary-container/80' : 'text-on-surface-variant'}`}>Identity, Contacts &amp; Vitals</span>
+              <span className={`font-title-md text-label-sm font-bold truncate ${pathname === '/patient/profile' || pathname === '/patient/dashboard' ? '' : 'font-semibold'}`}>Personal Information &amp; History</span>
+              <span className={`font-label-sm text-label-sm truncate ${pathname === '/patient/profile' || pathname === '/patient/dashboard' ? 'text-on-primary-container/80' : 'text-on-surface-variant'}`}>Identity, Contacts &amp; Vitals</span>
             </div>
           </div>
-          <ChevronRight className={`w-[18px] h-[18px] ${pathname === '/patient/dashboard' ? '' : 'text-outline-variant group-hover:text-on-surface transition-colors'}`} />
+          <ChevronRight className={`w-[18px] h-[18px] ${pathname === '/patient/profile' || pathname === '/patient/dashboard' ? '' : 'text-outline-variant group-hover:text-on-surface transition-colors'}`} />
         </Link>
 
         <Link href="/patient/appointments" className={`flex items-center justify-between p-3 rounded-xl transition-all group ${pathname === '/patient/appointments' ? 'bg-vibrant-blue text-on-primary shadow-sm' : 'hover:bg-surface-container-low text-on-surface'}`}>

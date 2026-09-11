@@ -52,21 +52,43 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const userRole = cookieStore.get("user-role")?.value;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const isPatientLoggedIn = !!user && (userRole === "patient" || !userRole);
+
   return (
     <html
       lang="en"
       className={`${inter.variable} ${manrope.variable} h-full antialiased scroll-smooth light`}
     >
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+        />
+      </head>
       <body
         suppressHydrationWarning
         className="font-sans overflow-x-hidden text-on-surface bg-background"
       >
-        <ConditionalLayout header={<Header />} footer={<Footer />}>
+        <ConditionalLayout
+          header={<Header />}
+          footer={<Footer />}
+          isPatientLoggedIn={isPatientLoggedIn}
+        >
           {children}
         </ConditionalLayout>
       </body>

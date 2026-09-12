@@ -45,7 +45,14 @@ interface FinalizeBookingClientProps {
   doctor: BookingDoctor;
   initialPatient: InitialPatientData;
   isUserLoggedIn: boolean;
-  createAppointmentAction: (formData: FormData) => Promise<{ success?: boolean; error?: string; url?: string }>;
+  createAppointmentAction: (formData: FormData) => Promise<{
+    success?: boolean;
+    error?: string;
+    url?: string;
+    appointmentId?: string;
+    isPreview?: boolean;
+  }>;
+  payuKey?: string;
 }
 
 function getSlotDateString(iso: string) {
@@ -91,6 +98,7 @@ export function FinalizeBookingClient({
   initialPatient,
   isUserLoggedIn,
   createAppointmentAction,
+  payuKey = "99eKD4",
 }: FinalizeBookingClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -220,10 +228,7 @@ export function FinalizeBookingClient({
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 5. Payment method
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "new_card" | "upi">("card");
-
-  // 6. Submission state
+  // 5. Submission state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -261,9 +266,9 @@ export function FinalizeBookingClient({
       formData.append("appointment_date", selectedDate);
       formData.append("appointment_time", selectedSlotTime);
       formData.append("schedule_id", selectedSlotId);
-      formData.append("patient_name", patientName.trim() || "Alex Morgan");
+      formData.append("patient_name", patientName.trim() || "Patient");
       formData.append("patient_phone", patientPhone.trim() || "+91 98204 77210");
-      formData.append("patient_email", patientEmail.trim() || "alex.morgan@example.com");
+      formData.append("patient_email", patientEmail.trim() || "patient@example.com");
       formData.append("reason", visitReason.trim() || "General Consultation");
 
       const res = await createAppointmentAction(formData);
@@ -273,10 +278,88 @@ export function FinalizeBookingClient({
           setBookingSuccess(true);
         } else {
           setErrorMessage(res.error);
+          setIsSubmitting(false);
         }
-      } else {
-        setBookingSuccess(true);
+        return;
       }
+
+      // If in guest / preview demo mode, show instant preview confirmation modal
+      if (!isUserLoggedIn || res?.isPreview) {
+        setBookingSuccess(true);
+        setIsSubmitting(false);
+        return;
+      }
+
+      const appointmentId = res?.appointmentId;
+      if (!appointmentId) {
+        setBookingSuccess(true);
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Format clean 10-digit phone for PayU gateway
+      const cleanPhone = (p: string) => {
+        const digits = p.replace(/\D/g, "");
+        return digits.length >= 10 ? digits.slice(-10) : digits.padEnd(10, "0");
+      };
+
+      const cleanFirstName = (n: string) => {
+        const clean = n.replace(/^Dr\.\s*/i, "").trim();
+        const first = clean.split(" ")[0];
+        return first || "Patient";
+      };
+
+      // 1. Fetch Secure SHA-512 Hash from backend PayU endpoint
+      const hashRes = await fetch("/api/payu/hash", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          txnid: appointmentId,
+          amount: totalPayable,
+          productinfo: "Consultation",
+          firstname: cleanFirstName(patientName),
+          email: patientEmail.trim() || "patient@example.com",
+          phone: cleanPhone(patientPhone),
+        }),
+      });
+
+      const hashData = await hashRes.json();
+
+      if (hashData.error || !hashData.hash) {
+        setErrorMessage("Payment initialization failed: " + (hashData.error || "Unable to generate transaction hash."));
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 2. Dynamically submit to PayU Gateway
+      const callbackBaseUrl = typeof window !== "undefined" ? window.location.origin : (process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000");
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = "https://test.payu.in/_payment";
+
+      const fields: Record<string, string> = {
+        key: payuKey || "99eKD4",
+        txnid: appointmentId,
+        amount: totalPayable.toString(),
+        productinfo: "Consultation",
+        firstname: cleanFirstName(patientName),
+        email: patientEmail.trim() || "patient@example.com",
+        phone: cleanPhone(patientPhone),
+        surl: `${callbackBaseUrl}/api/payu/callback`,
+        furl: `${callbackBaseUrl}/api/payu/callback`,
+        hash: hashData.hash,
+      };
+
+      for (const [k, v] of Object.entries(fields)) {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = k;
+        input.value = v;
+        form.appendChild(input);
+      }
+
+      document.body.appendChild(form);
+      form.submit();
     } catch (err) {
       const error = err as any;
       if (!isUserLoggedIn) {
@@ -284,7 +367,6 @@ export function FinalizeBookingClient({
       } else {
         setErrorMessage(error.message || "Failed to finalize consultation. Please try again.");
       }
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -992,108 +1074,24 @@ export function FinalizeBookingClient({
                       </span>
                     </div>
 
-                    {/* Payment Method Selection */}
-                    <div className="mt-6 pt-4 border-t border-surface-container-low">
-                      <span className="font-label-sm text-label-sm uppercase font-bold text-outline tracking-wider block mb-3">
-                        Select Payment Method
-                      </span>
-                      <div className="space-y-2.5">
-                        {/* Option 1: Saved Card */}
-                        <div
-                          onClick={() => setPaymentMethod("card")}
-                          className={`cursor-pointer flex items-center justify-between p-3 rounded-xl transition-all border ${
-                            paymentMethod === "card"
-                              ? "bg-surface-container-low border-vibrant-blue/30 shadow-sm"
-                              : "bg-surface-container-lowest border-surface-container hover:bg-surface-container-low"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="radio"
-                              name="payment_method"
-                              checked={paymentMethod === "card"}
-                              onChange={() => setPaymentMethod("card")}
-                              className="text-vibrant-blue focus:ring-0"
-                            />
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-6 rounded bg-on-surface text-surface-container-lowest flex items-center justify-center font-bold text-[10px]">
-                                VISA
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="font-body-md text-body-md font-semibold text-on-surface leading-tight text-sm">
-                                  Ending in 4892
-                                </span>
-                                <span className="font-label-sm text-[11px] text-indigo-gray-600">
-                                  Expires 08/28
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <span className="material-symbols-outlined text-fresh-teal text-[18px]">
-                            verified
+                    {/* PayU Gateway Assurance */}
+                    <div className="mt-5 py-3 px-4 rounded-xl bg-surface-container-low border border-surface-container flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <span className="material-symbols-outlined text-fresh-teal text-[20px]">
+                          verified_user
+                        </span>
+                        <div className="flex flex-col">
+                          <span className="font-label-sm text-[12px] font-bold text-on-surface">
+                            PayU Verified Gateway
+                          </span>
+                          <span className="font-label-sm text-[11px] text-indigo-gray-600">
+                            UPI &bull; Credit/Debit Cards &bull; NetBanking
                           </span>
                         </div>
-
-                        {/* Option 2: New Card */}
-                        <div
-                          onClick={() => setPaymentMethod("new_card")}
-                          className={`cursor-pointer flex items-center justify-between p-3 rounded-xl transition-all border ${
-                            paymentMethod === "new_card"
-                              ? "bg-surface-container-low border-vibrant-blue/30 shadow-sm"
-                              : "bg-surface-container-lowest border-surface-container hover:bg-surface-container-low"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="radio"
-                              name="payment_method"
-                              checked={paymentMethod === "new_card"}
-                              onChange={() => setPaymentMethod("new_card")}
-                              className="text-vibrant-blue focus:ring-0"
-                            />
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-6 rounded bg-surface-container text-on-surface flex items-center justify-center">
-                                <span className="material-symbols-outlined text-[16px]">
-                                  credit_card
-                                </span>
-                              </div>
-                              <span className="font-body-md text-body-md text-on-surface font-medium text-sm">
-                                New Credit / Debit Card
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Option 3: UPI / Bank */}
-                        <div
-                          onClick={() => setPaymentMethod("upi")}
-                          className={`cursor-pointer flex items-center justify-between p-3 rounded-xl transition-all border ${
-                            paymentMethod === "upi"
-                              ? "bg-surface-container-low border-vibrant-blue/30 shadow-sm"
-                              : "bg-surface-container-lowest border-surface-container hover:bg-surface-container-low"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="radio"
-                              name="payment_method"
-                              checked={paymentMethod === "upi"}
-                              onChange={() => setPaymentMethod("upi")}
-                              className="text-vibrant-blue focus:ring-0"
-                            />
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-6 rounded bg-surface-container text-on-surface flex items-center justify-center">
-                                <span className="material-symbols-outlined text-[16px]">
-                                  account_balance
-                                </span>
-                              </div>
-                              <span className="font-body-md text-body-md text-on-surface font-medium text-sm">
-                                Instant Bank / UPI Transfer
-                              </span>
-                            </div>
-                          </div>
-                        </div>
                       </div>
+                      <span className="px-2 py-0.5 rounded bg-secondary-container text-on-secondary-container font-label-sm text-[10px] font-bold uppercase tracking-wider">
+                        256-bit SSL
+                      </span>
                     </div>
 
                     {/* Primary Checkout CTA Button */}
@@ -1101,14 +1099,14 @@ export function FinalizeBookingClient({
                       type="button"
                       disabled={isSubmitting || !selectedSlotTime}
                       onClick={handleConfirmAndPay}
-                      className="w-full mt-6 py-4 px-6 rounded-full bg-vibrant-blue text-surface-container-lowest font-title-md text-body-lg font-bold shadow-lg shadow-vibrant-blue/25 hover:shadow-xl hover:bg-primary transition-all duration-200 flex items-center justify-center gap-2 group cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="w-full mt-4 py-4 px-6 rounded-full bg-vibrant-blue text-surface-container-lowest font-title-md text-body-lg font-bold shadow-lg shadow-vibrant-blue/25 hover:shadow-xl hover:bg-primary transition-all duration-200 flex items-center justify-center gap-2 group cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {isSubmitting ? (
                         <span className="flex items-center gap-2">
                           <span className="material-symbols-outlined text-[20px] animate-spin">
                             progress_activity
                           </span>
-                          Securing Slot &amp; Payment...
+                          Securing Slot &amp; Connecting to PayU...
                         </span>
                       ) : !selectedSlotTime ? (
                         <span>Select a Time Slot to Book</span>

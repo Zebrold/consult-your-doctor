@@ -153,7 +153,7 @@ export async function finalizeConsultationAppointment(formData: FormData) {
 
   // If user is not logged in, allow instant preview success
   if (!user) {
-    return { success: true }
+    return { success: true, isPreview: true }
   }
 
   try {
@@ -219,17 +219,17 @@ export async function finalizeConsultationAppointment(formData: FormData) {
         doctor_id: doctorId,
         hospital_id: resolvedHospitalId || null,
         schedule_id: scheduleId,
-        status: 'confirmed',
+        status: 'pending_payment',
       })
       .select('id')
       .maybeSingle()
 
-    if (aptError) {
+    if (aptError || !appointment) {
       console.error('Error finalizing appointment:', aptError)
       return { error: 'Failed to create appointment in database.' }
     }
 
-    return { success: true, url: `/patient/profile` }
+    return { success: true, appointmentId: appointment.id, isPreview: false }
   } catch (err: any) {
     console.error('Error in finalizeConsultationAppointment:', err)
     return { error: err.message || 'An unexpected error occurred.' }

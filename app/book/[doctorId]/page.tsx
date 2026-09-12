@@ -139,6 +139,7 @@ export default async function BookDoctorPage({
       initialPatient={initialPatient}
       isUserLoggedIn={!!user}
       createAppointmentAction={finalizeConsultationAppointment}
+      payuKey={process.env.PAYU_MERCHANT_KEY || "99eKD4"}
     />
   );
 }

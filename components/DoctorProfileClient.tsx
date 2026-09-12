@@ -55,6 +55,14 @@ function getDoctorInitials(name?: string | null) {
   return clean.slice(0, 2).toUpperCase();
 }
 
+function getSlotDateString(iso: string) {
+  try {
+    return new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  } catch {
+    return iso.split("T")[0];
+  }
+}
+
 function getSlotTimeString(iso: string) {
   try {
     const d = new Date(iso);
@@ -90,6 +98,7 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
 
   const [emergencyActive, setEmergencyActive] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<string>("09:30");
 
   const doctorName = doctor.profiles?.full_name || "Specialist Doctor";
   const rawName = doctorName.replace(/^Dr\.\s*/i, "");
@@ -101,26 +110,83 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
   const qualifications = doctor.qualifications || "MD, MS - " + specialty;
   const licenseNumber = doctor.profiles?.staff_id || `MCI-${doctor.id.slice(0, 6).toUpperCase()}`;
 
-  // Real schedules from DB split into Morning & Afternoon
-  const morningSlots = useMemo(() => {
-    const slots = (doctor.schedules || [])
-      .filter((s) => getSlotHour(s.start_time) < 12)
-      .map((s) => getSlotTimeString(s.start_time));
-    return Array.from(new Set(slots)).slice(0, 4);
+  // Dynamic schedules grouped and split by Morning & Afternoon from DB
+  const scheduleData = useMemo(() => {
+    const schedules = doctor.schedules || [];
+    if (schedules.length === 0) {
+      return {
+        morningRange: "09:00 - 13:00",
+        morningSlots: ["09:00", "09:15", "09:30", "09:45"],
+        afternoonRange: "14:00 - 17:00",
+        afternoonSlots: ["14:00", "14:15", "14:30", "14:45"],
+        hasSchedules: false,
+        activeDate: null as string | null,
+      };
+    }
+
+    const byDate: Record<string, typeof schedules> = {};
+    for (const s of schedules) {
+      const dateKey = getSlotDateString(s.start_time);
+      if (!byDate[dateKey]) byDate[dateKey] = [];
+      byDate[dateKey].push(s);
+    }
+
+    const nowIST = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    const sortedDates = Object.keys(byDate).sort();
+    // Pick today if available, or first upcoming date with slots, or latest available date
+    const activeDateKey = sortedDates.find((d) => d >= nowIST) || sortedDates[sortedDates.length - 1];
+    const daySlots = byDate[activeDateKey] || [];
+
+    // Separate into Morning (before 13:00) and Afternoon (13:00 or 14:00 onwards)
+    const morningList = daySlots.filter((s) => getSlotHour(s.start_time) < 13);
+    let afternoonList = daySlots.filter((s) => getSlotHour(s.start_time) >= 14);
+    if (afternoonList.length === 0) {
+      afternoonList = daySlots.filter((s) => getSlotHour(s.start_time) >= 13);
+    }
+
+    // Determine morning range and display slots
+    let morningRange = "09:00 - 13:00";
+    let morningSlots: string[] = [];
+    if (morningList.length > 0) {
+      const mStart = getSlotTimeString(morningList[0].start_time);
+      const mEnd = getSlotTimeString(morningList[morningList.length - 1].end_time);
+      morningRange = `${mStart} - ${mEnd}`;
+      const uniqueMorning = Array.from(new Set(morningList.map((s) => getSlotTimeString(s.start_time))));
+      morningSlots = uniqueMorning.slice(0, 4);
+    }
+
+    // Determine afternoon range and display slots
+    let afternoonRange = "14:00 - 17:00";
+    let afternoonSlots: string[] = [];
+    if (afternoonList.length > 0) {
+      const aStart = getSlotTimeString(afternoonList[0].start_time);
+      const aEnd = getSlotTimeString(afternoonList[afternoonList.length - 1].end_time);
+      afternoonRange = `${aStart} - ${aEnd}`;
+      const uniqueAfternoon = Array.from(new Set(afternoonList.map((s) => getSlotTimeString(s.start_time))));
+      afternoonSlots = uniqueAfternoon.slice(0, 4);
+    }
+
+    // Format active date label
+    let activeDateLabel = "";
+    if (activeDateKey) {
+      const [y, m, d] = activeDateKey.split("-").map(Number);
+      const dateObj = new Date(y, m - 1, d);
+      activeDateLabel = dateObj.toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      });
+    }
+
+    return {
+      morningRange,
+      morningSlots: morningSlots.length > 0 ? morningSlots : ["09:00", "09:15", "09:30", "09:45"],
+      afternoonRange,
+      afternoonSlots: afternoonSlots.length > 0 ? afternoonSlots : ["14:00", "14:15", "14:30", "14:45"],
+      hasSchedules: true,
+      activeDate: activeDateLabel,
+    };
   }, [doctor.schedules]);
-
-  const afternoonSlots = useMemo(() => {
-    const slots = (doctor.schedules || [])
-      .filter((s) => getSlotHour(s.start_time) >= 12)
-      .map((s) => getSlotTimeString(s.start_time));
-    return Array.from(new Set(slots)).slice(0, 4);
-  }, [doctor.schedules]);
-
-  const defaultMorning = ["09:00", "09:45", "10:30", "11:15"];
-  const defaultAfternoon = ["14:00", "15:00", "16:15", "17:15"];
-
-  const displayMorning = morningSlots.length > 0 ? morningSlots : defaultMorning;
-  const displayAfternoon = afternoonSlots.length > 0 ? afternoonSlots : defaultAfternoon;
 
   const handleEmergencyToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
     const nextVal = e.target.checked;
@@ -178,7 +244,11 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
     ];
   }, [specialty, doctor.symptoms]);
 
-  const bookUrl = `/book/${doctor.id}${isPreview ? "?preview=patient" : ""}`;
+  const bookUrl = `/book/${doctor.id}${
+    isPreview
+      ? `?preview=patient${selectedSlot ? `&time=${selectedSlot}` : ""}`
+      : `${selectedSlot ? `?time=${selectedSlot}` : ""}`
+  }`;
   const findUrl = `/find${isPreview ? "?preview=patient" : ""}`;
 
   return (
@@ -873,10 +943,17 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                         Appointment Hours
                       </h2>
                     </div>
-                    <span
-                      className="w-2.5 h-2.5 rounded-full bg-fresh-teal animate-pulse"
-                      title="Hospital Schedule Engine Live"
-                    ></span>
+                    <div className="flex items-center gap-2">
+                      {scheduleData.activeDate && (
+                        <span className="text-[11px] font-semibold text-secondary px-2.5 py-0.5 rounded-full bg-secondary-container">
+                          {scheduleData.activeDate}
+                        </span>
+                      )}
+                      <span
+                        className="w-2.5 h-2.5 rounded-full bg-fresh-teal animate-pulse"
+                        title="Hospital Schedule Engine Live"
+                      ></span>
+                    </div>
                   </div>
 
                   <div className="space-y-3">
@@ -886,25 +963,34 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                           Morning Clinic Block
                         </span>
                         <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-[11px] font-semibold">
-                          09:00 - 13:00
+                          {scheduleData.morningRange}
                         </span>
                       </div>
                       <span className="font-body-md text-[12px] text-on-surface-variant block">
                         Scheduled Outpatient Slots
                       </span>
                       <div className="mt-2 flex gap-1.5 flex-wrap">
-                        {displayMorning.map((slotTime, i) => (
-                          <span
-                            key={i}
-                            className={`px-2.5 py-1 rounded text-[11px] font-bold ${
-                              i === 2
-                                ? "bg-primary text-on-primary shadow-sm"
-                                : "bg-surface-container-highest text-primary"
-                            }`}
-                          >
-                            {slotTime}
-                          </span>
-                        ))}
+                        {scheduleData.morningSlots.map((slotTime, i) => {
+                          const isSelected = selectedSlot === slotTime;
+                          return (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => {
+                                setSelectedSlot(slotTime);
+                                setToastMessage(`Selected ${slotTime} consultation slot`);
+                                setTimeout(() => setToastMessage(null), 2500);
+                              }}
+                              className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                                isSelected
+                                  ? "bg-primary text-on-primary shadow-sm scale-105"
+                                  : "bg-surface-container-highest text-primary hover:bg-surface-container-high"
+                              }`}
+                            >
+                              {slotTime}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 
@@ -914,21 +1000,34 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                           Afternoon Clinic Block
                         </span>
                         <span className="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-sm text-[11px] font-semibold">
-                          14:00 - 18:00
+                          {scheduleData.afternoonRange}
                         </span>
                       </div>
                       <span className="font-body-md text-[12px] text-on-surface-variant block">
                         Specialist Follow-up &amp; Procedures
                       </span>
                       <div className="mt-2 flex gap-1.5 flex-wrap">
-                        {displayAfternoon.map((slotTime, i) => (
-                          <span
-                            key={i}
-                            className="px-2.5 py-1 bg-surface-container-highest rounded text-[11px] font-bold text-primary"
-                          >
-                            {slotTime}
-                          </span>
-                        ))}
+                        {scheduleData.afternoonSlots.map((slotTime, i) => {
+                          const isSelected = selectedSlot === slotTime;
+                          return (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => {
+                                setSelectedSlot(slotTime);
+                                setToastMessage(`Selected ${slotTime} consultation slot`);
+                                setTimeout(() => setToastMessage(null), 2500);
+                              }}
+                              className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                                isSelected
+                                  ? "bg-primary text-on-primary shadow-sm scale-105"
+                                  : "bg-surface-container-highest text-primary hover:bg-surface-container-high"
+                              }`}
+                            >
+                              {slotTime}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 

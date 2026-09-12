@@ -104,16 +104,30 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
     },
   };
 
-  // Fetch upcoming live schedules from today onwards
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+  // Fetch upcoming live schedules from today onwards (Asia/Kolkata timezone aware)
+  const now = new Date();
+  const todayIST = now.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  const todayStart = new Date(`${todayIST}T00:00:00+05:30`);
 
-  const { data: schedules } = await supabase
+  let { data: schedules } = await supabase
     .from("schedules")
     .select("id, start_time, end_time, is_booked")
     .eq("doctor_id", id)
     .gte("start_time", todayStart.toISOString())
     .order("start_time", { ascending: true });
+
+  // If no upcoming schedules from today onwards, load recent generated schedules for this doctor
+  if (!schedules || schedules.length === 0) {
+    const { data: recentSchedules } = await supabase
+      .from("schedules")
+      .select("id, start_time, end_time, is_booked")
+      .eq("doctor_id", id)
+      .order("start_time", { ascending: false })
+      .limit(64);
+    if (recentSchedules && recentSchedules.length > 0) {
+      schedules = [...recentSchedules].reverse();
+    }
+  }
 
   if (schedules) {
     doctorData.schedules = schedules;

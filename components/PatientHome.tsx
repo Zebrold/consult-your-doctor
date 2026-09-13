@@ -327,10 +327,13 @@ export function PatientHome({
                     className="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between hover:shadow-md transition-all border border-surface-variant/40 w-[280px] sm:w-[300px] flex-shrink-0"
                   >
                     <div className="flex flex-col gap-4">
-                      <div className="relative w-full h-48 rounded-lg overflow-hidden bg-slate-950">
+                      <Link
+                        href={isPreview ? `/doctors/${doctor.id}?preview=patient` : `/doctors/${doctor.id}`}
+                        className="relative w-full h-48 rounded-lg overflow-hidden bg-slate-950 group/img block cursor-pointer"
+                      >
                         {doctor.image ? (
                           <img
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-300"
                             alt={doctor.name}
                             src={doctor.image}
                           />
@@ -349,7 +352,7 @@ export function PatientHome({
                           <span className="material-symbols-outlined text-[14px]">{doctor.badgeIcon || 'bolt'}</span>
                           {doctor.badge || 'Available Today'}
                         </span>
-                      </div>
+                      </Link>
                       <div>
                         <div className="flex items-center justify-between">
                           <span className="font-label-sm text-label-sm text-vibrant-blue font-semibold uppercase truncate">
@@ -365,25 +368,37 @@ export function PatientHome({
                             {doctor.rating || '4.9'} <span className="font-normal text-outline">({doctor.reviews || '120+'})</span>
                           </span>
                         </div>
-                        <h3 className="font-title-md text-body-lg font-bold text-on-surface mt-1 truncate" title={doctor.name}>
+                        <Link
+                          href={isPreview ? `/doctors/${doctor.id}?preview=patient` : `/doctors/${doctor.id}`}
+                          className="font-title-md text-body-lg font-bold text-on-surface mt-1 truncate block hover:text-vibrant-blue transition-colors cursor-pointer"
+                          title={doctor.name}
+                        >
                           {doctor.name}
-                        </h3>
+                        </Link>
                         <p className="font-body-md text-body-md text-indigo-gray-600 truncate" title={doctor.hospital}>
                           {doctor.hospital}
                         </p>
                       </div>
                     </div>
-                    <div className="pt-4 mt-4 border-t border-surface-variant flex items-center justify-between gap-3">
+                    <div className="pt-4 mt-4 border-t border-surface-variant flex items-center justify-between gap-2">
                       <div>
                         <span className="font-label-sm text-label-sm text-outline">Fee</span>
                         <p className="font-title-md text-body-lg font-bold text-on-surface">{doctor.fee}</p>
                       </div>
-                      <Link
-                        href={isPreview ? `/book/${doctor.id}?preview=patient` : `/book/${doctor.id}`}
-                        className="px-5 py-2.5 rounded-full bg-vibrant-blue text-on-primary font-body-md text-body-md font-semibold hover:bg-primary transition-all text-center"
-                      >
-                        Book Now
-                      </Link>
+                      <div className="flex items-center gap-1.5">
+                        <Link
+                          href={isPreview ? `/doctors/${doctor.id}?preview=patient` : `/doctors/${doctor.id}`}
+                          className="px-3.5 py-2 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface font-body-md text-label-sm font-semibold transition-colors text-center cursor-pointer"
+                        >
+                          Profile
+                        </Link>
+                        <Link
+                          href={isPreview ? `/book/${doctor.id}?preview=patient` : `/book/${doctor.id}`}
+                          className="px-4 py-2 rounded-full bg-vibrant-blue text-on-primary font-body-md text-label-sm font-semibold hover:bg-primary transition-all text-center cursor-pointer"
+                        >
+                          Book
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 ))}

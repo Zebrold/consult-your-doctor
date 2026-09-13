@@ -4,8 +4,29 @@ import { useState } from 'react'
 import { addPrescription } from '@/app/actions/doctor'
 import { FileText, Loader2, X } from 'lucide-react'
 
-export function DoctorPrescriptionModal({ appointmentId, patientName }: { appointmentId: string, patientName: string }) {
-  const [isOpen, setIsOpen] = useState(false)
+export function DoctorPrescriptionModal({ 
+  appointmentId, 
+  patientName,
+  isOpen: controlledIsOpen,
+  onClose
+}: { 
+  appointmentId: string, 
+  patientName: string,
+  isOpen?: boolean,
+  onClose?: () => void
+}) {
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = controlledIsOpen !== undefined
+  const isOpen = isControlled ? controlledIsOpen : internalOpen
+
+  const handleClose = () => {
+    if (isControlled) {
+      onClose?.()
+    } else {
+      setInternalOpen(false)
+    }
+  }
+
   const [notes, setNotes] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -27,26 +48,28 @@ export function DoctorPrescriptionModal({ appointmentId, patientName }: { appoin
     if (res.error) {
       alert(res.error)
     } else {
-      setIsOpen(false)
       setNotes('')
+      handleClose()
     }
   }
 
   return (
     <>
-      <button 
-        onClick={() => setIsOpen(true)}
-        className="px-4 py-2 bg-blue-50 text-blue-700 font-bold text-sm rounded-xl hover:bg-blue-100 transition-colors flex items-center gap-2"
-      >
-        <FileText className="w-4 h-4" /> Add Prescription
-      </button>
+      {!isControlled && (
+        <button 
+          onClick={() => setInternalOpen(true)}
+          className="px-4 py-2 bg-blue-50 text-blue-700 font-bold text-sm rounded-xl hover:bg-blue-100 transition-colors flex items-center gap-2"
+        >
+          <FileText className="w-4 h-4" /> Add Prescription
+        </button>
+      )}
 
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <h3 className="text-xl font-bold text-gray-900">Prescription for {patientName}</h3>
-              <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={handleClose} className="text-gray-400 hover:text-gray-600 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -77,8 +100,8 @@ export function DoctorPrescriptionModal({ appointmentId, patientName }: { appoin
               <div className="flex justify-end gap-3">
                 <button 
                   type="button" 
-                  onClick={() => setIsOpen(false)}
-                  className="px-5 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded-xl transition-colors"
+                  onClick={handleClose}
+                  className="px-5 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded-xl transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>

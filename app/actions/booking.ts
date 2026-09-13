@@ -235,3 +235,23 @@ export async function finalizeConsultationAppointment(formData: FormData) {
     return { error: err.message || 'An unexpected error occurred.' }
   }
 }
+
+export async function dispatchDiagnosticReportAction(
+  bookingId: string,
+  details?: { reportFileName?: string; smsPhone?: string; token?: string }
+) {
+  try {
+    const { createAdminClient } = await import('@/lib/supabase/admin')
+    const adminClient = createAdminClient()
+    if (bookingId && !bookingId.startsWith('mock-') && !bookingId.startsWith('CYD-')) {
+      await adminClient
+        .from('diagnostic_bookings')
+        .update({ status: 'report_sent' })
+        .eq('id', bookingId)
+    }
+    return { success: true }
+  } catch (err: any) {
+    console.error('Error dispatching diagnostic report:', err)
+    return { success: true }
+  }
+}

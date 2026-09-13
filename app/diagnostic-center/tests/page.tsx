@@ -1,10 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { DiagnosticReportsUploadClient } from '@/components/DiagnosticReportsUploadClient'
+import { DiagnosticAddTestClient } from '@/components/DiagnosticAddTestClient'
 
 export const dynamic = 'force-dynamic'
 
-export default async function DiagnosticReportsPage() {
+export default async function DiagnosticTestsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -36,7 +36,7 @@ export default async function DiagnosticReportsPage() {
     if (c) center = c
   }
 
-  // Fallback to active DB center for preview or demo review
+  // Fallback to active DB center
   if (!center) {
     const { data: firstCenter } = await adminSupabase
       .from('diagnostic_centers')
@@ -53,44 +53,21 @@ export default async function DiagnosticReportsPage() {
       address: 'Main Pathology & Radiology Lab, Central Complex',
       available_tests: ['X-Ray', 'CT Scan', 'MRI Scan', 'Ultrasound', 'Blood Tests', 'ECG / EKG'],
       test_prices: {
-        'X-Ray': 45,
-        'CT Scan': 120,
-        'MRI Scan': 180,
-        'Ultrasound': 75,
-        'Blood Tests': 35,
-        'ECG / EKG': 40,
-      }
-    }
-  }
-
-  // Fetch real diagnostic bookings for this center from DB
-  let bookings: any[] = []
-  if (center?.id) {
-    const { data: bData } = await adminSupabase
-      .from('diagnostic_bookings')
-      .select(`
-        *,
-        profiles (
-          id,
-          full_name,
-          phone_number,
-          email
-        )
-      `)
-      .order('created_at', { ascending: false })
-      .limit(30)
-
-    if (bData && bData.length > 0) {
-      bookings = bData
+        'X-Ray': 1000,
+        'CT Scan': 4500,
+        'MRI Scan': 7500,
+        'Ultrasound': 2200,
+        'Blood Tests': 550,
+        'ECG / EKG': 850,
+      },
     }
   }
 
   const directorName = profile?.full_name || 'Dr. Katherine Vance'
 
   return (
-    <DiagnosticReportsUploadClient
+    <DiagnosticAddTestClient
       center={center}
-      initialBookings={bookings}
       directorName={directorName}
     />
   )

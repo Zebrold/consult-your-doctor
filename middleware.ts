@@ -68,7 +68,7 @@ export async function middleware(request: NextRequest) {
       dashboardPath = '/hospital/dashboard'
       allowedPrefix = '/hospital'
     } else if (role === 'diagnostic_admin') {
-      dashboardPath = '/diagnostic/dashboard'
+      dashboardPath = '/diagnostic-center/dashboard'
       allowedPrefix = '/diagnostic'
     } else if (role === 'super_admin') {
       dashboardPath = '/admin/dashboard'
@@ -81,7 +81,7 @@ export async function middleware(request: NextRequest) {
     }
 
     // STRICT CONFINEMENT: If they are not a patient, they can ONLY visit their allowedPrefix
-    if (role !== 'patient' && !path.startsWith(allowedPrefix) && !path.startsWith('/auth/signout')) {
+    if (role !== 'patient' && !path.startsWith(allowedPrefix) && !path.startsWith('/diagnostic-center') && !path.startsWith('/auth/signout')) {
       return NextResponse.redirect(new URL(dashboardPath, request.url))
     }
 
@@ -91,7 +91,6 @@ export async function middleware(request: NextRequest) {
         path.startsWith('/doctor/') || path === '/doctor' || 
         path.startsWith('/executive') || 
         path.startsWith('/hospital/') || path === '/hospital' || 
-        path.startsWith('/diagnostic-center') || path.startsWith('/diagnostic/') || path === '/diagnostic' || 
         path.startsWith('/admin')
         
       if (isTryingToAccessOtherRolePath) {
@@ -102,6 +101,10 @@ export async function middleware(request: NextRequest) {
     // Not logged in
     if (isProtectedRoute) {
       if (request.nextUrl.searchParams.get('preview') === 'patient' && path.startsWith('/patient')) {
+        return supabaseResponse
+      }
+      // Allow diagnostic-center preview routes
+      if (path.startsWith('/diagnostic-center')) {
         return supabaseResponse
       }
       // Redirect to homepage to trigger auth modal, or a dedicated error page

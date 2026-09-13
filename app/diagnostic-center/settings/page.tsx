@@ -5,7 +5,6 @@ export default async function DiagnosticSettingsPage() {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login/diagnostic')
 
   return (
     <div className="p-4 sm:p-8">

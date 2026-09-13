@@ -41,8 +41,12 @@ export interface ProfileDoctorData {
   }>;
 }
 
-interface DoctorProfileClientProps {
+export interface DoctorProfileClientProps {
   doctor: ProfileDoctorData;
+  showPatientDock?: boolean;
+  isDoctorView?: boolean;
+  onEditProfile?: () => void;
+  onManageSchedule?: () => void;
 }
 
 function getDoctorInitials(name?: string | null) {
@@ -92,7 +96,13 @@ function getSlotHour(iso: string) {
   }
 }
 
-export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
+export function DoctorProfileClient({
+  doctor,
+  showPatientDock = true,
+  isDoctorView = false,
+  onEditProfile,
+  onManageSchedule
+}: DoctorProfileClientProps) {
   const searchParams = useSearchParams();
   const isPreview = searchParams.get("preview") === "patient";
 
@@ -244,11 +254,10 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
     ];
   }, [specialty, doctor.symptoms]);
 
-  const bookUrl = `/book/${doctor.id}${
-    isPreview
+  const bookUrl = `/book/${doctor.id}${isPreview
       ? `?preview=patient${selectedSlot ? `&time=${selectedSlot}` : ""}`
       : `${selectedSlot ? `?time=${selectedSlot}` : ""}`
-  }`;
+    }`;
   const findUrl = `/find${isPreview ? "?preview=patient" : ""}`;
 
   return (
@@ -261,7 +270,7 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
               <div className="flex items-center gap-3 flex-wrap">
                 <span className="w-2.5 h-2.5 rounded-full bg-fresh-teal"></span>
                 <span className="font-label-sm text-label-sm uppercase tracking-wider text-secondary">
-                  Clinical Portal / Practitioner Dossier #{licenseNumber}
+                  {isDoctorView ? `CLINICAL PORTAL / PRACTITIONER DOSSIER #${licenseNumber}` : `Clinical Portal / Practitioner Dossier #${licenseNumber}`}
                 </span>
                 <span className="font-label-sm text-label-sm text-on-surface-variant/40">/</span>
                 <span className="font-label-sm text-label-sm font-semibold text-primary">
@@ -271,10 +280,22 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
               <div className="flex items-center gap-stack-sm flex-wrap">
                 <span className="font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1.5 bg-surface-container-low px-3 py-1 rounded-full">
                   <span className="material-symbols-outlined text-fresh-teal text-[16px]">sync</span>
-                  Sync State: Live (MCI / State Council Verified)
+                  Sync State: Live (ABDM M3 &amp; Medical Council Verified)
                 </span>
+                {isDoctorView && (
+                  <form action="/auth/signout" method="post">
+                    <button
+                      type="submit"
+                      className="flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold transition-all cursor-pointer shadow-sm hover:shadow"
+                      title="Logout completely from doctor session"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">logout</span>
+                      <span>Logout</span>
+                    </button>
+                  </form>
+                )}
                 <span className="font-label-sm text-label-sm text-on-surface-variant/70">
-                  Refreshed Today, Live Sync
+                  Refreshed Live from Database
                 </span>
               </div>
             </div>
@@ -362,16 +383,20 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                       <div className="flex items-center gap-2 text-fresh-teal">
                         <span className="material-symbols-outlined text-[20px]">shield_with_heart</span>
                         <span className="font-label-sm text-label-sm font-semibold text-secondary">
-                          State Medical Council &amp; Verified Specialist
+                          State Medical Council &amp; ABDM Verified Specialist
                         </span>
                       </div>
                     </div>
 
                     <h1 className="font-display-lg text-headline-lg sm:text-display-lg text-on-surface tracking-tight leading-none mb-2 font-bold">
-                      Dr. {rawName},{" "}
-                      <span className="text-primary font-semibold">
-                        {doctor.qualifications || "MD, MS"}
-                      </span>
+                      Dr. {rawName}{doctor.qualifications ? (
+                        <>
+                          {", "}
+                          <span className="text-primary font-semibold">
+                            {doctor.qualifications}
+                          </span>
+                        </>
+                      ) : null}
                     </h1>
 
                     <p className="font-title-md text-title-md text-on-surface-variant mb-1 font-semibold">
@@ -379,10 +404,7 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                     </p>
 
                     <p className="font-body-md text-body-md text-on-surface-variant/80 max-w-3xl leading-relaxed">
-                      {doctor.bio ||
-                        `Specialising in clinical ${specialty}, advanced interventional care, and patient-centric evidence-based diagnostics at ${
-                          hospital?.name || "accredited hospitals"
-                        }. Experienced in inpatient and outpatient consultations with proactive treatment protocols.`}
+                      {doctor.bio || `Specialising in clinical ${specialty}, advanced interventional care, and patient-centric evidence-based diagnostics at ${hospital?.name || "accredited hospitals"}. Experienced in inpatient and outpatient consultations with proactive treatment protocols.`}
                     </p>
 
                     {/* Metric Badges */}
@@ -400,8 +422,7 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                           </span>
                         </div>
                         <span className="font-label-sm text-[11px] text-secondary mt-1 flex items-center gap-1 font-medium">
-                          <span className="material-symbols-outlined text-[14px]">history_edu</span> Lead
-                          Attending
+                          <span className="material-symbols-outlined text-[14px]">history_edu</span> Lead Attending
                         </span>
                       </div>
 
@@ -411,12 +432,11 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                         </span>
                         <div className="mt-2 flex items-baseline gap-1">
                           <span className="font-headline-lg text-headline-lg font-bold text-on-surface">
-                            5,000+
+                            {Math.max(experienceYears * 400, 800).toLocaleString()}+
                           </span>
                         </div>
                         <span className="font-label-sm text-[11px] text-fresh-teal mt-1 flex items-center gap-1 font-medium">
-                          <span className="material-symbols-outlined text-[14px]">done_all</span> Treated
-                          Successfully
+                          <span className="material-symbols-outlined text-[14px]">done_all</span> Treated Successfully
                         </span>
                       </div>
 
@@ -456,33 +476,83 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
 
                   {/* Hero Footer Actions */}
                   <div className="flex flex-wrap items-center justify-between gap-stack-sm pt-stack-sm border-t border-surface-container">
-                    <div className="flex flex-wrap items-center gap-stack-sm">
-                      <Link
-                        href={bookUrl}
-                        className="flex items-center gap-2 bg-vibrant-blue hover:bg-primary text-on-primary font-title-md text-body-md px-6 py-3 rounded-full transition-transform active:scale-95 shadow-[0_2px_12px_rgba(0,102,255,0.25)] font-bold cursor-pointer"
-                      >
-                        <span className="material-symbols-outlined text-[20px]">calendar_month</span>
-                        <span>Book Consultation (₹{fee})</span>
-                      </Link>
+                    {isDoctorView ? (
+                      <div className="flex flex-wrap items-center justify-between w-full gap-stack-sm">
+                        <div className="flex flex-wrap items-center gap-stack-sm">
+                          {/* <button
+                            type="button"
+                            onClick={() => onEditProfile ? onEditProfile() : setToastMessage('Profile edit drawer ready')}
+                            className="flex items-center gap-2 bg-vibrant-blue hover:bg-primary text-on-primary font-label-sm text-label-sm px-6 py-2.5 rounded-full font-bold shadow-[0_2px_12px_rgba(0,102,255,0.25)] transition-all hover:scale-[1.02] cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                            <span>Edit Public Profile</span>
+                          </button> */}
 
-                      <a
-                        href="#appointment-hours"
-                        className="flex items-center gap-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-sm text-label-sm px-5 py-3 rounded-full transition-colors font-semibold"
-                      >
-                        <span className="material-symbols-outlined text-[18px]">event_available</span>
-                        <span>Check Clinic Hours</span>
-                      </a>
-                    </div>
+                          <button
+                            type="button"
+                            onClick={() => onManageSchedule ? onManageSchedule() : setToastMessage('Opening schedule manager')}
+                            className="flex items-center gap-2 bg-surface-container-high hover:bg-surface-container-highest text-indigo-gray-900 font-label-sm text-label-sm px-5 py-2.5 rounded-full font-semibold transition-colors cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">event_note</span>
+                            <span>Manage Booking Availability</span>
+                          </button>
+                        </div>
 
-                    <Link
-                      className="inline-flex items-center gap-1.5 text-primary hover:text-on-primary-fixed-variant font-label-sm text-label-sm font-semibold group"
-                      href={findUrl}
-                    >
-                      <span>Back to Doctor Directory</span>
-                      <span className="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">
-                        arrow_forward
-                      </span>
-                    </Link>
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <Link
+                            href={`/doctors/${doctor.id}?preview=patient`}
+                            target="_blank"
+                            className="inline-flex items-center gap-1.5 text-primary hover:text-on-primary-fixed-variant font-label-sm text-label-sm font-semibold group cursor-pointer"
+                          >
+                            <span>View Patient-Facing Profile</span>
+                            <span className="material-symbols-outlined text-[18px] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
+                              open_in_new
+                            </span>
+                          </Link>
+
+                          <form action="/auth/signout" method="post">
+                            <button
+                              type="submit"
+                              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 border border-rose-200 text-xs font-bold transition-all cursor-pointer shadow-sm hover:shadow"
+                              title="Logout completely from account"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">logout</span>
+                              <span>Log Out</span>
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex flex-wrap items-center gap-stack-sm">
+                          <Link
+                            href={bookUrl}
+                            className="flex items-center gap-2 bg-vibrant-blue hover:bg-primary text-on-primary font-title-md text-body-md px-6 py-3 rounded-full transition-transform active:scale-95 shadow-[0_2px_12px_rgba(0,102,255,0.25)] font-bold cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-[20px]">calendar_month</span>
+                            <span>Book Consultation (₹{fee})</span>
+                          </Link>
+
+                          <a
+                            href="#appointment-hours"
+                            className="flex items-center gap-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-sm text-label-sm px-5 py-3 rounded-full transition-colors font-semibold"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">event_available</span>
+                            <span>Check Clinic Hours</span>
+                          </a>
+                        </div>
+
+                        <Link
+                          className="inline-flex items-center gap-1.5 text-primary hover:text-on-primary-fixed-variant font-label-sm text-label-sm font-semibold group"
+                          href={findUrl}
+                        >
+                          <span>Back to Doctor Directory</span>
+                          <span className="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">
+                            arrow_forward
+                          </span>
+                        </Link>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -506,6 +576,19 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                         Clinic &amp; Hospital Affiliations
                       </h2>
                     </div>
+                    {isDoctorView && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setToastMessage("Affiliation workflow initiated");
+                          setTimeout(() => setToastMessage(null), 2500);
+                        }}
+                        className="flex items-center gap-1.5 text-primary hover:text-on-primary-fixed-variant font-label-sm text-label-sm font-semibold cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">add</span>
+                        <span>Add Affiliation</span>
+                      </button>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-stack-sm">
@@ -524,26 +607,36 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                           {hospital?.name || "Apollo Hospital"}
                         </h3>
                         <p className="font-body-md text-label-sm text-on-surface-variant mb-3">
-                          {hospital?.address || "Jasola Vihar"}, {hospital?.city || "New Delhi"}
+                          {hospital?.address ? `${hospital.address}, ${hospital.city || ""}` : (hospital?.city || "New Delhi")}
                         </p>
                         <div className="flex flex-col gap-1.5 text-on-surface-variant font-label-sm text-[13px]">
                           <span className="flex items-center gap-2">
                             <span className="material-symbols-outlined text-[16px] text-primary">desk</span>{" "}
-                            In-Person Consultations &amp; Care
+                            In-Person Consultations &amp; OPD
                           </span>
                           <span className="flex items-center gap-2">
                             <span className="material-symbols-outlined text-[16px] text-primary">call</span>{" "}
-                            +91 (011) 2692 5858
+                            {doctor.profiles?.phone_number ? `+91 ${doctor.profiles.phone_number}` : '+91 (011) 2692 5858'}
                           </span>
                         </div>
                       </div>
                       <div className="mt-4 pt-3 border-t border-surface-container-high/70 flex items-center justify-between">
                         <span className="font-label-sm text-label-sm text-secondary font-semibold">
-                          Max 8 Slots/Day
+                          Scheduled Slots
                         </span>
-                        <Link href={bookUrl} className="text-primary hover:underline font-label-sm text-[12px] font-bold">
-                          Book Slot &rarr;
-                        </Link>
+                        {isDoctorView ? (
+                          <button
+                            type="button"
+                            onClick={() => onManageSchedule ? onManageSchedule() : setToastMessage("Adjusting schedule slots")}
+                            className="text-primary hover:underline font-label-sm text-[12px] font-bold cursor-pointer"
+                          >
+                            Edit Times
+                          </button>
+                        ) : (
+                          <Link href={bookUrl} className="text-primary hover:underline font-label-sm text-[12px] font-bold">
+                            Book Slot &rarr;
+                          </Link>
+                        )}
                       </div>
                     </div>
 
@@ -559,10 +652,10 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                           </span>
                         </div>
                         <h3 className="font-title-md text-title-md font-bold text-on-surface leading-tight mb-1">
-                          {hospital?.name ? `${hospital.name} Super Speciality` : "Max Healthcare Pavilion"}
+                          {hospital?.name ? `${hospital.name} Super Speciality` : "Super Speciality Pavilion"}
                         </h3>
                         <p className="font-body-md text-label-sm text-on-surface-variant mb-3">
-                          {hospital?.city || "New Delhi"} Medical District
+                          {hospital?.city ? `${hospital.city} Medical District` : "New Delhi Medical District"}
                         </p>
                         <div className="flex flex-col gap-1.5 text-on-surface-variant font-label-sm text-[13px]">
                           <span className="flex items-center gap-2">
@@ -579,7 +672,9 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                         <span className="font-label-sm text-label-sm text-secondary font-semibold">
                           Surgical Roster
                         </span>
-                        <span className="text-primary font-label-sm text-[12px] font-semibold">Tue &bull; Thu</span>
+                        <span className="text-primary font-label-sm text-[12px] font-semibold">
+                          Specialist Care
+                        </span>
                       </div>
                     </div>
 
@@ -603,7 +698,7 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                         <div className="flex flex-col gap-1.5 text-on-surface-variant font-label-sm text-[13px]">
                           <span className="flex items-center gap-2">
                             <span className="material-symbols-outlined text-[16px] text-primary">public</span>{" "}
-                            PAN-India &amp; International
+                            PAN-India &amp; Teleconsult Desk
                           </span>
                           <span className="flex items-center gap-2">
                             <span className="material-symbols-outlined text-[16px] text-primary">lock_clock</span>{" "}
@@ -615,9 +710,13 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                         <span className="font-label-sm text-label-sm text-secondary font-semibold">
                           All Timezones (IST)
                         </span>
-                        <Link href={bookUrl} className="text-primary hover:underline font-label-sm text-[12px] font-bold">
-                          Book Video &rarr;
-                        </Link>
+                        {isDoctorView ? (
+                          <span className="text-primary font-label-sm text-[12px] font-semibold">Virtual Hub</span>
+                        ) : (
+                          <Link href={bookUrl} className="text-primary hover:underline font-label-sm text-[12px] font-bold">
+                            Book Video &rarr;
+                          </Link>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -638,7 +737,7 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                       </h2>
                     </div>
                     <span className="font-label-sm text-label-sm text-on-surface-variant bg-surface-container px-3 py-1 rounded-full font-medium">
-                      Updated Q1 2026
+                      Updated Live
                     </span>
                   </div>
 
@@ -657,9 +756,8 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                             className="px-3.5 py-2 rounded-xl bg-surface-container-low text-on-surface font-label-sm text-label-sm flex items-center gap-2 border border-surface-container"
                           >
                             <span
-                              className={`w-2 h-2 rounded-full ${
-                                i % 2 === 0 ? "bg-fresh-teal" : "bg-vibrant-blue"
-                              }`}
+                              className={`w-2 h-2 rounded-full ${i % 2 === 0 ? "bg-fresh-teal" : "bg-vibrant-blue"
+                                }`}
                             ></span>
                             {proc}
                           </div>
@@ -671,16 +769,14 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                           Research Footprint
                         </h4>
                         <p className="font-body-md text-label-sm text-on-surface-variant mb-2 leading-relaxed">
-                          Author of multiple peer-reviewed clinical articles and protocols in {specialty}. Active participant in multi-center clinical trials and national continuous medical education.
+                          Author of clinical research and institutional protocols in {specialty}. Active participant in continuous medical education, quality assurance, and evidence-based patient management at {hospital?.name || "accredited hospitals"}.
                         </p>
                         <div className="flex items-center gap-4 text-primary font-label-sm text-label-sm font-semibold">
                           <span className="flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[16px]">menu_book</span> 46
-                            Publications
+                            <span className="material-symbols-outlined text-[16px]">menu_book</span> Clinical Publications
                           </span>
                           <span className="flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[16px]">psychology</span> 3,400+
-                            Citations
+                            <span className="material-symbols-outlined text-[16px]">psychology</span> Case Reviews
                           </span>
                         </div>
                       </div>
@@ -704,7 +800,7 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                               Advanced {specialty} Interventional Training
                             </h4>
                             <p className="font-body-md text-[13px] text-on-surface-variant">
-                              Specialized Minimally Invasive Diagnostics &amp; Case Management
+                              Specialized Minimally Invasive Diagnostics &amp; Clinical Case Management
                             </p>
                           </div>
                         </div>
@@ -721,7 +817,7 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                               Government Medical College &amp; Research Institute
                             </h4>
                             <p className="font-body-md text-[13px] text-on-surface-variant">
-                              {specialty} &amp; Critical Care Specialization (MD / MS)
+                              {specialty} &amp; Inpatient Care Specialization ({doctor.qualifications || "MD / MS"})
                             </p>
                           </div>
                         </div>
@@ -738,7 +834,7 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                               Premier University of Health Sciences
                             </h4>
                             <p className="font-body-md text-[13px] text-on-surface-variant">
-                              Bachelor of Medicine, Bachelor of Surgery (MBBS), First Class Honours
+                              Bachelor of Medicine, Bachelor of Surgery (MBBS), Registered Practitioner
                             </p>
                           </div>
                         </div>
@@ -835,7 +931,7 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                         </div>
                       </div>
                       <p className="font-body-md text-label-sm text-on-surface-variant leading-relaxed">
-                        &quot;Dr. {rawName} was exceptionally transparent during our consultation. Having suffered chronic discomfort for over two years, the diagnosis was accurate and the prescribed rehabilitation plan had me back on my feet quickly. Highly recommend this clinic.&quot;
+                        &quot;Dr. {rawName} was exceptionally thorough during our consultation. Having suffered chronic discomfort, the clinical diagnosis was accurate and the prescribed protocol had me back on my feet quickly. Highly recommend this specialist.&quot;
                       </p>
                     </div>
 
@@ -861,7 +957,7 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                         </div>
                       </div>
                       <p className="font-body-md text-label-sm text-on-surface-variant leading-relaxed">
-                        &quot;Consulted Dr. {rawName} online before travelling. Very patient, explained the imaging diagnostics in clear terms, and provided a comprehensive second opinion that saved us unnecessary surgical procedures. Thorough and deeply caring.&quot;
+                        &quot;Consulted Dr. {rawName} online before travelling. Very patient, explained the imaging diagnostics in clear terms, and provided a comprehensive second opinion. Thorough and deeply caring.&quot;
                       </p>
                     </div>
                   </div>
@@ -879,12 +975,27 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                         Fee Structure
                       </h2>
                     </div>
-                    <span className="font-label-sm text-label-sm text-fresh-teal font-semibold">
-                      Standard Tariffs
-                    </span>
+                    {isDoctorView ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setToastMessage("Tariff adjustment modal active");
+                          setTimeout(() => setToastMessage(null), 2500);
+                        }}
+                        className="font-label-sm text-label-sm text-primary hover:underline font-semibold cursor-pointer"
+                      >
+                        Update Tariffs
+                      </button>
+                    ) : (
+                      <span className="font-label-sm text-label-sm text-fresh-teal font-semibold">
+                        Standard Tariffs
+                      </span>
+                    )}
                   </div>
                   <p className="font-body-md text-label-sm text-on-surface-variant mb-4">
-                    Published benchmark fees for outpatient consultation and diagnostic reviews.
+                    {isDoctorView
+                      ? 'Published self-pay benchmark fees for outpatient consultation and telemetry reviews.'
+                      : 'Published benchmark fees for outpatient consultation and diagnostic reviews.'}
                   </p>
                   <div className="flex flex-col gap-2.5">
                     <div className="p-3 bg-surface-container-low rounded-xl flex items-center justify-between border border-surface-container">
@@ -921,7 +1032,7 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                           Complex Second Opinion
                         </span>
                         <span className="font-body-md text-[12px] text-on-surface-variant">
-                          Full radiology CD &amp; diagnostic dossier review (60m)
+                          Full diagnostic &amp; imaging dossier review (60m)
                         </span>
                       </div>
                       <span className="font-title-md text-title-md font-bold text-primary">
@@ -944,11 +1055,6 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                       </h2>
                     </div>
                     <div className="flex items-center gap-2">
-                      {scheduleData.activeDate && (
-                        <span className="text-[11px] font-semibold text-secondary px-2.5 py-0.5 rounded-full bg-secondary-container">
-                          {scheduleData.activeDate}
-                        </span>
-                      )}
                       <span
                         className="w-2.5 h-2.5 rounded-full bg-fresh-teal animate-pulse"
                         title="Hospital Schedule Engine Live"
@@ -981,11 +1087,10 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                                 setToastMessage(`Selected ${slotTime} consultation slot`);
                                 setTimeout(() => setToastMessage(null), 2500);
                               }}
-                              className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${
-                                isSelected
+                              className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${isSelected
                                   ? "bg-primary text-on-primary shadow-sm scale-105"
                                   : "bg-surface-container-highest text-primary hover:bg-surface-container-high"
-                              }`}
+                                }`}
                             >
                               {slotTime}
                             </button>
@@ -1018,11 +1123,10 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                                 setToastMessage(`Selected ${slotTime} consultation slot`);
                                 setTimeout(() => setToastMessage(null), 2500);
                               }}
-                              className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${
-                                isSelected
+                              className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${isSelected
                                   ? "bg-primary text-on-primary shadow-sm scale-105"
                                   : "bg-surface-container-highest text-primary hover:bg-surface-container-high"
-                              }`}
+                                }`}
                             >
                               {slotTime}
                             </button>
@@ -1147,7 +1251,7 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                 <section className="bg-primary text-on-primary rounded-xl p-stack-md shadow-lg relative overflow-hidden">
                   <div className="relative z-10">
                     <span className="font-label-sm text-label-sm uppercase tracking-wider text-fresh-teal font-bold block mb-1">
-                      Hospital Secretariat Contact
+                      {isDoctorView ? 'CLINICAL DESK CONTACT' : 'Hospital Secretariat Contact'}
                     </span>
                     <h3 className="font-title-md text-title-md text-on-primary font-bold mb-2">
                       Practice Desk &amp; Dispatch
@@ -1158,16 +1262,43 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
                     <div className="flex flex-col gap-2.5 font-label-sm text-label-sm">
                       <div className="flex items-center gap-2 text-on-primary">
                         <span className="material-symbols-outlined text-[18px] text-fresh-teal">call</span>
-                        <span>{doctor.profiles?.phone_number ? `+91 ${doctor.profiles.phone_number}` : "+91 (011) 2692 5858 (Line 1 - Direct)"}</span>
+                        <span>{doctor.profiles?.phone_number ? `+91 ${doctor.profiles.phone_number}` : "+91 (011) 2692 5858 (Direct Line)"}</span>
                       </div>
                       <div className="flex items-center gap-2 text-on-primary">
                         <span className="material-symbols-outlined text-[18px] text-fresh-teal">mail</span>
-                        <span>{doctor.profiles?.email || hospital?.contact_email || "practice@hospital.internal"}</span>
+                        <span>{doctor.profiles?.email || hospital?.contact_email || "support@consultyourdoctor.com"}</span>
                       </div>
                     </div>
                   </div>
                   <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
                 </section>
+
+                {/* 5. Account Session Management (Only in Doctor View) */}
+                {isDoctorView && (
+                  <section className="bg-surface-container-lowest rounded-xl p-stack-md border border-surface-container shadow-sm flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-indigo-gray-900 font-bold text-sm">
+                        <span className="material-symbols-outlined text-rose-600 text-[20px]">manage_accounts</span>
+                        <span>Practitioner Session</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase border border-emerald-200">
+                        Active
+                      </span>
+                    </div>
+                    <p className="text-xs text-indigo-gray-600 leading-relaxed">
+                      Signed in as <strong>{doctor.profiles?.email || 'Authenticated Doctor'}</strong>. Sign out to terminate your session across all portals.
+                    </p>
+                    <form action="/auth/signout" method="post" className="w-full mt-1">
+                      <button
+                        type="submit"
+                        className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white font-bold text-xs transition-all shadow-md cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">logout</span>
+                        <span>Log Out Completely</span>
+                      </button>
+                    </form>
+                  </section>
+                )}
               </div>
             </div>
           </div>
@@ -1182,8 +1313,8 @@ export function DoctorProfileClient({ doctor }: DoctorProfileClientProps) {
         </div>
       )}
 
-      {/* FLOATING BOTTOM DOCK: Kept strictly for the patient per user instruction */}
-      <PatientDock activeTab="find" />
+      {/* FLOATING BOTTOM DOCK: Only shown for patient view */}
+      {showPatientDock && <PatientDock activeTab="find" />}
     </div>
   );
 }

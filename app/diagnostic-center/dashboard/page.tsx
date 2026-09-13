@@ -1,115 +1,97 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { redirect } from 'next/navigation'
-import { Activity, User, Phone, CheckCircle, Clock } from 'lucide-react'
-import { DiagnosticCheckInModal } from '@/components/DiagnosticCheckInModal'
+import { DiagnosticDashboardClient } from '@/components/DiagnosticDashboardClient'
+
+export const dynamic = 'force-dynamic'
 
 export default async function DiagnosticDashboardPage() {
   const supabase = await createClient()
-
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login/diagnostic')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*, diagnostic_centers(*)')
-    .eq('id', user.id)
-    .single()
+  let centerId: string | null = null
+  let profile: any = null
 
-  const centerName = profile?.diagnostic_centers?.name || 'Diagnostic Center'
-  const centerId = profile?.diagnostic_center_id
+  if (user) {
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle()
 
-  let todayBookings: any[] = []
+    if (userProfile) {
+      profile = userProfile
+      centerId = userProfile.diagnostic_center_id || null
+    }
+  }
 
+  const adminSupabase = createAdminClient()
+
+  let center: any = null
   if (centerId) {
-    const adminSupabase = createAdminClient()
-    
-    // Get today's date in YYYY-MM-DD format based on local time
-    // For simplicity on the server, we can fetch all confirmed and filter by date, 
-    // or just fetch by date string since we store it as text 'YYYY-MM-DD'
-    const today = new Date()
-    const yyyy = today.getFullYear()
-    const mm = String(today.getMonth() + 1).padStart(2, '0')
-    const dd = String(today.getDate()).padStart(2, '0')
-    const todayStr = `${yyyy}-${mm}-${dd}`
+    const { data: c } = await adminSupabase
+      .from('diagnostic_centers')
+      .select('*')
+      .eq('id', centerId)
+      .maybeSingle()
+    if (c) center = c
+  }
 
-    const { data } = await adminSupabase
+  // If no center from user session, fetch the first active center in DB
+  if (!center) {
+    const { data: firstCenter } = await adminSupabase
+      .from('diagnostic_centers')
+      .select('*')
+      .eq('status', 'active')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+
+    center = firstCenter || {
+      id: 'default',
+      name: 'Apex Diagnostics & Imaging',
+      city: 'New Delhi',
+      address: 'Main Pathology & Radiology Lab, Central Complex',
+      available_tests: ['X-Ray', 'CT Scan', 'MRI Scan', 'Ultrasound', 'Blood Tests', 'ECG / EKG'],
+      test_prices: {
+        'X-Ray': 1000,
+        'CT Scan': 4500,
+        'MRI Scan': 7500,
+        'Ultrasound': 2200,
+        'Blood Tests': 550,
+        'ECG / EKG': 850
+      }
+    }
+  }
+
+  // Fetch real diagnostic bookings for this center from DB
+  let bookings: any[] = []
+  if (center?.id) {
+    const { data: bData } = await adminSupabase
       .from('diagnostic_bookings')
       .select(`
         *,
         profiles (
+          id,
           full_name,
-          phone_number
+          phone_number,
+          email
         )
       `)
-      .eq('center_id', centerId)
-      .eq('status', 'confirmed') // Only fetch confirmed bookings for check-in
-      .eq('preferred_date', todayStr)
       .order('created_at', { ascending: false })
+      .limit(25)
 
-    if (data) {
-      todayBookings = data
+    if (bData && bData.length > 0) {
+      bookings = bData
     }
   }
 
+  const directorName = profile?.full_name || 'Dr. Katherine Vance'
+
   return (
-    <div className="p-4 sm:p-8 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Welcome to {centerName}</h1>
-        <p className="text-gray-500 mt-1">Manage your diagnostic tests and appointments for today.</p>
-      </div>
-
-      <div className="mb-6 flex justify-between items-center">
-        <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-          Today's Appointments
-          <span className="bg-indigo-100 text-indigo-700 py-0.5 px-2.5 rounded-full text-sm">
-            {todayBookings.length}
-          </span>
-        </h2>
-      </div>
-
-      {todayBookings.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center shadow-sm">
-          <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle className="w-8 h-8 text-gray-300" />
-          </div>
-          <h3 className="text-lg font-bold text-gray-900 mb-2">No pending check-ins</h3>
-          <p className="text-gray-500">You don't have any confirmed bookings for today.</p>
-        </div>
-      ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="divide-y divide-gray-100">
-            {todayBookings.map(booking => (
-              <div key={booking.id} className="p-6 hover:bg-gray-50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-6">
-                
-                <div className="flex gap-4 items-start">
-                  <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
-                    <User className="w-6 h-6 text-indigo-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-gray-900">{booking.profiles?.full_name || 'Unknown Patient'}</h4>
-                    <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                      <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {booking.profiles?.phone_number || 'N/A'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex-1 max-w-sm border-l border-gray-100 pl-6">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Test</p>
-                  <p className="font-semibold text-gray-900 capitalize">{booking.test_name.replace(/-/g, ' ')}</p>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <DiagnosticCheckInModal 
-                    bookingId={booking.id} 
-                    patientName={booking.profiles?.full_name || 'Patient'} 
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+    <DiagnosticDashboardClient
+      center={center}
+      initialBookings={bookings}
+      directorName={directorName}
+    />
   )
 }

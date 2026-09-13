@@ -71,38 +71,11 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
     .eq("id", id)
     .maybeSingle();
 
-  if ((!doctor || doctorError) && !isPreview) {
+  if (!doctor || doctorError) {
     notFound();
   }
 
-  // If preview mode and doctor not found in DB, provide realistic fallback
-  const doctorData: ProfileDoctorData = (doctor as unknown as ProfileDoctorData) || {
-    id,
-    specialty: "Senior Consultant Cardiologist",
-    experience_years: 14,
-    consultation_fee: 1200,
-    image_url: null,
-    bio: "Consultant Cardiologist & Heart Failure Specialist with extensive clinical tenure in academic medical centres. Focused on preventive cardiology, complex PCI, and lipid management.",
-    qualifications: "MD, DM, FACC",
-    profiles: {
-      full_name: "Dr. Sarah Jenkins, MD, FACC",
-      email: "sarah.jenkins@hospital.org",
-      phone_number: "9876543210",
-      staff_id: "DOC-8942",
-    },
-    hospitals: {
-      id: "hospital-default",
-      name: "City of Hope Medical Center",
-      city: "New Delhi",
-      address: "Pavilion 4, Suite 302, Outer Ring Road",
-      image_url: null,
-      contact_email: "secretariat@hospital.org",
-    },
-    departments: {
-      id: "dept-cardio",
-      name: "Cardiology",
-    },
-  };
+  const doctorData: ProfileDoctorData = doctor as unknown as ProfileDoctorData;
 
   // Fetch upcoming live schedules from today onwards (Asia/Kolkata timezone aware)
   const now = new Date();

@@ -621,9 +621,12 @@ export function FindCareClient({
                                 </span>
                               </div>
 
-                              <h3 className="font-headline-lg text-body-lg font-bold text-on-surface group-hover:text-vibrant-blue transition-colors">
+                              <Link
+                                href={isPreview ? `/doctors/${doctor.id}?preview=patient` : `/doctors/${doctor.id}`}
+                                className="font-headline-lg text-body-lg font-bold text-on-surface hover:text-vibrant-blue transition-colors block cursor-pointer"
+                              >
                                 {docName}, MD
-                              </h3>
+                              </Link>
                               <p className="font-body-md text-label-sm text-indigo-gray-600 font-medium">
                                 Senior {doctor.specialty} &amp; Consultant Specialist
                               </p>

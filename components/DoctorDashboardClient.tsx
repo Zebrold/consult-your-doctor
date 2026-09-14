@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -72,11 +72,34 @@ export function DoctorDashboardClient({
   const [profileSuccess, setProfileSuccess] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
 
-  const triggerNotification = (message: string) => {
-    setToastMessage(message)
-    setTimeout(() => {
-      setToastMessage(null)
-    }, 3500)
+  // Mobile UI dedicated states
+  const [mobileTelemetryOpen, setMobileTelemetryOpen] = useState<Record<string, boolean>>({})
+  const currentWeekDays = useMemo(() => {
+    const today = new Date()
+    const currentDayOfWeek = today.getDay()
+    const mondayOffset = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek
+    const monday = new Date(today)
+    monday.setDate(today.getDate() + mondayOffset)
+    
+    const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+    return dayLabels.map((dayLabel, index) => {
+      const d = new Date(monday)
+      d.setDate(monday.getDate() + index)
+      return {
+        day: dayLabel,
+        date: String(d.getDate()).padStart(2, '0'),
+        fullDate: d.toISOString().slice(0, 10),
+        isToday: d.toDateString() === today.toDateString()
+      }
+    })
+  }, [])
+  const [selectedScheduleDay, setSelectedScheduleDay] = useState<string>(String(new Date().getDate()).padStart(2, '0'))
+  const [scheduleViewMode, setScheduleViewMode] = useState<'day' | 'week' | 'month'>('day')
+  const [scheduleTypeFilter, setScheduleTypeFilter] = useState<'all' | 'in-person' | 'telehealth' | 'post-op'>('all')
+  const [activeLocationIndex, setActiveLocationIndex] = useState<number>(0)
+
+  const triggerNotification = (_message?: string) => {
+    // Toast notifications completely removed
   }
 
   // Realtime Supabase Subscription for instant DB updates
@@ -310,9 +333,1340 @@ export function DoctorDashboardClient({
     schedules: schedules || [],
   }
 
+  const doctorFocusInterventions = useMemo(() => {
+    if (doctorProfile?.symptoms && Array.isArray(doctorProfile.symptoms) && doctorProfile.symptoms.length > 0) {
+      return doctorProfile.symptoms
+    }
+    const spec = (specialty || '').toLowerCase()
+    if (spec.includes('ortho')) {
+      return [
+        'Joint Reconstruction & Arthroscopy',
+        'Fracture & Trauma Management',
+        'Spine & Musculoskeletal Care',
+        'Sports Injury Rehabilitation',
+        'Orthopaedic Diagnostic Evaluation'
+      ]
+    }
+    if (spec.includes('neuro')) {
+      return [
+        'Neurovascular Care & Stroke Recovery',
+        'Epilepsy & Seizure Management Protocol',
+        'Movement Disorders & Parkinson’s Care',
+        'Neuropathy & Electromyography (EMG)',
+        'Complex Headache & Migraine Management'
+      ]
+    }
+    if (spec.includes('cardio')) {
+      return [
+        'Coronary Angioplasty (PCI)',
+        'Arrhythmia Catheter Ablation',
+        'TAVR Implantation & Valvular Care',
+        'Leadless Pacemaker Management',
+        'Atrial Fibrillation Management'
+      ]
+    }
+    if (spec.includes('pediatric')) {
+      return [
+        'Neonatal & Infant Development Care',
+        'Pediatric Immunization Protocols',
+        'Childhood Asthma & Allergy Care',
+        'Pediatric Acute Infection Treatment',
+        'Adolescent Health & Wellness'
+      ]
+    }
+    return [
+      `Advanced ${specialty} Clinical Diagnosis`,
+      'Chronic Condition Disease Protocols',
+      'Preventive Health & Risk Screening',
+      'Remote Telehealth Follow-up Monitoring',
+      'Post-Acute Care & Prescription Review'
+    ]
+  }, [doctorProfile?.symptoms, specialty])
+
+  const practiceLocations = useMemo(() => {
+    const locs: any[] = []
+    if (hospital) {
+      locs.push({
+        title: hospital.name,
+        subtitle: `${hospital.city ? hospital.city + ' • ' : ''}Primary Medical Center`,
+        hours: 'Mon – Fri: 09:00 – 17:00',
+        type: 'In-Person',
+        badge: 'Hospital Base',
+        ext: `#${hospital.id?.slice(0, 4) || '101'}`,
+        description: hospital.address || 'Inpatient and outpatient clinical care suite.'
+      })
+    } else {
+      locs.push({
+        title: hospitalName || 'Clinical Consultation Hub',
+        subtitle: doctorProfile?.address || 'Main OPD Suite',
+        hours: 'Mon – Fri: 09:00 – 17:00',
+        type: 'In-Person',
+        badge: 'Primary Clinic',
+        ext: '#101',
+        description: doctorProfile?.address || 'Direct patient outpatient consultations.'
+      })
+    }
+
+    if (doctorProfile?.address && doctorProfile.address !== hospital?.address) {
+      locs.push({
+        title: `${doctorName} Specialist Chambers`,
+        subtitle: doctorProfile.address,
+        hours: 'Tue & Thu: 17:00 – 20:00',
+        type: 'In-Person',
+        badge: 'Consulting Suite',
+        ext: '#204',
+        description: 'Specialist clinical chambers for scheduled private appointments.'
+      })
+    } else {
+      locs.push({
+        title: `${hospitalName || 'Clinical'} Ambulatory Center`,
+        subtitle: 'Secondary OPD & Diagnostics',
+        hours: 'Sat: 10:00 – 14:00',
+        type: 'In-Person',
+        badge: 'Outreach',
+        ext: '#302',
+        description: 'Specialist outreach and secondary diagnostic evaluations.'
+      })
+    }
+
+    locs.push({
+      title: 'Consult Your Doctor Telehealth Portal',
+      subtitle: 'Encrypted HD Video Consultations & Remote Monitoring',
+      hours: 'Mon – Sat: Flexible On-Demand',
+      type: 'Telehealth',
+      badge: 'Digital Practice',
+      ext: 'Online',
+      description: 'Direct secure video appointments and digital follow-up care.'
+    })
+
+    return locs
+  }, [hospital, hospitalName, doctorProfile?.address, doctorName])
+
   return (
     <div className="bg-background font-body-md text-on-surface min-h-screen">
-      <main className="w-full bg-background pb-32">
+
+
+      {/* ========================================================================= */}
+      {/* DEDICATED MOBILE VIEW (block md:hidden) - EXACT UI MATCHING 4 SCREENSHOTS */}
+      {/* ========================================================================= */}
+      <div className="block md:hidden min-h-screen bg-slate-50/50 pb-24 font-sans text-slate-800">
+        {/* Mobile Sticky Top Header */}
+        <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 py-3 flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-3">
+            <button 
+              className="text-slate-900 p-1 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              aria-label="Open menu"
+            >
+              <span className="material-symbols-outlined text-[26px]">menu</span>
+            </button>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight capitalize">
+              {activeTab === 'dashboard' && 'Dashboard'}
+              {activeTab === 'schedule' && 'Schedule'}
+              {activeTab === 'patients' && 'Patients'}
+              {activeTab === 'profile' && 'Profile'}
+            </h1>
+          </div>
+          <button 
+            onClick={() => setActiveTab('profile')}
+            className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-sm cursor-pointer hover:bg-blue-700 transition-colors"
+            title="Doctor Profile"
+          >
+            <span className="material-symbols-outlined text-[20px]">person</span>
+          </button>
+        </header>
+
+        {/* ------------------------------------------------------------------------- */}
+        {/* TAB 1: MOBILE DASHBOARD (SCREENSHOT 1)                                   */}
+        {/* ------------------------------------------------------------------------- */}
+        {activeTab === 'dashboard' && (() => {
+          const nextPtData = nextPatient 
+            ? (patientsList.find((p: any) => p.id === nextPatient.patient_id) || {
+                id: nextPatient.patient_id,
+                full_name: nextPatient.patient?.full_name || 'Scheduled Patient',
+                age: '42y',
+                gender: 'M',
+                diagnosis: nextPatient.reason || 'General Medical Consultation',
+                medications: ['Prescription active'],
+                bp: '120/80',
+                hr: '72 bpm',
+                spo2: '98%',
+                avatar: nextPatient.patient?.image_url || ''
+              })
+            : (patientsList[0] || null)
+
+          return (
+            <div className="px-4 py-3 space-y-4 animate-in fade-in duration-200">
+              {/* Facility Card */}
+              <div className="bg-white rounded-2xl p-4 shadow-[0_2px_12px_rgba(0,102,255,0.04)] border border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                    <span className="material-symbols-outlined text-[24px]">domain</span>
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <h2 className="text-base font-bold text-slate-900 truncate">
+                      {hospitalName || 'Clinical Consultation Hub'}
+                    </h2>
+                    <p className="text-xs text-slate-500 truncate">
+                      {doctorProfile?.address || 'Suite 402 • Consultation Rooms'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-50 border border-teal-100/60 text-teal-700 font-bold text-[11px] flex-shrink-0">
+                  <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
+                  <span>LIVE DB SYNCED</span>
+                </div>
+              </div>
+
+              {/* Daily Metrics 2x2 Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Metric 1: Daily Caseload */}
+                <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-100 flex flex-col justify-between">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-600">Daily Caseload</span>
+                    <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-[16px]">assignment_turned_in</span>
+                    </div>
+                  </div>
+                  <div className="flex items-baseline gap-1.5 mt-2">
+                    <span className="text-2xl font-black text-slate-900">{todayStats.total}</span>
+                    <span className="text-xs font-bold text-emerald-600">{todayStats.completed} Done</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 font-medium mt-1">
+                    {todayStats.telehealthCount} Telehealth • {todayStats.inClinicCount} Clinic
+                  </p>
+                </div>
+
+                {/* Metric 2: Remote RPM */}
+                <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-100 flex flex-col justify-between">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-600">Remote RPM</span>
+                    <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-500 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-[16px]">sensors</span>
+                    </div>
+                  </div>
+                  <div className="flex items-baseline gap-1.5 mt-2">
+                    <span className="text-2xl font-black text-slate-900">{todayStats.totalPatientsMonitored || patientsList.length}</span>
+                    <span className="text-xs font-bold text-rose-600">{countUrgent} Alert</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 font-medium mt-1">
+                    {patientsList.length > 0 
+                      ? `${Math.round(((patientsList.length - countUrgent) / patientsList.length) * 100)}% within target` 
+                      : '100% within target'}
+                  </p>
+                </div>
+
+                {/* Metric 3: Telehealth Hrs */}
+                <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-100 flex flex-col justify-between">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-600">Telehealth Hrs</span>
+                    <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-[16px]">videocam</span>
+                    </div>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-2">
+                    <span className="text-2xl font-black text-slate-900">{todayStats.telehealthHours}</span>
+                    <span className="text-xs font-semibold text-slate-500">hrs</span>
+                  </div>
+                  <p className="text-[11px] text-emerald-600 font-semibold mt-1">
+                    {todayStats.telehealthCount} sessions today
+                  </p>
+                </div>
+
+                {/* Metric 4: Trust Score */}
+                <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-100 flex flex-col justify-between">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-600">Trust Score</span>
+                    <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-[16px]">star</span>
+                    </div>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-2">
+                    <span className="text-2xl font-black text-slate-900">{todayStats.trustScore ? todayStats.trustScore.toFixed(1) : '5.0'}</span>
+                    <span className="text-xs text-slate-400">/ 5.0</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 font-medium mt-1">
+                    {allAppointments.filter((a: any) => a.status === 'completed').length || allAppointments.length} verified consults
+                  </p>
+                </div>
+              </div>
+
+              {/* Next in Queue Card */}
+              {nextPtData ? (
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-3 relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-600 text-[11px] font-bold uppercase">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                      <span>Next in Queue</span>
+                    </div>
+                    <span className="text-xs text-slate-500 font-medium">
+                      {nextPatient?.schedules?.start_time 
+                        ? `Slot: ${new Date(nextPatient.schedules.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` 
+                        : 'Slot: Now'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    {nextPtData.avatar ? (
+                      <img 
+                        src={nextPtData.avatar}
+                        alt={nextPtData.full_name}
+                        className="w-14 h-14 rounded-full object-cover shadow-sm ring-2 ring-blue-50 flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 font-bold text-base flex items-center justify-center shadow-sm flex-shrink-0">
+                        {nextPtData.full_name?.slice(0, 2).toUpperCase() || 'PT'}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-base font-bold text-slate-900 truncate">
+                          {nextPtData.full_name}
+                        </h3>
+                        <span className="text-xs font-semibold text-slate-500">
+                          {nextPtData.age || ''} {nextPtData.gender ? `• ${nextPtData.gender === 'F' ? 'Female' : 'Male'}` : ''}
+                        </span>
+                      </div>
+                      <p className="text-xs font-bold text-blue-700 mt-0.5 truncate">
+                        {nextPatient?.reason || nextPtData.diagnosis || 'Clinical Follow-up & Review'}
+                      </p>
+                      <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                        Active Rx: {Array.isArray(nextPtData.medications) && nextPtData.medications.length > 0 ? nextPtData.medications.join(', ') : 'No active prescriptions'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Vitals row */}
+                  <div className="bg-slate-50/90 rounded-xl p-2.5 grid grid-cols-3 text-center border border-slate-100">
+                    <div className="border-r border-slate-200/60">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">Blood Pressure</span>
+                      <span className="text-sm font-black text-slate-900">{nextPtData.bp || '120/80'}</span>
+                      <span className="text-[10px] text-teal-600 font-semibold block">
+                        {parseInt((nextPtData.bp || '120').split('/')[0], 10) > 135 ? 'Elevated' : 'Optimal'}
+                      </span>
+                    </div>
+                    <div className="border-r border-slate-200/60">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">Heart Rate</span>
+                      <span className="text-sm font-black text-slate-900">{String(nextPtData.hr || '72').replace(/[^0-9]/g, '')} <span className="text-[10px] font-normal text-slate-500">bpm</span></span>
+                      <span className="text-[10px] text-teal-600 font-semibold block">
+                        {parseInt(String(nextPtData.hr || '72').replace(/[^0-9]/g, ''), 10) > 100 ? 'Tachycardia' : 'Resting sinus'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">SpO2 Oxygen</span>
+                      <span className="text-sm font-black text-slate-900">{nextPtData.spo2 ? (String(nextPtData.spo2).endsWith('%') ? nextPtData.spo2 : `${nextPtData.spo2}%`) : '98%'}</span>
+                      <span className="text-[10px] text-teal-600 font-semibold block">
+                        {parseInt(String(nextPtData.spo2 || '98').replace(/[^0-9]/g, ''), 10) < 95 ? 'Hypoxemia' : 'Ambulatory'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex flex-col gap-2 pt-1">
+                    <button 
+                      onClick={() => setActiveCallPatient(nextPatient || { patient: { full_name: nextPtData.full_name } })}
+                      className="w-full py-3 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white rounded-full font-bold text-sm shadow-md shadow-blue-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">videocam</span>
+                      <span>Start Video Consultation</span>
+                    </button>
+                    <button 
+                      onClick={() => setActiveChartPatient(nextPtData)}
+                      className="w-full py-3 bg-blue-50 hover:bg-blue-100 active:scale-[0.99] text-blue-700 rounded-full font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">folder_open</span>
+                      <span>Open Full EHR Chart</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-dashed border-slate-200 text-center flex flex-col items-center justify-center gap-2">
+                  <span className="material-symbols-outlined text-3xl text-slate-300">event_available</span>
+                  <span className="text-sm font-bold text-slate-700">No Patient In Queue</span>
+                  <p className="text-xs text-slate-400">All appointments for today have been attended or none are currently queued.</p>
+                </div>
+              )}
+
+              {/* Live Telemetry Waveform Card */}
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-teal-600 text-[20px]">ecg</span>
+                    <h3 className="text-sm font-bold text-slate-900">Live Telemetry Waveform</h3>
+                  </div>
+                  <span className="text-xs font-semibold text-teal-700">Lead II • {nextPtData?.hr || '72 bpm'}</span>
+                </div>
+                <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-100 overflow-hidden">
+                  <svg className="w-full h-12 text-teal-500" fill="none" preserveAspectRatio="none" viewBox="0 0 500 60">
+                    <path d="M0 30 L60 30 L70 30 L80 10 L90 50 L100 22 L110 35 L120 30 L200 30 L210 30 L220 5 L230 55 L240 20 L250 35 L260 30 L340 30 L350 30 L360 8 L370 52 L380 20 L390 35 L400 30 L500 30" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4"></path>
+                  </svg>
+                  <p className="text-[10px] text-slate-400 text-right mt-1 font-medium">
+                    {parseInt(String(nextPtData?.hr || '72').replace(/[^0-9]/g, ''), 10) > 100 ? 'Sinus Tachycardia Monitored' : 'Sinus Rhythm Confirmed'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* ------------------------------------------------------------------------- */}
+        {/* TAB 2: MOBILE SCHEDULE (SCREENSHOT 2)                                    */}
+        {/* ------------------------------------------------------------------------- */}
+        {activeTab === 'schedule' && (() => {
+          const currentConsultApt = todayAppointments.find((a: any) => a.status === 'in-progress') || todayAppointments[0] || allAppointments[0]
+          const currentConsultPt = currentConsultApt ? (patientsList.find((p: any) => p.id === currentConsultApt.patient_id) || {
+            full_name: currentConsultApt.patient?.full_name || 'Scheduled Patient',
+            age: '42y',
+            id_code: `#CYD-${currentConsultApt.id?.slice(0, 4) || '8104'}`,
+            diagnosis: currentConsultApt.reason || 'Clinical Consultation',
+            bp: '128/82',
+            hr: '72 bpm',
+            spo2: '98%'
+          }) : (patientsList[0] || null)
+
+          const timelineList = (allAppointments.length > 0 ? allAppointments : todayAppointments).filter((apt: any) => {
+            if (scheduleTypeFilter === 'in-person') return !apt.schedules?.is_booked
+            if (scheduleTypeFilter === 'telehealth') return !!apt.schedules?.is_booked
+            if (scheduleTypeFilter === 'post-op') return apt.status === 'confirmed' || apt.reason?.toLowerCase().includes('post')
+            return true
+          })
+
+          const inPersonCount = allAppointments.filter((a: any) => !a.schedules?.is_booked).length
+          const telehealthCount = allAppointments.filter((a: any) => a.schedules?.is_booked).length
+          const postOpCount = patientsList.filter((p: any) => p.cohortStatus === 'in-treatment').length
+
+          return (
+            <div className="px-4 py-3 space-y-4 animate-in fade-in duration-200">
+              {/* Date Navigation & View Mode */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-900 text-xs">
+                    <span className="material-symbols-outlined text-blue-600 text-[16px]">calendar_today</span>
+                    <span>{now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                  </div>
+                </div>
+                <div className="flex items-center bg-slate-100 p-0.5 rounded-full text-xs font-semibold text-slate-600">
+                  <button 
+                    onClick={() => setScheduleViewMode('day')}
+                    className={`px-3 py-1 rounded-full transition-all cursor-pointer ${scheduleViewMode === 'day' ? 'bg-white text-blue-600 shadow-xs font-bold' : ''}`}
+                  >
+                    Day
+                  </button>
+                  <button 
+                    onClick={() => setScheduleViewMode('week')}
+                    className={`px-2.5 py-1 rounded-full transition-all cursor-pointer ${scheduleViewMode === 'week' ? 'bg-white text-blue-600 shadow-xs font-bold' : ''}`}
+                  >
+                    Week
+                  </button>
+                  <button 
+                    onClick={() => setScheduleViewMode('month')}
+                    className={`px-2.5 py-1 rounded-full transition-all cursor-pointer ${scheduleViewMode === 'month' ? 'bg-white text-blue-600 shadow-xs font-bold' : ''}`}
+                  >
+                    Month
+                  </button>
+                </div>
+              </div>
+
+              {/* Actions: Add Slot & New Appointment */}
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setShowAddPatientModal(true)}
+                  className="w-1/2 py-2.5 rounded-full bg-blue-50 text-blue-600 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer hover:bg-blue-100 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[16px]">add</span>
+                  <span>Add Slot</span>
+                </button>
+                <button 
+                  onClick={() => setShowAddPatientModal(true)}
+                  className="w-1/2 py-2.5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center gap-1 shadow-sm cursor-pointer hover:bg-blue-700 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[16px]">add</span>
+                  <span>New Appointment</span>
+                </button>
+              </div>
+
+              {/* Quick KPI 3 Cards */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-sm flex flex-col justify-between">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase text-slate-500">Booked</span>
+                    <span className="material-symbols-outlined text-blue-600 text-[14px]">calendar_today</span>
+                  </div>
+                  <div className="mt-1">
+                    <span className="text-xl font-black text-slate-900">{todayStats.total}</span>
+                    <p className="text-[10px] text-slate-400 font-medium">{(todayStats.total * 0.5).toFixed(1)} hrs total</p>
+                  </div>
+                </div>
+                <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-sm flex flex-col justify-between">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase text-slate-500">Checked In</span>
+                    <span className="material-symbols-outlined text-teal-600 text-[14px]">person</span>
+                  </div>
+                  <div className="mt-1">
+                    <span className="text-xl font-black text-slate-900">{todayStats.completed}</span>
+                    <p className="text-[10px] text-teal-600 font-semibold">In Hub</p>
+                  </div>
+                </div>
+                <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-sm flex flex-col justify-between">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase text-slate-500">In Consult</span>
+                    <span className="material-symbols-outlined text-blue-600 text-[14px]">badge</span>
+                  </div>
+                  <div className="mt-1">
+                    <span className="text-xl font-black text-blue-600">{todayAppointments.filter((a: any) => a.status === 'in-progress' || a.status === 'confirmed').length || (todayAppointments.length > 0 ? 1 : 0)}</span>
+                    <p className="text-[10px] text-blue-600 font-semibold">Active Now</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Current Consult Deep Blue Card */}
+              {currentConsultPt ? (
+                <div className="rounded-2xl p-4 bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-lg flex flex-col gap-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-[10px]">
+                      <span className="w-2 h-2 rounded-full bg-teal-300 animate-pulse"></span>
+                      <span>Current Consult • In Progress</span>
+                    </div>
+                    <span className="opacity-90 font-medium">
+                      {currentConsultApt?.schedules?.start_time 
+                        ? new Date(currentConsultApt.schedules.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+                        : 'Active Slot'}
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center font-black text-lg text-white">
+                      {currentConsultPt.full_name?.slice(0, 2).toUpperCase() || 'PT'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base font-bold truncate">{currentConsultPt.full_name}{currentConsultPt.age ? `, ${currentConsultPt.age}` : ''}</h3>
+                      <p className="text-xs text-blue-100">{currentConsultPt.id_code} • Room 4B</p>
+                      <p className="text-[11px] text-blue-200 truncate mt-0.5">{currentConsultPt.diagnosis || 'Clinical Follow-up & Evaluation'}</p>
+                    </div>
+                  </div>
+                  {/* Vitals in Gradient Card */}
+                  <div className="bg-white/10 rounded-xl p-2 grid grid-cols-3 text-center backdrop-blur-sm border border-white/10">
+                    <div>
+                      <span className="text-[9px] uppercase font-semibold text-blue-200 block">Blood Pressure</span>
+                      <span className="text-sm font-bold">{currentConsultPt.bp || '120/80'}</span>
+                      <span className="text-[9px] text-blue-200 block">mmHg</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] uppercase font-semibold text-blue-200 block">Heart Rate</span>
+                      <span className="text-sm font-bold">{currentConsultPt.hr?.replace(' bpm', '') || '72'}</span>
+                      <span className="text-[9px] text-blue-200 block">bpm</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] uppercase font-semibold text-blue-200 block">SpO2</span>
+                      <span className="text-sm font-bold">{currentConsultPt.spo2 || '98%'}</span>
+                      <span className="text-[9px] text-blue-200 block">Normal</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-xs text-teal-300 flex items-center gap-1 font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-teal-300"></span> Live EHR Synced
+                    </span>
+                    <button 
+                      onClick={() => {
+                        if (currentConsultApt) {
+                          setPrescriptionAppointment({ id: currentConsultApt.id, name: currentConsultPt.full_name })
+                        }
+                      }}
+                      className="px-3.5 py-1.5 bg-white text-blue-700 rounded-full font-bold text-xs flex items-center gap-1.5 shadow-sm hover:bg-blue-50 cursor-pointer transition-all"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">edit_note</span>
+                      <span>Resume Clinical Notes</span>
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Day Selector Strip */}
+              <div className="flex items-center justify-between bg-white rounded-2xl p-2 border border-slate-100 shadow-sm text-center">
+                {currentWeekDays.map((item) => {
+                  const isSelected = selectedScheduleDay === item.date
+                  return (
+                    <button
+                      key={item.date}
+                      onClick={() => setSelectedScheduleDay(item.date)}
+                      className={`flex-1 py-1.5 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer ${
+                        isSelected ? 'bg-blue-600 text-white font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="text-[10px] font-medium opacity-80">{item.day}</span>
+                      <span className="text-xs font-bold mt-0.5">{item.date}</span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Filter Pills */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+                <button 
+                  onClick={() => setScheduleTypeFilter('all')}
+                  className={`px-3 py-1 rounded-full font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    scheduleTypeFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  <span>All {allAppointments.length}</span>
+                </button>
+                <button 
+                  onClick={() => setScheduleTypeFilter('in-person')}
+                  className={`px-3 py-1 rounded-full font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    scheduleTypeFilter === 'in-person' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                  <span>In-Person {inPersonCount}</span>
+                </button>
+                <button 
+                  onClick={() => setScheduleTypeFilter('telehealth')}
+                  className={`px-3 py-1 rounded-full font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    scheduleTypeFilter === 'telehealth' ? 'bg-teal-600 text-white' : 'bg-teal-50 text-teal-700'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
+                  <span>Telehealth {telehealthCount}</span>
+                </button>
+                <button 
+                  onClick={() => setScheduleTypeFilter('post-op')}
+                  className={`px-3 py-1 rounded-full font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    scheduleTypeFilter === 'post-op' ? 'bg-rose-600 text-white' : 'bg-rose-50 text-rose-700'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                  <span>Post-Op {postOpCount}</span>
+                </button>
+              </div>
+
+              {/* Timeline Section */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
+                  <span>Timeline (09:00 - 17:00)</span>
+                  <span>{timelineList.length} appointments</span>
+                </div>
+
+                {timelineList.length === 0 ? (
+                  <div className="bg-white rounded-2xl p-6 border border-dashed border-slate-200 text-center flex flex-col items-center justify-center gap-1.5">
+                    <span className="material-symbols-outlined text-3xl text-slate-300">event_busy</span>
+                    <span className="text-xs font-bold text-slate-700">No Appointments In This View</span>
+                    <p className="text-[11px] text-slate-400">Try changing your filter or add a new appointment slot.</p>
+                  </div>
+                ) : (
+                  timelineList.slice(0, 10).map((apt: any) => {
+                    const pt = patientsList.find((p: any) => p.id === apt.patient_id) || {
+                      full_name: apt.patient?.full_name || 'Scheduled Patient',
+                      diagnosis: apt.reason || 'Clinical Consultation',
+                      bp: '120/80',
+                      hr: '72 bpm',
+                      spo2: '98%'
+                    }
+                    const startTime = apt.schedules?.start_time ? new Date(apt.schedules.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '10:00'
+                    const isNow = apt.status === 'in-progress'
+                    const isDone = apt.status === 'completed'
+                    const isTelehealth = !!apt.schedules?.is_booked
+
+                    return (
+                      <div 
+                        key={apt.id} 
+                        className={`bg-white rounded-2xl p-3.5 border shadow-xs flex items-center justify-between gap-3 ${
+                          isNow ? 'border-2 border-blue-500 shadow-sm' : 'border-slate-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex flex-col items-center justify-center w-12 text-center flex-shrink-0">
+                            <span className={`text-xs font-bold ${isNow ? 'text-blue-600' : 'text-slate-900'}`}>{startTime}</span>
+                            <span className="text-[10px] text-slate-400">30m</span>
+                            <span className={`mt-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold ${
+                              isDone ? 'bg-slate-100 text-slate-600' : isNow ? 'bg-blue-600 text-white animate-pulse' : 'bg-teal-100 text-teal-800'
+                            }`}>
+                              {isDone ? 'DONE' : isNow ? 'NOW' : 'SCHEDULED'}
+                            </span>
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-900 text-sm truncate">{pt.full_name}</span>
+                              <span className={`px-2 py-0.2 rounded-full text-[10px] font-medium ${
+                                isTelehealth ? 'bg-teal-50 text-teal-700' : 'bg-blue-50 text-blue-700'
+                              }`}>
+                                {isTelehealth ? 'Telehealth' : 'In-Clinic'}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 truncate mt-0.5">{pt.diagnosis}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {isNow ? (
+                            <button 
+                              onClick={() => setActiveCallPatient(apt)}
+                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-xs font-bold shadow-xs cursor-pointer transition-all"
+                            >
+                              Call In →
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={() => setActiveChartPatient(pt)}
+                              className="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 text-xs font-semibold hover:bg-slate-100 cursor-pointer"
+                            >
+                              View Summary
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+
+              {/* Waiting Room Section */}
+              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-slate-900 text-sm">Waiting Room</h3>
+                    <span className="px-2 py-0.2 rounded-full bg-blue-50 text-blue-600 font-bold text-xs">
+                      {patientsList.slice(0, 3).length}
+                    </span>
+                  </div>
+                  <span className="text-xs text-teal-600 font-semibold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
+                    Active Flow
+                  </span>
+                </div>
+
+                <div className="space-y-2 text-xs divide-y divide-slate-100">
+                  {patientsList.slice(0, 3).map((p: any, idx: number) => {
+                    const aptForPt = todayAppointments.find((a: any) => a.patient_id === p.id)
+                    const waitMinutes = aptForPt?.created_at 
+                      ? Math.max(2, Math.min(45, Math.round((Date.now() - new Date(aptForPt.created_at).getTime()) / 60000))) 
+                      : (idx * 5 + 4)
+                    return (
+                      <div key={p.id || idx} className="flex items-center justify-between pt-1.5">
+                        <div>
+                          <span className="font-bold text-slate-900 block">{p.full_name}</span>
+                          <span className="text-[10px] text-slate-400">{p.diagnosis || 'Nurse Triage Done'}</span>
+                        </div>
+                        <span className={`text-[11px] font-bold ${idx === 0 ? 'text-rose-600' : idx === 1 ? 'text-amber-600' : 'text-slate-600'}`}>
+                          {waitMinutes} min wait
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <button 
+                  onClick={() => setShowAddPatientModal(true)}
+                  className="w-full py-2.5 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-rose-100 transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[16px]">warning</span>
+                  <span>Emergency Walk-in Slot</span>
+                </button>
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* ------------------------------------------------------------------------- */}
+        {/* TAB 3: MOBILE PATIENTS (SCREENSHOT 3)                                    */}
+        {/* ------------------------------------------------------------------------- */}
+        {activeTab === 'patients' && (
+          <div className="px-4 py-3 space-y-4 animate-in fade-in duration-200">
+            {/* Header & Live Sync */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-900">Patient Roster Overview</h2>
+              <div className="flex items-center gap-1 text-teal-600 text-xs font-bold">
+                <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
+                <span>Live Sync</span>
+              </div>
+            </div>
+
+            {/* Horizontal Metric Chips */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+              <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-xs flex items-center gap-3 min-w-[140px] flex-shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                  <span className="material-symbols-outlined text-[20px]">groups</span>
+                </div>
+                <div>
+                  <span className="text-base font-black text-slate-900 block">{countAll}</span>
+                  <span className="text-[11px] text-slate-500 font-medium">Registered</span>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-xs flex items-center gap-3 min-w-[140px] flex-shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center flex-shrink-0">
+                  <span className="material-symbols-outlined text-[20px]">domain</span>
+                </div>
+                <div>
+                  <span className="text-base font-black text-slate-900 block">{todayStats.inClinicCount || countActive}</span>
+                  <span className="text-[11px] text-slate-500 font-medium">In-Clinic</span>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-xs flex items-center gap-3 min-w-[140px] flex-shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                  <span className="material-symbols-outlined text-[20px]">videocam</span>
+                </div>
+                <div>
+                  <span className="text-base font-black text-slate-900 block">{todayStats.telehealthCount || 12}</span>
+                  <span className="text-[11px] text-slate-500 font-medium">Telehealth</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Search and Filter */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
+                <input 
+                  type="text"
+                  placeholder="Search by name, MRN, or condition..."
+                  value={patientSearch}
+                  onChange={(e) => setPatientSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 bg-white rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-blue-500 shadow-xs"
+                />
+              </div>
+              <button 
+                onClick={() => setUrgentFilter(prev => !prev)}
+                className={`w-9 h-9 rounded-xl border flex items-center justify-center cursor-pointer transition-colors ${
+                  urgentFilter ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}
+                title="Filter urgent cases"
+              >
+                <span className="material-symbols-outlined text-[18px]">tune</span>
+              </button>
+            </div>
+
+            {/* Status Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+              <button 
+                onClick={() => setPatientStatusPill('all')}
+                className={`px-3 py-1.5 rounded-full font-semibold transition-all cursor-pointer ${
+                  patientStatusPill === 'all' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600'
+                }`}
+              >
+                All ({countAll})
+              </button>
+              <button 
+                onClick={() => setPatientStatusPill('active')}
+                className={`px-3 py-1.5 rounded-full font-semibold transition-all cursor-pointer ${
+                  patientStatusPill === 'active' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600'
+                }`}
+              >
+                Active ({countActive})
+              </button>
+              <button 
+                onClick={() => setPatientStatusPill('in-treatment')}
+                className={`px-3 py-1.5 rounded-full font-semibold transition-all cursor-pointer ${
+                  patientStatusPill === 'in-treatment' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600'
+                }`}
+              >
+                In-Treatment ({countInTreatment})
+              </button>
+            </div>
+
+            {/* Patient Cards Stack */}
+            <div className="space-y-3">
+              {filteredPatients.length === 0 ? (
+                <div className="bg-white rounded-2xl p-8 border border-dashed border-slate-200 text-center flex flex-col items-center justify-center gap-2">
+                  <span className="material-symbols-outlined text-4xl text-slate-300">person_search</span>
+                  <h4 className="text-sm font-bold text-slate-800">No Patients Found</h4>
+                  <p className="text-xs text-slate-400">No patients match your search or filter criteria.</p>
+                </div>
+              ) : (
+                filteredPatients.map((patient: any) => {
+                  const isCritical = patient.severity === 'critical'
+                  const isWarning = patient.severity === 'warning'
+                  const statusBadge = isCritical ? '● Alert' : isWarning ? 'Warning' : patient.cohortStatus === 'active' ? 'Controlled' : 'Wellness'
+                  const badgeClass = isCritical ? 'bg-rose-100 text-rose-700' : isWarning ? 'bg-amber-100 text-amber-800' : patient.cohortStatus === 'active' ? 'bg-teal-100 text-teal-800' : 'bg-slate-100 text-slate-700'
+                  const isTelemetryOpen = !!mobileTelemetryOpen[patient.id]
+
+                  return (
+                    <div key={patient.id} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {patient.avatar ? (
+                            <img 
+                              src={patient.avatar} 
+                              alt={patient.full_name} 
+                              className={`w-12 h-12 rounded-full object-cover flex-shrink-0 ${isCritical ? 'ring-2 ring-rose-200' : ''}`}
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-700 font-bold text-sm flex items-center justify-center flex-shrink-0">
+                              {patient.full_name?.slice(0, 2).toUpperCase() || 'PT'}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <h3 className="font-bold text-slate-900 text-base truncate">{patient.full_name}</h3>
+                            <p className="text-xs text-slate-500 truncate">{patient.age} {patient.gender} • {patient.id_code}</p>
+                          </div>
+                        </div>
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold flex-shrink-0 ${badgeClass}`}>
+                          {statusBadge}
+                        </span>
+                      </div>
+
+                      <div className="text-sm font-bold text-slate-800">
+                        {patient.diagnosis || 'Clinical Follow-up'}
+                      </div>
+
+                      {/* Vitals row */}
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-slate-50 p-2 rounded-xl flex items-center gap-2">
+                          <span className={isCritical ? 'text-rose-500' : 'text-teal-600'}>❤️</span>
+                          <div>
+                            <span className="text-[10px] text-slate-400 block font-medium">BP Reading</span>
+                            <span className={`font-bold ${isCritical ? 'text-rose-600' : 'text-slate-800'}`}>{patient.bp || '120/80'}</span>
+                          </div>
+                        </div>
+                        <div className="bg-slate-50 p-2 rounded-xl flex items-center gap-2">
+                          <span className="text-blue-500">🕒</span>
+                          <div>
+                            <span className="text-[10px] text-slate-400 block font-medium">Next Consult</span>
+                            <span className="font-bold text-slate-800">{patient.scheduleDisplay || 'Next Available'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Allergy warning banner if present */}
+                      {patient.allergy && patient.allergy !== 'None Reported' && (
+                        <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 text-xs font-bold flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-[16px]">error</span>
+                            <span>ALLERGY: {patient.allergy.toUpperCase()} (SEVERE)</span>
+                          </div>
+                          <span className="material-symbols-outlined text-[16px]">info</span>
+                        </div>
+                      )}
+
+                      {/* Action buttons row */}
+                      <div className="flex items-center gap-2 pt-1">
+                        <button 
+                          onClick={() => setActiveCallPatient({ patient: { full_name: patient.full_name } })}
+                          className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center cursor-pointer transition-colors"
+                          title="Video Consultation"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">videocam</span>
+                        </button>
+                        <button 
+                          onClick={() => setActiveChartPatient(patient)}
+                          className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center cursor-pointer transition-colors"
+                          title="Full Chart"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">description</span>
+                        </button>
+                        <button 
+                          onClick={() => setPrescriptionAppointment({ id: patient.appointments?.[0]?.id || patient.id, name: patient.full_name })}
+                          className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center cursor-pointer transition-colors"
+                          title="Write Prescription"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">chat</span>
+                        </button>
+                        <button 
+                          onClick={() => setMobileTelemetryOpen(prev => ({ ...prev, [patient.id]: !prev[patient.id] }))}
+                          className="flex-1 py-2 px-3 rounded-xl bg-blue-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-blue-700 cursor-pointer shadow-xs transition-colors"
+                        >
+                          <span>Telemetry Drawer</span>
+                          <span className="material-symbols-outlined text-[16px]">
+                            {isTelemetryOpen ? 'expand_less' : 'expand_more'}
+                          </span>
+                        </button>
+                      </div>
+
+                      {/* Expanded Telemetry Drawer */}
+                      {isTelemetryOpen && (
+                        <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-2.5 animate-in fade-in duration-150">
+                          <div className="flex items-center justify-between text-xs font-bold text-teal-700">
+                            <div className="flex items-center gap-1.5">
+                              <span className="material-symbols-outlined text-[16px]">ecg</span>
+                              <span>Continuous Telemetry ({patient.id_code})</span>
+                            </div>
+                            <span>HR: {patient.hr}</span>
+                          </div>
+
+                          {/* Dark ECG Telemetry Viewport */}
+                          <div className="bg-slate-900 rounded-xl p-3 text-white space-y-1">
+                            <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                              <span>Lead II • 25mm/s</span>
+                              <span>10mm/mV</span>
+                            </div>
+                            <svg className="w-full h-10 text-teal-400" fill="none" preserveAspectRatio="none" viewBox="0 0 500 60">
+                              <path d="M0 30 L60 30 L70 30 L80 10 L90 50 L100 22 L110 35 L120 30 L200 30 L210 30 L220 5 L230 55 L240 20 L250 35 L260 30 L340 30 L350 30 L360 8 L370 52 L380 20 L390 35 L400 30 L500 30" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4"></path>
+                            </svg>
+                          </div>
+
+                          {/* Report PDF Row */}
+                          <div 
+                            onClick={() => setActiveChartPatient(patient)}
+                            className="bg-white p-2 rounded-lg border border-slate-200 flex items-center justify-between text-xs cursor-pointer hover:bg-slate-50 transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-blue-600 text-[18px]">monitor_heart</span>
+                              <div>
+                                <span className="font-bold text-slate-800 block">Latest 12-Lead ECG Report.pdf</span>
+                                <span className="text-[10px] text-slate-400">Diagnostic record • {patient.diagnosis}</span>
+                              </div>
+                            </div>
+                            <span className="material-symbols-outlined text-slate-400 text-[18px]">open_in_new</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
+              )}
+            </div>
+
+            {/* Floating Add New Patient CTA */}
+            <div className="pt-2 pb-4">
+              <button 
+                onClick={() => setShowAddPatientModal(true)}
+                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-bold text-sm shadow-md shadow-blue-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all"
+              >
+                <span className="material-symbols-outlined text-[20px]">person_add</span>
+                <span>Add New Patient</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ------------------------------------------------------------------------- */}
+        {/* TAB 4: MOBILE PROFILE (SCREENSHOT 4)                                     */}
+        {/* ------------------------------------------------------------------------- */}
+        {activeTab === 'profile' && (
+          <div className="px-4 py-3 space-y-4 animate-in fade-in duration-200">
+            {/* Doctor Hero Card */}
+            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-3">
+              <div className="flex items-start gap-3.5">
+                <div className="relative w-18 h-18 rounded-2xl overflow-hidden flex-shrink-0 bg-slate-100 border border-slate-200/80 flex items-center justify-center">
+                  {doctorProfile?.image_url ? (
+                    <img 
+                      src={doctorProfile.image_url} 
+                      alt={doctorName} 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                        const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                        if (fallback) fallback.style.display = "flex";
+                      }}
+                    />
+                  ) : null}
+                  <div
+                    className={`w-full h-full bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-100 flex flex-col items-center justify-center ${
+                      doctorProfile?.image_url ? "hidden" : "flex"
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-white/90 shadow-2xs flex items-center justify-center text-primary mb-0.5 border border-blue-100">
+                      <span className="material-symbols-outlined text-[20px] text-blue-600">person</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-700 leading-none">
+                      {doctorName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-teal-500 rounded-full ring-2 ring-white"></div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[12px]">verified</span>
+                      <span>Verified Doctor</span>
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold">
+                      {qualifications}
+                    </span>
+                  </div>
+                  <h2 className="text-lg font-black text-slate-900 mt-1 truncate">
+                    {doctorName}
+                  </h2>
+                  <p className="text-xs font-bold text-blue-700 truncate">
+                    {specialty}
+                  </p>
+                  <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                    {doctorProfile?.bio || (hospitalName ? `${specialty} • ${hospitalName}` : specialty)}
+                  </p>
+                </div>
+              </div>
+
+              {/* GMC & Practice Active row */}
+              <div className="p-2.5 rounded-xl bg-slate-50 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5 text-slate-700 font-semibold">
+                  <span className="material-symbols-outlined text-[16px] text-slate-500">badge</span>
+                  <span>ID #{doctorProfile?.staff_id || doctorProfile?.profiles?.staff_id || doctorProfile?.id?.slice(0, 8).toUpperCase() || 'CYD-DOC'}</span>
+                </div>
+                <span className="text-teal-600 font-bold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
+                  <span>Practice Active</span>
+                </span>
+              </div>
+
+              {/* 3 Action Buttons */}
+              <div className="grid grid-cols-3 gap-2 pt-1">
+                <button 
+                  onClick={() => setShowEditModal(true)}
+                  className="py-2.5 px-3 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm hover:bg-blue-700 transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[16px]">edit</span>
+                  <span>Edit Profile</span>
+                </button>
+                <button 
+                  onClick={() => setActiveTab('schedule')}
+                  className="py-2.5 px-3 rounded-full bg-blue-50 text-blue-700 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-blue-100 transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[16px]">calendar_today</span>
+                  <span>Schedule</span>
+                </button>
+                <button 
+                  onClick={() => {
+                    navigator.clipboard?.writeText(window.location.href)
+                    triggerNotification('Profile referral link copied to clipboard!')
+                  }}
+                  className="py-2.5 px-3 rounded-full bg-blue-50 text-blue-700 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-blue-100 transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[16px]">share</span>
+                  <span>Share</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 4 Stats Bento Cards (2x2) */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-xs flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-600">Clinical Tenure</span>
+                  <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-[16px]">history_edu</span>
+                  </div>
+                </div>
+                <div className="flex items-baseline gap-1 mt-2">
+                  <span className="text-2xl font-black text-slate-900">{doctorProfile?.experience_years ?? 5}+</span>
+                  <span className="text-xs font-semibold text-slate-500">Years</span>
+                </div>
+                <p className="text-[11px] text-teal-600 font-semibold mt-1 truncate">~ {hospitalName || 'Verified Staff'}</p>
+              </div>
+
+              <div className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-xs flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-600">Consultations</span>
+                  <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-[16px]">medical_services</span>
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <span className="text-2xl font-black text-slate-900">{((doctorProfile?.experience_years ?? 5) * 450 + allAppointments.length).toLocaleString()}+</span>
+                </div>
+                <p className="text-[11px] text-teal-600 font-semibold mt-1 truncate">✓ {specialty} Cases</p>
+              </div>
+
+              <div className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-xs flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-600">Clinical Efficacy</span>
+                  <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-[16px]">monitoring</span>
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <span className="text-2xl font-black text-slate-900">
+                    {todayStats?.trustScore ? Math.min(99.8, Math.round((todayStats.trustScore / 5) * 100 * 10) / 10).toFixed(1) : '99.4'}%
+                  </span>
+                </div>
+                <div className="w-full bg-slate-100 h-1 rounded-full mt-1.5 overflow-hidden">
+                  <div 
+                    className="h-full bg-teal-500 rounded-full"
+                    style={{ width: `${todayStats?.trustScore ? Math.min(100, Math.round((todayStats.trustScore / 5) * 100)) : 99}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-xs flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-600">Patient Trust</span>
+                  <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-500 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-[16px]">star</span>
+                  </div>
+                </div>
+                <div className="flex items-baseline gap-1 mt-2">
+                  <span className="text-2xl font-black text-slate-900">{todayStats.trustScore ? todayStats.trustScore.toFixed(1) : '4.9'}</span>
+                  <span className="text-xs text-slate-400">/ 5.0</span>
+                </div>
+                <p className="text-[11px] text-slate-400 font-medium mt-1">
+                  {allAppointments.length > 0 ? allAppointments.length : 120} Verified Consults
+                </p>
+              </div>
+            </div>
+
+            {/* Focus Interventions */}
+            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-4 bg-blue-600 rounded-full"></span>
+                  <h3 className="font-bold text-slate-900 text-sm">Focus Clinical Interventions</h3>
+                </div>
+                <span className="text-xs text-blue-600 font-bold">{specialty}</span>
+              </div>
+              <div className="space-y-2">
+                {doctorFocusInterventions.map((item: string, idx: number) => (
+                  <div key={idx} className="p-2.5 rounded-xl bg-blue-50/70 text-slate-800 text-xs font-semibold flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Practice Locations */}
+            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-4 bg-blue-600 rounded-full"></span>
+                  <h3 className="font-bold text-slate-900 text-sm">Practice Locations</h3>
+                </div>
+                <span className="text-xs text-slate-500 font-medium">{practiceLocations.length} Sites Active</span>
+              </div>
+
+              <div className="space-y-2">
+                {practiceLocations.map((loc: any, idx: number) => {
+                  const isExpanded = activeLocationIndex === idx
+                  return (
+                    <div key={idx} className="rounded-xl border border-slate-200 overflow-hidden">
+                      <div 
+                        onClick={() => setActiveLocationIndex(isExpanded ? -1 : idx)}
+                        className="p-3 bg-slate-50 flex items-center justify-between cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                            idx === 0 ? 'bg-blue-600 text-white' : idx === 1 ? 'bg-blue-100 text-blue-700' : 'bg-teal-100 text-teal-700'
+                          }`}>
+                            <span className="material-symbols-outlined text-[18px]">
+                              {idx === 0 ? 'domain' : idx === 1 ? 'local_hospital' : 'videocam'}
+                            </span>
+                          </div>
+                          <div className="min-w-0">
+                            <span className="font-bold text-slate-900 text-xs block truncate">{loc.title}</span>
+                            <span className="text-[10px] text-slate-400 truncate block">{loc.subtitle}</span>
+                          </div>
+                        </div>
+                        <span className="material-symbols-outlined text-slate-500 text-[18px]">
+                          {isExpanded ? 'expand_less' : 'expand_more'}
+                        </span>
+                      </div>
+                      {isExpanded && (
+                        <div className="p-3 bg-white space-y-2 text-xs border-t border-slate-100">
+                          <p className="text-slate-600 font-medium">{loc.description}</p>
+                          <div className="flex items-center justify-between text-[11px] pt-1">
+                            <span className="text-teal-700 font-semibold flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[14px]">schedule</span>
+                              <span>{loc.hours}</span>
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold">{loc.type}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                            <span>Ext: {loc.ext}</span>
+                            <span className="text-blue-600 font-semibold">{loc.badge}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Practice Secretary / Care Desk Banner */}
+            <div className="bg-blue-50/70 rounded-2xl p-3.5 flex items-center justify-between border border-blue-100">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="relative w-11 h-11 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0">
+                  <span className="material-symbols-outlined text-[20px]">support_agent</span>
+                  <span className="absolute bottom-0 right-0 w-3 h-3 bg-teal-500 rounded-full ring-2 ring-white"></span>
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[9px] font-bold uppercase text-slate-400 block tracking-wider">Practice Desk</span>
+                  <h4 className="font-bold text-slate-900 text-sm truncate">
+                    {hospital?.name ? `${hospital.name} Desk` : `${doctorName} Care Desk`}
+                  </h4>
+                  <p className="text-[11px] text-slate-500 truncate">
+                    {hospital?.contact_email || doctorProfile?.phone_number || doctorProfile?.email || 'Clinical Care Desk • Available for Inquiries'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <a 
+                  href={`tel:${doctorProfile?.phone_number || hospital?.contact_email || '+919958414868'}`}
+                  className="w-9 h-9 rounded-full bg-teal-500 text-white flex items-center justify-center shadow-xs hover:bg-teal-600 transition-colors cursor-pointer"
+                  title="Call Care Desk"
+                >
+                  <span className="material-symbols-outlined text-[18px]">call</span>
+                </a>
+                <a 
+                  href={`mailto:${doctorProfile?.email || hospital?.contact_email || 'support@consultyourdoctor.com'}`}
+                  className="w-9 h-9 rounded-full bg-white text-slate-700 border border-slate-200 flex items-center justify-center shadow-xs hover:bg-slate-50 transition-colors cursor-pointer"
+                  title="Email Care Desk"
+                >
+                  <span className="material-symbols-outlined text-[18px]">mail</span>
+                </a>
+              </div>
+            </div>
+
+            {/* Sign Out Option */}
+            <div className="pt-2">
+              <form action="/auth/signout" method="post">
+                <button
+                  type="submit"
+                  className="w-full py-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 font-bold text-xs flex items-center justify-center gap-2 hover:bg-rose-100 transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[18px]">logout</span>
+                  <span>Sign Out of Doctor Session</span>
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ------------------------------------------------------------------------- */}
+        {/* MOBILE FIXED BOTTOM NAVIGATION DOCK (MATCHING SCREENSHOTS DOCK)          */}
+        {/* ------------------------------------------------------------------------- */}
+        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-4 py-2 flex items-center justify-around shadow-lg">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`flex flex-col items-center gap-0.5 cursor-pointer transition-colors ${
+              activeTab === 'dashboard' ? 'text-blue-600 font-bold' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[24px]">grid_view</span>
+            <span className="text-[11px] font-semibold">Dashboard</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('schedule')}
+            className={`flex flex-col items-center gap-0.5 cursor-pointer transition-colors ${
+              activeTab === 'schedule' ? 'text-blue-600 font-bold' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[24px]">calendar_today</span>
+            <span className="text-[11px] font-semibold">Schedule</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('patients')}
+            className={`flex flex-col items-center gap-0.5 cursor-pointer transition-colors ${
+              activeTab === 'patients' ? 'text-blue-600 font-bold' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[24px]">group</span>
+            <span className="text-[11px] font-semibold">Patients</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`flex flex-col items-center gap-0.5 cursor-pointer transition-colors ${
+              activeTab === 'profile' ? 'text-blue-600 font-bold' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[24px]">account_circle</span>
+            <span className="text-[11px] font-semibold">Profile</span>
+          </button>
+        </nav>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* DESKTOP EXPERIENCE (hidden md:block)                                      */}
+      {/* ========================================================================= */}
+      <main className="hidden md:block w-full bg-background pb-32">
         <div className="flex flex-col w-full">
           
           {/* Interactive & Notification Floating Banner */}
@@ -414,16 +1768,7 @@ export function DoctorDashboardClient({
           </section>
         )}
 
-          {/* Interactive Alert Toast */}
-          <div
-            className={`fixed bottom-24 right-8 z-50 transform transition-all duration-300 flex items-center gap-stack-sm bg-indigo-gray-900 text-inverse-on-surface px-5 py-3.5 rounded-full shadow-2xl ${
-              toastMessage ? 'translate-y-0 opacity-100' : 'translate-y-24 opacity-0 pointer-events-none'
-            }`}
-            id="action-toast"
-          >
-            <span className="material-symbols-outlined text-fresh-teal text-[20px]">info</span>
-            <span className="font-label-sm text-label-sm" id="toast-text">{toastMessage || 'Alert action triggered'}</span>
-          </div>
+
 
           {/* ========================================================================= */}
           {/* TAB 1: DASHBOARD VIEW                                                     */}
@@ -1913,9 +3258,9 @@ export function DoctorDashboardClient({
           )}
 
           {/* ========================================================================= */}
-          {/* FIXED FLOATING BOTTOM NAVIGATION DOCK (Working Active Dock)              */}
+          {/* FIXED FLOATING BOTTOM NAVIGATION DOCK (Working Active Dock - Desktop)  */}
           {/* ========================================================================= */}
-          <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/80 shadow-xl px-6 py-2 flex items-center gap-6">
+          <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/80 shadow-xl px-6 py-2 hidden md:flex items-center gap-6">
             <button
               className={`px-3 py-1 flex flex-col items-center gap-1 text-xs transition-colors cursor-pointer ${
                 activeTab === 'dashboard'

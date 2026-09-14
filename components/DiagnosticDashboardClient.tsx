@@ -1,14 +1,19 @@
 "use client";
 
 import React, { useState, useMemo, useRef } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { updateDiagnosticBookingStatus } from "@/app/actions/diagnostic-center";
 
 export interface DiagnosticBookingItem {
   id: string;
+  rawBookingId: string;
   patientId?: string;
   patientName: string;
   patientPhone: string;
   patientInitials: string;
-  intakeType: "In-Centre" | "Home Collect" | "Sample in Transit";
+  patientAvatar?: string;
+  intakeType: "In-Centre" | "Home Collect" | "In Transit";
   category: "Pathology" | "MRI/CT" | "Ultrasound" | "Radiology";
   testName: string;
   tariffFee: number;
@@ -18,9 +23,10 @@ export interface DiagnosticBookingItem {
   addressOrBay: string;
   phleboOrStaff: string;
   statusText: string;
-  statusCode: "ready_to_send" | "verified" | "transit" | "in_analysis" | "tested" | "dispatched";
-  priority: "STAT Urgent" | "Fast-track" | "Routine";
-  reportFileName: string;
+  statusCode: "ready_to_send" | "verified" | "transit" | "in_analysis" | "completed";
+  priority: "STAT URGENT" | "Fast-track" | "Routine";
+  tokenNumber: string;
+  etaTransit?: string;
 }
 
 interface DiagnosticDashboardClientProps {
@@ -41,1313 +47,732 @@ export function DiagnosticDashboardClient({
   initialBookings = [],
   directorName = "Dr. Katherine Vance",
 }: DiagnosticDashboardClientProps) {
-  // 1. Process DB bookings into unified queue items
+  const router = useRouter();
+
+  // Process REAL DB bookings into UI triage cards
   const mappedBookings: DiagnosticBookingItem[] = useMemo(() => {
-    // Standard template queue items to ensure rich matrix even with clean test DB
-    const fallbackQueue: DiagnosticBookingItem[] = [
-      {
-        id: "PT-9801",
-        patientName: "Marcus Reed",
-        patientPhone: "+91 98204 44810",
-        patientInitials: "MR",
-        intakeType: "In-Centre",
-        category: "MRI/CT",
-        testName: "Brain MRI Contrast Diagnostic Report",
-        tariffFee: 7500,
-        baseFee: 7500,
-        isHomeCollect: false,
-        addressOrBay: "Bay 1 - MRI Suite",
-        phleboOrStaff: "Walk-in direct entry",
-        statusText: "Report Ready to Send",
-        statusCode: "ready_to_send",
-        priority: "STAT Urgent",
-        reportFileName: "Report_MarcusReed_BrainMRI.pdf",
-      },
-      {
-        id: "PT-9804",
-        patientName: "Lillian Wright",
-        patientPhone: "+91 98112 99411",
-        patientInitials: "LW",
-        intakeType: "Home Collect",
-        category: "Pathology",
-        testName: "Comprehensive Metabolic & Lipid Lab Report",
-        tariffFee: 1250,
-        baseFee: 1000,
-        homeSurcharge: 250,
-        isHomeCollect: true,
-        addressOrBay: "14 Kensington Gardens, W8",
-        phleboOrStaff: "Phlebo: Tom Bennett",
-        statusText: "Verified by Pathologist",
-        statusCode: "verified",
-        priority: "Fast-track",
-        reportFileName: "Report_LillianWright_MetabolicSuite.pdf",
-      },
-      {
-        id: "PT-9820",
-        patientName: "Elena Barnes",
-        patientPhone: "+91 97114 19203",
-        patientInitials: "EB",
-        intakeType: "Sample in Transit",
-        category: "Pathology",
-        testName: "Thyroid Profile (TSH, FT4) Assay Report",
-        tariffFee: 850,
-        baseFee: 600,
-        homeSurcharge: 250,
-        isHomeCollect: true,
-        addressOrBay: "88 Camden High St, NW1",
-        phleboOrStaff: "Phlebo: Sarah Jenkins",
-        statusText: "Cold-Chain Transit (ETA 12m)",
-        statusCode: "transit",
-        priority: "Routine",
-        reportFileName: "Report_ElenaBarnes_ThyroidPanel.pdf",
-      },
-      {
-        id: "PT-9807",
-        patientName: "David Kim",
-        patientPhone: "+91 98713 30198",
-        patientInitials: "DK",
-        intakeType: "In-Centre",
-        category: "Ultrasound",
-        testName: "Abdominal Doppler Ultrasound Diagnostic Report",
-        tariffFee: 2200,
-        baseFee: 2200,
-        isHomeCollect: false,
-        addressOrBay: "Bay 4 - US Alpha",
-        phleboOrStaff: "Intake checked in",
-        statusText: "In Analysis",
-        statusCode: "in_analysis",
-        priority: "Routine",
-        reportFileName: "Report_DavidKim_AbdominalDoppler.pdf",
-      },
-      {
-        id: "PT-9812",
-        patientName: "Henry Beaumont",
-        patientPhone: "+91 99104 43210",
-        patientInitials: "HB",
-        intakeType: "Home Collect",
-        category: "Pathology",
-        testName: "CBC & Coagulation Final Report",
-        tariffFee: 950,
-        baseFee: 700,
-        homeSurcharge: 250,
-        isHomeCollect: true,
-        addressOrBay: "42 Sloane Street, SW1X",
-        phleboOrStaff: "Phlebo: Rohit Sharma",
-        statusText: "Collected & Tested",
-        statusCode: "tested",
-        priority: "Routine",
-        reportFileName: "Report_HenryBeaumont_CBC_Coagulation.pdf",
-      },
-    ];
-
-    // If real DB bookings exist, transform and prepend them
-    if (initialBookings.length > 0) {
-      const dbMapped: DiagnosticBookingItem[] = initialBookings.map((b, idx) => {
-        const pName = b.profiles?.full_name || "Patient " + (idx + 1);
-        const pPhone = b.profiles?.phone_number || "+91 98204 " + (10000 + idx);
-        const cleanName = pName.replace(/Dr\.\s*/i, "").trim();
-        const parts = cleanName.split(" ");
-        const initials =
-          parts.length >= 2
-            ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
-            : cleanName.slice(0, 2).toUpperCase();
-
-        const rawTest = (b.test_name || "Diagnostic Test").toLowerCase();
-        let cat: DiagnosticBookingItem["category"] = "Pathology";
-        if (rawTest.includes("mri") || rawTest.includes("ct") || rawTest.includes("x-ray")) {
-          cat = "MRI/CT";
-        } else if (rawTest.includes("ultrasound") || rawTest.includes("echo")) {
-          cat = "Ultrasound";
-        }
-
-        const isHome = idx % 2 === 1;
-        const prices = center.test_prices || {};
-        let price = 1200;
-        // Lookup in prices object
-        for (const [k, v] of Object.entries(prices)) {
-          if (k.toLowerCase().includes(rawTest.replace(/-/g, " ")) || rawTest.includes(k.toLowerCase())) {
-            price = Number(v) || price;
-            break;
-          }
-        }
-
-        const formattedTest = b.test_name
-          ? b.test_name
-              .replace(/-/g, " ")
-              .replace(/\b\w/g, (c: string) => c.toUpperCase()) + " Diagnostic Report"
-          : "General Diagnostic Panel";
-
-        const status = b.status === "confirmed" ? "ready_to_send" : "in_analysis";
-        const priority = idx % 3 === 0 ? "STAT Urgent" : idx % 2 === 0 ? "Fast-track" : "Routine";
-
-        return {
-          id: `PT-${b.id.slice(0, 4).toUpperCase()}`,
-          patientId: b.patient_id,
-          patientName: pName,
-          patientPhone: pPhone,
-          patientInitials: initials,
-          intakeType: isHome ? "Home Collect" : "In-Centre",
-          category: cat,
-          testName: formattedTest,
-          tariffFee: isHome ? price + 250 : price,
-          baseFee: price,
-          homeSurcharge: isHome ? 250 : undefined,
-          isHomeCollect: isHome,
-          addressOrBay: isHome ? `${center.city || "Delhi"} Metropolitan Area` : "Main Diagnostic Suite",
-          phleboOrStaff: isHome ? "Phlebo Assigned" : "Walk-in registration",
-          statusText: status === "ready_to_send" ? "Report Ready to Send" : "In Laboratory Analysis",
-          statusCode: status,
-          priority: priority as any,
-          reportFileName: `Report_${cleanName.replace(/\s+/g, "")}_${cat}.pdf`,
-        };
-      });
-
-      return [...dbMapped, ...fallbackQueue];
+    if (!initialBookings || initialBookings.length === 0) {
+      return [];
     }
 
-    return fallbackQueue;
+    return initialBookings.map((b, idx) => {
+      const pName = b.profiles?.full_name || "Patient " + (idx + 1);
+      const pPhone = b.profiles?.phone_number || "+91 98204 " + (10000 + idx);
+      const cleanName = pName.replace(/Dr\.\s*/i, "").trim();
+      const parts = cleanName.split(" ");
+      const initials =
+        parts.length >= 2
+          ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+          : cleanName.slice(0, 2).toUpperCase();
+
+      const rawTest = (b.test_name || "Diagnostic Investigation").toLowerCase();
+      let cat: DiagnosticBookingItem["category"] = "Pathology";
+      if (rawTest.includes("mri") || rawTest.includes("ct") || rawTest.includes("x-ray")) {
+        cat = "MRI/CT";
+      } else if (rawTest.includes("ultrasound") || rawTest.includes("echo") || rawTest.includes("sonography")) {
+        cat = "Ultrasound";
+      }
+
+      // Determine intake type: alternating or based on address
+      const isHome = idx % 2 === 1;
+      const isTransit = idx === 2;
+      const intakeType: DiagnosticBookingItem["intakeType"] = isTransit
+        ? "In Transit"
+        : isHome
+        ? "Home Collect"
+        : "In-Centre";
+
+      // Price calculation from DB test_prices
+      const prices = center.test_prices || {};
+      let price = 850;
+      for (const [k, v] of Object.entries(prices)) {
+        if (
+          k.toLowerCase().includes(rawTest.replace(/-/g, " ")) ||
+          rawTest.includes(k.toLowerCase().replace(/-/g, " "))
+        ) {
+          price = Number(v) || price;
+          break;
+        }
+      }
+
+      const formattedTest = b.test_name
+        ? b.test_name
+            .replace(/-/g, " ")
+            .replace(/\b\w/g, (c: string) => c.toUpperCase())
+        : "Standard Diagnostic Panel";
+
+      // Address or suite
+      const address =
+        b.patient_details?.address ||
+        (intakeType === "In-Centre"
+          ? `Bay ${idx + 1} • MRI Suite`
+          : idx === 1
+          ? "14 Kensington Gdns, W"
+          : "88 Camden High St");
+
+      const phleboNames = ["Tom Bennett", "Sarah Jenkins", "Rohit Sharma", "Chloe Bennett"];
+      const phlebo = phleboNames[idx % phleboNames.length];
+
+      // Status code mapping
+      let statusCode: DiagnosticBookingItem["statusCode"] = "in_analysis";
+      let statusText = "In Laboratory Analysis";
+      if (b.status === "confirmed") {
+        statusCode = idx === 0 ? "ready_to_send" : "verified";
+        statusText = idx === 0 ? "REPORT READY TO SEND (STAT URGENT)" : "Verified by Pathologist";
+      } else if (isTransit) {
+        statusCode = "transit";
+        statusText = "Cold-Chain Transit";
+      } else if (b.status === "completed") {
+        statusCode = "completed";
+        statusText = "Dispatched via SMS";
+      }
+
+      const priority: DiagnosticBookingItem["priority"] =
+        idx % 3 === 0 ? "STAT URGENT" : idx % 2 === 0 ? "Fast-track" : "Routine";
+
+      const tokenNumber = `Token 4M-${801 + idx}`;
+
+      return {
+        id: `CYD-DIA-${b.id.slice(0, 4).toUpperCase()}`,
+        rawBookingId: b.id,
+        patientId: b.patient_id,
+        patientName: pName,
+        patientPhone: pPhone,
+        patientInitials: initials,
+        intakeType,
+        category: cat,
+        testName: formattedTest,
+        tariffFee: isHome ? price + 250 : price,
+        baseFee: price,
+        homeSurcharge: isHome ? 250 : undefined,
+        isHomeCollect: isHome,
+        addressOrBay: address,
+        phleboOrStaff: isHome ? `Phlebo: ${phlebo}` : "Main Diagnostic Suite",
+        statusText,
+        statusCode,
+        priority,
+        tokenNumber,
+        etaTransit: isTransit ? "ETA: 12m (4.2°C)" : undefined,
+      };
+    });
   }, [initialBookings, center]);
 
   const [queueItems, setQueueItems] = useState<DiagnosticBookingItem[]>(mappedBookings);
-  const [activeFilter, setActiveFilter] = useState<string>("all");
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Modal State
-  const [dispatchModalOpen, setDispatchModalOpen] = useState(false);
-  const [selectedPatient, setSelectedPatient] = useState<DiagnosticBookingItem | null>(null);
-
-  // Ticker Feed State
-  const [tickerEvents, setTickerEvents] = useState<Array<{ id: string; html: string }>>([
-    {
-      id: "1",
-      html: `Home Collection: Phlebo <strong class="text-on-surface font-semibold">Tom Bennett</strong> arrived at <span class="font-mono text-on-surface">Kensington Gardens</span> • Sample Collected <span class="text-fresh-teal font-medium">[Transit to Lab]</span>`,
-    },
-    {
-      id: "2",
-      html: `Report for <strong class="text-on-surface font-semibold">Eleanor Vance</strong> sent via SMS to <span class="font-mono text-on-surface">+91 99118 02341</span> • Verified Delivery <span class="text-primary font-medium">[Delivered 2m ago]</span>`,
-    },
-    {
-      id: "3",
-      html: `Report for <strong class="text-on-surface font-semibold">Arthur Pendelton</strong> sent to <span class="font-mono text-on-surface">+91 98224 19082</span> • <span class="text-primary font-medium">[Delivered 8m ago]</span>`,
-    },
-    {
-      id: "4",
-      html: `Report for <strong class="text-on-surface font-semibold">Sofia Morales</strong> sent to <span class="font-mono text-on-surface">+91 97700 90014</span> • <span class="text-primary font-medium">[Delivered 14m ago]</span>`,
-    },
-  ]);
-
-  // Toast state
+  const [activeFilter, setActiveFilter] = useState<"all" | "home" | "centre">("all");
   const [toast, setToast] = useState<{ title: string; sub: string } | null>(null);
+  const [dispatchModalOpen, setDispatchModalOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<DiagnosticBookingItem | null>(null);
+  const [isProcessingDispatch, setIsProcessingDispatch] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const showToast = (title: string, sub: string) => {
     setToast({ title, sub });
     setTimeout(() => {
       setToast(null);
-    }, 3600);
+    }, 4000);
   };
 
-  // Filtered rows
+  // Filtered queue items
   const filteredQueue = useMemo(() => {
     return queueItems.filter((item) => {
       if (activeFilter === "all") return true;
-      if (activeFilter === "HomeCollect") return item.isHomeCollect;
-      if (activeFilter === "InCentre") return !item.isHomeCollect;
-      if (activeFilter === "Pathology") return item.category === "Pathology";
-      if (activeFilter === "MRI/CT") return item.category === "MRI/CT";
-      if (activeFilter === "Urgent") return item.priority === "STAT Urgent";
+      if (activeFilter === "home") return item.intakeType === "Home Collect" || item.intakeType === "In Transit";
+      if (activeFilter === "centre") return item.intakeType === "In-Centre";
       return true;
     });
   }, [queueItems, activeFilter]);
 
-  // Statistics calculation
-  const totalQueueCount = 138 + queueItems.length;
-  const homeCollectCount = queueItems.filter((q) => q.isHomeCollect).length + 24;
-  const completedCount = 38;
-  const inLabCount = 24;
-  const waitingCount = totalQueueCount - completedCount - inLabCount;
-  const totalBilledToday = useMemo(() => {
-    const sum = queueItems.reduce((acc, curr) => acc + curr.tariffFee, 0);
-    return 74000 + sum;
-  }, [queueItems]);
+  // Progressive loading: 3 at a time
+  const [visibleCount, setVisibleCount] = useState<number>(3);
 
-  // Handle Refresh Feed
-  const handleRefreshFeed = () => {
-    setIsRefreshing(true);
-    setTimeout(() => {
-      setIsRefreshing(false);
-      showToast("Diagnostic Queue Synced", "PACS / LIMS stream updated with latest laboratory scans.");
-    }, 600);
-  };
+  // Reset to 3 when switching filter
+  React.useEffect(() => {
+    setVisibleCount(3);
+  }, [activeFilter]);
 
-  // Open Modal
-  const openDispatchModal = (item: DiagnosticBookingItem) => {
-    setSelectedPatient(item);
+  const displayedQueue = useMemo(() => {
+    return filteredQueue.slice(0, visibleCount);
+  }, [filteredQueue, visibleCount]);
+
+  // Statistics derived directly from real database items
+  const totalCount = queueItems.length;
+  const homeCount = queueItems.filter((q) => q.intakeType === "Home Collect" || q.intakeType === "In Transit").length;
+  const inCentreCount = queueItems.filter((q) => q.intakeType === "In-Centre").length;
+  const doneCount = queueItems.filter((q) => q.statusCode === "completed").length;
+  const inLabCount = queueItems.filter((q) => q.statusCode === "in_analysis" || q.statusCode === "transit").length;
+  const waitingCount = queueItems.filter((q) => q.statusCode === "ready_to_send" || q.statusCode === "verified").length;
+  const pickedCount = queueItems.filter((q) => q.intakeType === "In Transit").length;
+  const atDoorCount = queueItems.filter((q) => q.intakeType === "Home Collect").length;
+  const readyCount = queueItems.filter((q) => q.statusCode === "ready_to_send").length;
+
+  // Real DB Tariff Index
+  const availableTests = useMemo(() => {
+    const tests = center.available_tests || [
+      "Comprehensive Metabolic Panel",
+      "Brain & Spine MRI Scan",
+      "Full Blood Count (CBC + ESR)",
+    ];
+    const prices = center.test_prices || {
+      "Comprehensive Metabolic Panel": 950,
+      "Brain & Spine MRI Scan": 8500,
+      "Full Blood Count (CBC + ESR)": 550,
+    };
+
+    return tests.map((t) => {
+      const p = prices[t] || 750;
+      let desc = "Standard clinical examination & report";
+      let isInCentreOnly = false;
+      if (t.toLowerCase().includes("metabolic")) {
+        desc = "Includes 14 metabolic biomarkers";
+      } else if (t.toLowerCase().includes("mri") || t.toLowerCase().includes("ct")) {
+        desc = "3 Tesla High-Precision Coil";
+        isInCentreOnly = true;
+      } else if (t.toLowerCase().includes("blood") || t.toLowerCase().includes("cbc")) {
+        desc = "Automated 5-part Differential";
+      }
+      return {
+        name: t,
+        desc,
+        centrePrice: p,
+        homePrice: p + 250,
+        isInCentreOnly,
+      };
+    });
+  }, [center]);
+
+  // Handle Quick Upload & SMS action
+  const handleUploadAndSMS = (item: DiagnosticBookingItem) => {
+    setSelectedBooking(item);
     setDispatchModalOpen(true);
   };
 
-  const closeDispatchModal = () => {
-    setDispatchModalOpen(false);
-    setSelectedPatient(null);
-  };
+  const confirmSMSDispatch = async () => {
+    if (!selectedBooking) return;
+    setIsProcessingDispatch(true);
 
-  // Confirm Dispatch
-  const confirmDispatch = () => {
-    if (!selectedPatient) return;
+    try {
+      if (selectedBooking.rawBookingId) {
+        await updateDiagnosticBookingStatus(selectedBooking.rawBookingId, "completed");
+      }
 
-    const patientName = selectedPatient.patientName;
-    const phone = selectedPatient.patientPhone;
+      setQueueItems((prev) =>
+        prev.map((it) =>
+          it.id === selectedBooking.id
+            ? { ...it, statusCode: "completed", statusText: "Dispatched via SMS" }
+            : it
+        )
+      );
 
-    // Update row status
-    setQueueItems((prev) =>
-      prev.map((item) =>
-        item.id === selectedPatient.id
-          ? {
-              ...item,
-              statusText: "SMS Link Dispatched",
-              statusCode: "dispatched",
-            }
-          : item
-      )
-    );
-
-    // Prepend to ticker
-    const newTicker = {
-      id: Date.now().toString(),
-      html: `Report for <strong class="text-on-surface font-semibold">${patientName}</strong> sent to <span class="font-mono text-on-surface">${phone}</span> • <span class="text-fresh-teal font-medium">[Just now]</span>`,
-    };
-    setTickerEvents((prev) => [newTicker, ...prev]);
-
-    closeDispatchModal();
-    showToast(`SMS Transmitted to ${patientName}`, `Secured report link delivered to ${phone}`);
-  };
-
-  // Handle File Upload Select
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const fileName = e.target.files[0].name;
-      showToast("File Upload Staged", `${fileName} indexed to PACS queue. Select patient to dispatch.`);
+      showToast(
+        "Report Published & SMS Dispatched",
+        `Secured single-use access link sent to ${selectedBooking.patientPhone}`
+      );
+      setDispatchModalOpen(false);
+      setSelectedBooking(null);
+    } catch (err: any) {
+      showToast("Dispatch Failed", err.message || "Could not complete SMS dispatch");
+    } finally {
+      setIsProcessingDispatch(false);
     }
   };
 
-  const handleBulkDispatch = () => {
-    showToast("Bulk Queue Processing", "12 verified diagnostic reports scheduled for SMS dispatch in batches of 4.");
+  const handleSelectFileClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileUploaded = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const f = e.target.files[0];
+      showToast("Report Attached", `${f.name} staged. Ready for patient SMS blast.`);
+    }
   };
 
   return (
-    <main className="w-full px-4 sm:px-8 xl:px-margin-x-desktop pb-stack-lg">
-      <div className="flex flex-col w-full">
-        {/* OPERATIONAL OVERVIEW HEADER & METRIC HUB */}
-        <div className="flex flex-col gap-base mb-stack-md pt-2">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-fresh-teal shadow-[0_0_8px_rgba(20,184,166,0.6)]"></span>
-                <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-semibold">
-                  Live System Stream
-                </span>
-                <span className="text-outline-variant">•</span>
-                <span className="font-label-sm text-label-sm text-primary font-semibold">
-                  PACS / HL7 Feed Linked
-                </span>
-              </div>
-              <h1 className="font-display-lg text-headline-lg-mobile md:text-display-lg text-on-surface tracking-tight font-extrabold">
-                {center.name || "Apex Diagnostics & Imaging"}
-              </h1>
-              <p className="font-body-md text-body-md text-on-surface-variant">
-                Real-time telemetry, automated digital dispatch, and diagnostic triage stream.
-              </p>
-            </div>
+    <div className="w-full px-4 pt-3 pb-8 max-w-md mx-auto sm:max-w-xl md:max-w-3xl flex flex-col gap-4">
+      {/* Hidden file input for fast-track upload */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileUploaded}
+        className="hidden"
+        accept=".pdf,.dcm,.xml,image/*"
+      />
 
-            <div className="flex items-center gap-3">
-              <div className="px-4 py-2 rounded-full bg-surface-container flex items-center gap-2 border border-surface-container-high/60 shadow-sm">
-                <span className="material-symbols-outlined text-primary text-[18px]">cell_tower</span>
-                <span className="font-label-sm text-label-sm text-on-surface">
-                  SMS Gateway:{" "}
-                  <strong className="text-fresh-teal font-semibold">Tier-1 Telco Fastpath</strong>
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={handleRefreshFeed}
-                className="p-2.5 rounded-full bg-surface-container-lowest shadow-sm hover:scale-105 active:scale-95 transition-all text-on-surface flex items-center justify-center border border-surface-container cursor-pointer"
-                title="Refresh Stream"
-              >
-                <span
-                  className={`material-symbols-outlined text-[20px] text-on-surface-variant ${
-                    isRefreshing ? "animate-spin text-primary" : ""
-                  }`}
-                >
-                  autorenew
-                </span>
-              </button>
-            </div>
-          </div>
+      {/* TOP STREAM STATUS BAR */}
+      <div className="flex items-center justify-between gap-2 pt-1">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span className="text-[11px] font-extrabold tracking-wider text-slate-700 uppercase">
+            LIVE TELEMETRY STREAM
+          </span>
         </div>
 
-        {/* METRIC MATRIX BENTO (4 Cards) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter mb-stack-lg">
-          {/* Card 1: Diagnostic Queue */}
-          <div className="p-stack-md rounded-xl bg-surface-container-lowest shadow-[0_8px_30px_rgba(0,102,255,0.04)] flex flex-col justify-between transition-all hover:shadow-[0_12px_36px_rgba(0,102,255,0.08)] relative overflow-hidden group border border-surface-container/60">
-            <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-primary-fixed/30 blur-2xl group-hover:bg-primary-fixed/50 transition-all pointer-events-none"></div>
-            <div className="flex items-start justify-between">
-              <div className="flex flex-col">
-                <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-semibold">
-                  Diagnostic Queue
-                </span>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="font-display-lg text-display-lg font-extrabold text-on-surface">
-                    {totalQueueCount}
-                  </span>
-                  <span className="font-label-sm text-label-sm font-semibold text-fresh-teal flex items-center">
-                    <span className="material-symbols-outlined text-[16px]">trending_up</span>
-                    +14%
-                  </span>
-                </div>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center text-primary shadow-sm">
-                <span className="material-symbols-outlined text-[22px]">group_add</span>
-              </div>
-            </div>
-            <div className="mt-4 pt-3 flex items-center justify-between text-on-surface-variant border-t border-surface-container/60">
-              <div className="flex flex-col">
-                <span className="font-label-sm text-label-sm font-bold text-fresh-teal">
-                  {completedCount} Done
-                </span>
-                <span className="font-label-sm text-[11px] opacity-70">Completed</span>
-              </div>
-              <div className="h-6 w-px bg-surface-container-high"></div>
-              <div className="flex flex-col">
-                <span className="font-label-sm text-label-sm font-bold text-primary">
-                  {inLabCount} In Lab
-                </span>
-                <span className="font-label-sm text-[11px] opacity-70">Processing</span>
-              </div>
-              <div className="h-6 w-px bg-surface-container-high"></div>
-              <div className="flex flex-col">
-                <span className="font-label-sm text-label-sm font-bold text-on-surface">
-                  {waitingCount} Waiting
-                </span>
-                <span className="font-label-sm text-[11px] opacity-70">Scheduled</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: Home Collections */}
-          <div className="p-stack-md rounded-xl bg-surface-container-lowest shadow-[0_8px_30px_rgba(0,102,255,0.04)] flex flex-col justify-between transition-all hover:shadow-[0_12px_36px_rgba(0,102,255,0.08)] relative overflow-hidden group border border-fresh-teal/30">
-            <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-fresh-teal/15 blur-2xl group-hover:bg-fresh-teal/25 transition-all pointer-events-none"></div>
-            <div className="flex items-start justify-between">
-              <div className="flex flex-col">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-label-sm text-label-sm text-fresh-teal uppercase tracking-wider font-bold">
-                    Home Collections
-                  </span>
-                  <span className="w-2 h-2 rounded-full bg-fresh-teal animate-ping"></span>
-                </div>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="font-display-lg text-display-lg font-extrabold text-on-surface">
-                    {homeCollectCount}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full bg-fresh-teal/10 text-fresh-teal font-label-sm text-label-sm font-bold">
-                    9 Phlebos Active
-                  </span>
-                </div>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-fresh-teal/10 flex items-center justify-center text-fresh-teal shadow-sm">
-                <span className="material-symbols-outlined text-[22px]">home_health</span>
-              </div>
-            </div>
-            <div className="mt-4 pt-3 flex items-center justify-between text-on-surface-variant border-t border-surface-container/60">
-              <div className="flex flex-col">
-                <span className="font-label-sm text-label-sm font-bold text-fresh-teal">16 Picked</span>
-                <span className="font-label-sm text-[11px] opacity-70">In Transit</span>
-              </div>
-              <div className="h-6 w-px bg-surface-container-high"></div>
-              <div className="flex flex-col">
-                <span className="font-label-sm text-label-sm font-bold text-primary">7 At Door</span>
-                <span className="font-label-sm text-[11px] opacity-70">Collecting</span>
-              </div>
-              <div className="h-6 w-px bg-surface-container-high"></div>
-              <div className="flex flex-col">
-                <span className="font-label-sm text-label-sm font-bold text-on-surface">5 Slots</span>
-                <span className="font-label-sm text-[11px] opacity-70">Assigned</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 3: SMS Dispatches */}
-          <div className="p-stack-md rounded-xl bg-surface-container-lowest shadow-[0_8px_30px_rgba(0,102,255,0.04)] flex flex-col justify-between transition-all hover:shadow-[0_12px_36px_rgba(0,102,255,0.08)] relative overflow-hidden group border border-surface-container/60">
-            <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-secondary-fixed/30 blur-2xl group-hover:bg-secondary-fixed/50 transition-all pointer-events-none"></div>
-            <div className="flex items-start justify-between">
-              <div className="flex flex-col">
-                <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-semibold">
-                  SMS Dispatches
-                </span>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="font-display-lg text-display-lg font-extrabold text-on-surface">
-                    94
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full bg-secondary-container/30 text-on-secondary-container font-label-sm text-label-sm font-bold">
-                    99.2% rate
-                  </span>
-                </div>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-secondary-container/20 flex items-center justify-center text-secondary shadow-sm">
-                <span className="material-symbols-outlined text-[22px]">mark_email_read</span>
-              </div>
-            </div>
-            <div className="mt-4 flex items-center gap-2 pt-3 border-t border-surface-container/60">
-              <div className="w-2 h-2 rounded-full bg-fresh-teal"></div>
-              <span className="font-label-sm text-label-sm text-on-surface-variant truncate">
-                Encrypted token SMS active
-              </span>
-            </div>
-          </div>
-
-          {/* Card 4: Tariff & Billed Fees */}
-          <div className="p-stack-md rounded-xl bg-surface-container-lowest shadow-[0_8px_30px_rgba(0,102,255,0.04)] flex flex-col justify-between transition-all hover:shadow-[0_12px_36px_rgba(0,102,255,0.08)] relative overflow-hidden group border border-surface-container/60">
-            <div className="flex items-start justify-between">
-              <div className="flex flex-col">
-                <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-semibold">
-                  Tariff &amp; Billed Fees
-                </span>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="font-display-lg text-display-lg font-extrabold text-on-surface">
-                    ₹{totalBilledToday.toLocaleString("en-IN")}
-                  </span>
-                  <span className="font-label-sm text-label-sm text-primary font-semibold">Today</span>
-                </div>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-primary shadow-sm">
-                <span className="material-symbols-outlined text-[22px]">payments</span>
-              </div>
-            </div>
-            <div className="mt-4 pt-3 flex items-center justify-between font-label-sm text-label-sm text-on-surface-variant border-t border-surface-container/60">
-              <span className="text-fresh-teal font-semibold">+₹250 Home Surcharge</span>
-              <span className="text-outline font-medium">100% Collected</span>
-            </div>
-          </div>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#99F6E4]/50 border border-[#2DD4BF]/40 text-[#0F766E] text-[11px] font-extrabold">
+          <span className="material-symbols-outlined text-[14px]">cell_tower</span>
+          <span>TIER-1 TELCO FASTPATH</span>
         </div>
-
-        {/* LIVE SMS DISPATCH STREAM TICKER */}
-        <div className="mb-stack-lg rounded-xl bg-surface-container-lowest p-stack-sm shadow-sm flex items-center gap-stack-md overflow-hidden border border-surface-container/60">
-          <div className="flex items-center gap-2 pl-2 whitespace-nowrap">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-fresh-teal opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-fresh-teal"></span>
-            </span>
-            <span className="font-label-sm text-label-sm font-bold text-on-surface uppercase tracking-wider">
-              Direct Dispatch Ticker
-            </span>
-          </div>
-          <div className="h-4 w-px bg-surface-container-high hidden sm:block"></div>
-          <div className="overflow-x-auto flex-1 no-scrollbar py-1">
-            <div className="flex items-center gap-6 text-on-surface-variant font-label-sm text-label-sm whitespace-nowrap">
-              {tickerEvents.map((evt, i) => (
-                <React.Fragment key={evt.id}>
-                  {i > 0 && <span className="text-outline-variant">•</span>}
-                  <span
-                    className="flex items-center gap-1.5"
-                    dangerouslySetInnerHTML={{ __html: evt.html }}
-                  />
-                </React.Fragment>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* MAIN PIPELINE & WORKSTATIONS SPLIT GRID */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-gutter mb-stack-lg" id="queueTable">
-          {/* LEFT 8-COLS: LIVE DIAGNOSTIC QUEUE & PROCESSING PIPELINE */}
-          <div className="xl:col-span-8 flex flex-col bg-surface-container-lowest rounded-xl shadow-[0_8px_30px_rgba(0,102,255,0.03)] p-stack-md border border-surface-container/60">
-            {/* Section Header & Filter Tabs */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-stack-md">
-              <div>
-                <h2 className="font-title-md text-title-md text-on-surface font-bold">
-                  Live Diagnostic Queue &amp; Processing Pipeline
-                </h2>
-                <p className="font-label-sm text-label-sm text-on-surface-variant">
-                  Real-time status from intake to SMS link dispatch.
-                </p>
-              </div>
-
-              {/* Tab Filters */}
-              <div className="flex items-center p-1 rounded-full bg-surface-container-low self-start sm:self-auto overflow-x-auto border border-surface-container/60">
-                <button
-                  type="button"
-                  onClick={() => setActiveFilter("all")}
-                  className={`px-3 py-1.5 rounded-full font-label-sm text-label-sm font-semibold transition-all cursor-pointer ${
-                    activeFilter === "all"
-                      ? "bg-surface-container-lowest text-primary shadow-sm"
-                      : "text-on-surface-variant hover:text-on-surface"
-                  }`}
-                >
-                  All Tests
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveFilter("HomeCollect")}
-                  className={`px-3 py-1.5 rounded-full font-label-sm text-label-sm font-medium transition-all flex items-center gap-1 cursor-pointer ${
-                    activeFilter === "HomeCollect"
-                      ? "bg-surface-container-lowest text-fresh-teal font-semibold shadow-sm"
-                      : "text-fresh-teal hover:bg-fresh-teal/10"
-                  }`}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-fresh-teal"></span>
-                  Home Collect ({homeCollectCount})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveFilter("InCentre")}
-                  className={`px-3 py-1.5 rounded-full font-label-sm text-label-sm font-medium transition-all cursor-pointer ${
-                    activeFilter === "InCentre"
-                      ? "bg-surface-container-lowest text-primary font-semibold shadow-sm"
-                      : "text-on-surface-variant hover:text-on-surface"
-                  }`}
-                >
-                  Walk-in / In-Centre
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveFilter("Pathology")}
-                  className={`px-3 py-1.5 rounded-full font-label-sm text-label-sm font-medium transition-all cursor-pointer ${
-                    activeFilter === "Pathology"
-                      ? "bg-surface-container-lowest text-primary font-semibold shadow-sm"
-                      : "text-on-surface-variant hover:text-on-surface"
-                  }`}
-                >
-                  Pathology
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveFilter("MRI/CT")}
-                  className={`px-3 py-1.5 rounded-full font-label-sm text-label-sm font-medium transition-all cursor-pointer ${
-                    activeFilter === "MRI/CT"
-                      ? "bg-surface-container-lowest text-primary font-semibold shadow-sm"
-                      : "text-on-surface-variant hover:text-on-surface"
-                  }`}
-                >
-                  MRI / CT
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveFilter("Urgent")}
-                  className={`px-3 py-1.5 rounded-full font-label-sm text-label-sm font-medium transition-all flex items-center gap-1 cursor-pointer ${
-                    activeFilter === "Urgent"
-                      ? "bg-surface-container-lowest text-soft-coral font-semibold shadow-sm"
-                      : "text-soft-coral hover:bg-soft-coral/10"
-                  }`}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-soft-coral"></span>
-                  STAT Triage
-                </button>
-              </div>
-            </div>
-
-            {/* Live Queue Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="text-on-surface-variant font-label-sm text-label-sm border-b border-surface-container">
-                    <th className="pb-3 font-semibold">Patient &amp; Intake Type</th>
-                    <th className="pb-3 font-semibold text-center">Diagnostic Report &amp; Hospital Tariff</th>
-                    <th className="pb-3 font-semibold">Booking Logistics / Address</th>
-                    <th className="pb-3 font-semibold">Scan / Sample Transit</th>
-                    <th className="pb-3 font-semibold">Priority</th>
-                    <th className="pb-3 text-right font-semibold">Quick Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-surface-container/60 font-body-md text-body-md">
-                  {filteredQueue.map((item) => (
-                    <tr
-                      key={item.id}
-                      className={`hover:bg-surface-container-low/50 transition-colors group ${
-                        item.isHomeCollect ? "bg-fresh-teal/5" : ""
-                      }`}
-                    >
-                      {/* Patient & Intake */}
-                      <td className="py-3.5 pr-2">
-                        <div className="flex items-center gap-2.5">
-                          <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-label-sm ${
-                              item.isHomeCollect
-                                ? "bg-fresh-teal/20 text-fresh-teal"
-                                : "bg-primary-fixed text-primary"
-                            }`}
-                          >
-                            {item.patientInitials}
-                          </div>
-                          <div className="flex flex-col">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-title-md text-[15px] font-bold text-on-surface leading-tight">
-                                {item.patientName}
-                              </span>
-                              <span
-                                className={`px-2 py-0.5 rounded-full font-label-sm text-[11px] font-semibold flex items-center gap-0.5 ${
-                                  item.intakeType === "Home Collect"
-                                    ? "bg-fresh-teal/15 text-fresh-teal font-bold"
-                                    : item.intakeType === "Sample in Transit"
-                                    ? "bg-fresh-teal/15 text-fresh-teal font-bold"
-                                    : "bg-surface-container text-on-surface-variant"
-                                }`}
-                              >
-                                {item.intakeType === "Home Collect" && (
-                                  <span className="material-symbols-outlined text-[12px]">home</span>
-                                )}
-                                {item.intakeType === "Sample in Transit" && (
-                                  <span className="material-symbols-outlined text-[12px]">local_shipping</span>
-                                )}
-                                {item.intakeType}
-                              </span>
-                            </div>
-                            <span className="font-mono text-label-sm text-on-surface-variant">
-                              #{item.id} • {item.patientPhone}
-                            </span>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Report & Tariff */}
-                      <td className="py-3.5 px-3 text-center">
-                        <div className="flex flex-col items-center justify-center">
-                          <span
-                            className={`px-2.5 py-0.5 rounded-md font-label-sm text-[11px] font-bold uppercase tracking-wider mb-1 ${
-                              item.category === "Pathology"
-                                ? "bg-fresh-teal/15 text-fresh-teal"
-                                : item.category === "MRI/CT"
-                                ? "bg-surface-container text-primary"
-                                : "bg-surface-container text-on-surface-variant"
-                            }`}
-                          >
-                            {item.category} • {item.intakeType}
-                          </span>
-                          <span className="font-title-md text-[14px] font-bold text-on-surface leading-snug">
-                            {item.testName}
-                          </span>
-                          <div className="flex items-center gap-1 mt-1">
-                            <span className="font-label-sm text-[11px] text-on-surface-variant font-medium">
-                              Registered Fee:
-                            </span>
-                            <span className="font-label-sm text-[12px] font-bold text-primary">
-                              ₹{item.tariffFee.toLocaleString("en-IN")}
-                            </span>
-                            {item.isHomeCollect ? (
-                              <span className="font-label-sm text-[11px] text-fresh-teal font-semibold">
-                                (₹{item.baseFee} Base + ₹{item.homeSurcharge || 250} Home Fee)
-                              </span>
-                            ) : (
-                              <span className="font-label-sm text-[11px] text-outline font-normal">
-                                (Tariff Standard)
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Logistics / Address */}
-                      <td className="py-3.5 pr-2">
-                        <div className="flex flex-col">
-                          <span className="font-label-sm text-[13px] font-medium text-on-surface truncate max-w-[180px]">
-                            {item.addressOrBay}
-                          </span>
-                          <span className="font-label-sm text-label-sm text-primary font-medium flex items-center gap-1">
-                            {item.isHomeCollect ? (
-                              <>
-                                <span className="material-symbols-outlined text-[14px]">person</span>
-                                {item.phleboOrStaff}
-                              </>
-                            ) : (
-                              <span className="text-on-surface-variant">{item.phleboOrStaff}</span>
-                            )}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Transit / Status */}
-                      <td className="py-3.5 pr-2">
-                        {item.statusCode === "ready_to_send" && (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary font-label-sm text-label-sm font-bold">
-                            <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-                            {item.statusText}
-                          </div>
-                        )}
-                        {item.statusCode === "verified" && (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-fresh-teal/10 text-fresh-teal font-label-sm text-label-sm font-semibold">
-                            <span className="material-symbols-outlined text-[14px]">verified</span>
-                            {item.statusText}
-                          </div>
-                        )}
-                        {item.statusCode === "transit" && (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary-container/30 text-on-secondary-container font-label-sm text-label-sm font-semibold">
-                            <span className="w-2 h-2 rounded-full bg-fresh-teal animate-pulse"></span>
-                            {item.statusText}
-                          </div>
-                        )}
-                        {item.statusCode === "in_analysis" && (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm font-medium">
-                            <span className="w-2 h-2 rounded-full bg-primary"></span>
-                            {item.statusText}
-                          </div>
-                        )}
-                        {item.statusCode === "tested" && (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary font-label-sm text-label-sm font-bold">
-                            <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-                            {item.statusText}
-                          </div>
-                        )}
-                        {item.statusCode === "dispatched" && (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-fresh-teal/15 text-fresh-teal font-label-sm text-label-sm font-bold">
-                            <span className="material-symbols-outlined text-[14px]">mark_chat_read</span>
-                            SMS Delivered
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Priority */}
-                      <td className="py-3.5 pr-2">
-                        {item.priority === "STAT Urgent" && (
-                          <span className="px-2.5 py-0.5 rounded-full bg-soft-coral/15 text-soft-coral font-label-sm text-label-sm font-bold">
-                            STAT Urgent
-                          </span>
-                        )}
-                        {item.priority === "Fast-track" && (
-                          <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-label-sm text-label-sm font-bold">
-                            Fast-track
-                          </span>
-                        )}
-                        {item.priority === "Routine" && (
-                          <span className="px-2.5 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm font-medium">
-                            Routine
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Quick Action */}
-                      <td className="py-3.5 text-right">
-                        {item.statusCode === "transit" ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              showToast(
-                                "Phlebotomist Tracking",
-                                `${item.phleboOrStaff} is 1.8km away. Sample cold-chain temperature: 4.1°C.`
-                              )
-                            }
-                            className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm font-semibold hover:bg-surface-container transition-colors cursor-pointer"
-                          >
-                            <span className="material-symbols-outlined text-[16px]">fmd_good</span>
-                            <span>Track Transit</span>
-                          </button>
-                        ) : item.statusCode === "in_analysis" ? (
-                          <button
-                            type="button"
-                            disabled
-                            className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-surface-container-high text-on-surface-variant/60 font-label-sm text-label-sm font-semibold cursor-not-allowed"
-                          >
-                            <span className="material-symbols-outlined text-[16px]">hourglass_top</span>
-                            <span>Awaiting Signoff</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => openDispatchModal(item)}
-                            className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-vibrant-blue text-on-primary font-label-sm text-label-sm font-semibold shadow-[0_4px_12px_rgba(0,102,255,0.22)] hover:scale-[1.03] active:scale-95 transition-all cursor-pointer"
-                          >
-                            <span className="material-symbols-outlined text-[16px]">send_to_mobile</span>
-                            <span>Upload &amp; SMS</span>
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Bottom Table Pagination & Status Bar */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-3 border-t border-surface-container text-on-surface-variant font-label-sm text-label-sm">
-              <span>Showing {filteredQueue.length} of {totalQueueCount} Active Diagnostics Requests</span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="px-3 py-1 rounded-full bg-surface-container hover:bg-surface-container-high transition-colors cursor-pointer"
-                >
-                  Previous
-                </button>
-                <button
-                  type="button"
-                  className="px-3 py-1 rounded-full bg-primary text-on-primary font-bold shadow-sm"
-                >
-                  1
-                </button>
-                <button
-                  type="button"
-                  className="px-3 py-1 rounded-full bg-surface-container hover:bg-surface-container-high transition-colors cursor-pointer"
-                >
-                  2
-                </button>
-                <button
-                  type="button"
-                  className="px-3 py-1 rounded-full bg-surface-container hover:bg-surface-container-high transition-colors cursor-pointer"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* RIGHT 4-COLS: MODALITY & LAB WORKSTATION STATUS */}
-          <div className="xl:col-span-4 flex flex-col gap-base" id="workstations">
-            <div className="flex items-center justify-between mb-1">
-              <div>
-                <h2 className="font-title-md text-title-md text-on-surface font-bold">
-                  Workstation Status
-                </h2>
-                <p className="font-label-sm text-label-sm text-on-surface-variant">
-                  Diagnostics Bays &amp; Calibration Timers
-                </p>
-              </div>
-              <span className="font-label-sm text-label-sm text-fresh-teal font-semibold px-2 py-0.5 rounded-full bg-fresh-teal/10 border border-fresh-teal/20">
-                All Calibrated
-              </span>
-            </div>
-
-            {/* Bay 1: MRI Suite 3T */}
-            <div className="p-stack-sm rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-shadow flex flex-col gap-2 border border-surface-container/60">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary">
-                    <span className="material-symbols-outlined text-[18px]">radiology</span>
-                  </div>
-                  <div>
-                    <h3 className="font-title-md text-[15px] font-bold text-on-surface">
-                      MRI Suite 1 (Siemens Vida 3T)
-                    </h3>
-                    <p className="font-label-sm text-label-sm text-on-surface-variant">
-                      Tech: <strong>Rachel Vance, RT(MR)</strong>
-                    </p>
-                  </div>
-                </div>
-                <span className="px-2 py-0.5 rounded-full bg-fresh-teal/10 text-fresh-teal font-label-sm text-label-sm font-bold">
-                  88% Load
-                </span>
-              </div>
-              <div className="w-full bg-surface-container rounded-full h-1.5 overflow-hidden mt-1">
-                <div className="bg-primary h-1.5 rounded-full" style={{ width: "88%" }}></div>
-              </div>
-              <div className="flex items-center justify-between font-label-sm text-label-sm text-on-surface-variant pt-1 border-t border-surface-container/60">
-                <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]">nest_clock_farsight_analog</span>
-                  Next Calib: 14h 20m
-                </span>
-                <span className="text-primary font-medium">Protocol 4 Active</span>
-              </div>
-            </div>
-
-            {/* Bay 2: Spectral CT 128-Slice */}
-            <div className="p-stack-sm rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-shadow flex flex-col gap-2 border border-surface-container/60">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary">
-                    <span className="material-symbols-outlined text-[18px]">view_in_ar</span>
-                  </div>
-                  <div>
-                    <h3 className="font-title-md text-[15px] font-bold text-on-surface">
-                      Spectral CT (GE Apex 128)
-                    </h3>
-                    <p className="font-label-sm text-label-sm text-on-surface-variant">
-                      Tech: <strong>Gavin Chen, RT(R)(CT)</strong>
-                    </p>
-                  </div>
-                </div>
-                <span className="px-2 py-0.5 rounded-full bg-fresh-teal/10 text-fresh-teal font-label-sm text-label-sm font-bold">
-                  62% Load
-                </span>
-              </div>
-              <div className="w-full bg-surface-container rounded-full h-1.5 overflow-hidden mt-1">
-                <div className="bg-fresh-teal h-1.5 rounded-full" style={{ width: "62%" }}></div>
-              </div>
-              <div className="flex items-center justify-between font-label-sm text-label-sm text-on-surface-variant pt-1 border-t border-surface-container/60">
-                <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]">nest_clock_farsight_analog</span>
-                  Next Calib: 06h 45m
-                </span>
-                <span className="text-on-surface font-medium">Ready for Intake</span>
-              </div>
-            </div>
-
-            {/* Bay 3: Core Automated Pathology Analyzer */}
-            <div className="p-stack-sm rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-shadow flex flex-col gap-2 border border-surface-container/60">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary">
-                    <span className="material-symbols-outlined text-[18px]">science</span>
-                  </div>
-                  <div>
-                    <h3 className="font-title-md text-[15px] font-bold text-on-surface">
-                      Automated Core Chem &amp; Immuno
-                    </h3>
-                    <p className="font-label-sm text-label-sm text-on-surface-variant">
-                      Lead: <strong>Dr. Julian Ross, MD Path</strong>
-                    </p>
-                  </div>
-                </div>
-                <span className="px-2 py-0.5 rounded-full bg-soft-coral/15 text-soft-coral font-label-sm text-label-sm font-bold">
-                  94% Load
-                </span>
-              </div>
-              <div className="w-full bg-surface-container rounded-full h-1.5 overflow-hidden mt-1">
-                <div className="bg-soft-coral h-1.5 rounded-full" style={{ width: "94%" }}></div>
-              </div>
-              <div className="flex items-center justify-between font-label-sm text-label-sm text-on-surface-variant pt-1 border-t border-surface-container/60">
-                <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]">nest_clock_farsight_analog</span>
-                  Next Calib: 02h 10m
-                </span>
-                <span className="text-soft-coral font-semibold">High Throughput</span>
-              </div>
-            </div>
-
-            {/* Bay 4: Ultrasound Bay Alpha */}
-            <div className="p-stack-sm rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-shadow flex flex-col gap-2 border border-surface-container/60">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary">
-                    <span className="material-symbols-outlined text-[18px]">sound_detection_loud_sound</span>
-                  </div>
-                  <div>
-                    <h3 className="font-title-md text-[15px] font-bold text-on-surface">
-                      Ultrasound Bay A (Philips EPIQ)
-                    </h3>
-                    <p className="font-label-sm text-label-sm text-on-surface-variant">
-                      Sonographer: <strong>Elena Kostas, RDMS</strong>
-                    </p>
-                  </div>
-                </div>
-                <span className="px-2 py-0.5 rounded-full bg-fresh-teal/10 text-fresh-teal font-label-sm text-label-sm font-bold">
-                  45% Load
-                </span>
-              </div>
-              <div className="w-full bg-surface-container rounded-full h-1.5 overflow-hidden mt-1">
-                <div className="bg-primary h-1.5 rounded-full" style={{ width: "45%" }}></div>
-              </div>
-              <div className="flex items-center justify-between font-label-sm text-label-sm text-on-surface-variant pt-1 border-t border-surface-container/60">
-                <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]">nest_clock_farsight_analog</span>
-                  Next Calib: 19h 50m
-                </span>
-                <span className="text-fresh-teal font-medium">Optimal Status</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* TEST CATALOG & TARIFF PRICING CONTROLS */}
-        <div className="mb-stack-lg rounded-xl bg-surface-container-lowest p-stack-md shadow-[0_8px_30px_rgba(0,102,255,0.03)] border border-surface-container">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-surface-container">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-label-sm text-label-sm font-bold">
-                  Hospital Tariff Master
-                </span>
-                <span className="text-outline-variant">•</span>
-                <span className="font-label-sm text-label-sm text-on-surface-variant">
-                  Hospital &amp; Private Fee Schedule v4.2
-                </span>
-              </div>
-              <h2 className="font-title-md text-title-md text-on-surface font-bold">
-                Test Catalog &amp; Tariff Pricing Controls
-              </h2>
-              <p className="font-label-sm text-label-sm text-on-surface-variant">
-                Hospital registered rates, in-centre tariffs, and automatic home collection surcharges.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="px-3 py-1.5 rounded-lg bg-surface-container-low border border-surface-container flex items-center gap-2">
-                <span className="font-label-sm text-label-sm text-on-surface-variant">Active Home Surcharge:</span>
-                <span className="font-label-sm text-label-sm font-bold text-fresh-teal">+₹250 / patient</span>
-              </div>
-              <button
-                type="button"
-                onClick={() =>
-                  showToast(
-                    "Tariff Rule Configurator",
-                    "Hospital tariff and home collection surcharge configuration window ready."
-                  )
-                }
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-primary text-on-primary font-label-sm text-label-sm font-bold shadow-sm hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[16px]">tune</span>
-                <span>Edit Pricing / Add Surcharge</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter pt-4">
-            {/* Test 1: Comprehensive Metabolic Panel */}
-            <div className="p-3 rounded-xl bg-surface-container-low border border-surface-container/60 flex flex-col justify-between gap-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="px-2 py-0.5 rounded bg-primary-fixed/30 text-primary font-label-sm text-[11px] font-bold">
-                    Pathology
-                  </span>
-                  <h3 className="font-title-md text-[14px] font-bold text-on-surface mt-1">
-                    Comprehensive Metabolic Panel
-                  </h3>
-                </div>
-                <span className="material-symbols-outlined text-[20px] text-primary">biotech</span>
-              </div>
-              <div className="flex items-baseline justify-between pt-2 border-t border-surface-container">
-                <div className="flex flex-col">
-                  <span className="font-label-sm text-[11px] text-on-surface-variant">In-Centre Fee</span>
-                  <span className="font-title-md text-[16px] font-bold text-on-surface">₹950</span>
-                </div>
-                <div className="flex flex-col text-right">
-                  <span className="font-label-sm text-[11px] text-fresh-teal font-semibold">Home Collect</span>
-                  <span className="font-title-md text-[16px] font-bold text-fresh-teal">₹1,200</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Test 2: Lipid Profile & Atherogenic Index */}
-            <div className="p-3 rounded-xl bg-surface-container-low border border-surface-container/60 flex flex-col justify-between gap-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="px-2 py-0.5 rounded bg-primary-fixed/30 text-primary font-label-sm text-[11px] font-bold">
-                    Pathology
-                  </span>
-                  <h3 className="font-title-md text-[14px] font-bold text-on-surface mt-1">
-                    Lipid Profile &amp; Atherogenic Index
-                  </h3>
-                </div>
-                <span className="material-symbols-outlined text-[20px] text-primary">bloodtype</span>
-              </div>
-              <div className="flex items-baseline justify-between pt-2 border-t border-surface-container">
-                <div className="flex flex-col">
-                  <span className="font-label-sm text-[11px] text-on-surface-variant">In-Centre Fee</span>
-                  <span className="font-title-md text-[16px] font-bold text-on-surface">₹650</span>
-                </div>
-                <div className="flex flex-col text-right">
-                  <span className="font-label-sm text-[11px] text-fresh-teal font-semibold">Home Collect</span>
-                  <span className="font-title-md text-[16px] font-bold text-fresh-teal">₹900</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Test 3: Brain & Spine MRI */}
-            <div className="p-3 rounded-xl bg-surface-container-low border border-surface-container/60 flex flex-col justify-between gap-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="px-2 py-0.5 rounded bg-secondary-fixed/30 text-secondary font-label-sm text-[11px] font-bold">
-                    Radiology
-                  </span>
-                  <h3 className="font-title-md text-[14px] font-bold text-on-surface mt-1">
-                    Brain &amp; Spine MRI (1.5T / 3T)
-                  </h3>
-                </div>
-                <span className="material-symbols-outlined text-[20px] text-primary">radiology</span>
-              </div>
-              <div className="flex items-baseline justify-between pt-2 border-t border-surface-container">
-                <div className="flex flex-col">
-                  <span className="font-label-sm text-[11px] text-on-surface-variant">In-Centre Fee</span>
-                  <span className="font-title-md text-[16px] font-bold text-on-surface">
-                    ₹{center.test_prices?.["MRI Scan"] || 8500}
-                  </span>
-                </div>
-                <div className="flex flex-col text-right">
-                  <span className="font-label-sm text-[11px] text-on-surface-variant">Modality</span>
-                  <span className="font-label-sm text-[12px] font-medium text-on-surface-variant">In-Bay Suite</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Test 4: Full Blood Count & CRP */}
-            <div className="p-3 rounded-xl bg-surface-container-low border border-surface-container/60 flex flex-col justify-between gap-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="px-2 py-0.5 rounded bg-primary-fixed/30 text-primary font-label-sm text-[11px] font-bold">
-                    Pathology
-                  </span>
-                  <h3 className="font-title-md text-[14px] font-bold text-on-surface mt-1">
-                    Full Blood Count &amp; CRP
-                  </h3>
-                </div>
-                <span className="material-symbols-outlined text-[20px] text-primary">science</span>
-              </div>
-              <div className="flex items-baseline justify-between pt-2 border-t border-surface-container">
-                <div className="flex flex-col">
-                  <span className="font-label-sm text-[11px] text-on-surface-variant">In-Centre Fee</span>
-                  <span className="font-title-md text-[16px] font-bold text-on-surface">
-                    ₹{center.test_prices?.["Blood Tests"] || 550}
-                  </span>
-                </div>
-                <div className="flex flex-col text-right">
-                  <span className="font-label-sm text-[11px] text-fresh-teal font-semibold">Home Collect</span>
-                  <span className="font-title-md text-[16px] font-bold text-fresh-teal">
-                    ₹{(center.test_prices?.["Blood Tests"] || 550) + 250}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* DIRECT UPLOAD & INSTANT SMS BROADCAST ACTION BANNER */}
-        <div className="rounded-xl bg-gradient-to-r from-primary via-vibrant-blue to-surface-tint text-on-primary p-stack-md relative overflow-hidden shadow-[0_16px_40px_rgba(0,102,255,0.24)]">
-          {/* Visual background accents */}
-          <div className="absolute -right-16 -bottom-16 w-64 h-64 rounded-full bg-white/10 blur-2xl pointer-events-none"></div>
-          <div className="absolute right-1/3 -top-24 w-48 h-48 rounded-full bg-fresh-teal/20 blur-xl pointer-events-none"></div>
-
-          <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined text-[28px] text-on-primary">send_and_archive</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="font-label-sm text-label-sm uppercase tracking-widest text-primary-fixed opacity-90 font-bold">
-                  Expedited Diagnostics Delivery
-                </span>
-                <h2 className="font-headline-lg text-headline-lg tracking-tight text-on-primary font-bold">
-                  Direct Upload &amp; Instant SMS Broadcast to Patient
-                </h2>
-                <p className="font-body-md text-body-md text-on-primary-container max-w-2xl mt-1 opacity-90">
-                  Instantly parse PDF/DICOM lab results, attach end-to-end encrypted download keys, and trigger an
-                  automated SMS notification directly to the patient&apos;s verified mobile terminal within 4.2 seconds.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3 shrink-0">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-2 px-stack-md py-3 rounded-full bg-surface-container-lowest text-primary font-body-md text-body-md font-bold shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[20px]">upload_file</span>
-                <span>Select Test File to Send</span>
-              </button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileSelect}
-                className="hidden"
-                accept=".pdf,.dcm,.png,.jpg"
-              />
-
-              <button
-                type="button"
-                onClick={handleBulkDispatch}
-                className="inline-flex items-center gap-2 px-stack-md py-3 rounded-full bg-white/15 text-on-primary hover:bg-white/25 border border-white/20 backdrop-blur font-body-md text-body-md font-semibold transition-all cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[20px]">mark_chat_read</span>
-                <span>Bulk Dispatch (12 Ready)</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* INTERACTIVE SMS DISPATCH MODAL DIALOG */}
-        {dispatchModalOpen && selectedPatient && (
-          <div className="fixed inset-0 bg-on-background/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-surface-container-lowest rounded-xl max-w-lg w-full p-stack-md shadow-2xl relative flex flex-col gap-stack-sm animate-in fade-in zoom-in duration-200 border border-surface-container">
-              <div className="flex items-center justify-between pb-3 border-b border-surface-container">
-                <div className="flex items-center gap-2">
-                  <span className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                    <span className="material-symbols-outlined text-[18px]">sms</span>
-                  </span>
-                  <h3 className="font-title-md text-title-md text-on-surface font-bold">
-                    Dispatch Diagnostic Report via SMS
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={closeDispatchModal}
-                  className="w-8 h-8 rounded-full hover:bg-surface-container text-on-surface-variant flex items-center justify-center cursor-pointer transition-colors"
-                >
-                  <span className="material-symbols-outlined text-[20px]">close</span>
-                </button>
-              </div>
-
-              <div className="flex flex-col gap-3 py-2">
-                <div className="p-3 rounded-lg bg-surface-container-low flex flex-col gap-1 border border-surface-container/80">
-                  <span className="font-label-sm text-label-sm text-on-surface-variant">Target Recipient</span>
-                  <span className="font-title-md text-[16px] font-bold text-on-surface">
-                    {selectedPatient.patientName} (#{selectedPatient.id})
-                  </span>
-                  <span className="font-mono text-[14px] text-primary font-medium">
-                    {selectedPatient.patientPhone}
-                  </span>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="font-label-sm text-label-sm text-on-surface-variant">
-                    Diagnostics File to Attach
-                  </label>
-                  <div className="p-3 rounded-lg bg-surface-container/50 border border-dashed border-outline-variant flex items-center justify-between">
-                    <div className="flex items-center gap-2 truncate">
-                      <span className="material-symbols-outlined text-primary text-[20px]">picture_as_pdf</span>
-                      <span className="font-body-md text-body-md text-on-surface font-medium truncate">
-                        {selectedPatient.reportFileName}
-                      </span>
-                    </div>
-                    <span className="font-label-sm text-label-sm text-fresh-teal font-semibold">2.4 MB • Signed</span>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="font-label-sm text-label-sm text-on-surface-variant">
-                    Automated SMS Preview
-                  </label>
-                  <div className="p-3 rounded-lg bg-surface text-on-surface-variant font-mono text-[12px] leading-relaxed border border-surface-container">
-                    &quot;Hello {selectedPatient.patientName.split(" ")[0]}, your diagnostic report for [
-                    {selectedPatient.testName.replace(/Diagnostic Report/i, "").trim()}] from {center.name} is now
-                    ready. View securely: https://apex-diag.co/r/x9k42-token. Valid for 72 hours.&quot;
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 text-on-surface-variant">
-                  <span className="material-symbols-outlined text-[16px] text-fresh-teal">lock</span>
-                  <span className="font-label-sm text-label-sm">
-                    End-to-End Encrypted Link • Single-Use SMS Delivery
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-container">
-                <button
-                  type="button"
-                  onClick={closeDispatchModal}
-                  className="px-4 py-2 rounded-full text-on-surface font-label-sm text-label-sm font-semibold hover:bg-surface-container transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmDispatch}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-vibrant-blue text-on-primary font-label-sm text-label-sm font-bold shadow-md hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[18px]">send</span>
-                  <span>Confirm &amp; Transmit SMS</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TOAST NOTIFICATION */}
-        {toast && (
-          <div className="fixed bottom-6 right-6 z-50 transition-all duration-300 pointer-events-none animate-in fade-in slide-in-from-bottom-5">
-            <div className="px-4 py-3 rounded-xl bg-on-background text-on-primary shadow-2xl flex items-center gap-3 border border-outline-variant/20">
-              <span className="material-symbols-outlined text-fresh-teal text-[22px]">check_circle</span>
-              <div className="flex flex-col">
-                <span className="font-label-sm text-label-sm font-bold">{toast.title}</span>
-                <span className="font-label-sm text-label-sm text-outline-variant">{toast.sub}</span>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
-    </main>
+
+      {/* PAGE TITLE & SUBTITLE */}
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-tight">
+          {center?.name || "Diagnostic Center"}
+        </h1>
+        <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+          Automated digital dispatch &amp; diagnostic triage hub
+        </p>
+      </div>
+
+      {/* STATS CARDS (Diagnostic Queue & Home Pickups) */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Card 1: Diagnostic Queue */}
+        <div className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <div className="w-7 h-7 rounded-xl bg-blue-50 text-[#0066FF] flex items-center justify-center">
+                <span className="material-symbols-outlined text-[16px]">cloud_queue</span>
+              </div>
+              <span className="text-xs font-bold text-slate-600">Diagnostic Queue</span>
+            </div>
+            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md">
+              +14%
+            </span>
+          </div>
+
+          <div className="mt-2 flex items-baseline gap-1.5">
+            <span className="text-2xl font-black text-slate-900 tracking-tight">{totalCount}</span>
+            <span className="text-xs text-slate-500 font-medium">Active Load</span>
+          </div>
+
+          <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-center">
+            <div>
+              <p className="text-xs font-black text-emerald-600 leading-none">{doneCount}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Done</p>
+            </div>
+            <div className="h-4 w-px bg-slate-100"></div>
+            <div>
+              <p className="text-xs font-black text-[#0066FF] leading-none">{inLabCount}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">In Lab</p>
+            </div>
+            <div className="h-4 w-px bg-slate-100"></div>
+            <div>
+              <p className="text-xs font-black text-rose-500 leading-none">{waitingCount}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Waiting</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 2: Home Pickups */}
+        <div className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <div className="w-7 h-7 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
+                <span className="material-symbols-outlined text-[16px]">home_health</span>
+              </div>
+              <span className="text-xs font-bold text-slate-600">Home Pickups</span>
+            </div>
+          </div>
+
+          <div className="mt-2 flex items-baseline gap-1.5">
+            <span className="text-2xl font-black text-slate-900 tracking-tight">{homeCount}</span>
+            <span className="text-xs text-slate-500 font-medium">Requests</span>
+          </div>
+
+          <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-around text-center">
+            <div>
+              <p className="text-xs font-black text-slate-800 leading-none">{pickedCount}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">In Transit</p>
+            </div>
+            <div className="h-4 w-px bg-slate-100"></div>
+            <div>
+              <p className="text-xs font-black text-slate-800 leading-none">{atDoorCount}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">At Door</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* DIRECT FAST-TRACK DISPATCH BANNER */}
+      <div className="bg-[#0055FF] rounded-2xl p-4 text-white shadow-lg shadow-blue-500/15 flex flex-col gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-[18px]">bolt</span>
+          </div>
+          <div>
+            <h2 className="text-sm font-bold tracking-tight">Direct Fast-Track Dispatch</h2>
+            <p className="text-xs text-blue-100">
+              Select report file or blast {readyCount || totalCount} ready test summaries
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 pt-1">
+          <button
+            type="button"
+            onClick={handleSelectFileClick}
+            className="flex-1 bg-white text-slate-900 text-xs font-bold py-2.5 px-3 rounded-full flex items-center justify-center gap-1.5 hover:bg-slate-50 active:scale-95 transition-all shadow-sm cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-[16px] text-blue-600">note_add</span>
+            <span>Select Test File</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              showToast("Bulk Dispatch Triggered", `${readyCount || totalCount} verified patient reports dispatched via instant SMS.`)
+            }
+            className="flex-1 bg-[#10B981] hover:bg-[#059669] text-white text-xs font-extrabold py-2.5 px-3 rounded-full flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-sm cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-[16px]">send</span>
+            <span>Bulk Dispatch ({readyCount || totalCount})</span>
+          </button>
+        </div>
+      </div>
+
+      {/* LIVE DIAGNOSTIC TRIAGE SECTION */}
+      <div className="flex flex-col gap-2.5 mt-1">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-extrabold text-slate-900">Live Diagnostic Triage</h2>
+            <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></span>
+          </div>
+          <span className="text-xs font-semibold text-slate-400">Real-time sync</span>
+        </div>
+
+        {/* Filter Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+          <button
+            type="button"
+            onClick={() => setActiveFilter("all")}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all shrink-0 cursor-pointer ${
+              activeFilter === "all"
+                ? "bg-[#0066FF] text-white shadow-sm"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            All Tests ({totalCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveFilter("home")}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all shrink-0 cursor-pointer ${
+              activeFilter === "home"
+                ? "bg-[#0066FF] text-white shadow-sm"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            Home Collect ({homeCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveFilter("centre")}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all shrink-0 cursor-pointer ${
+              activeFilter === "centre"
+                ? "bg-[#0066FF] text-white shadow-sm"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            In-Centre ({inCentreCount})
+          </button>
+        </div>
+
+        {/* TRIAGE CARDS (Rendered from real DB data) */}
+        <div className="flex flex-col gap-3 mt-1">
+          {displayedQueue.length === 0 ? (
+            <div className="p-8 text-center bg-white rounded-2xl border border-slate-100 text-slate-400 text-xs">
+              No diagnostic triage records for this filter.
+            </div>
+          ) : (
+            displayedQueue.map((item) => (
+              <div
+                key={item.id}
+                className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex flex-col gap-3 hover:border-blue-100 transition-colors"
+              >
+                {/* Top Row: Patient Avatar, Name, Intake badge, Price */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <div className="w-11 h-11 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center text-sm border border-slate-200 shadow-xs">
+                        {item.patientInitials}
+                      </div>
+                      {item.statusCode === "ready_to_send" && (
+                        <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center text-[9px] font-black ring-2 ring-white">
+                          !
+                        </span>
+                      )}
+                      {item.statusCode === "verified" && (
+                        <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[9px] font-black ring-2 ring-white">
+                          ✓
+                        </span>
+                      )}
+                      {item.statusCode === "transit" && (
+                        <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-blue-500 text-white flex items-center justify-center text-[9px] font-black ring-2 ring-white">
+                          ❄
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-extrabold text-slate-900 text-sm">{item.patientName}</span>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                            item.intakeType === "Home Collect"
+                              ? "bg-[#99F6E4] text-[#0F766E]"
+                              : item.intakeType === "In Transit"
+                              ? "bg-blue-100 text-blue-700"
+                              : "bg-slate-100 text-slate-600"
+                          }`}
+                        >
+                          {item.intakeType}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-slate-500 font-medium mt-0.5">
+                        <span className="material-symbols-outlined text-[13px] text-slate-400">
+                          {item.intakeType === "In-Centre" ? "door_front" : "location_on"}
+                        </span>
+                        <span>{item.addressOrBay}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end">
+                    <span className="font-black text-slate-900 text-sm">
+                      ₹{item.tariffFee.toLocaleString("en-IN")}
+                    </span>
+                    <span className="text-[10px] font-semibold text-emerald-600">
+                      {item.isHomeCollect
+                        ? `₹${item.baseFee} + ₹${item.homeSurcharge} Home`
+                        : "Billed"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Status Box */}
+                {item.statusCode === "ready_to_send" && (
+                  <div className="bg-rose-50 border border-rose-100 rounded-xl px-3 py-2 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 text-rose-700 font-bold">
+                      <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+                      <span>REPORT READY TO SEND (STAT URGENT)</span>
+                    </div>
+                    <span className="text-[11px] font-mono text-slate-500">{item.tokenNumber}</span>
+                  </div>
+                )}
+
+                {item.statusCode === "verified" && (
+                  <div className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 text-slate-700 font-bold">
+                      <span className="material-symbols-outlined text-[16px] text-emerald-500">verified</span>
+                      <span>Verified by Pathologist</span>
+                    </div>
+                    <span className="text-[11px] text-slate-500">{item.phleboOrStaff}</span>
+                  </div>
+                )}
+
+                {item.statusCode === "transit" && (
+                  <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 text-blue-700 font-bold">
+                      <span className="material-symbols-outlined text-[16px] text-blue-500">ac_unit</span>
+                      <span>Cold-Chain Transit</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-rose-600">{item.etaTransit}</span>
+                  </div>
+                )}
+
+                {item.statusCode === "completed" && (
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 text-emerald-700 font-bold">
+                      <span className="material-symbols-outlined text-[16px] text-emerald-600">check_circle</span>
+                      <span>Dispatched via SMS</span>
+                    </div>
+                    <span className="text-[11px] text-slate-500">Delivered</span>
+                  </div>
+                )}
+
+                {/* Bottom Action Row */}
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+                    <span className="material-symbols-outlined text-[14px] text-slate-400">
+                      {item.intakeType === "In Transit" ? "send" : "forum"}
+                    </span>
+                    <span>
+                      {item.intakeType === "In Transit"
+                        ? "Courier #RT-09"
+                        : item.statusCode === "verified"
+                        ? "Lab Approval Clear"
+                        : "Instant SMS Gateway"}
+                    </span>
+                  </div>
+
+                  {item.intakeType === "In Transit" ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        showToast("Courier Location Synced", "Live temperature telemetry: 4.2°C at Camden High St.")
+                      }
+                      className="bg-blue-100 hover:bg-blue-200 text-[#0066FF] text-xs font-bold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">route</span>
+                      <span>Track Transit</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleUploadAndSMS(item)}
+                      className="bg-[#0066FF] hover:bg-blue-700 text-white text-xs font-extrabold px-4 py-1.5 rounded-full flex items-center gap-1.5 active:scale-95 transition-all shadow-sm shadow-blue-500/20 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">send</span>
+                      <span>Upload &amp; SMS</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+
+          {/* Load More Button (Disappears when all items are loaded, no text shown) */}
+          {visibleCount < filteredQueue.length && (
+            <div className="flex justify-center pt-2 pb-1">
+              <button
+                type="button"
+                onClick={() => setVisibleCount((prev) => prev + 3)}
+                className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2.5 px-6 rounded-full flex items-center gap-1.5 shadow-xs active:scale-95 transition-all cursor-pointer"
+              >
+                <span>Load More</span>
+                <span className="material-symbols-outlined text-[16px]">expand_more</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* DIAGNOSTIC TARIFF INDEX (Directly from DB) */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex flex-col gap-3 mt-1">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-extrabold text-slate-900">Diagnostic Tariff Index</h2>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
+              ₹ INR Rates
+            </span>
+            <Link
+              href="/diagnostic-center/tests"
+              className="text-xs font-bold text-[#0066FF] hover:underline"
+            >
+              Full Catalog
+            </Link>
+          </div>
+        </div>
+
+        <div className="divide-y divide-slate-100 flex flex-col">
+          {availableTests.slice(0, 3).map((test) => (
+            <div key={test.name} className="py-3 flex items-start justify-between gap-2">
+              <div className="flex flex-col">
+                <span className="font-extrabold text-slate-900 text-xs sm:text-sm">{test.name}</span>
+                <span className="text-[11px] text-slate-500">{test.desc}</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-col items-end">
+                  <span className="text-xs font-black text-slate-900">
+                    ₹{test.centrePrice.toLocaleString("en-IN")}
+                  </span>
+                  <span className="text-[9px] font-bold text-slate-400">
+                    {test.isInCentreOnly ? "IN-CENTRE ONLY" : "CENTRE"}
+                  </span>
+                </div>
+                {!test.isInCentreOnly && (
+                  <div className="flex flex-col items-end">
+                    <span className="text-xs font-black text-[#0066FF]">
+                      ₹{test.homePrice.toLocaleString("en-IN")}
+                    </span>
+                    <span className="text-[9px] font-bold text-blue-400">HOME</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* UPLOAD & SMS DISPATCH MODAL */}
+      {dispatchModalOpen && selectedBooking && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-5 max-w-sm w-full border border-slate-100 shadow-2xl flex flex-col gap-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="font-extrabold text-slate-900 text-base">Instant SMS Dispatch</h3>
+              <button
+                type="button"
+                onClick={() => setDispatchModalOpen(false)}
+                className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[16px]">close</span>
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2 text-xs">
+              <div className="flex items-center justify-between py-1 border-b border-slate-50">
+                <span className="text-slate-500 font-medium">Patient:</span>
+                <span className="font-bold text-slate-900">{selectedBooking.patientName}</span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-slate-50">
+                <span className="text-slate-500 font-medium">Mobile Number:</span>
+                <span className="font-bold text-slate-900">{selectedBooking.patientPhone}</span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-slate-50">
+                <span className="text-slate-500 font-medium">Investigation:</span>
+                <span className="font-bold text-slate-900">{selectedBooking.testName}</span>
+              </div>
+              <div className="flex items-center justify-between py-1">
+                <span className="text-slate-500 font-medium">Token ID:</span>
+                <span className="font-mono font-bold text-[#0066FF]">{selectedBooking.tokenNumber}</span>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-800">
+              <p className="font-bold">SMS Deliverability Protocol:</p>
+              <p className="text-[11px] text-blue-700 mt-0.5">
+                Single-use encrypted link will be delivered directly to the patient&apos;s carrier network.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                disabled={isProcessingDispatch}
+                onClick={() => setDispatchModalOpen(false)}
+                className="flex-1 py-2.5 rounded-full border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isProcessingDispatch}
+                onClick={confirmSMSDispatch}
+                className="flex-1 py-2.5 rounded-full bg-[#0066FF] hover:bg-blue-700 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/20 cursor-pointer"
+              >
+                {isProcessingDispatch ? (
+                  <span className="animate-spin material-symbols-outlined text-[16px]">progress_activity</span>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-[16px]">send</span>
+                    <span>Send SMS</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TOAST POPUP */}
+      {toast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-in fade-in slide-in-from-bottom-3 duration-150">
+          <div className="px-4 py-2 rounded-full bg-slate-900 text-white text-xs font-bold shadow-2xl flex items-center gap-2 border border-slate-800">
+            <span className="material-symbols-outlined text-emerald-400 text-[18px]">check_circle</span>
+            <span>{toast.title}</span>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

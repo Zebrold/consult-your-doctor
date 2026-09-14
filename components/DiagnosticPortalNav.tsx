@@ -19,6 +19,7 @@ export function DiagnosticPortalNav({
 }: DiagnosticPortalNavProps) {
   const pathname = usePathname();
   const [toast, setToast] = useState<{ title: string; sub: string } | null>(null);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   const showToast = (title: string, sub: string) => {
     setToast({ title, sub });
@@ -27,247 +28,177 @@ export function DiagnosticPortalNav({
     }, 3800);
   };
 
-  const navItems = [
+  // 4 Bottom Navigation Bar tabs as shown in the design
+  const bottomTabs = [
     {
       label: "Dashboard",
-      icon: "grid_view",
+      icon: "dashboard",
       href: "/diagnostic-center/dashboard",
-      exact: true,
     },
     {
-      label: "Test Catalog & Fee Schedule",
-      icon: "inventory_2",
-      href: "/diagnostic-center/tests",
-    },
-    {
-      label: "Patient Directory",
-      icon: "person_search",
+      label: "Patients",
+      icon: "group",
       href: "/diagnostic-center/patients",
     },
     {
-      label: "Test Bookings",
-      icon: "calendar_month",
-      href: "/diagnostic-center/dashboard#queueTable",
+      label: "Add Test",
+      icon: "add_circle_outline",
+      href: "/diagnostic-center/tests",
     },
     {
-      label: "Upload & Dispatch Reports",
-      icon: "description",
+      label: "Upload Report",
+      icon: "upload_file",
       href: "/diagnostic-center/reports",
-    },
-    {
-      label: "Equipment Telemetry",
-      icon: "sensors",
-      href: "/diagnostic-center/dashboard#workstations",
-    },
-    {
-      label: "Settings",
-      icon: "tune",
-      href: "/diagnostic-center/settings",
     },
   ];
 
-  const isNavActive = (href: string, exact?: boolean) => {
-    const cleanHref = href.split("#")[0];
-    if (exact || cleanHref === "/diagnostic-center/dashboard") {
-      return pathname === cleanHref && !href.includes("#");
+  const isTabActive = (href: string) => {
+    if (href === "/diagnostic-center/dashboard") {
+      return pathname === "/diagnostic-center/dashboard" || pathname === "/diagnostic-center";
     }
-    if (cleanHref === "/diagnostic-center/tests") {
-      return pathname.startsWith("/diagnostic-center/tests");
-    }
-    return pathname === cleanHref || pathname.startsWith(`${cleanHref}/`);
+    return pathname === href || pathname.startsWith(href + "/");
   };
 
   return (
-    <div className="min-h-screen bg-surface text-on-surface antialiased">
-      {/* DESKTOP SIDEBAR */}
-      <aside className="hidden xl:flex fixed left-0 top-0 h-full w-72 bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-50 flex-col justify-between border-r border-surface-container/60">
-        <div className="flex flex-col">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 antialiased font-sans flex flex-col">
+      {/* UNIVERSAL TOP HEADER (Exact matching CYD Labs reference header) */}
+      <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 py-2.5 shadow-sm">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
           {/* Brand Header */}
-          <Link href="/" className="h-16 px-gutter flex items-center gap-stack-sm hover:opacity-90 transition-opacity">
-            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center text-on-primary shadow-[0_4px_12px_rgba(0,102,255,0.18)]">
-              <span className="material-symbols-outlined text-[20px]">biotech</span>
+          <Link href="/diagnostic-center/dashboard" className="flex items-center gap-2.5 group">
+            <div className="w-10 h-10 rounded-xl bg-[#0066FF] flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
+              <span className="material-symbols-outlined text-[24px]">science</span>
             </div>
             <div className="flex flex-col">
-              <span className="font-title-md text-[17px] font-bold text-on-surface leading-tight tracking-tight">
-                Consult Your Doctor
-              </span>
-              <span className="font-label-sm text-[11px] text-on-surface-variant uppercase tracking-wider font-semibold">
-                Diagnostics Hub
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="font-extrabold text-[17px] text-slate-900 tracking-tight leading-none">
+                  CYD Labs
+                </span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-[#A7F3D0] text-[#065F46] tracking-wider uppercase">
+                  M3 READY
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                <span>NABL Accr. Node #042</span>
+              </div>
             </div>
           </Link>
 
-          {/* LIMS / PACS Status Badge */}
-          <div className="px-gutter mt-stack-md">
-            <div className="px-stack-sm py-base rounded-full bg-secondary-container/20 flex items-center justify-between border border-secondary-container/30">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-fresh-teal animate-pulse"></span>
-                <span className="font-label-sm text-[11px] font-bold text-on-secondary-container">
-                  LIMS / PACS Online
-                </span>
-              </div>
-              <span className="font-label-sm text-[10px] font-semibold text-on-surface-variant px-1.5 py-0.5 rounded bg-surface-container">
-                FHIR R4
-              </span>
-            </div>
-          </div>
-
-          {/* Navigation Links */}
-          <nav className="flex flex-col gap-1.5 px-stack-sm mt-stack-md">
-            {navItems.map((item) => {
-              const active = isNavActive(item.href, item.exact);
-              return (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className={`flex items-center gap-stack-sm px-stack-md py-stack-sm transition-all rounded-xl ${
-                    active
-                      ? "bg-primary-container text-on-primary-container font-bold shadow-sm shadow-primary-container/20"
-                      : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface font-medium"
-                  }`}
-                >
-                  <span
-                    className="material-symbols-outlined text-[20px]"
-                    style={{ fontVariationSettings: active ? "'FILL' 1, 'wght' 600" : "'FILL' 0, 'wght' 500" }}
-                  >
-                    {item.icon}
-                  </span>
-                  <span className="font-body-md text-[14px] leading-none">
-                    {item.label}
-                  </span>
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* Footer Hub Connection */}
-        <div className="p-stack-md border-t border-surface-container/60 space-y-3">
-          <div className="p-stack-sm rounded-xl bg-surface-container-low flex items-center justify-between border border-surface-container/80">
-            <div className="flex flex-col">
-              <span className="font-label-sm text-[11px] text-on-surface-variant font-medium">
-                Hub Connection
-              </span>
-              <span className="font-body-md text-[13px] font-semibold text-on-surface">
-                Central Station #04
-              </span>
-            </div>
-            <div className="w-2.5 h-2.5 rounded-full bg-fresh-teal shadow-[0_0_8px_rgba(20,184,166,0.6)]"></div>
-          </div>
-
-          <form action="/auth/signout" method="post">
+          {/* Right Action Icons */}
+          <div className="flex items-center gap-2.5">
+            {/* Notification Bell with Badge */}
             <button
-              type="submit"
-              className="w-full flex items-center gap-2 px-3 py-2 text-label-sm font-semibold text-soft-coral hover:bg-soft-coral/10 rounded-lg transition-colors cursor-pointer"
+              type="button"
+              onClick={() =>
+                showToast(
+                  "Real-time Triage Alert",
+                  "PACS node linked. All telemetry streams are active."
+                )
+              }
+              className="relative p-2 rounded-full text-slate-600 hover:text-slate-900 hover:bg-slate-100 active:scale-95 transition-all cursor-pointer"
+              aria-label="Notifications"
             >
-              <span className="material-symbols-outlined text-[18px]">logout</span>
-              <span>Sign Out Hub</span>
+              <span className="material-symbols-outlined text-[24px]">notifications</span>
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white"></span>
             </button>
-          </form>
-        </div>
-      </aside>
 
-      {/* FIXED TOP HEADER */}
-      <header className="fixed top-0 left-0 xl:left-72 right-0 h-16 bg-surface-container-lowest/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-4 sm:px-8 xl:px-margin-x-desktop border-b border-surface-container/60">
-        <div className="flex items-center gap-stack-sm">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-container-low text-on-surface-variant border border-surface-container/80">
-            <span className="material-symbols-outlined text-[16px] text-primary">domain</span>
-            <span className="font-label-sm text-[12px] font-semibold truncate max-w-[200px] sm:max-w-xs">
-              {centerName} • {centerCity}
-            </span>
-          </div>
-        </div>
+            {/* Profile Avatar Circle */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setProfileMenuOpen((prev) => !prev)}
+                className="w-10 h-10 rounded-full bg-[#0066FF] text-white flex items-center justify-center shadow-md shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                aria-label="User profile"
+              >
+                <span className="material-symbols-outlined text-[22px]">person</span>
+              </button>
 
-        <div className="flex items-center gap-3 sm:gap-stack-md">
-          <div className="hidden sm:flex items-center gap-2">
-            <Link
-              href="/diagnostic-center/patients"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-primary text-on-primary font-label-sm text-[12px] font-bold shadow-[0_4px_12px_rgba(0,102,255,0.18)] hover:scale-[1.02] active:scale-95 transition-all"
-            >
-              <span className="material-symbols-outlined text-[17px]">person_add</span>
-              <span>New Patient Intake</span>
-            </Link>
-            <Link
-              href="/diagnostic-center/reports"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-fresh-teal text-on-primary font-label-sm text-[12px] font-bold shadow-[0_4px_12px_rgba(20,184,166,0.2)] hover:scale-[1.02] active:scale-95 transition-all"
-            >
-              <span className="material-symbols-outlined text-[17px]">upload_file</span>
-              <span>Upload Test Report</span>
-            </Link>
-          </div>
-
-          <div className="hidden sm:block w-px h-6 bg-outline-variant/40"></div>
-
-          <button
-            type="button"
-            aria-label="Notifications"
-            onClick={() => showToast("PACS System Stream Alert", "All diagnostic feeds & telemetry operational.")}
-            className="relative p-2 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[22px]">notifications</span>
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-soft-coral"></span>
-          </button>
-
-          <div className="flex items-center gap-2.5 pl-1 sm:pl-2">
-            <div className="hidden md:flex flex-col text-right">
-              <span className="font-label-sm text-[13px] font-bold text-on-surface leading-tight">
-                {directorName}
-              </span>
-              <span className="font-label-sm text-[11px] text-on-surface-variant font-medium">
-                Center Director
-              </span>
-            </div>
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold text-label-sm shadow-sm">
-              <span className="material-symbols-outlined text-[18px]">person</span>
+              {/* Profile Dropdown */}
+              {profileMenuOpen && (
+                <div className="absolute right-0 top-12 w-64 rounded-2xl bg-white border border-slate-100 shadow-xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="p-2 border-b border-slate-100 mb-2">
+                    <p className="font-bold text-slate-900 text-sm">{directorName}</p>
+                    <p className="text-xs text-slate-500">{centerName}</p>
+                    <span className="inline-block mt-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                      Node #042 Active
+                    </span>
+                  </div>
+                  <Link
+                    href="/diagnostic-center/settings"
+                    onClick={() => setProfileMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-xl transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[18px] text-slate-400">tune</span>
+                    Center Settings
+                  </Link>
+                  <form action="/auth/signout" method="post">
+                    <button
+                      type="submit"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer text-left"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">logout</span>
+                      Sign Out
+                    </button>
+                  </form>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </header>
 
-      {/* MAIN CONTENT WRAPPER */}
-      <div className="xl:pl-72 pt-16 pb-24 xl:pb-12 min-h-screen bg-surface">
+      {/* MAIN CONTENT AREA */}
+      <div className="flex-1 w-full max-w-7xl mx-auto pb-24 md:pb-28">
         {children}
       </div>
 
-      {/* MOBILE ACTIVE DOCK (Fixed Bottom Navigation Bar) */}
-      <nav className="xl:hidden fixed bottom-3 left-4 right-4 z-50 max-w-lg mx-auto bg-surface-container-lowest/90 backdrop-blur-xl border border-surface-container shadow-2xl rounded-full py-2 px-4 flex justify-between items-center">
-        {navItems.map((item) => {
-          const active = isNavActive(item.href, item.exact);
-          return (
-            <Link
-              key={item.label}
-              href={item.href}
-              className={`flex flex-col items-center justify-center gap-0.5 py-1 px-3 rounded-2xl transition-all ${
-                active
-                  ? "bg-primary-container text-on-primary-container font-bold shadow-sm"
-                  : "text-on-surface-variant hover:text-on-surface font-medium"
-              }`}
-            >
-              <span
-                className="material-symbols-outlined text-[22px]"
-                style={{ fontVariationSettings: active ? "'FILL' 1, 'wght' 600" : "'FILL' 0, 'wght' 500" }}
+      {/* WORKING BOTTOM NAVBAR WITH ACTIVE COLORS (Fixed bottom mobile & desktop navigation dock) */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-2 px-4 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
+        <div className="max-w-md mx-auto flex items-center justify-around">
+          {bottomTabs.map((tab) => {
+            const active = isTabActive(tab.href);
+            return (
+              <Link
+                key={tab.label}
+                href={tab.href}
+                className={`flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all duration-200 ${
+                  active
+                    ? "text-[#0066FF] scale-105"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
               >
-                {item.icon}
-              </span>
-              <span className="text-[10px] leading-tight tracking-tight">
-                {item.label === "Test Catalog & Fee Schedule" ? "Catalog" : item.label === "Upload & Dispatch Reports" ? "Reports" : item.label === "Equipment Telemetry" ? "Telemetry" : item.label}
-              </span>
-            </Link>
-          );
-        })}
+                <span
+                  className="material-symbols-outlined text-[24px] transition-transform duration-200"
+                  style={{
+                    fontVariationSettings: active
+                      ? "'FILL' 1, 'wght' 600"
+                      : "'FILL' 0, 'wght' 500",
+                    color: active ? "#0066FF" : "currentColor",
+                  }}
+                >
+                  {tab.icon}
+                </span>
+                <span
+                  className={`text-[11px] mt-0.5 tracking-tight transition-colors ${
+                    active ? "font-bold text-[#0066FF]" : "font-medium text-slate-500"
+                  }`}
+                >
+                  {tab.label}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
       </nav>
 
-      {/* TOAST NOTIFICATION */}
+      {/* FLOATING TOAST NOTIFICATION */}
       {toast && (
-        <div className="fixed bottom-20 xl:bottom-6 right-6 z-50 transition-all duration-300 pointer-events-none animate-in fade-in slide-in-from-bottom-5">
-          <div className="px-4 py-3 rounded-xl bg-on-background text-on-primary shadow-2xl flex items-center gap-3 border border-outline-variant/20">
-            <span className="material-symbols-outlined text-fresh-teal text-[22px]">
-              check_circle
-            </span>
-            <div className="flex flex-col">
-              <span className="font-label-sm text-[13px] font-bold">{toast.title}</span>
-              <span className="font-label-sm text-[11px] text-outline-variant">{toast.sub}</span>
-            </div>
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <div className="px-4 py-2.5 rounded-full bg-slate-900 text-white shadow-2xl flex items-center gap-2.5 text-xs font-semibold border border-slate-800">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            <span>{toast.title}:</span>
+            <span className="text-slate-300 font-normal">{toast.sub}</span>
           </div>
         </div>
       )}

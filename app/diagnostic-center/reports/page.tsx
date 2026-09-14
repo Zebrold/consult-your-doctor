@@ -8,11 +8,12 @@ export default async function DiagnosticReportsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  const adminSupabase = createAdminClient()
   let centerId: string | null = null
   let profile: any = null
 
   if (user) {
-    const { data: userProfile } = await supabase
+    const { data: userProfile } = await adminSupabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
@@ -23,8 +24,6 @@ export default async function DiagnosticReportsPage() {
       centerId = userProfile.diagnostic_center_id || null
     }
   }
-
-  const adminSupabase = createAdminClient()
 
   let center: any = null
   if (centerId) {
@@ -81,7 +80,17 @@ export default async function DiagnosticReportsPage() {
       .limit(30)
 
     if (bData && bData.length > 0) {
-      bookings = bData
+      const patientIds = Array.from(new Set(bData.map((b: any) => b.patient_id).filter(Boolean)))
+      const { data: pDetails } = await adminSupabase
+        .from('patient_details')
+        .select('*')
+        .in('id', patientIds)
+
+      const detailsMap = new Map((pDetails || []).map((d: any) => [d.id, d]))
+      bookings = bData.map((b: any) => ({
+        ...b,
+        patient_details: detailsMap.get(b.patient_id) || null,
+      }))
     }
   }
 

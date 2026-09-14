@@ -17,28 +17,13 @@ interface DiagnosticAddTestClientProps {
   directorName?: string;
 }
 
-const COMMON_TEST_SUGGESTIONS = [
-  { name: "Complete Blood Count (CBC)", defaultFee: 350, category: "Hematology" },
-  { name: "HbA1c Glycated Hemoglobin", defaultFee: 450, category: "Biochemistry" },
-  { name: "Lipid Profile (Cholesterol, HDL, LDL, Triglycerides)", defaultFee: 650, category: "Biochemistry" },
-  { name: "Liver Function Test (LFT)", defaultFee: 750, category: "Biochemistry" },
-  { name: "Thyroid Profile (Total T3, T4, TSH)", defaultFee: 550, category: "Endocrinology" },
-  { name: "Kidney / Renal Function Test (KFT)", defaultFee: 650, category: "Biochemistry" },
-  { name: "Vitamin D3 (25-Hydroxy)", defaultFee: 1200, category: "Immunoassay" },
-  { name: "Vitamin B12 Assay", defaultFee: 850, category: "Immunoassay" },
-  { name: "Urine Routine & Microscopy", defaultFee: 200, category: "Clinical Pathology" },
-  { name: "High-Resolution Chest X-Ray (PA View)", defaultFee: 500, category: "Radiology" },
-  { name: "Whole Abdomen & Pelvis Ultrasound (USG)", defaultFee: 1400, category: "Ultrasonography" },
-  { name: "12-Lead Resting Electrocardiogram (ECG)", defaultFee: 350, category: "Cardiology" },
-];
-
 export function DiagnosticAddTestClient({
   center,
   directorName = "Dr. Katherine Vance",
 }: DiagnosticAddTestClientProps) {
   const supabase = createClient();
 
-  // Active tests state
+  // Active tests state directly synced from DB
   const [testsList, setTestsList] = useState<string[]>(center.available_tests || []);
   const [testPrices, setTestPrices] = useState<Record<string, number>>(center.test_prices || {});
 
@@ -53,10 +38,7 @@ export function DiagnosticAddTestClient({
   const [toastMessage, setToastMessage] = useState<{ title: string; sub: string } | null>(null);
   const [deletingTest, setDeletingTest] = useState<string | null>(null);
 
-  // Search in catalog
-  const [catalogSearch, setCatalogSearch] = useState("");
-
-  // REAL-TIME SUPABASE SUBSCRIPTION
+  // Real-time Supabase subscription for instant live updates
   useEffect(() => {
     if (!center.id) return;
 
@@ -89,7 +71,7 @@ export function DiagnosticAddTestClient({
     };
   }, [supabase, center.id]);
 
-  // Handle Form Submit
+  // Handle Form Submit to Supabase DB
   const handleSaveTest = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -117,7 +99,6 @@ export function DiagnosticAddTestClient({
         return;
       }
 
-      // Optimistically update local state immediately
       if (res.available_tests) setTestsList(res.available_tests);
       if (res.test_prices) setTestPrices(res.test_prices);
 
@@ -125,35 +106,36 @@ export function DiagnosticAddTestClient({
       setSubmitSuccess(true);
 
       setToastMessage({
-        title: "Diagnostic Test Registered",
-        sub: `"${cleanName}" added at ₹${numFee} INR to ${center.name}.`,
+        title: "Test Added to Database",
+        sub: `"${cleanName}" (₹${numFee} INR) added to ${center.name}.`,
       });
 
       setTimeout(() => {
         setSubmitSuccess(false);
         setTestName("");
         setTestFee("");
-      }, 1800);
+      }, 1500);
 
       setTimeout(() => {
         setToastMessage(null);
-      }, 5000);
+      }, 4500);
     } catch (err: any) {
       setIsSubmitting(false);
       setErrorMessage(err.message || "Failed to add test.");
     }
   };
 
-  // Handle Quick Select chip
-  const handleSelectSuggestion = (s: { name: string; defaultFee: number }) => {
-    setTestName(s.name);
-    setTestFee(s.defaultFee.toString());
+  // Handle Discard / Clear
+  const handleDiscard = () => {
+    setTestName("");
+    setTestFee("");
     setErrorMessage(null);
+    setSubmitSuccess(false);
   };
 
-  // Handle Delete Test
+  // Handle Delete Test from DB
   const handleDeleteTest = async (tName: string) => {
-    if (!confirm(`Are you sure you want to remove "${tName}" from this centre's active catalog?`)) {
+    if (!confirm(`Remove "${tName}" from this centre's database catalog?`)) {
       return;
     }
 
@@ -165,9 +147,9 @@ export function DiagnosticAddTestClient({
 
       setToastMessage({
         title: "Test Removed",
-        sub: `"${tName}" was removed from the active catalog.`,
+        sub: `"${tName}" deleted from Supabase DB.`,
       });
-      setTimeout(() => setToastMessage(null), 4000);
+      setTimeout(() => setToastMessage(null), 3500);
     } catch (err) {
       console.error(err);
     } finally {
@@ -175,343 +157,270 @@ export function DiagnosticAddTestClient({
     }
   };
 
-  // Filtered tests in live table
-  const filteredTests = testsList.filter((t) =>
-    t.toLowerCase().includes(catalogSearch.toLowerCase())
-  );
-
   return (
-    <div className="w-full min-h-screen flex flex-col font-body-md text-on-surface antialiased bg-background">
-      {/* MAIN EDITABLE CONTENT AREA */}
-      <main className="flex-1 px-4 sm:px-8 py-8 sm:py-10 max-w-4xl mx-auto w-full">
-        {/* Breadcrumb strip for context */}
-        <div className="flex items-center gap-2 text-xs font-medium text-on-surface-variant mb-4">
-          <Link
-            href="/diagnostic-center/dashboard"
-            className="hover:text-primary transition-colors flex items-center gap-1"
-          >
-            <span className="material-symbols-outlined text-[16px]">domain</span>
-            <span>{center.name || "Central Diagnostic Laboratory"}</span>
-          </Link>
-          <span className="text-outline">/</span>
-          <span className="text-primary font-semibold">Add Diagnostic Test</span>
-        </div>
+    <div className="w-full px-4 pt-3 pb-8 max-w-md mx-auto sm:max-w-xl md:max-w-3xl flex flex-col gap-4">
+      {/* BREADCRUMB STRIP */}
+      <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+        <Link
+          href="/diagnostic-center/dashboard"
+          className="hover:text-blue-600 transition-colors"
+        >
+          Central Diagnostic Lab
+        </Link>
+        <span className="text-slate-400">›</span>
+        <span className="text-[#0066FF] font-bold">Add Diagnostic Test</span>
+      </div>
 
-        {/* Page Heading & Subtitle */}
-        <div className="mb-8">
-          <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
-            <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-label-sm text-[11px] uppercase tracking-wider font-bold">
-              Test Catalog Master
-            </span>
-            <span className="text-outline-variant text-[11px]">•</span>
-            <span className="flex items-center gap-1.5 text-fresh-teal font-label-sm text-[11px] font-semibold">
-              <span className="w-2 h-2 rounded-full bg-fresh-teal animate-pulse"></span>
-              Real-time DB Active
-            </span>
-          </div>
-          <h1 className="font-headline-lg text-2xl sm:text-3xl font-bold text-indigo-gray-900 tracking-tight">
-            Add Diagnostic Test to Centre
-          </h1>
-          <p className="text-sm text-indigo-gray-600 mt-1.5">
-            Enter standard test name and set the diagnostic test fee in Indian Rupees (₹ INR).
+      {/* COMPLIANCE BADGES PILL */}
+      <div className="flex items-center gap-2">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-[#A7F3D0]/60 text-[#065F46] border border-[#6EE7B7]/40">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#059669]"></span>
+          <span>NABL ISO 15189</span>
+        </span>
+
+        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-bold bg-[#DBEAFE] text-[#1E40AF] border border-[#93C5FD]/40">
+          <span className="material-symbols-outlined text-[14px]">verified</span>
+          <span>ABDM M3 Ready</span>
+        </span>
+      </div>
+
+      {/* PAGE TITLE & SUBTITLE */}
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-tight">
+          Add Diagnostic Test to Centre
+        </h1>
+        <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+          Enter standard test name and set the diagnostic test fee in Indian Rupees (₹ INR).
+        </p>
+      </div>
+
+      {/* STANDARDIZED CATALOG HERO CARD */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center gap-3.5">
+        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-50 to-teal-50 border border-slate-100 p-2 flex items-center justify-center text-teal-600 shrink-0">
+          <span className="material-symbols-outlined text-[30px]">science</span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-[10px] font-black text-[#0D9488] uppercase tracking-wider">
+            STANDARDIZED CATALOG
+          </span>
+          <h2 className="text-sm font-extrabold text-slate-900 leading-snug">
+            NABL Reference Pricing
+          </h2>
+          <p className="text-xs text-slate-500 line-clamp-1">
+            Syncs with automated billing and HIS...
           </p>
         </div>
+      </div>
 
-        {/* Error Alert if any */}
+      {/* MAIN FORM CARD: Diagnostic Test Details & Pricing */}
+      <form
+        onSubmit={handleSaveTest}
+        className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-sm flex flex-col gap-4"
+      >
+        {/* Card Header with Mandatory badge */}
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#0066FF] flex items-center justify-center">
+              <span className="material-symbols-outlined text-[18px]">experiment</span>
+            </div>
+            <h2 className="text-sm sm:text-base font-extrabold text-slate-900">
+              Diagnostic Test Details &amp; Pricing
+            </h2>
+          </div>
+          <span className="text-[10px] font-extrabold bg-rose-50 text-rose-600 border border-rose-100 px-2 py-0.5 rounded-full uppercase tracking-wider">
+            MANDATORY
+          </span>
+        </div>
+
+        {/* Error message */}
         {errorMessage && (
-          <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-3">
-            <span className="material-symbols-outlined text-[20px] text-red-600">error</span>
+          <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs text-rose-700 font-semibold flex items-center gap-2">
+            <span className="material-symbols-outlined text-[16px]">error</span>
             <span>{errorMessage}</span>
           </div>
         )}
 
-        {/* SINGLE SECTION: Test Details & Pricing Card */}
-        <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm overflow-hidden mb-10">
-          {/* Section Header */}
-          <div className="px-5 sm:px-7 py-5 border-b border-outline-variant bg-slate-50/50 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                <svg
-                  className="w-5 h-5 text-primary"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"
-                  ></path>
-                </svg>
-              </div>
-              <div>
-                <h2 className="font-headline-lg text-base font-bold text-indigo-gray-900">
-                  Diagnostic Test Details &amp; Pricing
-                </h2>
-                <p className="text-xs text-indigo-gray-600">
-                  Basic identification and standard fee configuration
-                </p>
-              </div>
-            </div>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-primary border border-blue-100">
-              Mandatory
-            </span>
+        {/* Diagnostic Test Name Field */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <label htmlFor="testNameInput" className="text-xs font-bold text-slate-700">
+              Diagnostic Test Name <span className="text-rose-500">*</span>
+            </label>
+            <span className="text-[10px] font-mono text-slate-400">{testName.length}/120</span>
           </div>
 
-          {/* Section Form Body */}
-          <form className="p-5 sm:p-7 space-y-6" id="add-test-form" onSubmit={handleSaveTest}>
-            {/* Field 1: Diagnostic Test Name */}
-            <div>
-              <label
-                className="block text-sm font-semibold text-indigo-gray-900 mb-1.5"
-                htmlFor="test-name"
-              >
-                Diagnostic Test Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                className="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
-                id="test-name"
-                name="test-name"
-                placeholder="e.g. Complete Blood Count (CBC) or HbA1c Glycated Hemoglobin"
-                required
-                type="text"
-                value={testName}
-                onChange={(e) => setTestName(e.target.value)}
-              />
-              <p className="text-xs text-indigo-gray-600 mt-1.5">
-                Enter clinical or common laboratory investigation name
-              </p>
+          <input
+            id="testNameInput"
+            type="text"
+            maxLength={120}
+            value={testName}
+            onChange={(e) => setTestName(e.target.value)}
+            placeholder="e.g. Complete Blood Count (CBC) or"
+            className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:border-[#0066FF] focus:bg-white transition-all"
+          />
 
-              {/* Quick Select Investigation Chips */}
-              <div className="mt-3">
-                <span className="text-[11px] text-indigo-gray-600 font-semibold uppercase tracking-wider block mb-1.5">
-                  Popular Standard Lab Investigations:
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {COMMON_TEST_SUGGESTIONS.slice(0, 6).map((s) => (
-                    <button
-                      key={s.name}
-                      type="button"
-                      onClick={() => handleSelectSuggestion(s)}
-                      className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-primary/10 hover:text-primary text-slate-700 transition-colors border border-slate-200 cursor-pointer"
-                    >
-                      + {s.name} (₹{s.defaultFee})
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Field 2: Diagnostic Test Fee / Amount in INR */}
-            <div>
-              <label
-                className="block text-sm font-semibold text-indigo-gray-900 mb-1.5"
-                htmlFor="test-fee"
-              >
-                Test Amount (₹ INR) <span className="text-red-500">*</span>
-              </label>
-              <div className="relative max-w-xs">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 font-semibold text-base">
-                  ₹
-                </span>
-                <input
-                  className="w-full pl-8 pr-4 py-3 bg-white border border-slate-300 rounded-xl text-lg font-bold text-slate-900 placeholder:text-slate-400 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
-                  id="test-fee"
-                  min="0"
-                  name="test-fee"
-                  placeholder="e.g. 450"
-                  required
-                  step="1"
-                  type="number"
-                  value={testFee}
-                  onChange={(e) => setTestFee(e.target.value)}
-                />
-              </div>
-              <p className="text-xs text-indigo-gray-600 mt-1.5">
-                Set standard diagnostic charge for this test in Indian Rupees
-              </p>
-            </div>
-
-            {/* Divider & Action Buttons */}
-            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-end gap-3">
-              <button
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition-colors focus:outline-none cursor-pointer"
-                id="btn-clear"
-                type="button"
-                onClick={() => {
-                  setTestName("");
-                  setTestFee("");
-                  setErrorMessage(null);
-                }}
-              >
-                Discard / Clear
-              </button>
-              <button
-                className={`w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-white font-semibold text-sm shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer ${
-                  submitSuccess
-                    ? "bg-fresh-teal"
-                    : "bg-primary hover:bg-blue-600 active:scale-95"
-                }`}
-                id="btn-save"
-                type="submit"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <span className="material-symbols-outlined text-[18px] animate-spin">
-                      progress_activity
-                    </span>
-                    <span>Adding Test to DB...</span>
-                  </>
-                ) : submitSuccess ? (
-                  <>
-                    <span className="material-symbols-outlined text-[18px]">check</span>
-                    <span>Test Added Successfully!</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-[18px]">check_circle</span>
-                    <span>Save &amp; Add Test (₹ INR)</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
+          <span className="text-[11px] text-slate-400">
+            Enter clinical or common laboratory investigation name
+          </span>
         </div>
 
-        {/* LIVE CATALOG MATRIX: Tests currently in this Diagnostic Centre */}
-        <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm overflow-hidden">
-          <div className="px-5 sm:px-7 py-4 border-b border-outline-variant bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-fresh-teal/10 text-fresh-teal flex items-center justify-center">
-                <span className="material-symbols-outlined text-[20px]">inventory_2</span>
-              </div>
-              <div>
-                <h3 className="font-headline-lg text-base font-bold text-indigo-gray-900">
-                  Current Test Catalog &amp; Tariff Schedule
-                </h3>
-                <p className="text-xs text-indigo-gray-600">
-                  {testsList.length} investigations active for {center.name}
-                </p>
-              </div>
-            </div>
+        {/* Test Amount (₹ INR) Field */}
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="testAmountInput" className="text-xs font-bold text-slate-700">
+            Test Amount (₹ INR) <span className="text-rose-500">*</span>
+          </label>
 
-            {/* Quick Filter */}
-            <div className="relative">
-              <span className="material-symbols-outlined absolute left-2.5 top-2 text-on-surface-variant text-[18px]">
-                search
-              </span>
-              <input
-                type="text"
-                placeholder="Search catalog..."
-                value={catalogSearch}
-                onChange={(e) => setCatalogSearch(e.target.value)}
-                className="pl-8 pr-3 py-1.5 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary w-48"
-              />
-            </div>
+          <div className="relative flex items-center">
+            <span className="absolute left-3.5 text-slate-600 font-bold text-base">₹</span>
+            <input
+              id="testAmountInput"
+              type="number"
+              min="0"
+              step="1"
+              value={testFee}
+              onChange={(e) => setTestFee(e.target.value)}
+              placeholder="e.g. 450"
+              className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl pl-8 pr-3.5 py-2.5 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:border-[#0066FF] focus:bg-white transition-all"
+            />
           </div>
 
-          <div className="divide-y divide-slate-100">
-            {filteredTests.length === 0 ? (
-              <div className="p-8 text-center text-sm text-on-surface-variant">
-                No diagnostic tests found in catalog matching &quot;{catalogSearch}&quot;.
-              </div>
+          <div className="flex items-center justify-between text-[11px] text-slate-400 mt-0.5">
+            <span>Set standard diagnostic charge for this test in Indian Rupees</span>
+            <span className="font-semibold text-emerald-600">Incl. 0% GST (Clinical)</span>
+          </div>
+        </div>
+
+        {/* ABDM Digital Health Record Linking Card */}
+        <div className="bg-[#EFF6FF] border border-blue-100 rounded-xl p-3.5 flex items-start gap-3">
+          <span className="material-symbols-outlined text-[#0066FF] text-[20px] shrink-0 mt-0.5">
+            verified_user
+          </span>
+          <div className="flex flex-col">
+            <h3 className="text-xs font-bold text-slate-900">ABDM Digital Health Record Linking</h3>
+            <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
+              Test code will be automatically indexed to LOINC &amp; SNOMED-CT clinical dictionaries for fast patient record generation.
+            </p>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col gap-2 pt-2">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full bg-[#0066FF] hover:bg-blue-700 text-white font-bold text-sm py-3 px-4 rounded-full flex items-center justify-center gap-2 shadow-md shadow-blue-500/25 active:scale-98 transition-all cursor-pointer"
+          >
+            {isSubmitting ? (
+              <span className="animate-spin material-symbols-outlined text-[18px]">progress_activity</span>
+            ) : submitSuccess ? (
+              <>
+                <span className="material-symbols-outlined text-[18px] text-emerald-300">check_circle</span>
+                <span>Saved to Database!</span>
+              </>
             ) : (
-              filteredTests.map((test) => {
-                const fee = testPrices[test] !== undefined ? testPrices[test] : 500;
-                return (
-                  <div
-                    key={test}
-                    className="px-5 sm:px-7 py-3.5 flex items-center justify-between gap-4 hover:bg-slate-50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                        <span className="material-symbols-outlined text-[18px]">biotech</span>
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-sm text-indigo-gray-900 truncate">
-                          {test}
-                        </span>
-                        <div className="flex items-center gap-2 text-xs text-indigo-gray-600">
-                          <span className="inline-flex items-center gap-1 text-fresh-teal font-medium">
-                            <span className="w-1.5 h-1.5 rounded-full bg-fresh-teal"></span>
-                            Active Online
-                          </span>
-                          <span>•</span>
-                          <span>Report TAT: Same Day / 24 hrs</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 shrink-0">
-                      <div className="text-right">
-                        <span className="text-base font-bold text-indigo-gray-900 font-mono">
-                          ₹{fee}
-                        </span>
-                        <span className="text-[10px] text-indigo-gray-600 block">INR Standard</span>
-                      </div>
-
-                      <button
-                        type="button"
-                        aria-label={`Remove ${test}`}
-                        disabled={deletingTest === test}
-                        onClick={() => handleDeleteTest(test)}
-                        className="w-8 h-8 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 flex items-center justify-center transition-colors cursor-pointer"
-                      >
-                        {deletingTest === test ? (
-                          <span className="material-symbols-outlined text-[16px] animate-spin">
-                            progress_activity
-                          </span>
-                        ) : (
-                          <span className="material-symbols-outlined text-[18px]">delete</span>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
+              <>
+                <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                <span>Save &amp; Add Test (₹ INR)</span>
+              </>
             )}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDiscard}
+            className="w-full bg-white border border-slate-200 text-slate-700 font-bold text-sm py-2.5 px-4 rounded-full flex items-center justify-center gap-1.5 hover:bg-slate-50 active:scale-98 transition-all cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-[18px]">close</span>
+            <span>Discard / Clear</span>
+          </button>
+        </div>
+      </form>
+
+      {/* INSTITUTIONAL COMPLIANCE SECTION */}
+      <div className="flex flex-col gap-2.5">
+        <div className="flex items-center justify-between text-xs">
+          <span className="font-extrabold text-slate-500 uppercase tracking-wider text-[11px]">
+            INSTITUTIONAL COMPLIANCE
+          </span>
+          <div className="flex items-center gap-1.5 text-emerald-600 font-bold text-[11px]">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            <span>Live Gateway</span>
           </div>
         </div>
-      </main>
 
-      {/* MINIMAL PROFESSIONAL FOOTER */}
-      <footer className="mt-auto border-t border-outline-variant bg-surface-container-lowest py-5 px-4 sm:px-8">
-        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-on-surface-variant">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-slate-900">
-              Consult Your Doctor Healthcare Diagnostics
+        <div className="grid grid-cols-3 gap-2">
+          {/* Card 1: GSTIN */}
+          <div className="bg-[#F1F5F9] rounded-xl p-3 flex flex-col items-center justify-center text-center">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">GSTIN</span>
+            <span className="text-[11px] font-extrabold text-slate-800 mt-1 truncate max-w-full">
+              27AABCY1982M1Z8
             </span>
-            <span>•</span>
-            <span>GSTIN: 27AAACC4112L1Z9</span>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="inline-flex items-center gap-1 font-medium">
-              <span className="material-symbols-outlined text-[16px] text-fresh-teal">
-                verified_user
-              </span>
-              NABL ISO 15189:2022
-            </span>
-            <span className="inline-flex items-center gap-1 font-medium text-primary">
-              <span className="material-symbols-outlined text-[16px] text-primary">verified</span>
-              ABDM Integrated
-            </span>
+
+          {/* Card 2: NABL ISO */}
+          <div className="bg-[#F1F5F9] rounded-xl p-3 flex flex-col items-center justify-center text-center">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">NABL ISO</span>
+            <span className="text-[11px] font-extrabold text-slate-800 mt-1">15189:2022 Accr.</span>
+          </div>
+
+          {/* Card 3: ABDM */}
+          <div className="bg-[#F1F5F9] rounded-xl p-3 flex flex-col items-center justify-center text-center">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">ABDM</span>
+            <span className="text-[11px] font-extrabold text-teal-700 mt-1">Milestone 3</span>
           </div>
         </div>
-      </footer>
+      </div>
 
-      {/* FLOATING ACTION TOAST */}
+      {/* ACTIVE CATALOG FROM DB (Live view of all tests stored in Supabase) */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-extrabold text-slate-900">
+            Active Centre Catalog ({testsList.length} Tests in DB)
+          </h2>
+          <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+            Live DB Synced
+          </span>
+        </div>
+
+        <div className="divide-y divide-slate-100 flex flex-col">
+          {testsList.length === 0 ? (
+            <p className="text-xs text-slate-400 py-4 text-center">No tests added yet.</p>
+          ) : (
+            testsList.map((tName) => {
+              const price = testPrices[tName] || 0;
+              return (
+                <div key={tName} className="py-2.5 flex items-center justify-between gap-2">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold text-slate-900">{tName}</span>
+                    <span className="text-[11px] font-semibold text-[#0066FF]">
+                      ₹{price.toLocaleString("en-IN")} INR
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={deletingTest === tName}
+                    onClick={() => handleDeleteTest(tName)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                    title="Delete Test"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      {deletingTest === tName ? "progress_activity" : "delete"}
+                    </span>
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* TOAST POPUP */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 transition-all duration-300 pointer-events-none animate-in fade-in slide-in-from-bottom-5">
-          <div className="px-4 py-3 rounded-xl bg-slate-900 text-white shadow-2xl flex items-center gap-3 border border-slate-700">
-            <span className="material-symbols-outlined text-fresh-teal text-[22px]">
-              check_circle
-            </span>
-            <div className="flex flex-col">
-              <span className="font-label-sm text-[13px] font-bold">{toastMessage.title}</span>
-              <span className="font-label-sm text-[11px] text-slate-300">{toastMessage.sub}</span>
-            </div>
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-in fade-in slide-in-from-bottom-3 duration-150">
+          <div className="px-4 py-2 rounded-full bg-slate-900 text-white text-xs font-bold shadow-2xl flex items-center gap-2 border border-slate-800">
+            <span className="material-symbols-outlined text-emerald-400 text-[18px]">check_circle</span>
+            <span>{toastMessage.title}</span>
           </div>
         </div>
       )}

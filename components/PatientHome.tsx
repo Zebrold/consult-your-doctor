@@ -4,6 +4,7 @@ import React, { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PatientDock } from "@/components/PatientDock";
+import { PatientNavHeader } from "@/components/PatientNavHeader";
 
 export interface DoctorItem {
   id: string;
@@ -120,7 +121,228 @@ export function PatientHome({
 
   return (
     <div className="bg-background font-body-md text-body-md text-on-surface antialiased min-h-screen">
-      <main className="w-full bg-background min-h-[calc(100vh-20rem)] pb-28">
+      {/* MOBILE COMPATIBLE PATIENT DASHBOARD (Block on mobile md:hidden, matching Screenshot 1) */}
+      <div className="block md:hidden">
+        <PatientNavHeader title="Home" user={user} profile={profile} />
+
+        <div className="px-5 pt-5 pb-28 space-y-7">
+          {/* Welcome & Specialist Heading */}
+          <div className="space-y-1">
+            <span className="font-bold text-[12px] text-primary uppercase tracking-wider block">
+              WELCOME BACK, {fullName.split(" ")[0].toUpperCase()}
+            </span>
+            <h2 className="font-headline-lg text-[26px] font-extrabold text-slate-900 tracking-tight leading-tight">
+              Find your specialist today
+            </h2>
+          </div>
+
+          {/* Search Doctors Bar */}
+          <form
+            onSubmit={handleSearch}
+            className="relative flex items-center bg-white rounded-full p-1.5 shadow-sm border border-slate-200"
+          >
+            <div className="flex-1 flex items-center gap-2 pl-3">
+              <span className="material-symbols-outlined text-slate-400 text-[20px]">search</span>
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search doctors, condition"
+                className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+              />
+            </div>
+            <button
+              type="submit"
+              className="bg-primary text-white font-semibold text-sm px-6 py-2 rounded-full hover:bg-blue-600 transition-colors shrink-0 shadow-xs cursor-pointer"
+            >
+              Search
+            </button>
+          </form>
+
+          {/* Popular Specialties */}
+          <div className="space-y-3.5">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-[17px] text-slate-900">Popular Specialties</h3>
+              <Link
+                href={isPreview ? "/find?preview=patient" : "/find"}
+                className="text-xs font-semibold text-primary hover:underline"
+              >
+                See All
+              </Link>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              <Link
+                href="/find?specialty=Cardiology"
+                className="flex flex-col items-center gap-2 p-2.5 rounded-2xl bg-white border border-slate-100 shadow-xs hover:border-primary/40 transition-all"
+              >
+                <div className="w-12 h-12 rounded-full bg-[#dbeafe] flex items-center justify-center text-primary">
+                  <span
+                    className="material-symbols-outlined text-[24px]"
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                  >
+                    favorite
+                  </span>
+                </div>
+                <span className="text-[12px] font-semibold text-slate-800 text-center leading-tight">
+                  Cardiology
+                </span>
+              </Link>
+
+              <Link
+                href="/find?specialty=Neurology"
+                className="flex flex-col items-center gap-2 p-2.5 rounded-2xl bg-white border border-slate-100 shadow-xs hover:border-primary/40 transition-all"
+              >
+                <div className="w-12 h-12 rounded-full bg-[#a7f3d0] flex items-center justify-center text-teal-800">
+                  <span
+                    className="material-symbols-outlined text-[24px]"
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                  >
+                    psychology
+                  </span>
+                </div>
+                <span className="text-[12px] font-semibold text-slate-800 text-center leading-tight">
+                  Neurology
+                </span>
+              </Link>
+
+              <Link
+                href="/find?specialty=Pediatrics"
+                className="flex flex-col items-center gap-2 p-2.5 rounded-2xl bg-white border border-slate-100 shadow-xs hover:border-primary/40 transition-all"
+              >
+                <div className="w-12 h-12 rounded-full bg-[#fed7aa] flex items-center justify-center text-orange-800">
+                  <span
+                    className="material-symbols-outlined text-[24px]"
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                  >
+                    child_care
+                  </span>
+                </div>
+                <span className="text-[12px] font-semibold text-slate-800 text-center leading-tight">
+                  Pediatrics
+                </span>
+              </Link>
+
+              <Link
+                href="/find?specialty=Ophthalmology"
+                className="flex flex-col items-center gap-2 p-2.5 rounded-2xl bg-white border border-slate-100 shadow-xs hover:border-primary/40 transition-all"
+              >
+                <div className="w-12 h-12 rounded-full bg-[#e0e7ff] flex items-center justify-center text-indigo-700">
+                  <span
+                    className="material-symbols-outlined text-[24px]"
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                  >
+                    visibility
+                  </span>
+                </div>
+                <span className="text-[12px] font-semibold text-slate-800 text-center leading-tight">
+                  Eye Care
+                </span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Top-Rated Doctors */}
+          <div className="space-y-3.5">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-[17px] text-slate-900">Top-Rated Doctors</h3>
+              <Link
+                href={isPreview ? "/find?preview=patient" : "/find"}
+                className="text-xs font-semibold text-primary hover:underline"
+              >
+                View All
+              </Link>
+            </div>
+
+            <div className="space-y-3">
+              {doctors.slice(0, 3).map((doc, idx) => (
+                <Link
+                  key={doc.id}
+                  href={`/doctors/${doc.id}`}
+                  className="block p-4 rounded-2xl bg-white border border-slate-100 shadow-xs hover:shadow-md transition-all"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h4 className="font-bold text-[16px] text-slate-900 leading-tight">
+                        {doc.name}
+                      </h4>
+                      <p className="text-[13px] text-slate-500 mt-0.5">{doc.specialty}</p>
+                    </div>
+                    <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-800 text-xs font-bold shrink-0">
+                      <span className="text-amber-500">★</span>
+                      <span>{doc.rating || "4.9"}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-3 text-xs">
+                    <span
+                      className={`px-2.5 py-0.5 rounded-md font-semibold ${
+                        idx % 2 === 0
+                          ? "bg-teal-50 text-teal-700"
+                          : "bg-indigo-50 text-indigo-700"
+                      }`}
+                    >
+                      {idx % 2 === 0 ? "Available Today" : "Next Available: Tomorrow"}
+                    </span>
+                    <span className="text-slate-400">•</span>
+                    <span className="text-slate-500 font-medium">
+                      {doc.experience_years ? `${doc.experience_years} yrs exp` : "8 yrs exp"}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Featured Hospitals */}
+          <div className="space-y-3.5">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-[17px] text-slate-900">Featured Hospitals</h3>
+              <Link
+                href={isPreview ? "/find?preview=patient" : "/find"}
+                className="text-xs font-semibold text-primary hover:underline"
+              >
+                Explore All
+              </Link>
+            </div>
+
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x -mx-1 px-1">
+              {hospitals.slice(0, 4).map((h) => (
+                <Link
+                  key={h.id}
+                  href={
+                    h.type === "diagnostic"
+                      ? `/patient/checkout/diagnostic/${h.id}`
+                      : `/hospitals/${h.id}`
+                  }
+                  className="min-w-[210px] max-w-[230px] p-3.5 rounded-2xl bg-white border border-slate-100 shadow-xs hover:shadow-md transition-all shrink-0 snap-start flex flex-col justify-between"
+                >
+                  <div className="w-full h-24 rounded-xl bg-slate-100 overflow-hidden relative mb-2.5">
+                    {h.image ? (
+                      <img src={h.image} alt={h.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center text-primary">
+                        <span className="material-symbols-outlined text-[32px]">local_hospital</span>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-900 truncate">{h.name}</h4>
+                    <div className="flex items-center gap-1 text-slate-500 text-xs mt-1">
+                      <span className="material-symbols-outlined text-[14px]">location_on</span>
+                      <span className="truncate">{h.location || h.city || "Downtown Metro"}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] font-semibold mt-3 pt-2 border-t border-slate-50">
+                    <span className="text-fresh-teal">Open 24/7</span>
+                    <span className="text-primary">{h.doctors || "45 Doctors"}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* DESKTOP VIEW (Hidden on mobile md:block) */}
+      <main className="hidden md:block w-full bg-background min-h-[calc(100vh-20rem)] pb-28">
         <div className="flex flex-col w-full">
 
           {/* SECTION 1: HERO & SEARCH */}

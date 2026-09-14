@@ -12,11 +12,12 @@ export default async function DiagnosticLayout({ children }: { children: React.R
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  const adminSupabase = createAdminClient()
   let center: any = null
   let profile: any = null
 
   if (user) {
-    const { data: userProfile } = await supabase
+    const { data: userProfile } = await adminSupabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
@@ -24,7 +25,7 @@ export default async function DiagnosticLayout({ children }: { children: React.R
 
     if (userProfile?.diagnostic_center_id) {
       profile = userProfile
-      const { data: c } = await supabase
+      const { data: c } = await adminSupabase
         .from('diagnostic_centers')
         .select('*')
         .eq('id', userProfile.diagnostic_center_id)
@@ -35,7 +36,6 @@ export default async function DiagnosticLayout({ children }: { children: React.R
 
   // Fallback to active DB center for instant preview or demo review
   if (!center) {
-    const adminSupabase = createAdminClient()
     const { data: firstCenter } = await adminSupabase
       .from('diagnostic_centers')
       .select('*')
@@ -44,11 +44,7 @@ export default async function DiagnosticLayout({ children }: { children: React.R
       .limit(1)
       .maybeSingle()
 
-    center = firstCenter || {
-      name: 'Apex Diagnostics & Imaging',
-      city: 'Central Hub',
-      address: 'Main Pathology & Radiology Lab',
-    }
+    center = firstCenter
   }
 
   const directorName = profile?.full_name || 'Dr. Katherine Vance'

@@ -8,11 +8,12 @@ export default async function DiagnosticTestsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  const adminSupabase = createAdminClient()
   let centerId: string | null = null
   let profile: any = null
 
   if (user) {
-    const { data: userProfile } = await supabase
+    const { data: userProfile } = await adminSupabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
@@ -23,8 +24,6 @@ export default async function DiagnosticTestsPage() {
       centerId = userProfile.diagnostic_center_id || null
     }
   }
-
-  const adminSupabase = createAdminClient()
 
   let center: any = null
   if (centerId) {

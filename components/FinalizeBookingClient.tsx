@@ -2,9 +2,9 @@
 
 import React, { useState, useRef, useMemo, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PatientDock } from "@/components/PatientDock";
+import { PatientNavHeader } from "@/components/PatientNavHeader";
 
 export interface BookingDoctor {
   id: string;
@@ -373,7 +373,285 @@ export function FinalizeBookingClient({
 
   return (
     <div className="bg-background font-body-md text-body-md text-on-surface antialiased min-h-screen">
-      <main className="w-full bg-background min-h-[calc(100vh-10rem)] pt-8 pb-32">
+      {/* ============================================================ */}
+      {/* DEDICATED MOBILE VIEW (block md:hidden) - EXACT SCREENSHOT 3 */}
+      {/* ============================================================ */}
+      <div className="block md:hidden w-full bg-white min-h-screen pb-24">
+        {/* Top Header */}
+        <PatientNavHeader title="Book" />
+
+        {/* Doctor Summary Card */}
+        <div className="mx-4 mt-4 p-4 rounded-2xl bg-[#f5f8ff] border border-blue-100/60 shadow-xs flex flex-col gap-3">
+          <div className="flex items-start gap-3.5">
+            {/* Doctor Image or Avatar */}
+            <div className="relative w-18 h-18 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200/80 flex items-center justify-center shadow-2xs">
+              {doctor.image_url ? (
+                <img
+                  src={doctor.image_url}
+                  alt={doctorName}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                    const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                    if (fallback) fallback.style.display = "flex";
+                  }}
+                />
+              ) : null}
+              <div
+                className={`w-full h-full bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-100 flex flex-col items-center justify-center ${
+                  doctor.image_url ? "hidden" : "flex"
+                }`}
+              >
+                <div className="w-9 h-9 rounded-full bg-white/90 shadow-2xs flex items-center justify-center text-primary mb-0.5 border border-blue-100">
+                  <span className="material-symbols-outlined text-[22px] text-blue-600">person</span>
+                </div>
+                <span className="text-[10px] font-bold text-slate-700 leading-none">
+                  {getDoctorInitials(doctorName)}
+                </span>
+              </div>
+              <span className="absolute bottom-1 right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white"></span>
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base font-bold text-slate-900 leading-tight truncate">
+                {doctorName.startsWith("Dr.") ? doctorName : `Dr. ${doctorName}`}
+              </h2>
+              <p className="text-xs text-slate-600 mt-0.5 truncate">
+                Senior {doctor.specialty} &amp; Specialist
+              </p>
+              <div className="flex items-center gap-1 text-xs font-semibold text-slate-700 mt-1">
+                <span className="text-amber-500">★</span>
+                <span>4.9</span>
+                <span className="text-slate-400 font-normal">(1,248 reviews)</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 3 Metric Badges in Row */}
+          <div className="grid grid-cols-3 gap-2 pt-3 border-t border-blue-100/80 text-center">
+            <div className="flex flex-col">
+              <span className="text-[10px] uppercase font-semibold text-slate-400">Experience</span>
+              <span className="text-xs font-bold text-slate-800">{doctor.experience_years || 5} Years</span>
+            </div>
+            <div className="flex flex-col border-x border-blue-100/80">
+              <span className="text-[10px] uppercase font-semibold text-slate-400">Patients</span>
+              <span className="text-xs font-bold text-slate-800">5,000+</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] uppercase font-semibold text-slate-400">Fee</span>
+              <span className="text-xs font-bold text-primary">₹{fee}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Consultation Mode */}
+        <div className="px-4 mt-5">
+          <h3 className="text-xs font-bold text-slate-800 mb-2">Consultation Mode</h3>
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              onClick={() => setConsultationMode("video")}
+              className={`py-3 px-3 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all shadow-xs ${consultationMode === "video"
+                ? "bg-primary text-white"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200/70"
+                }`}
+            >
+              <span className="material-symbols-outlined text-[18px]">videocam</span>
+              <span>Video Call</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setConsultationMode("inperson")}
+              className={`py-3 px-3 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all shadow-xs ${consultationMode === "inperson"
+                ? "bg-primary text-white"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200/70"
+                }`}
+            >
+              <span className="material-symbols-outlined text-[18px]">diversity_1</span>
+              <span>In-Person</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Select Date */}
+        <div className="px-4 mt-5">
+          <div className="flex items-center justify-between mb-2.5">
+            <h3 className="text-xs font-bold text-slate-800">Select Date</h3>
+            <span className="text-xs font-semibold text-primary">
+              {new Date(selectedDate || Date.now()).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
+            {daysList.map((d) => {
+              const isSelected = selectedDate === d.dateStr;
+              return (
+                <button
+                  key={d.dateStr}
+                  type="button"
+                  onClick={() => setSelectedDate(d.dateStr)}
+                  className={`flex-1 min-w-[58px] py-2.5 px-2 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all ${isSelected
+                    ? "bg-primary text-white shadow-xs font-bold"
+                    : "bg-slate-50 text-slate-700 border border-slate-200/80"
+                    }`}
+                >
+                  <span className="text-[10px] uppercase font-semibold">{d.dayName}</span>
+                  <span className="text-base font-bold leading-none my-0.5">{d.dayNum}</span>
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${isSelected
+                      ? "bg-white"
+                      : d.hasAvailable
+                        ? "bg-emerald-500"
+                        : "bg-transparent"
+                      }`}
+                  />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Available Time Slots */}
+        <div className="px-4 mt-5">
+          <h3 className="text-xs font-bold text-slate-800 mb-2.5">Available Time Slots</h3>
+          {activeDaySlots.length === 0 ? (
+            <div className="py-6 px-4 text-center rounded-2xl bg-slate-50 border border-dashed border-slate-200 flex flex-col items-center justify-center gap-1.5">
+              <span className="material-symbols-outlined text-2xl text-slate-400">event_busy</span>
+              <span className="text-xs font-bold text-slate-700">No Clinic Slots Available For This Date</span>
+              <p className="text-[11px] text-slate-500 max-w-xs">
+                The doctor has no scheduled consultation slots for this date. Please select another date from above.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              {activeDaySlots.map((slot) => {
+                const isSelected = selectedSlotId === slot.id;
+                const isBooked = slot.isBooked;
+
+                return (
+                  <button
+                    key={slot.id}
+                    type="button"
+                    disabled={isBooked}
+                    onClick={() => {
+                      setSelectedSlotId(slot.id);
+                      setSelectedSlotTime(slot.timeString);
+                    }}
+                    className={`py-2.5 px-1 rounded-xl text-xs font-semibold transition-all ${isBooked
+                      ? "bg-slate-100 text-slate-400 cursor-not-allowed line-through"
+                      : isSelected
+                        ? "bg-primary text-white shadow-xs font-bold"
+                        : "bg-[#f5f8ff] text-slate-700 hover:bg-blue-50 border border-blue-100/50"
+                      }`}
+                  >
+                    {slot.timeString}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Patient Information */}
+        <div className="px-4 mt-5">
+          <h3 className="text-xs font-bold text-slate-800 mb-2.5">Patient Information</h3>
+          <div className="bg-slate-50/70 rounded-2xl p-3.5 border border-slate-200/70 shadow-xs space-y-3">
+            <div>
+              <label className="text-[11px] font-semibold text-slate-600">Full Name</label>
+              <input
+                type="text"
+                value={patientName}
+                onChange={(e) => setPatientName(e.target.value)}
+                placeholder="Alex Morgan"
+                className="w-full mt-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[11px] font-semibold text-slate-600">Age</label>
+                <input
+                  type="number"
+                  value={patientAge}
+                  onChange={(e) => setPatientAge(e.target.value)}
+                  placeholder="28"
+                  className="w-full mt-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-slate-600">Gender</label>
+                <select
+                  value={patientGender}
+                  onChange={(e) => setPatientGender(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-slate-600">Reason for Visit / Symptoms</label>
+              <textarea
+                rows={3}
+                value={visitReason}
+                onChange={(e) => setVisitReason(e.target.value)}
+                placeholder="Experiencing mild palpitations and occasional shortness of breath during light workouts."
+                className="w-full mt-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Cost Breakdown & Payment card */}
+        <div className="px-4 mt-5">
+          <div className="bg-[#f5f8ff] rounded-2xl p-4 border border-blue-100/60 shadow-xs space-y-2.5">
+            <div className="flex items-center justify-between text-xs text-slate-600">
+              <span>Consultation Fee</span>
+              <span className="font-semibold text-slate-900">₹{fee}.00</span>
+            </div>
+            <div className="flex items-center justify-between text-xs text-slate-600">
+              <span>Platform &amp; Tax Service</span>
+              <span className="font-semibold text-slate-900">₹{platformFee}.00</span>
+            </div>
+            <div className="flex items-center justify-between text-sm pt-2 border-t border-blue-100 font-bold text-slate-900">
+              <span>Total Payable</span>
+              <span className="text-base text-primary font-bold">₹{totalPayable}.00</span>
+            </div>
+          </div>
+        </div>
+
+        {/* CTA Confirm & Pay button */}
+        <div className="px-4 mt-5 pb-8">
+          {errorMessage && (
+            <div className="mb-3 p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[16px]">error</span>
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {bookingSuccess && (
+            <div className="mb-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[16px]">check_circle</span>
+              <span>Booking confirmed successfully! Redirecting...</span>
+            </div>
+          )}
+
+          <button
+            type="button"
+            disabled={isSubmitting}
+            onClick={handleConfirmAndPay}
+            className="w-full py-3.5 px-4 rounded-full bg-primary text-white text-sm font-bold shadow-md hover:bg-blue-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+          >
+            <span className="material-symbols-outlined text-[18px]">lock</span>
+            <span>{isSubmitting ? "Processing..." : `Confirm & Pay ₹${totalPayable}.00`}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ============================================================ */}
+      {/* DESKTOP VIEW (hidden md:block) */}
+      {/* ============================================================ */}
+      <main className="hidden md:block w-full bg-background min-h-[calc(100vh-10rem)] pt-8 pb-32">
         <div className="flex flex-col w-full">
           {/* Ambient Glows */}
           <div className="relative w-full overflow-hidden">
@@ -481,13 +759,24 @@ export function FinalizeBookingClient({
                             className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl object-cover shadow-md bg-surface-container"
                             src={doctor.image_url}
                             alt={doctorName}
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                              const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                              if (fallback) fallback.style.display = "flex";
+                            }}
                           />
-                        ) : (
-                          <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl bg-indigo-gray-900 text-white flex flex-col items-center justify-center font-bold text-2xl shadow-md shrink-0">
-                            <span>{getDoctorInitials(doctorName)}</span>
-                            <span className="text-[11px] text-outline font-normal mt-0.5">Doctor</span>
+                        ) : null}
+                        <div
+                          className={`w-24 h-24 sm:w-28 sm:h-28 rounded-xl bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-100 border border-blue-100 flex flex-col items-center justify-center shadow-md shrink-0 ${
+                            doctor.image_url ? "hidden" : "flex"
+                          }`}
+                        >
+                          <div className="w-11 h-11 rounded-full bg-white shadow-2xs flex items-center justify-center text-primary mb-1 border border-blue-100">
+                            <span className="material-symbols-outlined text-[26px] text-blue-600">person</span>
                           </div>
-                        )}
+                          <span className="text-sm font-bold text-slate-800">{getDoctorInitials(doctorName)}</span>
+                          <span className="text-[10px] text-slate-500 font-medium">Doctor</span>
+                        </div>
                         <span className="absolute -bottom-2 -right-2 px-2.5 py-0.5 rounded-full bg-fresh-teal text-surface-container-lowest font-label-sm text-label-sm flex items-center gap-1 shadow-sm font-bold">
                           <span className="w-1.5 h-1.5 rounded-full bg-surface-container-lowest animate-pulse"></span>
                           Today
@@ -565,28 +854,25 @@ export function FinalizeBookingClient({
                       {/* Video Call Card */}
                       <div
                         onClick={() => setConsultationMode("video")}
-                        className={`cursor-pointer relative flex flex-col p-4 rounded-xl transition-all duration-200 border ${
-                          consultationMode === "video"
-                            ? "bg-surface-container-low shadow-sm border-vibrant-blue ring-1 ring-vibrant-blue/20"
-                            : "bg-surface-container-lowest border-surface-container hover:bg-surface-container-low"
-                        }`}
+                        className={`cursor-pointer relative flex flex-col p-4 rounded-xl transition-all duration-200 border ${consultationMode === "video"
+                          ? "bg-surface-container-low shadow-sm border-vibrant-blue ring-1 ring-vibrant-blue/20"
+                          : "bg-surface-container-lowest border-surface-container hover:bg-surface-container-low"
+                          }`}
                       >
                         <div className="flex items-center justify-between mb-2">
                           <div
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                              consultationMode === "video"
-                                ? "bg-vibrant-blue text-surface-container-lowest"
-                                : "bg-surface-container text-on-surface"
-                            }`}
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center ${consultationMode === "video"
+                              ? "bg-vibrant-blue text-surface-container-lowest"
+                              : "bg-surface-container text-on-surface"
+                              }`}
                           >
                             <span className="material-symbols-outlined text-[22px]">videocam</span>
                           </div>
                           <span
-                            className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                              consultationMode === "video"
-                                ? "bg-vibrant-blue text-surface-container-lowest"
-                                : "bg-surface-variant text-transparent"
-                            }`}
+                            className={`w-5 h-5 rounded-full flex items-center justify-center ${consultationMode === "video"
+                              ? "bg-vibrant-blue text-surface-container-lowest"
+                              : "bg-surface-variant text-transparent"
+                              }`}
                           >
                             <span className="material-symbols-outlined text-[14px]">check</span>
                           </span>
@@ -606,28 +892,25 @@ export function FinalizeBookingClient({
                       {/* In-Person Card */}
                       <div
                         onClick={() => setConsultationMode("inperson")}
-                        className={`cursor-pointer relative flex flex-col p-4 rounded-xl transition-all duration-200 border ${
-                          consultationMode === "inperson"
-                            ? "bg-surface-container-low shadow-sm border-vibrant-blue ring-1 ring-vibrant-blue/20"
-                            : "bg-surface-container-lowest border-surface-container hover:bg-surface-container-low"
-                        }`}
+                        className={`cursor-pointer relative flex flex-col p-4 rounded-xl transition-all duration-200 border ${consultationMode === "inperson"
+                          ? "bg-surface-container-low shadow-sm border-vibrant-blue ring-1 ring-vibrant-blue/20"
+                          : "bg-surface-container-lowest border-surface-container hover:bg-surface-container-low"
+                          }`}
                       >
                         <div className="flex items-center justify-between mb-2">
                           <div
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                              consultationMode === "inperson"
-                                ? "bg-vibrant-blue text-surface-container-lowest"
-                                : "bg-surface-container text-on-surface"
-                            }`}
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center ${consultationMode === "inperson"
+                              ? "bg-vibrant-blue text-surface-container-lowest"
+                              : "bg-surface-container text-on-surface"
+                              }`}
                           >
                             <span className="material-symbols-outlined text-[22px]">domain</span>
                           </div>
                           <span
-                            className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                              consultationMode === "inperson"
-                                ? "bg-vibrant-blue text-surface-container-lowest"
-                                : "bg-surface-variant text-transparent"
-                            }`}
+                            className={`w-5 h-5 rounded-full flex items-center justify-center ${consultationMode === "inperson"
+                              ? "bg-vibrant-blue text-surface-container-lowest"
+                              : "bg-surface-variant text-transparent"
+                              }`}
                           >
                             <span className="material-symbols-outlined text-[14px]">check</span>
                           </span>
@@ -689,16 +972,14 @@ export function FinalizeBookingClient({
                             key={day.dateStr}
                             type="button"
                             onClick={() => setSelectedDate(day.dateStr)}
-                            className={`flex flex-col items-center py-3 px-2 rounded-xl transition-all text-center cursor-pointer border ${
-                              isSelected
-                                ? "bg-vibrant-blue text-on-primary shadow-md border-vibrant-blue"
-                                : "bg-surface-container-low text-on-surface border-transparent hover:bg-surface-variant"
-                            }`}
+                            className={`flex flex-col items-center py-3 px-2 rounded-xl transition-all text-center cursor-pointer border ${isSelected
+                              ? "bg-vibrant-blue text-on-primary shadow-md border-vibrant-blue"
+                              : "bg-surface-container-low text-on-surface border-transparent hover:bg-surface-variant"
+                              }`}
                           >
                             <span
-                              className={`font-label-sm text-label-sm uppercase font-semibold ${
-                                isSelected ? "opacity-80" : "text-outline"
-                              }`}
+                              className={`font-label-sm text-label-sm uppercase font-semibold ${isSelected ? "opacity-80" : "text-outline"
+                                }`}
                             >
                               {day.dayName}
                             </span>
@@ -706,11 +987,10 @@ export function FinalizeBookingClient({
                               {day.dayNum}
                             </span>
                             <span
-                              className={`font-label-sm text-[10px] font-medium mt-1 ${
-                                isSelected
-                                  ? "bg-surface-container-lowest/20 px-2 py-0.5 rounded-full"
-                                  : "text-fresh-teal"
-                              }`}
+                              className={`font-label-sm text-[10px] font-medium mt-1 ${isSelected
+                                ? "bg-surface-container-lowest/20 px-2 py-0.5 rounded-full"
+                                : "text-fresh-teal"
+                                }`}
                             >
                               {isSelected ? "Selected" : day.slotsCount}
                             </span>
@@ -767,11 +1047,10 @@ export function FinalizeBookingClient({
                                         setSelectedSlotId(slot.id);
                                         setSelectedSlotTime(slot.timeString);
                                       }}
-                                      className={`py-2.5 px-3 rounded-full font-body-md text-body-md text-center transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                                        isSelected
-                                          ? "bg-vibrant-blue text-surface-container-lowest font-bold shadow-sm"
-                                          : "bg-surface-container text-on-surface font-medium hover:bg-surface-variant"
-                                      }`}
+                                      className={`py-2.5 px-3 rounded-full font-body-md text-body-md text-center transition-all flex items-center justify-center gap-1.5 cursor-pointer ${isSelected
+                                        ? "bg-vibrant-blue text-surface-container-lowest font-bold shadow-sm"
+                                        : "bg-surface-container text-on-surface font-medium hover:bg-surface-variant"
+                                        }`}
                                     >
                                       {isSelected && (
                                         <span className="material-symbols-outlined text-[16px]">
@@ -818,11 +1097,10 @@ export function FinalizeBookingClient({
                                         setSelectedSlotId(slot.id);
                                         setSelectedSlotTime(slot.timeString);
                                       }}
-                                      className={`py-2.5 px-3 rounded-full font-body-md text-body-md text-center transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                                        isSelected
-                                          ? "bg-vibrant-blue text-surface-container-lowest font-bold shadow-sm"
-                                          : "bg-surface-container text-on-surface font-medium hover:bg-surface-variant"
-                                      }`}
+                                      className={`py-2.5 px-3 rounded-full font-body-md text-body-md text-center transition-all flex items-center justify-center gap-1.5 cursor-pointer ${isSelected
+                                        ? "bg-vibrant-blue text-surface-container-lowest font-bold shadow-sm"
+                                        : "bg-surface-container text-on-surface font-medium hover:bg-surface-variant"
+                                        }`}
                                     >
                                       {isSelected && (
                                         <span className="material-symbols-outlined text-[16px]">

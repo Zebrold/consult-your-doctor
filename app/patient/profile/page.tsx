@@ -10,6 +10,9 @@ import {
 } from 'lucide-react'
 import { PatientSidebar } from '@/components/PatientSidebar'
 import { PatientDock } from '@/components/PatientDock'
+import { PatientNavHeader } from '@/components/PatientNavHeader'
+
+import { PatientProfileClient } from '@/components/PatientProfileClient'
 
 export default async function PatientProfilePage(props: {
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -17,131 +20,201 @@ export default async function PatientProfilePage(props: {
   const searchParams = props.searchParams ? await props.searchParams : {};
   const isPreview = searchParams?.preview === "patient";
 
-  const supabase = await createClient()
+  const supabase = await createClient();
 
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-  if (!authUser && !isPreview) redirect('/login/patient')
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  if (!authUser && !isPreview) redirect('/login/patient');
+
+  // If no authUser session in local preview, fetch default patient from DB
+  const defaultPatientId = "5ff51839-10e2-4240-b078-de2c1c742e07";
+  const targetPatientId = authUser ? authUser.id : defaultPatientId;
+
+  // 1. Fetch user profile from DB
+  const { data: dbProfile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', targetPatientId)
+    .single();
 
   const user = authUser || {
-    id: 'preview-patient-id',
-    email: 'alex.morgan@example.com',
+    id: targetPatientId,
+    email: dbProfile?.email || 'alex.morgan@example.com',
     user_metadata: { role: 'patient' }
-  }
+  };
 
-  // Fetch user profile for name
-  let profile = null;
-  if (authUser) {
-    const { data: p } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-    profile = p;
-  } else {
-    profile = {
-      id: user.id,
-      full_name: 'Alex Eleanor Vance Morgan',
-      email: 'alex.morgan@example.com'
-    };
-  }
+  const profile = dbProfile || {
+    id: user.id,
+    full_name: 'Aman Kumar',
+    email: 'alex.morgan@example.com',
+    phone_number: '+919958414868'
+  };
 
-  // Fetch patient details
-  let patientDetails = null;
-  if (authUser) {
-    const { data: pd } = await supabase
-      .from('patient_details')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-    patientDetails = pd;
-  } else {
-    patientDetails = {
-      uhid: 'CYD-MUM-8842',
-      blood_group: 'O+ Positive',
-      dob: '1996-01-08',
-      gender: 'Male / Non-binary',
-      address: 'Flat 42, Kensington Gardens Square, Bandra West, Mumbai, MH 400050',
-      phone: '+91 98204 77210',
-      emergency_contact_name: 'Marcus Morgan',
-      emergency_contact_phone: '+91 98201 55319',
-      emergency_contact_relation: 'Spouse'
-    };
-  }
+  // 2. Fetch patient details from DB
+  const { data: dbPatientDetails } = await supabase
+    .from('patient_details')
+    .select('*')
+    .eq('id', targetPatientId)
+    .single();
 
-  // Fetch all appointments for this patient
-  let appointments = null;
-  if (authUser) {
-    const { data: appts } = await supabase
-      .from('appointments')
-      .select(`
+  const patientDetails = dbPatientDetails || {
+    id: user.id,
+    uhid: 'CYD-MUM-8842',
+    blood_group: 'O+',
+    date_of_birth: '2005-04-27',
+    gender: 'Male',
+    address: 'E-57, Gali N0-3, Hari nagar Extension, Jaitpur, Badarpur, New Delhi',
+    phone: profile?.phone_number || '+91 99584 14868',
+    emergency_contact_name: 'Bablu Kumar',
+    emergency_contact_phone: '9560579747',
+    emergency_contact_relation: 'Father'
+  };
+
+  // 3. Fetch all appointments from DB for this patient
+  const { data: appts } = await supabase
+    .from('appointments')
+    .select(`
+      id,
+      status,
+      doctor_id,
+      hospital_id,
+      created_at,
+      doctors (
         id,
-        status,
-        doctors (
-          specialty,
-          profiles ( full_name )
-        ),
-        hospitals (
-          name,
-          city
-        ),
-        schedules (
-          start_time
-        ),
-        medical_records (
-          id,
-          notes,
-          file_url,
-          document_type
-        )
-      `)
-      .eq('patient_id', user.id)
-      .order('created_at', { ascending: false })
-    appointments = appts;
-  }
+        specialty,
+        consultation_fee,
+        image_url,
+        profiles ( full_name )
+      ),
+      hospitals (
+        id,
+        name,
+        city
+      ),
+      schedules (
+        id,
+        start_time,
+        end_time
+      ),
+      medical_records (
+        id,
+        notes,
+        file_url,
+        document_type
+      )
+    `)
+    .eq('patient_id', targetPatientId)
+    .order('created_at', { ascending: false });
 
-  // Fetch all diagnostic bookings
-  const { data: diagnosticBookings } = await supabase
+  const appointments = appts || [];
+
+  // 4. Fetch all diagnostic bookings from DB for this patient
+  const { data: diagBookings } = await supabase
     .from('diagnostic_bookings')
     .select(`
       id,
       status,
       test_name,
       preferred_date,
+      center_id,
       diagnostic_centers (
+        id,
         name,
         city,
-        address
+        address,
+        image_url
       )
     `)
-    .eq('patient_id', user.id)
-    .order('created_at', { ascending: false })
+    .eq('patient_id', targetPatientId)
+    .order('created_at', { ascending: false });
 
-  // Extract prescriptions from medical_records
-  const prescriptions = appointments?.flatMap(apt =>
+  const diagnosticBookings = diagBookings || [];
+
+  // 5. Fetch medical records
+  const appointmentIds = appointments.map(a => a.id);
+  let medicalRecordsList: any[] = [];
+  if (appointmentIds.length > 0) {
+    const { data: recs } = await supabase
+      .from('medical_records')
+      .select('*')
+      .in('appointment_id', appointmentIds);
+    medicalRecordsList = recs || [];
+  }
+  if (medicalRecordsList.length === 0) {
+    const { data: allRecs } = await supabase.from('medical_records').select('*').limit(10);
+    medicalRecordsList = allRecs || [];
+  }
+
+  // 6. Fetch doctors list from DB for saved providers
+  const { data: docs } = await supabase
+    .from('doctors')
+    .select(`
+      id,
+      specialty,
+      consultation_fee,
+      image_url,
+      experience_years,
+      profiles ( full_name ),
+      hospitals ( id, name, city )
+    `)
+    .limit(8);
+  const doctorsList = docs || [];
+
+  // 7. Fetch diagnostic centers from DB for saved providers
+  const { data: centers } = await supabase
+    .from('diagnostic_centers')
+    .select('id, name, city, address, image_url, available_tests')
+    .limit(6);
+  const diagnosticCentersList = centers || [];
+
+  // 8. Fetch payments from DB
+  const { data: payList } = await supabase
+    .from('payments')
+    .select('*')
+    .limit(10);
+  const paymentsList = payList || [];
+
+  // Extract prescriptions
+  const prescriptions = appointments.flatMap(apt =>
     (apt.medical_records || []).map(record => ({
       ...record,
       doctor_name: (apt.doctors as any)?.profiles?.full_name,
       date: (apt.schedules as any)?.start_time,
       hospital_name: (apt.hospitals as any)?.name
     }))
-  ) || []
+  );
 
-  const fullName = profile?.full_name || 'Patient'
-  const email = user.email
-  const phone = (user as any).phone || '+91 98204 77210' // Placeholder if not available
+  const fullName = profile?.full_name || 'Patient';
+  const email = user.email || profile?.email || 'alex.morgan@example.com';
+  const phone = profile?.phone_number || patientDetails?.phone || '+91 99584 14868';
 
-  const upcomingAppointments = appointments?.filter(a => a.status === 'scheduled' || a.status === 'confirmed') || []
-  const nextAppointment = upcomingAppointments.length > 0 ? upcomingAppointments[0] : null
-  const completedLabs = diagnosticBookings?.filter(b => b.status === 'completed') || []
-  const nextLab = completedLabs.length > 0 ? completedLabs[0] : null
-  const totalDocuments = prescriptions.length
-
-  const nextApptDoctor = nextAppointment ? (nextAppointment.doctors as any)?.profiles?.full_name : 'No upcoming appointments'
-  const nextApptDate = nextAppointment ? new Date((nextAppointment.schedules as any)?.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''
+  const upcomingAppointments = appointments.filter(a => a.status === 'scheduled' || a.status === 'confirmed');
+  const nextAppointment = upcomingAppointments.length > 0 ? upcomingAppointments[0] : null;
+  const nextApptDoctor = nextAppointment ? (nextAppointment.doctors as any)?.profiles?.full_name : 'No upcoming appointments';
+  const nextApptDate = nextAppointment ? new Date((nextAppointment.schedules as any)?.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+  const completedLabs = diagnosticBookings.filter(b => b.status === 'completed');
+  const nextLab = completedLabs.length > 0 ? completedLabs[0] : null;
+  const totalDocuments = prescriptions.length;
 
   return (
     <div className="bg-background min-h-screen text-on-surface flex flex-col font-sans pb-28">
-      <main className="w-full flex-1">
+      {/* MOBILE PROFILE VIEW (Block on mobile md:hidden, matching user screenshot) */}
+      <div className="block md:hidden w-full">
+        <PatientProfileClient
+          user={user}
+          profile={profile}
+          patientDetails={patientDetails}
+          appointments={appointments}
+          diagnosticBookings={diagnosticBookings}
+          medicalRecords={medicalRecordsList}
+          doctors={doctorsList}
+          diagnosticCenters={diagnosticCentersList}
+          payments={paymentsList}
+          isPreview={isPreview}
+        />
+      </div>
+
+      {/* DESKTOP PROFILE VIEW (Hidden on mobile md:block) */}
+      <main className="hidden md:block w-full flex-1">
         <div className="max-w-[1440px] mx-auto p-4 md:p-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             

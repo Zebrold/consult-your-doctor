@@ -17,56 +17,74 @@ export function PatientDock({ activeTab = "home" }: PatientDockProps) {
   const profileHref = isPreview ? "/patient/profile?preview=patient" : "/patient/profile";
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 w-full z-50 bg-surface-container-lowest/95 backdrop-blur-md border-t border-surface-variant py-2 px-6 flex justify-center items-center shadow-lg">
-      <div className="max-w-md w-full flex justify-between items-center px-4">
+    <nav className="fixed bottom-0 left-0 right-0 w-full z-50 bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-1.5 px-4 flex justify-center items-center shadow-lg">
+      <div className="max-w-md w-full flex justify-around items-center">
         <Link
           href={homeHref}
-          className={`flex flex-col items-center justify-center gap-1 py-1.5 px-5 rounded-2xl transition-colors ${
+          className={`flex flex-col items-center justify-center gap-0.5 py-1.5 px-4 sm:px-5 rounded-2xl transition-all ${
             activeTab === "home"
-              ? "bg-surface-container-high text-vibrant-blue font-bold"
-              : "text-indigo-gray-600 hover:text-on-surface font-medium"
-          }`}
-        >
-          <span className="material-symbols-outlined text-[24px]">home</span>
-          <span className="font-label-sm text-[13px]">Home</span>
-        </Link>
-        <Link
-          href={findHref}
-          className={`flex flex-col items-center justify-center gap-1 py-1.5 px-5 rounded-2xl transition-colors ${
-            activeTab === "find"
-              ? "bg-surface-container-high text-vibrant-blue font-bold"
-              : "text-indigo-gray-600 hover:text-on-surface font-medium"
-          }`}
-        >
-          <span className="material-symbols-outlined text-[24px]">search</span>
-          <span className="font-label-sm text-[13px]">Find</span>
-        </Link>
-        <Link
-          href={bookHref}
-          className={`flex flex-col items-center justify-center gap-1 py-1.5 px-5 rounded-2xl transition-colors ${
-            activeTab === "book"
-              ? "bg-surface-container-high text-vibrant-blue font-bold"
-              : "text-indigo-gray-600 hover:text-on-surface font-medium"
+              ? "bg-[#e8efff] text-primary font-bold shadow-xs scale-[1.02]"
+              : "text-slate-600 hover:text-slate-900 font-medium"
           }`}
         >
           <span
-            className="material-symbols-outlined text-[24px]"
-            style={{ fontVariationSettings: "'FILL' 0, 'wght' 500" }}
+            className="material-symbols-outlined text-[23px]"
+            style={{ fontVariationSettings: activeTab === "home" ? "'FILL' 1" : "'FILL' 0" }}
+          >
+            home
+          </span>
+          <span className="font-label-sm text-[12px] leading-tight">Home</span>
+        </Link>
+
+        <Link
+          href={findHref}
+          className={`flex flex-col items-center justify-center gap-0.5 py-1.5 px-4 sm:px-5 rounded-2xl transition-all ${
+            activeTab === "find"
+              ? "bg-[#e8efff] text-primary font-bold shadow-xs scale-[1.02]"
+              : "text-slate-600 hover:text-slate-900 font-medium"
+          }`}
+        >
+          <span
+            className="material-symbols-outlined text-[23px]"
+            style={{ fontVariationSettings: activeTab === "find" ? "'wght' 700" : "'wght' 500" }}
+          >
+            search
+          </span>
+          <span className="font-label-sm text-[12px] leading-tight">Find</span>
+        </Link>
+
+        <Link
+          href={bookHref}
+          className={`flex flex-col items-center justify-center gap-0.5 py-1.5 px-4 sm:px-5 rounded-2xl transition-all ${
+            activeTab === "book"
+              ? "bg-[#e8efff] text-primary font-bold shadow-xs scale-[1.02]"
+              : "text-slate-600 hover:text-slate-900 font-medium"
+          }`}
+        >
+          <span
+            className="material-symbols-outlined text-[23px]"
+            style={{ fontVariationSettings: activeTab === "book" ? "'FILL' 1" : "'FILL' 0" }}
           >
             calendar_month
           </span>
-          <span className="font-label-sm text-[13px]">Book</span>
+          <span className="font-label-sm text-[12px] leading-tight">Book</span>
         </Link>
+
         <Link
           href={profileHref}
-          className={`flex flex-col items-center justify-center gap-1 py-1.5 px-5 rounded-2xl transition-colors ${
+          className={`flex flex-col items-center justify-center gap-0.5 py-1.5 px-4 sm:px-5 rounded-2xl transition-all ${
             activeTab === "profile"
-              ? "bg-surface-container-high text-vibrant-blue font-bold"
-              : "text-indigo-gray-600 hover:text-on-surface font-medium"
+              ? "bg-[#e8efff] text-primary font-bold shadow-xs scale-[1.02]"
+              : "text-slate-600 hover:text-slate-900 font-medium"
           }`}
         >
-          <span className="material-symbols-outlined text-[24px]">person</span>
-          <span className="font-label-sm text-[13px]">Profile</span>
+          <span
+            className="material-symbols-outlined text-[23px]"
+            style={{ fontVariationSettings: activeTab === "profile" ? "'FILL' 1" : "'FILL' 0" }}
+          >
+            person
+          </span>
+          <span className="font-label-sm text-[12px] leading-tight">Profile</span>
         </Link>
       </div>
     </nav>

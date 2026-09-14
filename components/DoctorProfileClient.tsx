@@ -1305,13 +1305,7 @@ export function DoctorProfileClient({
         </div>
       </main>
 
-      {/* Interactive Toast Notification */}
-      {toastMessage && (
-        <div className="fixed bottom-24 right-6 bg-indigo-gray-900 text-on-primary px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 z-50 transition-opacity duration-300">
-          <span className="material-symbols-outlined text-fresh-teal text-[20px]">check_circle</span>
-          <span className="font-label-sm text-label-sm">{toastMessage}</span>
-        </div>
-      )}
+
 
       {/* FLOATING BOTTOM DOCK: Only shown for patient view */}
       {showPatientDock && <PatientDock activeTab="find" />}

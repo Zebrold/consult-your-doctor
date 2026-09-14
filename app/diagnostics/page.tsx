@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Search, Settings2, Star, MapPin, Microscope, LocateFixed, Plus, Minus, Accessibility } from "lucide-react";
 
 export default function DiagnosticsPage() {
@@ -74,9 +75,9 @@ export default function DiagnosticsPage() {
                 <span className="font-label-sm text-label-sm text-indigo-gray-600">Starting from</span>
                 <span className="font-title-md text-[18px] text-on-surface">$150</span>
               </div>
-              <button className="px-6 py-2 rounded-full bg-vibrant-blue text-white font-label-sm text-label-sm hover:scale-[1.02] hover:bg-primary transition-all active:scale-95">
+              <Link href="/book/diagnostic" className="px-6 py-2 rounded-full bg-vibrant-blue text-white font-label-sm text-label-sm hover:scale-[1.02] hover:bg-primary transition-all active:scale-95 inline-flex items-center justify-center">
                 Book Now
-              </button>
+              </Link>
             </div>
           </div>
 
@@ -116,9 +117,9 @@ export default function DiagnosticsPage() {
                 <span className="font-label-sm text-label-sm text-indigo-gray-600">Starting from</span>
                 <span className="font-title-md text-[18px] text-on-surface">$85</span>
               </div>
-              <button className="px-6 py-2 rounded-full bg-vibrant-blue text-white font-label-sm text-label-sm hover:scale-[1.02] hover:bg-primary transition-all active:scale-95">
+              <Link href="/book/diagnostic" className="px-6 py-2 rounded-full bg-vibrant-blue text-white font-label-sm text-label-sm hover:scale-[1.02] hover:bg-primary transition-all active:scale-95 inline-flex items-center justify-center">
                 Book Now
-              </button>
+              </Link>
             </div>
           </div>
 
@@ -155,9 +156,9 @@ export default function DiagnosticsPage() {
                 <span className="font-label-sm text-label-sm text-indigo-gray-600">Starting from</span>
                 <span className="font-title-md text-[18px] text-on-surface">$120</span>
               </div>
-              <button className="px-6 py-2 rounded-full bg-vibrant-blue text-white font-label-sm text-label-sm hover:scale-[1.02] hover:bg-primary transition-all active:scale-95">
+              <Link href="/book/diagnostic" className="px-6 py-2 rounded-full bg-vibrant-blue text-white font-label-sm text-label-sm hover:scale-[1.02] hover:bg-primary transition-all active:scale-95 inline-flex items-center justify-center">
                 Book Now
-              </button>
+              </Link>
             </div>
           </div>
         </div>

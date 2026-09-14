@@ -3,8 +3,8 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import Image from "next/image";
 import { PatientDock } from "@/components/PatientDock";
+import { PatientNavHeader } from "@/components/PatientNavHeader";
 
 export interface DoctorData {
   id: string;
@@ -80,6 +80,8 @@ export function FindCareClient({
   const [highRatingOnly, setHighRatingOnly] = useState(false);
   const [selectedGender, setSelectedGender] = useState<"any" | "male" | "female">("any");
   const [isGenderOpen, setIsGenderOpen] = useState(false);
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [favorites, setFavorites] = useState<Record<string, boolean>>({});
   const [sortBy, setSortBy] = useState<"next" | "fee_low" | "exp_high">("next");
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>(
     initialDoctors[0]?.id || ""
@@ -213,7 +215,324 @@ export function FindCareClient({
 
   return (
     <div className="bg-background font-body-md text-body-md text-on-surface antialiased min-h-screen">
-      <main className="w-full bg-background min-h-[calc(100vh-10rem)] pb-32">
+      {/* ============================================================ */}
+      {/* DEDICATED MOBILE VIEW (block md:hidden) - EXACT SCREENSHOT 2 */}
+      {/* ============================================================ */}
+      <div className="block md:hidden w-full bg-slate-50 min-h-screen pb-24">
+        {/* Top Header */}
+        <PatientNavHeader title="Find" />
+
+        {/* Mobile Search Bar + Filter Icon */}
+        <div className="px-4 pt-3 pb-2">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">
+                search
+              </span>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search doctors, conditions, or clinics..."
+                className="w-full pl-10 pr-3 py-2.5 bg-white border border-slate-200/80 rounded-full text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-xs"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsMobileFilterOpen(!isMobileFilterOpen)}
+              className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-xs shrink-0 active:scale-95 transition-all ${
+                isMobileFilterOpen || selectedSpecialty !== "All" || selectedCity !== "All Locations"
+                  ? "bg-primary text-white"
+                  : "bg-primary text-white hover:bg-blue-700"
+              }`}
+              title="Filters"
+            >
+              <span className="material-symbols-outlined text-[20px]">tune</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Filter Sheet Dropdown */}
+        {isMobileFilterOpen && (
+          <div className="mx-4 mb-2 p-3.5 bg-white rounded-2xl border border-slate-200 shadow-sm animate-in slide-in-from-top-2 duration-150 flex flex-col gap-2.5">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <span className="text-xs font-bold text-slate-800">Quick Filters</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedSpecialty("All");
+                  setSelectedCity("All Locations");
+                  setSelectedGender("any");
+                  setSortBy("next");
+                  setIsMobileFilterOpen(false);
+                }}
+                className="text-[11px] font-semibold text-primary"
+              >
+                Reset All
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase">Location</label>
+                <select
+                  value={selectedCity}
+                  onChange={(e) => setSelectedCity(e.target.value)}
+                  className="w-full mt-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 font-medium focus:outline-none"
+                >
+                  <option value="All Locations">All Locations</option>
+                  {cities.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase">Sort By</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="w-full mt-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 font-medium focus:outline-none"
+                >
+                  <option value="next">Next Available</option>
+                  <option value="fee_low">Lowest Fee</option>
+                  <option value="exp_high">Most Experienced</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Horizontal Specialty Chips */}
+        <div className="px-4 py-2 overflow-x-auto scrollbar-none flex items-center gap-2">
+          {/* All Specialists */}
+          <button
+            type="button"
+            onClick={() => setSelectedSpecialty("All")}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-all ${
+              selectedSpecialty === "All"
+                ? "bg-primary text-white shadow-xs"
+                : "bg-white text-slate-700 border border-slate-200"
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">stethoscope</span>
+            <span>All Specialists</span>
+          </button>
+
+          {/* Neurology */}
+          <button
+            type="button"
+            onClick={() => setSelectedSpecialty(selectedSpecialty === "Neurology" ? "All" : "Neurology")}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-all ${
+              selectedSpecialty === "Neurology"
+                ? "bg-primary text-white shadow-xs"
+                : "bg-white text-slate-700 border border-slate-200"
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">psychology</span>
+            <span>Neurology</span>
+          </button>
+
+          {/* Cardiology */}
+          <button
+            type="button"
+            onClick={() => setSelectedSpecialty(selectedSpecialty === "Cardiology" ? "All" : "Cardiology")}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-all ${
+              selectedSpecialty === "Cardiology"
+                ? "bg-primary text-white shadow-xs"
+                : "bg-white text-slate-700 border border-slate-200"
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">favorite</span>
+            <span>Cardiology</span>
+          </button>
+
+          {/* Other Specialties from DB */}
+          {specialties
+            .filter((s) => s !== "Neurology" && s !== "Cardiology")
+            .map((spec) => (
+              <button
+                key={spec}
+                type="button"
+                onClick={() => setSelectedSpecialty(selectedSpecialty === spec ? "All" : spec)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-all ${
+                  selectedSpecialty === spec
+                    ? "bg-primary text-white shadow-xs"
+                    : "bg-white text-slate-700 border border-slate-200"
+                }`}
+              >
+                <span>{spec}</span>
+              </button>
+            ))}
+        </div>
+
+        {/* Interactive Map View Card */}
+        <div className="px-4 py-2">
+          <div className="relative w-full h-36 rounded-2xl overflow-hidden shadow-xs border border-slate-200/60">
+            <img
+              src="https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=800&q=80"
+              alt="Map view"
+              className="w-full h-full object-cover brightness-[0.85]"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-900/20 to-transparent flex items-end justify-between p-3.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-full bg-emerald-400 text-slate-900 flex items-center justify-center shrink-0 shadow-sm">
+                  <span className="material-symbols-outlined text-[20px]">map</span>
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white leading-tight">Interactive Map View</h4>
+                  <p className="text-[11px] text-slate-200">{filteredDoctors.length} specialists nearby</p>
+                </div>
+              </div>
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("specialist doctors clinic hospital")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-1.5 rounded-lg bg-white/95 hover:bg-white text-slate-800 text-[11px] font-bold shadow-sm active:scale-95 transition-all"
+              >
+                Explore Map
+              </a>
+            </div>
+          </div>
+        </div>
+
+        {/* Section Header */}
+        <div className="px-4 pt-3 pb-1.5 flex items-center justify-between">
+          <h3 className="text-base font-bold text-slate-900">Available Doctors</h3>
+          <span className="text-xs text-slate-500 font-medium">
+            Showing {displayedDoctors.length} of {filteredDoctors.length}
+          </span>
+        </div>
+
+        {/* Doctor Cards */}
+        <div className="px-4 space-y-3 pb-12">
+          {displayedDoctors.map((doc, idx) => {
+            const docName = doc.profiles?.full_name || "Doctor";
+            const docSpec = doc.specialty || "Specialist";
+            const rating = (4.8 + (idx % 3) * 0.1).toFixed(1);
+            const reviewsCount = 94 + ((idx * 37) % 150);
+            const tag = idx % 3 === 0 ? "Top Rated" : idx % 3 === 1 ? "Next-Gen Clinic" : "Experienced";
+            const isOnline = idx % 3 !== 2;
+            const bookHref = isPreview ? `/book/${doc.id}?preview=patient` : `/book/${doc.id}`;
+            const isFav = !!favorites[doc.id];
+            return (
+              <div
+                key={doc.id}
+                className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-xs flex flex-col gap-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-slate-100 border border-slate-200/80 flex items-center justify-center shrink-0">
+                      {doc.image_url ? (
+                        <img
+                          src={doc.image_url}
+                          alt={docName}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                            const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                            if (fallback) fallback.style.display = "flex";
+                          }}
+                        />
+                      ) : null}
+                      <div
+                        className={`w-full h-full bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-100 flex flex-col items-center justify-center ${
+                          doc.image_url ? "hidden" : "flex"
+                        }`}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-white/90 shadow-2xs flex items-center justify-center text-primary mb-0.5 border border-blue-100">
+                          <span className="material-symbols-outlined text-[20px] text-blue-600">person</span>
+                        </div>
+                        <span className="text-[9px] font-bold text-slate-700 leading-none">
+                          {getDoctorInitials(docName)}
+                        </span>
+                      </div>
+                      <span
+                        className={`absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white ${
+                          isOnline ? "bg-emerald-500" : "bg-rose-500"
+                        }`}
+                      />
+                    </div>
+                    <div className="flex flex-col">
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-md w-fit mb-0.5 ${
+                          tag === "Top Rated"
+                            ? "bg-emerald-50 text-emerald-700"
+                            : tag === "Next-Gen Clinic"
+                            ? "bg-blue-50 text-blue-700"
+                            : "bg-purple-50 text-purple-700"
+                        }`}
+                      >
+                        {tag}
+                      </span>
+                      <h4 className="text-sm font-bold text-slate-900 leading-snug">
+                        {docName.startsWith("Dr.") ? docName : `Dr. ${docName}`}
+                      </h4>
+                      <p className="text-xs text-slate-500">{docSpec}</p>
+                      <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700 mt-0.5">
+                        <span className="text-amber-500">★</span>
+                        <span>{rating}</span>
+                        <span className="text-slate-400 font-normal">({reviewsCount} reviews)</span>
+                        {doc.experience_years ? (
+                          <span className="text-slate-400 font-normal">• {doc.experience_years}+ yrs</span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFavorites((prev) => ({ ...prev, [doc.id]: !prev[doc.id] }))}
+                    className="text-slate-400 hover:text-rose-500 p-1"
+                    title={isFav ? "Saved" : "Save"}
+                  >
+                    <span
+                      className={`material-symbols-outlined text-[20px] ${
+                        isFav ? "text-rose-500" : ""
+                      }`}
+                      style={{ fontVariationSettings: isFav ? "'FILL' 1" : "'FILL' 0" }}
+                    >
+                      favorite
+                    </span>
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-50">
+                  <div className="flex items-center gap-1.5 text-xs text-slate-600 min-w-0 pr-2">
+                    <span className="material-symbols-outlined text-[16px] text-emerald-600 shrink-0">payments</span>
+                    <span className="font-bold text-[11px] text-slate-800 shrink-0">
+                      {doc.consultation_fee ? `₹${doc.consultation_fee}` : "Free Consult"}
+                    </span>
+                    {doc.hospitals?.name ? (
+                      <span className="text-[11px] text-slate-400 truncate">
+                        • {doc.hospitals.name}
+                      </span>
+                    ) : null}
+                  </div>
+                  <Link
+                    href={bookHref}
+                    className="px-5 py-2 rounded-full bg-primary text-white text-xs font-bold hover:bg-blue-700 active:scale-95 transition-all shadow-xs"
+                  >
+                    Book Now
+                  </Link>
+                </div>
+              </div>
+            );
+          })}
+
+          {displayedDoctors.length === 0 && (
+            <div className="p-8 text-center bg-white rounded-2xl border border-slate-100">
+              <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">search_off</span>
+              <p className="text-sm font-semibold text-slate-700">No doctors match your criteria</p>
+              <p className="text-xs text-slate-400 mt-1">Try resetting the specialty or search query</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ============================================================ */}
+      {/* DESKTOP VIEW (hidden md:block) */}
+      {/* ============================================================ */}
+      <main className="hidden md:block w-full bg-background min-h-[calc(100vh-10rem)] pb-32">
         <div className="flex flex-col w-full">
           {/* ============================================================ */}
           {/* INTERACTIVE & FILTER DASHBOARD HEADER */}
@@ -577,13 +896,24 @@ export function FindCareClient({
                                 className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover shadow-inner bg-surface-container"
                                 src={doctor.image_url}
                                 alt={docName}
+                                onError={(e) => {
+                                  e.currentTarget.style.display = "none";
+                                  const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                                  if (fallback) fallback.style.display = "flex";
+                                }}
                               />
-                            ) : (
-                              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-indigo-gray-900 text-white flex flex-col items-center justify-center font-bold text-2xl shadow-inner shrink-0">
-                                <span>{getDoctorInitials(docName)}</span>
-                                <span className="text-[11px] text-outline font-normal mt-0.5">Doctor</span>
+                            ) : null}
+                            <div
+                              className={`w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-100 border border-blue-100 flex flex-col items-center justify-center shadow-inner shrink-0 ${
+                                doctor.image_url ? "hidden" : "flex"
+                              }`}
+                            >
+                              <div className="w-11 h-11 rounded-full bg-white shadow-2xs flex items-center justify-center text-primary mb-1 border border-blue-100">
+                                <span className="material-symbols-outlined text-[26px] text-blue-600">person</span>
                               </div>
-                            )}
+                              <span className="text-sm font-bold text-slate-800">{getDoctorInitials(docName)}</span>
+                              <span className="text-[10px] text-slate-500 font-medium">Doctor</span>
+                            </div>
                             <span className="absolute -bottom-2 -right-2 px-2.5 py-0.5 rounded-full bg-fresh-teal text-on-primary font-label-sm text-[11px] font-bold shadow-sm flex items-center gap-1">
                               <span className="w-1.5 h-1.5 rounded-full bg-surface-container-lowest animate-ping"></span>
                               ACTIVE

@@ -340,7 +340,7 @@ export default async function Home(props: {
                         </div>
                       )}
                     </div>
-                    <Link href={`/doctors/${doctor.id}`} className="mt-auto text-center block w-full bg-surface-container-low text-primary border border-surface-variant py-3 rounded-lg font-label-sm hover:bg-surface-variant transition-colors font-bold flex-shrink-0">
+                    <Link href={user ? `/doctors/${doctor.id}` : `/login?next=/doctors/${doctor.id}`} className="mt-auto text-center block w-full bg-surface-container-low text-primary border border-surface-variant py-3 rounded-lg font-label-sm hover:bg-surface-variant transition-colors font-bold flex-shrink-0">
                       Book Appointment
                     </Link>
                   </div>

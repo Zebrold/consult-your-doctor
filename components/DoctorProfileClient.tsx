@@ -83,6 +83,7 @@ export interface ProfileDoctorData {
 
 export interface DoctorProfileClientProps {
   doctor: ProfileDoctorData;
+  isLoggedIn?: boolean;
   showPatientDock?: boolean;
   isDoctorView?: boolean;
   onEditProfile?: () => void;
@@ -138,6 +139,7 @@ function getSlotHour(iso: string) {
 
 export function DoctorProfileClient({
   doctor,
+  isLoggedIn = false,
   showPatientDock = true,
   isDoctorView = false,
   onEditProfile,
@@ -294,10 +296,12 @@ export function DoctorProfileClient({
     ];
   }, [specialty, doctor.symptoms]);
 
-  const bookUrl = `/book/${doctor.id}${isPreview
+  const targetUrl = `/book/${doctor.id}${isPreview
       ? `?preview=patient${selectedSlot ? `&time=${selectedSlot}` : ""}`
       : `${selectedSlot ? `?time=${selectedSlot}` : ""}`
     }`;
+  
+  const bookUrl = isLoggedIn ? targetUrl : `/login?next=${encodeURIComponent(targetUrl)}`;
   const findUrl = `/find${isPreview ? "?preview=patient" : ""}`;
 
   return (

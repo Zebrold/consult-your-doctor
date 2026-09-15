@@ -50,6 +50,8 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
   const isPreview = sParams?.preview === "patient";
 
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const isLoggedIn = !!user;
 
   // Fetch full doctor data from DB
   const { data: doctor, error: doctorError } = await supabase
@@ -127,7 +129,7 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
       />
-      <DoctorProfileClient doctor={doctorData} />
+      <DoctorProfileClient doctor={doctorData} isLoggedIn={isLoggedIn} />
     </>
   );
 }

@@ -91,7 +91,7 @@ export function Footer() {
                 strokeWidth={2}
               />
 
-              <span className="max-w-[180px] text-[22px] font-medium leading-[1.4] tracking-tight text-white">
+              <span className="whitespace-nowrap text-[22px] font-medium leading-[1.4] tracking-tight text-white">
                 Consult Your Doctor
               </span>
             </Link>

@@ -1395,15 +1395,8 @@ export function DoctorDashboardClient({
                 </span>
               </div>
 
-              {/* 3 Action Buttons */}
-              <div className="grid grid-cols-3 gap-2 pt-1">
-                <button 
-                  onClick={() => setShowEditModal(true)}
-                  className="py-2.5 px-3 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm hover:bg-blue-700 transition-colors cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[16px]">edit</span>
-                  <span>Edit Profile</span>
-                </button>
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
                 <button 
                   onClick={() => setActiveTab('schedule')}
                   className="py-2.5 px-3 rounded-full bg-blue-50 text-blue-700 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-blue-100 transition-colors cursor-pointer"

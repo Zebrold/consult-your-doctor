@@ -5,6 +5,46 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { PatientDock } from "@/components/PatientDock";
+import {
+  RefreshCw,
+  LogOut,
+  BadgeCheck,
+  ShieldCheck,
+  Award,
+  CheckCheck,
+  Star,
+  Calendar,
+  CalendarCheck,
+  ArrowRight,
+  ArrowLeft,
+  Building2,
+  Plus,
+  Hospital,
+  Phone,
+  AlertCircle,
+  Bed,
+  BriefcaseMedical,
+  Video,
+  Globe,
+  Clock,
+  FileCheck,
+  BookOpen,
+  Brain,
+  GraduationCap,
+  Building,
+  MessageSquare,
+  MessagesSquare,
+  Heart,
+  CreditCard,
+  Mail,
+  UserCog,
+  Activity,
+  Zap,
+  Shield,
+  ExternalLink,
+  Edit3
+} from "lucide-react";
+
 
 export interface ProfileDoctorData {
   id: string;
@@ -262,6 +302,35 @@ export function DoctorProfileClient({
 
   return (
     <div className="bg-background font-body-md text-on-surface antialiased min-h-screen">
+      {/* Mobile Sticky Header for Phone View */}
+      {!isDoctorView && (
+        <header className="md:hidden sticky top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 h-14 px-4 flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Link
+              href={findUrl}
+              aria-label="Back to Doctor Directory"
+              className="w-9 h-9 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 active:scale-95 transition-all shrink-0"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+            <div className="min-w-0">
+              <h1 className="font-headline-lg text-[16px] font-bold text-slate-900 tracking-tight truncate">
+                Dr. {rawName}
+              </h1>
+              <p className="text-[11px] text-primary font-semibold truncate leading-none mt-0.5">
+                {specialty}
+              </p>
+            </div>
+          </div>
+          <Link
+            href={bookUrl}
+            className="px-3.5 py-1.5 rounded-full bg-vibrant-blue hover:bg-primary text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 shrink-0"
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            <span>Book</span>
+          </Link>
+        </header>
+      )}
       <main className="w-full bg-background pb-32">
         <div className="flex flex-col w-full">
           <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop py-stack-lg flex flex-col gap-stack-lg max-w-[1440px] mx-auto">
@@ -279,7 +348,7 @@ export function DoctorProfileClient({
               </div>
               <div className="flex items-center gap-stack-sm flex-wrap">
                 <span className="font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1.5 bg-surface-container-low px-3 py-1 rounded-full">
-                  <span className="material-symbols-outlined text-fresh-teal text-[16px]">sync</span>
+                  <RefreshCw className="w-4 h-4 text-fresh-teal inline" />
                   Sync State: Live (ABDM M3 &amp; Medical Council Verified)
                 </span>
                 {isDoctorView && (
@@ -289,7 +358,7 @@ export function DoctorProfileClient({
                       className="flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold transition-all cursor-pointer shadow-sm hover:shadow"
                       title="Logout completely from doctor session"
                     >
-                      <span className="material-symbols-outlined text-[16px]">logout</span>
+                      <LogOut className="w-4 h-4 inline" />
                       <span>Logout</span>
                     </button>
                   </form>
@@ -333,12 +402,7 @@ export function DoctorProfileClient({
                     )}
 
                     <div className="absolute top-3 left-3 bg-indigo-gray-900/85 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 text-on-primary">
-                      <span
-                        className="material-symbols-outlined text-fresh-teal text-[16px]"
-                        style={{ fontVariationSettings: "'FILL' 1" }}
-                      >
-                        verified
-                      </span>
+                      <BadgeCheck className="w-4 h-4 text-fresh-teal inline" />
                       <span className="font-label-sm text-label-sm tracking-wide">Board Certified</span>
                     </div>
 
@@ -381,7 +445,7 @@ export function DoctorProfileClient({
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-fresh-teal">
-                        <span className="material-symbols-outlined text-[20px]">shield_with_heart</span>
+                        <ShieldCheck className="w-5 h-5 text-fresh-teal inline" />
                         <span className="font-label-sm text-label-sm font-semibold text-secondary">
                           State Medical Council &amp; ABDM Verified Specialist
                         </span>
@@ -422,7 +486,7 @@ export function DoctorProfileClient({
                           </span>
                         </div>
                         <span className="font-label-sm text-[11px] text-secondary mt-1 flex items-center gap-1 font-medium">
-                          <span className="material-symbols-outlined text-[14px]">history_edu</span> Lead Attending
+                          <Award className="w-3.5 h-3.5 text-secondary inline" /> Lead Attending
                         </span>
                       </div>
 
@@ -436,7 +500,7 @@ export function DoctorProfileClient({
                           </span>
                         </div>
                         <span className="font-label-sm text-[11px] text-fresh-teal mt-1 flex items-center gap-1 font-medium">
-                          <span className="material-symbols-outlined text-[14px]">done_all</span> Treated Successfully
+                          <CheckCheck className="w-3.5 h-3.5 text-fresh-teal inline" /> Treated Successfully
                         </span>
                       </div>
 
@@ -467,7 +531,7 @@ export function DoctorProfileClient({
                           </span>
                         </div>
                         <span className="font-label-sm text-[11px] text-secondary mt-1 flex items-center gap-1 font-medium">
-                          <span className="material-symbols-outlined text-[14px] text-amber-500" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>{" "}
+                          <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500 inline" />{" "}
                           482 Verified Reviews
                         </span>
                       </div>
@@ -484,7 +548,7 @@ export function DoctorProfileClient({
                             onClick={() => onEditProfile ? onEditProfile() : setToastMessage('Profile edit drawer ready')}
                             className="flex items-center gap-2 bg-vibrant-blue hover:bg-primary text-on-primary font-label-sm text-label-sm px-6 py-2.5 rounded-full font-bold shadow-[0_2px_12px_rgba(0,102,255,0.25)] transition-all hover:scale-[1.02] cursor-pointer"
                           >
-                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                            <Edit3 className="w-4 h-4 inline" />
                             <span>Edit Public Profile</span>
                           </button> */}
 
@@ -493,7 +557,7 @@ export function DoctorProfileClient({
                             onClick={() => onManageSchedule ? onManageSchedule() : setToastMessage('Opening schedule manager')}
                             className="flex items-center gap-2 bg-surface-container-high hover:bg-surface-container-highest text-indigo-gray-900 font-label-sm text-label-sm px-5 py-2.5 rounded-full font-semibold transition-colors cursor-pointer"
                           >
-                            <span className="material-symbols-outlined text-[18px]">event_note</span>
+                            <Calendar className="w-4 h-4 inline" />
                             <span>Manage Booking Availability</span>
                           </button>
                         </div>
@@ -505,9 +569,7 @@ export function DoctorProfileClient({
                             className="inline-flex items-center gap-1.5 text-primary hover:text-on-primary-fixed-variant font-label-sm text-label-sm font-semibold group cursor-pointer"
                           >
                             <span>View Patient-Facing Profile</span>
-                            <span className="material-symbols-outlined text-[18px] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
-                              open_in_new
-                            </span>
+                            <ExternalLink className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform inline" />
                           </Link>
 
                           <form action="/auth/signout" method="post">
@@ -516,7 +578,7 @@ export function DoctorProfileClient({
                               className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 border border-rose-200 text-xs font-bold transition-all cursor-pointer shadow-sm hover:shadow"
                               title="Logout completely from account"
                             >
-                              <span className="material-symbols-outlined text-[16px]">logout</span>
+                              <LogOut className="w-4 h-4 inline" />
                               <span>Log Out</span>
                             </button>
                           </form>
@@ -529,7 +591,7 @@ export function DoctorProfileClient({
                             href={bookUrl}
                             className="flex items-center gap-2 bg-vibrant-blue hover:bg-primary text-on-primary font-title-md text-body-md px-6 py-3 rounded-full transition-transform active:scale-95 shadow-[0_2px_12px_rgba(0,102,255,0.25)] font-bold cursor-pointer"
                           >
-                            <span className="material-symbols-outlined text-[20px]">calendar_month</span>
+                            <Calendar className="w-5 h-5 inline" />
                             <span>Book Consultation (₹{fee})</span>
                           </Link>
 
@@ -537,7 +599,7 @@ export function DoctorProfileClient({
                             href="#appointment-hours"
                             className="flex items-center gap-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-sm text-label-sm px-5 py-3 rounded-full transition-colors font-semibold"
                           >
-                            <span className="material-symbols-outlined text-[18px]">event_available</span>
+                            <CalendarCheck className="w-4 h-4 inline" />
                             <span>Check Clinic Hours</span>
                           </a>
                         </div>
@@ -547,9 +609,7 @@ export function DoctorProfileClient({
                           href={findUrl}
                         >
                           <span>Back to Doctor Directory</span>
-                          <span className="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">
-                            arrow_forward
-                          </span>
+                          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform inline" />
                         </Link>
                       </>
                     )}
@@ -567,7 +627,7 @@ export function DoctorProfileClient({
                   <div className="flex items-center justify-between mb-stack-md">
                     <div>
                       <div className="flex items-center gap-2 text-fresh-teal">
-                        <span className="material-symbols-outlined text-[20px]">apartment</span>
+                        <Building2 className="w-5 h-5 inline" />
                         <span className="font-label-sm text-label-sm uppercase tracking-wider font-semibold">
                           Active Locations
                         </span>
@@ -585,7 +645,7 @@ export function DoctorProfileClient({
                         }}
                         className="flex items-center gap-1.5 text-primary hover:text-on-primary-fixed-variant font-label-sm text-label-sm font-semibold cursor-pointer"
                       >
-                        <span className="material-symbols-outlined text-[18px]">add</span>
+                        <Plus className="w-4 h-4 inline" />
                         <span>Add Affiliation</span>
                       </button>
                     )}
@@ -597,7 +657,7 @@ export function DoctorProfileClient({
                       <div>
                         <div className="flex items-center justify-between mb-3">
                           <span className="w-8 h-8 rounded-lg bg-surface-container-highest flex items-center justify-center text-primary">
-                            <span className="material-symbols-outlined text-[20px]">local_hospital</span>
+                            <Hospital className="w-5 h-5 inline" />
                           </span>
                           <span className="px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-[11px] font-semibold">
                             Primary Center
@@ -611,11 +671,11 @@ export function DoctorProfileClient({
                         </p>
                         <div className="flex flex-col gap-1.5 text-on-surface-variant font-label-sm text-[13px]">
                           <span className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-[16px] text-primary">desk</span>{" "}
+                            <Building className="w-4 h-4 text-primary shrink-0 inline" />{" "}
                             In-Person Consultations &amp; OPD
                           </span>
                           <span className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-[16px] text-primary">call</span>{" "}
+                            <Phone className="w-4 h-4 text-primary shrink-0 inline" />{" "}
                             {doctor.profiles?.phone_number ? `+91 ${doctor.profiles.phone_number}` : '+91 (011) 2692 5858'}
                           </span>
                         </div>
@@ -645,7 +705,7 @@ export function DoctorProfileClient({
                       <div>
                         <div className="flex items-center justify-between mb-3">
                           <span className="w-8 h-8 rounded-lg bg-surface-container-highest flex items-center justify-center text-primary">
-                            <span className="material-symbols-outlined text-[20px]">emergency</span>
+                            <AlertCircle className="w-5 h-5 text-rose-600 inline" />
                           </span>
                           <span className="px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-sm text-[11px] font-semibold">
                             Specialist Wing
@@ -659,11 +719,11 @@ export function DoctorProfileClient({
                         </p>
                         <div className="flex flex-col gap-1.5 text-on-surface-variant font-label-sm text-[13px]">
                           <span className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-[16px] text-primary">hotel</span>{" "}
+                            <Bed className="w-4 h-4 text-primary shrink-0 inline" />{" "}
                             Inpatient &amp; Surgical Suite
                           </span>
                           <span className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-[16px] text-primary">medical_services</span>{" "}
+                            <BriefcaseMedical className="w-4 h-4 text-primary shrink-0 inline" />{" "}
                             Diagnostic Floor 3
                           </span>
                         </div>
@@ -683,7 +743,7 @@ export function DoctorProfileClient({
                       <div>
                         <div className="flex items-center justify-between mb-3">
                           <span className="w-8 h-8 rounded-lg bg-surface-container-highest flex items-center justify-center text-fresh-teal">
-                            <span className="material-symbols-outlined text-[20px]">videocam</span>
+                            <Video className="w-5 h-5 text-fresh-teal inline" />
                           </span>
                           <span className="px-2.5 py-0.5 rounded-full bg-fresh-teal/15 text-secondary font-label-sm text-[11px] font-semibold">
                             Daily Schedule
@@ -697,11 +757,11 @@ export function DoctorProfileClient({
                         </p>
                         <div className="flex flex-col gap-1.5 text-on-surface-variant font-label-sm text-[13px]">
                           <span className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-[16px] text-primary">public</span>{" "}
+                            <Globe className="w-4 h-4 text-primary shrink-0 inline" />{" "}
                             PAN-India &amp; Teleconsult Desk
                           </span>
                           <span className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-[16px] text-primary">lock_clock</span>{" "}
+                            <Clock className="w-4 h-4 text-primary shrink-0 inline" />{" "}
                             Instant Join via SMS &amp; Email
                           </span>
                         </div>
@@ -727,7 +787,7 @@ export function DoctorProfileClient({
                   <div className="flex items-center justify-between mb-stack-md">
                     <div>
                       <div className="flex items-center gap-2 text-fresh-teal">
-                        <span className="material-symbols-outlined text-[20px]">save_as</span>
+                        <FileCheck className="w-5 h-5 inline" />
                         <span className="font-label-sm text-label-sm uppercase tracking-wider font-semibold">
                           Academic &amp; Clinical Acumen
                         </span>
@@ -744,9 +804,7 @@ export function DoctorProfileClient({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-stack-md">
                     <div>
                       <h3 className="font-title-md text-title-md text-on-surface mb-3 flex items-center gap-2 font-bold">
-                        <span className="material-symbols-outlined text-primary text-[20px]">
-                          monitor_heart
-                        </span>{" "}
+                        <Activity className="w-5 h-5 text-primary inline" />{" "}
                         Primary Interventions
                       </h3>
                       <div className="flex flex-wrap gap-2">
@@ -773,10 +831,10 @@ export function DoctorProfileClient({
                         </p>
                         <div className="flex items-center gap-4 text-primary font-label-sm text-label-sm font-semibold">
                           <span className="flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[16px]">menu_book</span> Clinical Publications
+                            <BookOpen className="w-4 h-4 inline" /> Clinical Publications
                           </span>
                           <span className="flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[16px]">psychology</span> Case Reviews
+                            <Brain className="w-4 h-4 inline" /> Case Reviews
                           </span>
                         </div>
                       </div>
@@ -784,13 +842,13 @@ export function DoctorProfileClient({
 
                     <div>
                       <h3 className="font-title-md text-title-md text-on-surface mb-3 flex items-center gap-2 font-bold">
-                        <span className="material-symbols-outlined text-primary text-[20px]">school</span>{" "}
+                        <GraduationCap className="w-5 h-5 text-primary inline" />{" "}
                         Medical Education &amp; Training
                       </h3>
                       <div className="flex flex-col gap-3">
                         <div className="p-3.5 rounded-xl bg-surface-container-low flex items-start gap-3 border border-surface-container">
                           <div className="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center flex-shrink-0 text-primary">
-                            <span className="material-symbols-outlined">workspace_premium</span>
+                            <Award className="w-5 h-5 inline" />
                           </div>
                           <div>
                             <span className="font-label-sm text-[11px] text-secondary font-semibold uppercase">
@@ -807,7 +865,7 @@ export function DoctorProfileClient({
 
                         <div className="p-3.5 rounded-xl bg-surface-container-low flex items-start gap-3 border border-surface-container">
                           <div className="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center flex-shrink-0 text-primary">
-                            <span className="material-symbols-outlined">domain_verification</span>
+                            <Building className="w-5 h-5 inline" />
                           </div>
                           <div>
                             <span className="font-label-sm text-[11px] text-secondary font-semibold uppercase">
@@ -824,7 +882,7 @@ export function DoctorProfileClient({
 
                         <div className="p-3.5 rounded-xl bg-surface-container-low flex items-start gap-3 border border-surface-container">
                           <div className="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center flex-shrink-0 text-primary">
-                            <span className="material-symbols-outlined">school</span>
+                            <GraduationCap className="w-5 h-5 inline" />
                           </div>
                           <div>
                             <span className="font-label-sm text-[11px] text-secondary font-semibold uppercase">
@@ -848,7 +906,7 @@ export function DoctorProfileClient({
                   <div className="flex flex-wrap items-center justify-between gap-stack-sm mb-stack-md">
                     <div>
                       <div className="flex items-center gap-2 text-fresh-teal">
-                        <span className="material-symbols-outlined text-[20px]">reviews</span>
+                        <MessageSquare className="w-5 h-5 inline" />
                         <span className="font-label-sm text-label-sm uppercase tracking-wider font-semibold">
                           Quality &amp; Governance
                         </span>
@@ -875,7 +933,7 @@ export function DoctorProfileClient({
                         </div>
                       </div>
                       <div className="w-12 h-12 rounded-full bg-fresh-teal/15 text-fresh-teal flex items-center justify-center">
-                        <span className="material-symbols-outlined text-[24px]">forum</span>
+                        <MessagesSquare className="w-6 h-6 text-fresh-teal inline" />
                       </div>
                     </div>
 
@@ -889,7 +947,7 @@ export function DoctorProfileClient({
                         </div>
                       </div>
                       <div className="w-12 h-12 rounded-full bg-primary-fixed text-primary flex items-center justify-center">
-                        <span className="material-symbols-outlined text-[24px]">favorite</span>
+                        <Heart className="w-6 h-6 text-primary inline" />
                       </div>
                     </div>
 
@@ -903,7 +961,7 @@ export function DoctorProfileClient({
                         </div>
                       </div>
                       <div className="w-12 h-12 rounded-full bg-secondary-container text-secondary flex items-center justify-center">
-                        <span className="material-symbols-outlined text-[24px]">schedule</span>
+                        <Clock className="w-6 h-6 text-secondary inline" />
                       </div>
                     </div>
                   </div>
@@ -920,11 +978,11 @@ export function DoctorProfileClient({
                           </span>
                         </div>
                         <div className="flex items-center text-amber-500">
-                          <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                          <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                          <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                          <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                          <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                          <Star className="w-4 h-4 text-amber-500 fill-amber-500 inline" />
+                          <Star className="w-4 h-4 text-amber-500 fill-amber-500 inline" />
+                          <Star className="w-4 h-4 text-amber-500 fill-amber-500 inline" />
+                          <Star className="w-4 h-4 text-amber-500 fill-amber-500 inline" />
+                          <Star className="w-4 h-4 text-amber-500 fill-amber-500 inline" />
                           <span className="font-label-sm text-[12px] text-on-surface-variant ml-1.5">
                             2 weeks ago
                           </span>
@@ -946,11 +1004,11 @@ export function DoctorProfileClient({
                           </span>
                         </div>
                         <div className="flex items-center text-amber-500">
-                          <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                          <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                          <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                          <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                          <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                          <Star className="w-4 h-4 text-amber-500 fill-amber-500 inline" />
+                          <Star className="w-4 h-4 text-amber-500 fill-amber-500 inline" />
+                          <Star className="w-4 h-4 text-amber-500 fill-amber-500 inline" />
+                          <Star className="w-4 h-4 text-amber-500 fill-amber-500 inline" />
+                          <Star className="w-4 h-4 text-amber-500 fill-amber-500 inline" />
                           <span className="font-label-sm text-[12px] text-on-surface-variant ml-1.5">
                             1 month ago
                           </span>
@@ -970,7 +1028,7 @@ export function DoctorProfileClient({
                 <section className="bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_2px_12px_rgba(0,80,203,0.04)] border border-surface-container">
                   <div className="flex items-center justify-between mb-stack-sm">
                     <div className="flex items-center gap-2 text-fresh-teal">
-                      <span className="material-symbols-outlined text-[20px]">payments</span>
+                      <CreditCard className="w-5 h-5 inline" />
                       <h2 className="font-title-md text-title-md text-on-surface font-bold">
                         Fee Structure
                       </h2>
@@ -1049,7 +1107,7 @@ export function DoctorProfileClient({
                 >
                   <div className="flex items-center justify-between mb-stack-sm">
                     <div className="flex items-center gap-2 text-fresh-teal">
-                      <span className="material-symbols-outlined text-[20px]">calendar_month</span>
+                      <Calendar className="w-5 h-5 inline" />
                       <h2 className="font-title-md text-title-md text-on-surface font-bold">
                         Appointment Hours
                       </h2>
@@ -1138,9 +1196,7 @@ export function DoctorProfileClient({
                     {/* Interactive Emergency Toggle */}
                     <div className="p-3 bg-surface-container-high/50 rounded-xl flex items-center justify-between border border-surface-container">
                       <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-on-surface-variant text-[18px]">
-                          bolt
-                        </span>
+                        <Zap className="w-4 h-4 text-on-surface-variant inline" />
                         <span className="font-label-sm text-label-sm text-on-surface font-semibold">
                           Emergency Escalation Slot
                         </span>
@@ -1162,7 +1218,7 @@ export function DoctorProfileClient({
                 <section className="bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_2px_12px_rgba(0,80,203,0.04)] border border-surface-container">
                   <div className="flex items-center justify-between mb-stack-sm">
                     <div className="flex items-center gap-2 text-fresh-teal">
-                      <span className="material-symbols-outlined text-[20px]">policy</span>
+                      <Shield className="w-5 h-5 inline" />
                       <h2 className="font-title-md text-title-md text-on-surface font-bold">
                         Accepted Insurances
                       </h2>
@@ -1261,11 +1317,11 @@ export function DoctorProfileClient({
                     </p>
                     <div className="flex flex-col gap-2.5 font-label-sm text-label-sm">
                       <div className="flex items-center gap-2 text-on-primary">
-                        <span className="material-symbols-outlined text-[18px] text-fresh-teal">call</span>
+                        <Phone className="w-4 h-4 text-fresh-teal inline" />
                         <span>{doctor.profiles?.phone_number ? `+91 ${doctor.profiles.phone_number}` : "+91 (011) 2692 5858 (Direct Line)"}</span>
                       </div>
                       <div className="flex items-center gap-2 text-on-primary">
-                        <span className="material-symbols-outlined text-[18px] text-fresh-teal">mail</span>
+                        <Mail className="w-4 h-4 text-fresh-teal inline" />
                         <span>{doctor.profiles?.email || hospital?.contact_email || "support@consultyourdoctor.com"}</span>
                       </div>
                     </div>
@@ -1278,7 +1334,7 @@ export function DoctorProfileClient({
                   <section className="bg-surface-container-lowest rounded-xl p-stack-md border border-surface-container shadow-sm flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-indigo-gray-900 font-bold text-sm">
-                        <span className="material-symbols-outlined text-rose-600 text-[20px]">manage_accounts</span>
+                        <UserCog className="w-5 h-5 text-rose-600 inline" />
                         <span>Practitioner Session</span>
                       </div>
                       <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase border border-emerald-200">
@@ -1293,7 +1349,7 @@ export function DoctorProfileClient({
                         type="submit"
                         className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white font-bold text-xs transition-all shadow-md cursor-pointer"
                       >
-                        <span className="material-symbols-outlined text-[18px]">logout</span>
+                        <LogOut className="w-4 h-4 inline" />
                         <span>Log Out Completely</span>
                       </button>
                     </form>

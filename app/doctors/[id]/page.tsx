@@ -106,5 +106,28 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
     doctorData.schedules = schedules;
   }
 
-  return <DoctorProfileClient doctor={doctorData} />;
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "Physician",
+    name: doctorData.profiles?.full_name || "Specialist Doctor",
+    image: doctorData.image_url || "",
+    medicalSpecialty: doctorData.specialty || doctorData.departments?.name || "",
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: doctorData.hospitals?.address || "",
+      addressLocality: doctorData.hospitals?.city || "",
+    },
+    url: `https://consultyourdoctor.de/doctors/${id}`,
+    priceRange: doctorData.consultation_fee ? `₹${doctorData.consultation_fee}` : undefined,
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      />
+      <DoctorProfileClient doctor={doctorData} />
+    </>
+  );
 }

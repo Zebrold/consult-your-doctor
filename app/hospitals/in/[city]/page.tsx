@@ -1,25 +1,39 @@
 import { createClient } from "@/lib/supabase/server";
 import { Metadata } from "next";
 import Link from "next/link";
-import { MapPin, Building2, Phone, ArrowRight } from "lucide-react";
+import { MapPin, Building2, Phone, Mail, ArrowRight } from "lucide-react";
 import Image from "next/image";
 import { Header } from "@/components/Header";
 
 export const revalidate = 0;
 
-export const metadata: Metadata = {
-  title: "Top Hospitals & Medical Centers | Consult Your Doctor",
-  description: "Discover top-rated hospitals and medical centers. View facilities, contact details, and book doctor consultations.",
-};
+interface Props {
+  params: Promise<{ city: string }>;
+}
 
-export default async function HospitalsDirectoryPage() {
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const { city } = await props.params;
+  const decodedCity = decodeURIComponent(city);
+  const capitalizedCity = decodedCity.charAt(0).toUpperCase() + decodedCity.slice(1);
+
+  return {
+    title: `Best Hospitals in ${capitalizedCity} | Consult Your Doctor`,
+    description: `Discover top-rated hospitals and medical centers in ${capitalizedCity}. View facilities, contact details, and book doctor consultations.`,
+  };
+}
+
+export default async function HospitalsInCityPage(props: Props) {
+  const { city } = await props.params;
+  const decodedCity = decodeURIComponent(city);
+  const capitalizedCity = decodedCity.charAt(0).toUpperCase() + decodedCity.slice(1);
+
   const supabase = await createClient();
 
   const { data: hospitals } = await supabase
     .from("hospitals")
     .select("*")
-    .eq("status", "active")
-    .limit(50);
+    .ilike("city", `%${decodedCity}%`)
+    .eq("status", "active");
 
   const schema = {
     "@context": "https://schema.org",
@@ -43,10 +57,10 @@ export default async function HospitalsDirectoryPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h1 className="text-4xl font-extrabold text-gray-900 mb-4">
-              Best Hospitals & Medical Centers
+              Best Hospitals in {capitalizedCity}
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Browse world-class healthcare facilities and premium medical centers.
+              Browse world-class healthcare facilities and premium medical centers located in {capitalizedCity}.
             </p>
           </div>
 
@@ -93,7 +107,10 @@ export default async function HospitalsDirectoryPage() {
             <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
               <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-gray-900 mb-2">No Hospitals Found</h2>
-              <p className="text-gray-500">We couldn't find any registered hospitals yet.</p>
+              <p className="text-gray-500">We couldn't find any registered hospitals in {capitalizedCity} yet.</p>
+              <Link href="/hospitals" className="mt-6 inline-block px-6 py-3 bg-[#E31E24] text-white font-bold rounded-xl hover:bg-red-700 transition-colors">
+                View All Hospitals
+              </Link>
             </div>
           )}
         </div>

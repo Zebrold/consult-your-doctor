@@ -18,17 +18,17 @@ export async function generateMetadata(
 
   const { data: hospital } = await supabase
     .from('hospitals')
-    .select('name, city')
+    .select('name, city, address, state, zip_code')
     .eq('id', id)
     .single()
 
   if (!hospital) {
-    return { title: 'Hospital Not Found' }
+    return { title: 'Hospital Not Found | Consult Your Doctor' }
   }
 
   return {
-    title: `${hospital.name} in ${hospital.city}`,
-    description: `View details, doctors, and book consultations at ${hospital.name} in ${hospital.city} through Consult Your Doctor.`,
+    title: `${hospital.name} in ${hospital.city} | Consult Your Doctor`,
+    description: `Book consultations at ${hospital.name} located at ${[hospital.address, hospital.city, hospital.state].filter(Boolean).join(', ')}. View affiliated doctors and specialties.`,
   }
 }
 
@@ -64,8 +64,29 @@ export default async function HospitalProfilePage(
     `)
     .eq('hospital_id', id)
 
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "Hospital",
+    name: hospital.name,
+    image: hospital.image_url || "",
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: hospital.address || "",
+      addressLocality: hospital.city || "",
+      addressRegion: hospital.state || "",
+      postalCode: hospital.zip_code || "",
+    },
+    telephone: hospital.contact_phone || "",
+    email: hospital.contact_email || "",
+    url: `https://consultyourdoctor.de/hospitals/${id}`,
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      />
       <Header />
       
       <main className="flex-1 py-12">

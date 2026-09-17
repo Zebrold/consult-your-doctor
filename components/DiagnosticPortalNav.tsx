@@ -61,8 +61,68 @@ export function DiagnosticPortalNav({
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 antialiased font-sans flex flex-col">
-      {/* UNIVERSAL TOP HEADER (Exact matching CYD Labs reference header) */}
-      <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 py-2.5 shadow-sm">
+      {/* MOBILE HEADER (Reference Image Match) */}
+      <header className="md:hidden sticky top-0 z-40 w-full bg-white border-b border-slate-100 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3.5">
+            <button type="button" className="text-slate-800 p-1 flex items-center justify-center">
+              <span className="material-symbols-outlined text-[26px]">menu</span>
+            </button>
+            <span className="font-bold text-[20px] text-slate-900 tracking-tight">
+              {(() => {
+                if (pathname.includes("patients")) return "Patients";
+                if (pathname.includes("tests")) return "Tests";
+                if (pathname.includes("reports")) return "Reports";
+                if (pathname.includes("settings")) return "Settings";
+                return "Dashboard";
+              })()}
+            </span>
+          </div>
+          
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setProfileMenuOpen((prev) => !prev)}
+              className="w-9 h-9 rounded-full bg-[#1A64FA] text-white flex items-center justify-center cursor-pointer shadow-sm"
+              aria-label="User profile"
+            >
+              <span className="material-symbols-outlined text-[20px]">person</span>
+            </button>
+
+            {profileMenuOpen && (
+              <div className="absolute right-0 top-12 w-64 rounded-2xl bg-white border border-slate-100 shadow-xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="p-2 border-b border-slate-100 mb-2">
+                  <p className="font-bold text-slate-900 text-sm">{directorName}</p>
+                  <p className="text-xs text-slate-500">{centerName}</p>
+                  <span className="inline-block mt-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                    Node #042 Active
+                  </span>
+                </div>
+                <Link
+                  href="/diagnostic-center/settings"
+                  onClick={() => setProfileMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-xl transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[18px] text-slate-400">tune</span>
+                  Center Settings
+                </Link>
+                <form action="/auth/signout" method="post">
+                  <button
+                    type="submit"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer text-left"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">logout</span>
+                    Sign Out
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* DESKTOP HEADER (Existing CYD Labs header) */}
+      <header className="hidden md:block sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 py-2.5 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           {/* Brand Header */}
           <Link href="/diagnostic-center/dashboard" className="flex items-center gap-2.5 group">

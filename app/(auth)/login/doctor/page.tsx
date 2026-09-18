@@ -31,97 +31,10 @@ export default function DoctorLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F9FC] p-4 lg:p-8 font-sans">
-      <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch mt-8">
-
-        {/* LEFT PANEL */}
-        <div className="bg-gradient-to-b from-[#F3F5FA] to-[#E9F0FA] rounded-[2rem] p-6 lg:p-14 flex flex-col justify-between relative overflow-hidden order-2 lg:order-1">
-          <div className="relative z-10 flex flex-col gap-6">
-            <div className="flex items-center gap-3">
-              <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-sm text-[#0949B3] text-sm font-bold">
-                <ShieldCheck className="w-4 h-4 text-[#1FA67A]" />
-                GMC & State Medical Board Verified
-              </span>
-            </div>
-
-            <div className="mt-8">
-              <h1 className="text-3xl lg:text-[42px] font-black text-[#0949B3] leading-[1.15] tracking-tight max-w-lg">
-                Integrated Workstation for Accredited Specialists.
-              </h1>
-              <p className="text-[17px] text-slate-600 mt-6 leading-relaxed max-w-md font-medium">
-                Zero-latency multi-disciplinary clinical operations. Instant patient triage, PACS telemetry, and native EHR orchestration inside an encrypted enclave.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
-              <div className="p-6 rounded-2xl bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-black text-slate-600 tracking-wider">SYNC STATE</span>
-                  <RefreshCcw className="w-5 h-5 text-[#1FA67A]" />
-                </div>
-                <h3 className="text-lg font-black text-[#0949B3] mb-1.5">Epic & Cerner</h3>
-                <p className="text-xs text-slate-600 font-bold flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#1FA67A]"></span>
-                  Realtime HL7 / FHIR
-                </p>
-              </div>
-              <div className="p-6 rounded-2xl bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-black text-slate-600 tracking-wider">ACTIVE FACULTY</span>
-                  <Users className="w-5 h-5 text-[#0949B3]" />
-                </div>
-                <h3 className="text-lg font-black text-[#0949B3] mb-1.5">1,740+ Doctors</h3>
-                <p className="text-xs text-slate-600 font-bold">across 42 specialties</p>
-              </div>
-            </div>
-
-            <div className="mt-4 bg-white rounded-2xl p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <Activity className="w-5 h-5 text-[#0949B3]" />
-                  <div>
-                    <h3 className="text-sm font-black text-[#0949B3]">Cloud PACS Telemetry</h3>
-                    <p className="text-[11px] font-bold text-slate-500">DICOM 3.0 Compatible · 256-bit AES Enclave</p>
-                  </div>
-                </div>
-                <span className="bg-[#EAF2FF] text-[#0949B3] px-3 py-1 rounded-full text-xs font-bold">
-                  0.12s Latency
-                </span>
-              </div>
-              <div className="bg-[#F8F9FC] rounded-xl p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-black text-slate-500 tracking-wider mb-0.5">THROUGHPUT</p>
-                  <p className="text-[15px] font-black text-[#0949B3]">9.8 GB/s Diagnostic Stream</p>
-                </div>
-                <div className="w-24 h-6 opacity-80">
-                  <svg viewBox="0 0 100 24" className="w-full h-full" preserveAspectRatio="none">
-                    <path d="M0,12 L15,12 L25,4 L35,20 L45,8 L55,16 L70,12 L100,12" fill="none" stroke="#0949B3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="relative z-10 mt-8 bg-white/50 backdrop-blur-md rounded-2xl p-6 border border-white/60">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 relative shrink-0">
-                <Image src="https://lh3.googleusercontent.com/aida-public/AB6AXuB6uhXvtzWITDpDpJT9SrPzufUry7hJFYJC2y7Qjy-oD1HI6z6Z9eYzOF9iVadJzQLjQ5BwX7-XRPtbZQUa0WjtAPXJjrVfpq5YtnmaIk3IvKL7Bunvi1GNnIfshpiwOXOzA3Mc69SxnuXW-z2I8Tq9ZycrFUuStuU_1yV_vnqxDV8fva3d5p1oao_NVL7DYwmlpOMrg7eqqOk3iz6rTk-fnoV2UdViTwH1zQGTq6uyejVK25diQLX6oA" alt="Chief Medical Officer" fill className="object-cover" />
-              </div>
-              <div>
-                <p className="text-[13px] italic text-[#0949B3] font-bold leading-relaxed mb-3">
-                  "The speed of accessing synchronous multi-disciplinary records while maintaining full GMC compliance has set a new gold standard for our surgical department."
-                </p>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-black text-[#0949B3]">Prof. Eleanor Vance, MD, FRCS</span>
-                  <span className="text-xs font-bold text-slate-500 border-l border-slate-300 pl-2">Chief Medical Officer</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT PANEL - Authentication Portal */}
-        <div className="bg-white rounded-[2rem] p-6 lg:p-16 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-start border border-slate-100 order-1 lg:order-2">
+    <div className="min-h-screen bg-[#F8F9FC] p-4 lg:p-8 font-sans flex items-center justify-center">
+      <div className="w-full max-w-xl mx-auto">
+        {/* Authentication Portal */}
+        <div className="bg-white rounded-[2rem] p-6 lg:p-12 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-center border border-slate-100">
 
           {view === 'forgot' && (
             <div>

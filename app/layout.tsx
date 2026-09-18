@@ -43,9 +43,6 @@ export const metadata: Metadata = {
       "AI-powered doctors provide personalized medical advice and support medication planning to make your healthcare decisions easier.",
   },
 
-  icons: {
-    icon: "/logo.svg",
-  },
 
   verification: {
     google: "5bOD-nmb-MHl3VmBVPiSUMceyayzS75abEd8q69U4YQ",

@@ -55,10 +55,7 @@ export default async function HospitalPatientsPage() {
 
   return (
     <div className="p-4 sm:p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">All Patients</h1>
-        <p className="text-gray-500">View and filter all appointments at your hospital.</p>
-      </div>
+
 
       <PatientsListClient 
         appointments={appointments || []} 

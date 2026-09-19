@@ -22,13 +22,12 @@ function ConditionalLayoutInner({
 
   const isDashboard =
     isPatientHome ||
-    pathname?.startsWith("/hospital/dashboard") ||
-    pathname?.startsWith("/executive/dashboard") ||
-    pathname?.startsWith("/corporate/dashboard") ||
-    pathname?.startsWith("/doctor/dashboard") ||
-    pathname?.startsWith("/admin/dashboard") ||
-    pathname?.startsWith("/diagnostic/dashboard") ||
-    pathname?.startsWith("/diagnostic-center") ||
+    pathname?.startsWith("/hospital") ||
+    pathname?.startsWith("/executive") ||
+    pathname?.startsWith("/corporate") ||
+    pathname?.startsWith("/doctor") ||
+    pathname?.startsWith("/admin") ||
+    pathname?.startsWith("/diagnostic") ||
     pathname?.startsWith("/patient") ||
     pathname?.startsWith("/find") ||
     pathname?.startsWith("/book") ||

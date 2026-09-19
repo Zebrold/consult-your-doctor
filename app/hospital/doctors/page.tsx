@@ -34,11 +34,7 @@ export default async function HospitalDoctors() {
 
   return (
     <div className="p-4 sm:p-8 flex flex-col h-full">
-      <div className="mb-8 flex justify-between items-end">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Hospital Doctors</h1>
-          <p className="text-gray-500">Manage physicians registered at your hospital.</p>
-        </div>
+      <div className="mb-4 flex justify-end">
         <HospitalCreateDoctorModal />
       </div>
 

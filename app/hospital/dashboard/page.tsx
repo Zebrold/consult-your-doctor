@@ -82,15 +82,12 @@ export default async function HospitalDashboard() {
   const recentBookings = appointments?.slice(0, 5) || []
 
   return (
-    <div className="p-4 sm:p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Hospital Operations</h1>
-        <p className="text-gray-500">Overview of your hospital's performance.</p>
-      </div>
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:border-[#E31E24]/30 hover:shadow-[0_8px_30px_rgb(227,30,36,0.08)] transition-all">
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:border-[#0949B3]/30 hover:shadow-[0_8px_30px_rgb(9,73,179,0.08)] transition-all">
           <div className="absolute top-0 right-0 p-4 opacity-10"><IndianRupee className="w-16 h-16" /></div>
           <p className="text-sm font-medium text-gray-500 mb-1">Total Revenue generated</p>
           <p className="text-3xl font-black text-gray-900 flex items-center gap-1">
@@ -98,12 +95,12 @@ export default async function HospitalDashboard() {
           </p>
           <p className="text-xs text-emerald-600 font-bold mt-2 flex items-center gap-1"><TrendingUp className="w-3 h-3" /> All time</p>
         </div>
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:border-[#E31E24]/30 hover:shadow-[0_8px_30px_rgb(227,30,36,0.08)] transition-all">
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:border-[#0949B3]/30 hover:shadow-[0_8px_30px_rgb(9,73,179,0.08)] transition-all">
           <div className="absolute top-0 right-0 p-4 opacity-10"><Users className="w-16 h-16" /></div>
           <p className="text-sm font-medium text-gray-500 mb-1">Total Consultations</p>
           <p className="text-3xl font-black text-gray-900">{totalAppointments}</p>
         </div>
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:border-[#E31E24]/30 hover:shadow-[0_8px_30px_rgb(227,30,36,0.08)] transition-all">
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:border-[#0949B3]/30 hover:shadow-[0_8px_30px_rgb(9,73,179,0.08)] transition-all">
           <div className="absolute top-0 right-0 p-4 opacity-10"><User className="w-16 h-16" /></div>
           <p className="text-sm font-medium text-gray-500 mb-1">Active Doctors</p>
           <p className="text-3xl font-black text-gray-900">{totalDoctors}</p>
@@ -121,7 +118,7 @@ export default async function HospitalDashboard() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-6">Top Doctors by Consultations</h2>
           <div className="h-72">
-            <BookingsChart data={bookingsData} color="#E31E24" />
+            <BookingsChart data={bookingsData} color="#0949B3" />
           </div>
         </div>
       </div>
@@ -135,12 +132,12 @@ export default async function HospitalDashboard() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-gray-100 text-sm">
-                <th className="px-6 py-4 font-bold text-gray-500">Patient</th>
-                <th className="px-6 py-4 font-bold text-gray-500">Doctor</th>
-                <th className="px-6 py-4 font-bold text-gray-500">Amount</th>
-                <th className="px-6 py-4 font-bold text-gray-500">Status</th>
-                <th className="px-6 py-4 font-bold text-gray-500 text-right">Booked On</th>
+              <tr className="border-b border-gray-100 text-xs sm:text-sm">
+                <th className="px-4 sm:px-6 py-3 sm:py-4 font-bold text-gray-500">Patient</th>
+                <th className="px-4 sm:px-6 py-3 sm:py-4 font-bold text-gray-500">Doctor</th>
+                <th className="px-4 sm:px-6 py-3 sm:py-4 font-bold text-gray-500">Amount</th>
+                <th className="px-4 sm:px-6 py-3 sm:py-4 font-bold text-gray-500">Status</th>
+                <th className="px-4 sm:px-6 py-3 sm:py-4 font-bold text-gray-500 text-right">Booked On</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -154,24 +151,24 @@ export default async function HospitalDashboard() {
                   const doctor: any = apt.doctor
                   return (
                     <tr key={apt.id} className="hover:bg-gradient-to-r from-gray-50 to-white transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="font-bold text-gray-900">{patient?.full_name || 'Unknown Patient'}</div>
+                      <td className="px-4 sm:px-6 py-3 sm:py-4">
+                        <div className="font-bold text-gray-900 whitespace-nowrap">{patient?.full_name || 'Unknown Patient'}</div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-gray-600">Dr. {doctor?.profiles?.full_name?.replace('Dr. ', '') || 'Unknown Doctor'}</div>
+                      <td className="px-4 sm:px-6 py-3 sm:py-4">
+                        <div className="font-medium text-gray-600 whitespace-nowrap">Dr. {doctor?.profiles?.full_name?.replace('Dr. ', '') || 'Unknown Doctor'}</div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 sm:px-6 py-3 sm:py-4">
                         <div className="font-bold text-gray-900">₹{doctor?.consultation_fee || 0}</div>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2.5 py-1 text-xs font-bold rounded-md ${apt.status === 'completed' ? 'bg-green-100 text-green-700' :
+                      <td className="px-4 sm:px-6 py-3 sm:py-4">
+                        <span className={`px-2.5 py-1 text-xs font-bold rounded-md whitespace-nowrap ${apt.status === 'completed' ? 'bg-green-100 text-green-700' :
                             apt.status === 'confirmed' ? 'bg-yellow-100 text-yellow-700' :
                               'bg-gray-100 text-gray-700'
                           }`}>
                           {apt.status.toUpperCase().replace('_', ' ')}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right text-sm text-gray-500 font-medium">
+                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-right text-xs sm:text-sm text-gray-500 font-medium whitespace-nowrap">
                         {new Date(apt.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </td>
                     </tr>

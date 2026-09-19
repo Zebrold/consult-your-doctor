@@ -74,14 +74,14 @@ function PatientLoginForm() {
               <span className="text-sm font-bold text-vibrant-blue uppercase tracking-widest whitespace-nowrap">
                 Authentication Portal
               </span>
-              <div className="bg-[#F1F5F9] rounded-full p-1.5 flex shadow-inner shrink-0">
-                <button className="bg-vibrant-blue text-white px-4 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-bold shadow-md whitespace-nowrap">
+              <div className="bg-[#F1F5F9] rounded-full p-1 sm:p-1.5 flex shadow-inner w-full sm:w-fit">
+                <button className="flex-1 sm:flex-none bg-vibrant-blue text-white px-2 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-bold shadow-md whitespace-nowrap">
                   Patient Portal
                 </button>
                 <button
                   type="button"
                   onClick={() => router.push('/login/doctor')}
-                  className="text-slate-500 hover:text-slate-700 px-4 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-bold transition-colors whitespace-nowrap"
+                  className="flex-1 sm:flex-none text-slate-500 hover:text-slate-700 px-2 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-bold transition-colors whitespace-nowrap"
                 >
                   Clinician / Staff
                 </button>
@@ -113,7 +113,7 @@ function PatientLoginForm() {
             )}
 
             <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
                 <label className="text-sm font-bold text-slate-600">Full Name</label>
                 <span className="text-xs font-bold text-[#1FA67A] flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4" /> Identity Match
@@ -134,7 +134,7 @@ function PatientLoginForm() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
                 <label className="text-sm font-bold text-slate-600">Registered Mobile Number</label>
                 <span className="text-xs font-bold text-[#1FA67A] flex items-center gap-1.5">
                   <MessageSquare className="w-4 h-4" /> SMS Verification
@@ -157,7 +157,7 @@ function PatientLoginForm() {
                     </select>
                     <svg className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                   </div>
-                  <div className="relative flex-1 flex">
+                  <div className="relative flex-1 flex min-w-0">
                     <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <input
                       type="tel"
@@ -166,7 +166,7 @@ function PatientLoginForm() {
                       defaultValue={phoneVal}
                       disabled={step === 2}
                       placeholder="7123 456789"
-                      className="w-full pl-12 pr-4 sm:pr-32 py-4 rounded-xl border border-slate-200 text-[#1A2530] font-semibold placeholder-slate-300 focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue outline-none transition-all disabled:bg-slate-50 disabled:text-slate-400"
+                      className="w-full min-w-0 pl-12 pr-4 sm:pr-32 py-4 rounded-xl border border-slate-200 text-[#1A2530] font-semibold placeholder-slate-300 focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue outline-none transition-all disabled:bg-slate-50 disabled:text-slate-400"
                     />
                     {step === 1 && (
                       <button
@@ -193,7 +193,7 @@ function PatientLoginForm() {
 
             {/* OTP Fields (Visible in Step 2, or visually disabled in Step 1) */}
             <div className={`flex flex-col gap-2 mt-4 transition-opacity duration-300 ${step === 1 ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
                 <label className="text-sm font-bold text-slate-600">6-Digit Verification Code</label>
                 <span className="text-xs font-bold text-vibrant-blue">
                   Resend code in <strong className="font-black">00:45</strong>

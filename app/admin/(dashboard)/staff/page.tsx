@@ -33,7 +33,7 @@ export default async function AdminStaff() {
       role,
       created_at,
       staff_id,
-      hospital:hospitals ( name ),
+      hospital:hospitals ( id, name ),
       doctors (
         id,
         specialty,
@@ -41,10 +41,45 @@ export default async function AdminStaff() {
         consultation_fee,
         address,
         bio,
-        qualifications
+        qualifications,
+        hospital:hospitals ( id, name )
       )
     `)
     .in('role', ['executive', 'doctor', 'hospital_admin'])
+    .order('created_at', { ascending: false })
+
+  // Fetch Pending Doctor Requests
+  const { data: pendingRequests } = await supabase
+    .from('doctor_signup_requests')
+    .select(`
+      id,
+      full_name,
+      email,
+      phone_number,
+      specialty,
+      qualifications,
+      status,
+      created_at,
+      hospital:hospitals ( name )
+    `)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+
+  // Fetch Rejected Doctor Requests (History)
+  const { data: rejectedRequests } = await supabase
+    .from('doctor_signup_requests')
+    .select(`
+      id,
+      full_name,
+      email,
+      phone_number,
+      specialty,
+      qualifications,
+      status,
+      created_at,
+      hospital:hospitals ( name )
+    `)
+    .eq('status', 'rejected')
     .order('created_at', { ascending: false })
 
   // Fetch emails from auth.users to extract the generated Staff IDs
@@ -75,7 +110,7 @@ export default async function AdminStaff() {
         {hospitals && <CreateStaffModal hospitals={hospitals} />}
       </div>
 
-      <StaffListClient initialStaff={(staffWithIds as any) || []} hospitals={hospitals || []} />
+      <StaffListClient initialStaff={(staffWithIds as any) || []} hospitals={hospitals || []} pendingRequests={pendingRequests || []} rejectedRequests={rejectedRequests || []} />
     </div>
   )
 }

@@ -1,19 +1,29 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useActionState } from 'react'
-import { staffLogin, sendPasswordResetOTP, verifyOTPAndUpdatePassword } from '@/app/actions/auth'
-import { ArrowLeft, Loader2, KeyRound, ShieldCheck, RefreshCcw, Users, Activity, IdCard, Lock, Unlock, Building2 } from 'lucide-react'
+import { useState, useActionState, useEffect } from 'react'
+import { staffLogin, sendPasswordResetOTP } from '@/app/actions/auth'
+import { getHospitals, submitDoctorSignup } from '@/app/actions/doctorAuth'
+import { ArrowLeft, Loader2, KeyRound, ShieldCheck, RefreshCcw, Users, Activity, IdCard, Lock, Unlock, Building2, User, Mail, Phone, GraduationCap, Stethoscope } from 'lucide-react'
 import Image from 'next/image'
 
 export default function DoctorLoginPage() {
   const [state, formAction, isPending] = useActionState(staffLogin, null)
 
-  const [view, setView] = useState<'login' | 'forgot' | 'verify'>('login')
+  const [view, setView] = useState<'login' | 'forgot' | 'verify' | 'signup'>('login')
   const [staffId, setStaffId] = useState('')
   const [isResetting, setIsResetting] = useState(false)
   const [resetError, setResetError] = useState('')
   const [resetSuccess, setResetSuccess] = useState('')
+
+  const [signupState, signupAction, isSignupPending] = useActionState(submitDoctorSignup, null)
+  const [hospitals, setHospitals] = useState<any[]>([])
+
+  useEffect(() => {
+    if (view === 'signup' && hospitals.length === 0) {
+      getHospitals().then(setHospitals)
+    }
+  }, [view, hospitals.length])
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -186,19 +196,154 @@ export default function DoctorLoginPage() {
             </div>
           )}
 
-          {/* Registration Footer Callout */}
-          <div className="mt-10 pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Building2 className="w-8 h-8 text-[#0949B3]" />
-              <div>
-                <p className="text-sm font-black text-[#0949B3]">New practitioner?</p>
-                <p className="text-xs font-bold text-slate-500">Accreditation verified via GMC checks</p>
+          {view === 'signup' && (
+            <div>
+              <button onClick={() => setView('login')} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold mb-6 transition-colors">
+                <ArrowLeft className="w-4 h-4" /> Back to Sign In
+              </button>
+              <div className="mb-8">
+                <h2 className="text-3xl font-black text-[#0949B3] tracking-tight">Register Practice</h2>
+                <p className="text-[15px] text-slate-500 font-medium mt-3 leading-relaxed">
+                  Submit your details to apply for clinical access. Your application will be verified by a Super Admin.
+                </p>
               </div>
+
+              {signupState?.error && (
+                <div className="mb-6 p-4 bg-red-50 text-red-700 text-sm rounded-xl border border-red-100 font-bold">
+                  {signupState.error}
+                </div>
+              )}
+              {signupState?.success && (
+                <div className="mb-6 p-4 bg-green-50 text-green-700 text-sm rounded-xl border border-green-100 font-bold">
+                  {signupState.message}
+                </div>
+              )}
+
+              {!signupState?.success && (
+                <form action={signupAction} className="flex flex-col gap-5">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-bold text-slate-700">Full Name</label>
+                    <div className="relative flex items-center">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                      <input required name="fullName" type="text" placeholder="Dr. John Doe" className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold placeholder-slate-400 focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none" />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-bold text-slate-700">Email Address</label>
+                    <div className="relative flex items-center">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                      <input required name="email" type="email" placeholder="doctor@example.com" className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold placeholder-slate-400 focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none" />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-bold text-slate-700">Phone Number</label>
+                    <div className="relative flex items-center">
+                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                      <input required name="phone" type="tel" placeholder="+91 9999999999" className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold placeholder-slate-400 focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-bold text-slate-700">Specialty</label>
+                      <div className="relative flex items-center">
+                        <Stethoscope className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <select required name="specialty" className="w-full pl-11 pr-8 py-3.5 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none text-sm appearance-none cursor-pointer">
+                          <option value="">Select Specialty</option>
+                          <option value="Cardiology">Cardiology</option>
+                          <option value="Neurology">Neurology</option>
+                          <option value="Orthopedics">Orthopedics</option>
+                          <option value="Pediatrics">Pediatrics</option>
+                          <option value="Oncology">Oncology</option>
+                          <option value="Dermatology">Dermatology</option>
+                          <option value="General Practice">General Practice</option>
+                          <option value="Psychiatry">Psychiatry</option>
+                          <option value="Internal Medicine">Internal Medicine</option>
+                        </select>
+                        <span className="material-symbols-outlined absolute right-3 text-slate-400 pointer-events-none text-lg">expand_more</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-bold text-slate-700">Qualifications</label>
+                      <div className="relative flex items-center">
+                        <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <select required name="qualifications" className="w-full pl-11 pr-8 py-3.5 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none text-sm appearance-none cursor-pointer">
+                          <option value="">Select Quals</option>
+                          <option value="MBBS">MBBS</option>
+                          <option value="MD">MD</option>
+                          <option value="DO">DO</option>
+                          <option value="PhD">PhD</option>
+                          <option value="MS">MS</option>
+                          <option value="DNB">DNB</option>
+                          <option value="MBBS, MD">MBBS, MD</option>
+                          <option value="MBBS, MS">MBBS, MS</option>
+                        </select>
+                        <span className="material-symbols-outlined absolute right-3 text-slate-400 pointer-events-none text-lg">expand_more</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-bold text-slate-700">Experience (Years)</label>
+                      <div className="relative flex items-center">
+                        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg">work_history</span>
+                        <input required name="experience_years" type="number" min="0" max="80" placeholder="e.g. 5" className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold placeholder-slate-400 focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none text-sm" />
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-bold text-slate-700">Consultation Fee (₹)</label>
+                      <div className="relative flex items-center">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">₹</span>
+                        <input required name="consultation_fee" type="number" min="0" placeholder="e.g. 500" className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold placeholder-slate-400 focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none text-sm" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-bold text-slate-700">Select Hospital</label>
+                    <div className="relative flex items-center">
+                      <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                      <select required name="hospitalId" className="w-full pl-12 pr-10 py-3.5 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none appearance-none cursor-pointer">
+                        <option value="">Select a Hospital</option>
+                        {hospitals.map((h) => (
+                          <option key={h.id} value={h.id}>{h.name}</option>
+                        ))}
+                      </select>
+                      <span className="material-symbols-outlined absolute right-4 text-slate-400 pointer-events-none">expand_more</span>
+                    </div>
+                  </div>
+
+                  <button
+                    disabled={isSignupPending}
+                    type="submit"
+                    className="mt-4 w-full py-4 rounded-full bg-[#0949B3] text-white text-lg font-black shadow-[0_8px_20px_-8px_rgba(9,73,179,0.6)] hover:bg-[#073A8F] transition-all flex justify-center items-center gap-2 disabled:opacity-50"
+                  >
+                    {isSignupPending ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Submit Application'}
+                  </button>
+                </form>
+              )}
             </div>
-            <button type="button" className="px-6 py-2.5 rounded-full border-2 border-slate-200 text-[#0949B3] text-sm font-black hover:border-[#0949B3] transition-all whitespace-nowrap">
-              Register Practice
-            </button>
-          </div>
+          )}
+
+          {/* Registration Footer Callout */}
+          {view === 'login' && (
+            <div className="mt-10 pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Building2 className="w-8 h-8 text-[#0949B3]" />
+                <div>
+                  <p className="text-sm font-black text-[#0949B3]">New practitioner?</p>
+                  <p className="text-xs font-bold text-slate-500">Accreditation verified via admin checks</p>
+                </div>
+              </div>
+              <button onClick={() => setView('signup')} type="button" className="px-6 py-2.5 rounded-full border-2 border-slate-200 text-[#0949B3] text-sm font-black hover:border-[#0949B3] transition-all whitespace-nowrap cursor-pointer">
+                Register Practice
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

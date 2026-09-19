@@ -2205,11 +2205,11 @@ export function DoctorDashboardClient({
                           </div>
                           <p className="font-label-sm text-xs text-indigo-gray-600 mt-0.5">
                             {now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })} • {
-                              (todaySchedules.length > 0 ? todaySchedules : schedules).length
+                              todaySchedules.length
                             } Slots ({
-                              (todaySchedules.length > 0 ? todaySchedules : schedules).filter((s: any) => s.is_booked || s.appointment).length
+                              todaySchedules.filter((s: any) => s.is_booked || s.appointment).length
                             } Booked, {
-                              (todaySchedules.length > 0 ? todaySchedules : schedules).filter((s: any) => !s.is_booked && !s.appointment).length
+                              todaySchedules.filter((s: any) => !s.is_booked && !s.appointment).length
                             } Available)
                           </p>
                         </div>
@@ -2225,8 +2225,8 @@ export function DoctorDashboardClient({
                       </div>
 
                       <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
-                        {(todaySchedules.length > 0 ? todaySchedules : schedules).length > 0 ? (
-                          (todaySchedules.length > 0 ? todaySchedules : schedules).map((slot: any, idx: number) => {
+                        {todaySchedules.length > 0 ? (
+                          todaySchedules.map((slot: any, idx: number) => {
                             const startTime = slot.start_time
                               ? new Date(slot.start_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
                               : '--:--'
@@ -3475,6 +3475,21 @@ export function DoctorDashboardClient({
               setShowEditModal(false)
             }} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-bold text-indigo-gray-700 uppercase tracking-wider mb-1.5">
+                    Profile Image
+                  </label>
+                  <input
+                    type="file"
+                    name="image"
+                    accept="image/*"
+                    className="w-full p-2.5 rounded-xl border border-surface-container bg-surface-container-low text-indigo-gray-900 text-sm focus:outline-none focus:border-vibrant-blue focus:bg-white"
+                  />
+                  {doctorProfile?.image_url && (
+                    <p className="text-[11px] text-indigo-gray-500 mt-1">Leave blank to keep your current profile image.</p>
+                  )}
+                </div>
+
                 <div>
                   <label className="block text-xs font-bold text-indigo-gray-700 uppercase tracking-wider mb-1.5">
                     Full Name
@@ -3483,8 +3498,8 @@ export function DoctorDashboardClient({
                     type="text"
                     name="full_name"
                     defaultValue={doctorProfile?.full_name || ''}
-                    required
-                    className="w-full p-2.5 rounded-xl border border-surface-container bg-surface-container-low text-indigo-gray-900 text-sm focus:outline-none focus:border-vibrant-blue focus:bg-white"
+                    readOnly
+                    className="w-full p-2.5 rounded-xl border border-surface-container bg-surface-container-high text-indigo-gray-500 text-sm cursor-not-allowed"
                   />
                 </div>
 
@@ -3496,8 +3511,8 @@ export function DoctorDashboardClient({
                     type="text"
                     name="specialty"
                     defaultValue={specialty || ''}
-                    required
-                    className="w-full p-2.5 rounded-xl border border-surface-container bg-surface-container-low text-indigo-gray-900 text-sm focus:outline-none focus:border-vibrant-blue focus:bg-white"
+                    readOnly
+                    className="w-full p-2.5 rounded-xl border border-surface-container bg-surface-container-high text-indigo-gray-500 text-sm cursor-not-allowed"
                   />
                 </div>
 
@@ -3509,7 +3524,8 @@ export function DoctorDashboardClient({
                     type="text"
                     name="qualifications"
                     defaultValue={qualifications || ''}
-                    className="w-full p-2.5 rounded-xl border border-surface-container bg-surface-container-low text-indigo-gray-900 text-sm focus:outline-none focus:border-vibrant-blue focus:bg-white"
+                    readOnly
+                    className="w-full p-2.5 rounded-xl border border-surface-container bg-surface-container-high text-indigo-gray-500 text-sm cursor-not-allowed"
                     placeholder="e.g. MBBS, MD, MS"
                   />
                 </div>
@@ -3522,7 +3538,8 @@ export function DoctorDashboardClient({
                     type="number"
                     name="experience_years"
                     defaultValue={doctorProfile?.experience_years ?? ''}
-                    className="w-full p-2.5 rounded-xl border border-surface-container bg-surface-container-low text-indigo-gray-900 text-sm focus:outline-none focus:border-vibrant-blue focus:bg-white"
+                    readOnly
+                    className="w-full p-2.5 rounded-xl border border-surface-container bg-surface-container-high text-indigo-gray-500 text-sm cursor-not-allowed"
                   />
                 </div>
 
@@ -3534,7 +3551,8 @@ export function DoctorDashboardClient({
                     type="number"
                     name="consultation_fee"
                     defaultValue={doctorProfile?.consultation_fee ?? ''}
-                    className="w-full p-2.5 rounded-xl border border-surface-container bg-surface-container-low text-indigo-gray-900 text-sm focus:outline-none focus:border-vibrant-blue focus:bg-white"
+                    readOnly
+                    className="w-full p-2.5 rounded-xl border border-surface-container bg-surface-container-high text-indigo-gray-500 text-sm cursor-not-allowed"
                   />
                 </div>
 
@@ -3571,7 +3589,8 @@ export function DoctorDashboardClient({
                   name="bio"
                   rows={3}
                   defaultValue={doctorProfile?.bio || ''}
-                  className="w-full p-2.5 rounded-xl border border-surface-container bg-surface-container-low text-indigo-gray-900 text-sm focus:outline-none focus:border-vibrant-blue focus:bg-white"
+                  readOnly
+                  className="w-full p-2.5 rounded-xl border border-surface-container bg-surface-container-high text-indigo-gray-500 text-sm cursor-not-allowed"
                 />
               </div>
 

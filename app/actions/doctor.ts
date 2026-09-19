@@ -127,17 +127,49 @@ export async function updateDoctorProfile(formData: FormData) {
     return { success: false, error: profileError.message }
   }
 
+  const image = formData.get('image') as File | null
+  
+  let imageUrl: string | undefined = undefined
+
+  if (image && image.size > 0) {
+    if (image.size > 5242880) return { success: false, error: 'Image size must be under 5MB' }
+    
+    const fileExt = image.name.split('.').pop()
+    const fileName = `doctors/${user.id}-${Date.now()}.${fileExt}`
+    
+    const { data: uploadData, error: uploadError } = await adminClient.storage
+      .from('avatars')
+      .upload(fileName, image, { upsert: true })
+
+    if (uploadError) {
+      console.error('Image upload error:', uploadError)
+      return { success: false, error: 'Failed to upload profile image' }
+    }
+    
+    const { data: publicUrlData } = adminClient.storage
+      .from('avatars')
+      .getPublicUrl(uploadData.path)
+      
+    imageUrl = publicUrlData.publicUrl
+  }
+
   // Update doctor
+  const doctorUpdates: any = {
+    specialty: specialty || 'General Physician',
+    experience_years: experienceYears,
+    consultation_fee: consultationFee,
+    bio: bio || null,
+    qualifications: qualifications || null,
+    address: address || null
+  }
+  
+  if (imageUrl) {
+    doctorUpdates.image_url = imageUrl
+  }
+
   const { error: doctorError } = await adminClient
     .from('doctors')
-    .update({
-      specialty: specialty || 'General Physician',
-      experience_years: experienceYears,
-      consultation_fee: consultationFee,
-      bio: bio || null,
-      qualifications: qualifications || null,
-      address: address || null
-    })
+    .update(doctorUpdates)
     .eq('profile_id', user.id)
 
   if (doctorError) {

@@ -167,10 +167,10 @@ export function DoctorProfileClient({
     const schedules = doctor.schedules || [];
     if (schedules.length === 0) {
       return {
-        morningRange: "09:00 - 13:00",
-        morningSlots: ["09:00", "09:15", "09:30", "09:45"],
-        afternoonRange: "14:00 - 17:00",
-        afternoonSlots: ["14:00", "14:15", "14:30", "14:45"],
+        morningRange: "No morning schedule",
+        morningSlots: [] as string[],
+        afternoonRange: "No afternoon schedule",
+        afternoonSlots: [] as string[],
         hasSchedules: false,
         activeDate: null as string | null,
       };
@@ -197,7 +197,7 @@ export function DoctorProfileClient({
     }
 
     // Determine morning range and display slots
-    let morningRange = "09:00 - 13:00";
+    let morningRange = "No morning schedule";
     let morningSlots: string[] = [];
     if (morningList.length > 0) {
       const mStart = getSlotTimeString(morningList[0].start_time);
@@ -208,7 +208,7 @@ export function DoctorProfileClient({
     }
 
     // Determine afternoon range and display slots
-    let afternoonRange = "14:00 - 17:00";
+    let afternoonRange = "No afternoon schedule";
     let afternoonSlots: string[] = [];
     if (afternoonList.length > 0) {
       const aStart = getSlotTimeString(afternoonList[0].start_time);
@@ -232,9 +232,9 @@ export function DoctorProfileClient({
 
     return {
       morningRange,
-      morningSlots: morningSlots.length > 0 ? morningSlots : ["09:00", "09:15", "09:30", "09:45"],
+      morningSlots,
       afternoonRange,
-      afternoonSlots: afternoonSlots.length > 0 ? afternoonSlots : ["14:00", "14:15", "14:30", "14:45"],
+      afternoonSlots,
       hasSchedules: true,
       activeDate: activeDateLabel,
     };
@@ -547,14 +547,14 @@ export function DoctorProfileClient({
                     {isDoctorView ? (
                       <div className="flex flex-wrap items-center justify-between w-full gap-stack-sm">
                         <div className="flex flex-wrap items-center gap-stack-sm">
-                          {/* <button
+                          <button
                             type="button"
                             onClick={() => onEditProfile ? onEditProfile() : setToastMessage('Profile edit drawer ready')}
                             className="flex items-center gap-2 bg-vibrant-blue hover:bg-primary text-on-primary font-label-sm text-label-sm px-6 py-2.5 rounded-full font-bold shadow-[0_2px_12px_rgba(0,102,255,0.25)] transition-all hover:scale-[1.02] cursor-pointer"
                           >
                             <Edit3 className="w-4 h-4 inline" />
                             <span>Edit Public Profile</span>
-                          </button> */}
+                          </button>
 
                           <button
                             type="button"

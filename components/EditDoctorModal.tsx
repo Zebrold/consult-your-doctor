@@ -13,15 +13,18 @@ type EditDoctorModalProps = {
     consultation_fee: number
     address?: string | null
     bio?: string | null
-    qualifications?: string | null
+    hospital_id?: string
     profiles: {
       full_name: string
       phone_number: string | null
+      email?: string
+      staff_id?: string
     }
   }
+  hospitals?: { id: string, name: string }[]
 }
 
-export function EditDoctorModal({ doctor }: EditDoctorModalProps) {
+export function EditDoctorModal({ doctor, hospitals }: EditDoctorModalProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -58,7 +61,7 @@ export function EditDoctorModal({ doctor }: EditDoctorModalProps) {
 
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden my-8">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden my-4 md:my-8 max-h-[90vh] flex flex-col">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 sticky top-0 z-10">
               <h2 className="text-xl font-bold text-gray-900">Edit Doctor Profile</h2>
               <button 
@@ -69,7 +72,7 @@ export function EditDoctorModal({ doctor }: EditDoctorModalProps) {
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-6">
+            <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1">
               {error && (
                 <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl text-sm font-bold border border-red-100">
                   {error}
@@ -78,11 +81,53 @@ export function EditDoctorModal({ doctor }: EditDoctorModalProps) {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Doctor Name</label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-bold text-gray-700">Doctor Name</label>
+                    {doctor.profiles.email && (
+                      <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-md">
+                        {doctor.profiles.email}
+                      </span>
+                    )}
+                  </div>
                   <div className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-500 font-medium cursor-not-allowed">
                     {doctor.profiles.full_name}
                   </div>
                   <p className="text-xs text-gray-400 mt-1">Name cannot be changed here.</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Custom ID</label>
+                  <input
+                    name="staff_id"
+                    type="text"
+                    readOnly
+                    value={doctor.profiles.staff_id}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-500 font-medium cursor-not-allowed outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Set New Password</label>
+                  <input
+                    name="password"
+                    type="text"
+                    placeholder="Leave blank to keep current"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Assigned Hospital</label>
+                  <select
+                    name="hospital_id"
+                    defaultValue={doctor.hospital_id || ''}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 bg-white"
+                  >
+                    <option value="">Unassigned</option>
+                    {hospitals?.map(h => (
+                      <option key={h.id} value={h.id}>{h.name}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>

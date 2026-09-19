@@ -274,6 +274,10 @@ export async function updateDoctorDetails(formData: FormData) {
   const address = formData.get('address') as string
   const qualifications = formData.get('qualifications') as string
   const bio = formData.get('bio') as string
+  
+  const staffId = formData.get('staff_id') as string
+  const password = formData.get('password') as string
+  const newHospitalId = formData.get('hospital_id') as string
 
   if (!specialty || isNaN(experience) || isNaN(fee)) {
     return { error: 'Specialty, experience, and fee are required.' }
@@ -285,33 +289,70 @@ export async function updateDoctorDetails(formData: FormData) {
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
-  // 1. Update Profile (Phone Number)
-  if (phone) {
+  // 1. Update Password if provided
+  if (password) {
+    const { error: passError } = await adminAuthClient.auth.admin.updateUserById(profileId, { password })
+    if (passError) return { error: 'Failed to update password: ' + passError.message }
+  }
+
+  // 2. Update Profile
+  const profileUpdates: any = {}
+  if (phone) profileUpdates.phone_number = phone
+
+  if (Object.keys(profileUpdates).length > 0) {
     const { error: profileError } = await adminAuthClient
       .from('profiles')
-      .update({ phone_number: phone })
+      .update(profileUpdates)
       .eq('id', profileId)
 
     if (profileError) {
-      // It might fail if phone number is not unique
       if (profileError.code === '23505') {
-        return { error: 'This phone number is already in use by another account.' }
+        return { error: 'This phone number is already in use.' }
       }
-      return { error: 'Failed to update phone number.' }
+      return { error: 'Failed to update profile details.' }
     }
   }
 
-  // 2. Update Doctors Table
+  // 3. Resolve Department ID based on Specialty and Hospital
+  let deptId = undefined;
+  // If we are changing hospital or specialty, we need a valid department_id
+  const targetHospitalId = newHospitalId || undefined
+  
+  if (targetHospitalId) {
+    const { data: dept } = await adminAuthClient
+      .from('departments')
+      .select('id')
+      .eq('hospital_id', targetHospitalId)
+      .eq('name', specialty)
+      .single()
+
+    deptId = dept?.id
+    if (!deptId) {
+      const { data: newDept, error: deptError } = await adminAuthClient.from('departments').insert({
+        hospital_id: targetHospitalId,
+        name: specialty
+      }).select().single()
+      
+      if (!deptError && newDept) deptId = newDept.id
+    }
+  }
+
+  // 4. Update Doctors Table
+  const doctorUpdates: any = {
+    specialty, 
+    experience_years: experience, 
+    consultation_fee: fee,
+    address: address || null,
+    qualifications: qualifications || null,
+    bio: bio || null
+  }
+  
+  if (targetHospitalId) doctorUpdates.hospital_id = targetHospitalId
+  if (deptId) doctorUpdates.department_id = deptId
+
   const { error: doctorError } = await adminAuthClient
     .from('doctors')
-    .update({ 
-      specialty, 
-      experience_years: experience, 
-      consultation_fee: fee,
-      address: address || null,
-      qualifications: qualifications || null,
-      bio: bio || null
-    })
+    .update(doctorUpdates)
     .eq('id', doctorId)
 
   if (doctorError) return { error: 'Failed to update doctor details: ' + doctorError.message }

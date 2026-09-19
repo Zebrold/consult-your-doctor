@@ -114,38 +114,6 @@ export default async function DoctorDashboard() {
     return dUTC === todayStr || dIST === todayIST
   })
 
-  // If this doctor has no schedules generated for today, generate standard schedule slots for today in DB
-  if (todaySchedules.length === 0) {
-    const slotHours = [
-      '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30',
-      '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30'
-    ]
-    const slotsToInsert = slotHours.map((time) => {
-      const [h, m] = time.split(':').map(Number)
-      const endM = m === 30 ? '00' : '30'
-      const endH = m === 30 ? String(h + 1).padStart(2, '0') : String(h).padStart(2, '0')
-      const startIso = new Date(`${todayIST}T${time}:00+05:30`).toISOString()
-      const endIso = new Date(`${todayIST}T${endH}:${endM}:00+05:30`).toISOString()
-      return {
-        doctor_id: doctor.id,
-        start_time: startIso,
-        end_time: endIso,
-        is_booked: false
-      }
-    })
-
-    const { data: createdSlots } = await adminClient
-      .from('schedules')
-      .insert(slotsToInsert)
-      .select('*')
-      .order('start_time', { ascending: true })
-
-    if (createdSlots && createdSlots.length > 0) {
-      todaySchedules = createdSlots
-      allSchedules = [...allSchedules, ...createdSlots]
-    }
-  }
-
   // Attach appointments to corresponding schedule slots
   todaySchedules = todaySchedules.map((s: any) => {
     const matchingApt = allAppointments.find((a: any) => a.schedule_id === s.id)

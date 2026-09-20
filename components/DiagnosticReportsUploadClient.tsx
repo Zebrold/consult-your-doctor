@@ -50,11 +50,11 @@ export function DiagnosticReportsUploadClient({
     }
 
     return initialBookings.map((b, idx) => {
-      const pName = b.profiles?.full_name || "Eleanor Vance";
-      const pPhone = b.profiles?.phone_number || "+44 7911 802341";
-      const idCode = `CYD-${(b.id || "98241").slice(0, 5).toUpperCase()}`;
+      const pName = b.profiles?.full_name || "Unknown Patient";
+      const pPhone = b.profiles?.phone_number || "No Contact Provided";
+      const idCode = `CYD-${(b.id || "00000").slice(0, 5).toUpperCase()}`;
 
-      const rawTest = b.test_name || "Comprehensive Metabolic Panel & Contrast Cardiac MRI";
+      const rawTest = b.test_name || "Diagnostic Investigation";
       const formattedTest = rawTest
         .replace(/-/g, " ")
         .replace(/\b\w/g, (c: string) => c.toUpperCase());
@@ -71,11 +71,9 @@ export function DiagnosticReportsUploadClient({
         }
       }
 
-      const address =
-        b.patient_details?.address ||
-        "42 Kensington Gardens Square, Temp Logged 4.2°C";
+      const address = b.patient_details?.address || "Address Not Provided";
 
-      const token = `${b.id.slice(0, 5)}-k3x7`;
+      const token = `${b.id.slice(0, 5).toUpperCase()}`;
       const cleanFileName = `Report_${formattedTest.replace(/[^a-zA-Z0-9]/g, "_")}_${pName.replace(/\s+/g, "_")}.pdf`;
 
       return {
@@ -85,8 +83,8 @@ export function DiagnosticReportsUploadClient({
         phone: pPhone,
         idCode,
         testName: formattedTest,
-        referringDoctor: "Dr. Sarah Jenkins",
-        intakeType: "Home Sample Collection",
+        referringDoctor: "Self Referral",
+        intakeType: "In-Centre",
         patientAddress: address,
         tariffTotal: price + 250,
         tariffBase: price,
@@ -100,30 +98,14 @@ export function DiagnosticReportsUploadClient({
 
   // Selected patient order
   const [selectedOrderIndex, setSelectedOrderIndex] = useState<number>(0);
-  const selectedOrder = orders[selectedOrderIndex] || {
-    id: "default",
-    bookingDbId: "",
-    name: "Eleanor Vance",
-    phone: "+44 7911 802341",
-    idCode: "CYD-98241",
-    testName: "Comprehensive Metabolic Panel & Contrast Cardiac MRI",
-    referringDoctor: "Dr. Sarah Jenkins",
-    intakeType: "Home Sample Collection",
-    patientAddress: "42 Kensington Gardens Square, Temp Logged 4.2°C",
-    tariffTotal: 1100,
-    tariffBase: 850,
-    homeSurcharge: 250,
-    token: "98241-k3x7",
-    reportFileName: "Report_Cardiac_MRI_Eleanor_Vance.pdf",
-    reportFileSize: "4.8 MB",
-  };
+  const selectedOrder = orders[selectedOrderIndex];
 
   // Form states
   const [attachedFile, setAttachedFile] = useState<{
     name: string;
     size: string;
   } | null>({
-    name: selectedOrder.reportFileName,
+    name: selectedOrder?.reportFileName || "Report.pdf",
     size: "4.8 MB",
   });
 
@@ -201,8 +183,26 @@ export function DiagnosticReportsUploadClient({
     }, 600);
   };
 
+  if (!selectedOrder) {
+    return (
+      <div className="w-full px-4 pt-3 pb-8 max-w-[1400px] mx-auto flex flex-col gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-tight">
+            Upload Diagnostic Report &amp; SMS Dispatch
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5 leading-relaxed">
+            Securely attach laboratory and imaging reports with automated instant SMS delivery to the patient&apos;s verified mobile number.
+          </p>
+        </div>
+        <div className="bg-white rounded-2xl p-8 border border-slate-100 shadow-sm text-center text-slate-500 text-sm font-medium">
+          No diagnostic orders are currently pending.
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="w-full px-4 pt-3 pb-8 max-w-md mx-auto sm:max-w-xl md:max-w-3xl flex flex-col gap-4">
+    <div className="w-full px-4 pt-3 pb-8 max-w-[1400px] mx-auto flex flex-col gap-4">
       {/* Hidden file input */}
       <input
         type="file"
@@ -436,7 +436,7 @@ export function DiagnosticReportsUploadClient({
             <span className="material-symbols-outlined text-[22px]">badge</span>
           </div>
           <div className="flex flex-col">
-            <h3 className="text-xs font-black text-slate-900">Dr. Alistair Finch, MD</h3>
+            <h3 className="text-xs font-black text-slate-900">{directorName}</h3>
             <p className="text-[11px] text-slate-600">
               Chief Diagnostic Radiologist • Reg #RAD-4881D
             </p>
@@ -508,7 +508,7 @@ export function DiagnosticReportsUploadClient({
           </div>
 
           <p className="text-[10px] text-slate-400">
-            Dr. Alistair Finch finalized your results. Valid ID required for access.
+            {directorName} finalized your results. Valid ID required for access.
           </p>
         </div>
 

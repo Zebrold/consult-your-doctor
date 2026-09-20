@@ -56,14 +56,14 @@ export function DiagnosticDashboardClient({
     }
 
     return initialBookings.map((b, idx) => {
-      const pName = b.profiles?.full_name || "Patient " + (idx + 1);
-      const pPhone = b.profiles?.phone_number || "+91 98204 " + (10000 + idx);
+      const pName = b.profiles?.full_name || "Unknown Patient";
+      const pPhone = b.profiles?.phone_number || "No Contact Provided";
       const cleanName = pName.replace(/Dr\.\s*/i, "").trim();
       const parts = cleanName.split(" ");
       const initials =
         parts.length >= 2
           ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
-          : cleanName.slice(0, 2).toUpperCase();
+          : cleanName.slice(0, 2).toUpperCase() || "??";
 
       const rawTest = (b.test_name || "Diagnostic Investigation").toLowerCase();
       let cat: DiagnosticBookingItem["category"] = "Pathology";
@@ -73,14 +73,10 @@ export function DiagnosticDashboardClient({
         cat = "Ultrasound";
       }
 
-      // Determine intake type: alternating or based on address
-      const isHome = idx % 2 === 1;
-      const isTransit = idx === 2;
-      const intakeType: DiagnosticBookingItem["intakeType"] = isTransit
-        ? "In Transit"
-        : isHome
-        ? "Home Collect"
-        : "In-Centre";
+      // Determine intake type
+      const isHome = false;
+      const isTransit = false;
+      const intakeType: DiagnosticBookingItem["intakeType"] = "In-Centre";
 
       // Price calculation from DB test_prices
       const prices = center.test_prices || {};
@@ -102,16 +98,9 @@ export function DiagnosticDashboardClient({
         : "Standard Diagnostic Panel";
 
       // Address or suite
-      const address =
-        b.patient_details?.address ||
-        (intakeType === "In-Centre"
-          ? `Bay ${idx + 1} • MRI Suite`
-          : idx === 1
-          ? "14 Kensington Gdns, W"
-          : "88 Camden High St");
+      const address = b.patient_details?.address || "Address Not Provided";
 
-      const phleboNames = ["Tom Bennett", "Sarah Jenkins", "Rohit Sharma", "Chloe Bennett"];
-      const phlebo = phleboNames[idx % phleboNames.length];
+      const phlebo = "Lab Staff";
 
       // Status code mapping
       let statusCode: DiagnosticBookingItem["statusCode"] = "in_analysis";
@@ -127,10 +116,9 @@ export function DiagnosticDashboardClient({
         statusText = "Dispatched via SMS";
       }
 
-      const priority: DiagnosticBookingItem["priority"] =
-        idx % 3 === 0 ? "STAT URGENT" : idx % 2 === 0 ? "Fast-track" : "Routine";
+      const priority: DiagnosticBookingItem["priority"] = "Routine";
 
-      const tokenNumber = `Token 4M-${801 + idx}`;
+      const tokenNumber = `Token #${b.id.slice(0, 5).toUpperCase()}`;
 
       return {
         id: `CYD-DIA-${b.id.slice(0, 4).toUpperCase()}`,
@@ -289,7 +277,7 @@ export function DiagnosticDashboardClient({
   };
 
   return (
-    <div className="w-full px-4 pt-3 pb-8 max-w-md mx-auto sm:max-w-xl md:max-w-3xl flex flex-col gap-4">
+    <div className="w-full px-4 pt-3 pb-8 max-w-[1400px] mx-auto flex flex-col gap-4">
       {/* Hidden file input for fast-track upload */}
       <input
         type="file"

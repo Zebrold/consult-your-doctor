@@ -215,7 +215,7 @@ export function DiagnosticPortalNav({
 
       {/* WORKING BOTTOM NAVBAR WITH ACTIVE COLORS (Fixed bottom mobile & desktop navigation dock) */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-2 px-4 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
-        <div className="max-w-md mx-auto flex items-center justify-around">
+        <div className="max-w-[1400px] mx-auto flex items-center justify-around md:justify-center md:gap-24">
           {bottomTabs.map((tab) => {
             const active = isTabActive(tab.href);
             return (

@@ -57,28 +57,25 @@ export function DiagnosticPatientsDirectoryClient({
     }
 
     return initialBookings.map((b, idx) => {
-      const pName = b.profiles?.full_name || "Patient " + (idx + 1);
-      const pPhone = b.profiles?.phone_number || "+91 98204 " + (10000 + idx);
+      const pName = b.profiles?.full_name || "Unknown Patient";
+      const pPhone = b.profiles?.phone_number || "No Contact Provided";
       const cleanName = pName.replace(/Dr\.\s*/i, "").trim();
       const parts = cleanName.split(" ");
       const initials =
         parts.length >= 2
           ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
-          : cleanName.slice(0, 2).toUpperCase();
+          : cleanName.slice(0, 2).toUpperCase() || "??";
 
-      // Age calculation from DOB or index
-      let age = 45;
+      // Age calculation from DOB
+      let age: number | string = "N/A";
       if (b.patient_details?.date_of_birth) {
         const birthYear = new Date(b.patient_details.date_of_birth).getFullYear();
         if (!isNaN(birthYear)) {
           age = new Date().getFullYear() - birthYear;
         }
-      } else {
-        age = idx === 0 ? 64 : idx === 1 ? 48 : idx === 2 ? 32 : 38 + (idx % 20);
       }
 
-      const gender =
-        b.patient_details?.gender || (idx === 0 || idx === 2 ? "Female" : "Male");
+      const gender = b.patient_details?.gender || "Not Specified";
 
       const rawTest = (b.test_name || "Diagnostic Investigation").toLowerCase();
       const formattedTest = b.test_name
@@ -88,13 +85,9 @@ export function DiagnosticPatientsDirectoryClient({
         : "Diagnostic Test";
 
       // Modality
-      const isTransit = idx === 2;
-      const isHome = idx % 2 === 0 && !isTransit;
-      const modality: DirectoryPatientItem["modality"] = isTransit
-        ? "Sample in Transit"
-        : isHome
-        ? "Home Collection"
-        : "In-Centre Walk-In";
+      const isTransit = false;
+      const isHome = false;
+      const modality: DirectoryPatientItem["modality"] = "In-Centre Walk-In";
 
       // Status badge
       let statusBadge: DirectoryPatientItem["statusBadge"] = "Analysis in Progress";
@@ -319,7 +312,7 @@ export function DiagnosticPatientsDirectoryClient({
   };
 
   return (
-    <div className="w-full px-4 pt-3 pb-8 max-w-md mx-auto sm:max-w-xl md:max-w-3xl flex flex-col gap-3.5">
+    <div className="w-full px-4 pt-3 pb-8 max-w-[1400px] mx-auto flex flex-col gap-3.5">
       {/* HEADER SECTION: Title & Walk-in button */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex flex-col">

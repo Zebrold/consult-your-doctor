@@ -158,7 +158,7 @@ export function DiagnosticAddTestClient({
   };
 
   return (
-    <div className="w-full px-4 pt-3 pb-8 max-w-md mx-auto sm:max-w-xl md:max-w-3xl flex flex-col gap-4">
+    <div className="w-full px-4 pt-3 pb-8 max-w-[1400px] mx-auto flex flex-col gap-4">
       {/* BREADCRUMB STRIP */}
       <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
         <Link

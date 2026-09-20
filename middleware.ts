@@ -26,8 +26,7 @@ export async function middleware(request: NextRequest) {
             request,
           })
           cookiesToSet.forEach(({ name, value, options }) =>
-            // Enforce a strict 2-hour (7200 seconds) inactivity lifespan
-            supabaseResponse.cookies.set(name, value, { ...options, maxAge: 7200 })
+            supabaseResponse.cookies.set(name, value, options)
           )
         },
       },

@@ -13,6 +13,7 @@ type EditDoctorModalProps = {
     consultation_fee: number
     address?: string | null
     bio?: string | null
+    qualifications?: string | null
     hospital_id?: string
     profiles: {
       full_name: string

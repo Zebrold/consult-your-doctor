@@ -154,8 +154,8 @@ export async function approveDoctor(requestId: string) {
   const qualString = request.qualifications || ''
   const parts = qualString.split(' | ')
   const cleanQuals = parts[0]
-  const expPart = parts.find(p => p.startsWith('EXP:'))
-  const feePart = parts.find(p => p.startsWith('FEE:'))
+  const expPart = parts.find((p: string) => p.startsWith('EXP:'))
+  const feePart = parts.find((p: string) => p.startsWith('FEE:'))
   const experience_years = expPart ? parseInt(expPart.replace('EXP:', ''), 10) : 5
   const consultation_fee = feePart ? parseInt(feePart.replace('FEE:', ''), 10) : 500
 

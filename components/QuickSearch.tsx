@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { User, Building2, BriefcaseMedical, ShieldPlus, MapPin, Search } from 'lucide-react'
+import { User, Building2, BriefcaseMedical, ShieldPlus, MapPin, Search, ArrowRight } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 export default function QuickSearch() {
@@ -11,11 +11,11 @@ export default function QuickSearch() {
   const [location, setLocation] = useState('')
 
   const tabs = [
-    { id: 'doctor', label: 'Search Doctor', icon: User, placeholder: 'Search by doctor name or keyword...' },
-    { id: 'hospital', label: 'Search Hospital', icon: Building2, placeholder: 'Search by hospital name or keyword...' },
-    { id: 'speciality', label: 'Search by Speciality', icon: BriefcaseMedical, placeholder: 'Search by speciality (e.g. Cardiologist)...' },
-    { id: 'symptoms', label: 'Search by Symptoms', icon: ShieldPlus, placeholder: 'Search by symptoms (e.g. Fever, Cough)...' },
-    { id: 'city', label: 'Search by City', icon: MapPin, placeholder: 'Search by city name...' },
+    { id: 'doctor', label: 'Search Doctor', icon: User, placeholder: 'Doctor name, speciality or medical condition...' },
+    { id: 'hospital', label: 'Hospitals', icon: Building2, placeholder: 'Search by hospital name or keyword...' },
+    { id: 'speciality', label: 'Specialities', icon: BriefcaseMedical, placeholder: 'Search by speciality (e.g. Cardiologist)...' },
+    { id: 'symptoms', label: 'Symptoms', icon: ShieldPlus, placeholder: 'Search by symptoms (e.g. Fever, Cough)...' },
+    { id: 'city', label: 'Cities & Clinics', icon: MapPin, placeholder: 'Search by city name...' },
   ]
 
   const currentTab = tabs.find(t => t.id === activeTab) || tabs[0]
@@ -33,56 +33,72 @@ export default function QuickSearch() {
 
   return (
     <div className="w-full">
-      {/* Tabs */}
-      <div className="flex flex-wrap items-center justify-center gap-6 md:gap-10 mb-8 border-b border-slate-200">
-        {tabs.map((tab) => {
-          const Icon = tab.icon
-          const isActive = activeTab === tab.id
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 pb-3 border-b-2 text-sm font-bold transition-all ${
-                isActive 
-                  ? 'border-blue-600 text-blue-600' 
-                  : 'border-transparent text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <Icon className={`w-5 h-5 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
-              {tab.label}
-            </button>
-          )
-        })}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <h2 className="font-title-md text-xl font-bold text-indigo-gray-900 flex items-center gap-2">
+          <Search className="w-5 h-5 text-vibrant-blue" /> Quick Medical Search &amp; Specialist Directory
+        </h2>
+
+        {/* Tabs */}
+        <div className="flex flex-wrap items-center gap-2">
+          {tabs.map((tab) => {
+            const Icon = tab.icon
+            const isActive = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                aria-pressed={isActive}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-colors ${
+                  isActive
+                    ? 'bg-vibrant-blue text-white font-bold'
+                    : 'bg-white border border-slate-200 text-slate-700 hover:text-primary font-semibold'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {tab.label}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* Search Box Container */}
-      <div className="bg-[#F8F9FA] rounded-[20px] p-4 md:p-6 shadow-[0_2px_10px_rgb(0,0,0,0.03)] border border-slate-100 max-w-5xl mx-auto">
-        <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <input 
-              type="text" 
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={currentTab.placeholder}
-              className="w-full pl-12 pr-4 py-4 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-medium"
-            />
-          </div>
-          <div className="flex-1 relative">
-            <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <input 
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Enter city or location"
-              className="w-full pl-12 pr-4 py-4 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-medium"
-            />
-          </div>
-          <button type="submit" className="bg-[#0D6EFD] hover:bg-blue-700 text-white font-bold py-4 px-12 rounded-xl transition-colors shadow-md">
-            Search
+      <form
+        onSubmit={handleSearch}
+        className="p-4 md:p-6 rounded-2xl border border-slate-200 grid grid-cols-1 md:grid-cols-12 gap-3 items-center bg-white shadow-sm"
+      >
+        <div className="md:col-span-5 relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-outline" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={currentTab.placeholder}
+            aria-label={currentTab.label}
+            className="w-full pl-10 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 outline-none text-sm"
+          />
+        </div>
+        <div className="md:col-span-5 relative">
+          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-outline" />
+          <input
+            type="text"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="City, postcode or clinic..."
+            aria-label="Location"
+            className="w-full pl-10 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 outline-none text-sm"
+          />
+        </div>
+        <div className="md:col-span-2">
+          <button
+            type="submit"
+            className="w-full bg-vibrant-blue text-on-primary py-2.5 rounded-lg font-bold text-sm hover:bg-primary transition-colors flex items-center justify-center gap-1"
+          >
+            Search <ArrowRight className="w-4 h-4" />
           </button>
-        </form>
-      </div>
+        </div>
+      </form>
     </div>
   )
 }

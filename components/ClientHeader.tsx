@@ -1,14 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams, useRouter } from "next/navigation";
-import { Home, Stethoscope, Building2, TestTubeDiagonal, Info, Menu, X, LogOut, LayoutDashboard } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { ArrowRight, Menu, X, LogOut, LayoutDashboard, Stethoscope } from "lucide-react";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+const navLinks = [
+  { name: "How it works", href: "/how-it-works" },
+  { name: "What we treat", href: "/what-we-treat" },
+  { name: "Online doctor", href: "/online-doctor" },
+  { name: "Prices", href: "/prices" },
+];
+
 export function ClientHeader({ user }: { user: any }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const router = useRouter();
 
@@ -19,45 +25,42 @@ export function ClientHeader({ user }: { user: any }) {
     router.refresh();
   };
 
-  const isLinkActive = (href: string) => {
-    const [path, query] = href.split('?');
-    if (query) {
-      const urlParams = new URLSearchParams(query);
-      const type = urlParams.get('type');
-      return pathname === path && searchParams.get('type') === type;
-    }
-    return pathname === href || (href !== '/' && pathname.startsWith(href));
-  };
+  const isLinkActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
-  const navLinks = [
-    { name: "Home", href: "/" },
-    { name: "Find Doctors", href: "/search?type=doctor" },
-    { name: "Hospitals", href: "/search?type=hospital" },
-    { name: "Diagnostics", href: "/search?type=diagnostic" },
-    { name: "About Us", href: "/about" },
-  ];
+  const dashboardHref =
+    user?.user_metadata?.role === "doctor"
+      ? "/doctor/dashboard"
+      : user?.user_metadata?.role === "diagnostic_center"
+        ? "/diagnostic/dashboard"
+        : "/patient/profile";
 
   return (
-    <header className="bg-surface-container-lowest/95 backdrop-blur fixed top-0 left-0 w-full z-50 transition-all border-b border-surface-variant shadow-sm">
-      <div className="max-w-container-max mx-auto flex justify-between items-center px-4 md:px-margin-x-desktop h-[80px]">
+    <header className="fixed top-0 left-0 w-full z-50 bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline-variant/30 shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
+      <div className="h-20 max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop flex items-center justify-between gap-gutter">
         {/* Logo */}
-        <div className="flex items-center gap-2">
-          <Stethoscope className="text-vibrant-blue w-8 h-8" />
-          <Link href="/" className="text-vibrant-blue text-[22px] font-normal tracking-tight font-sans">
-            Consult your Doctor
-          </Link>
-        </div>
+        <Link href="/" className="flex items-center gap-stack-sm" aria-label="Consult your Doctor home">
+          <span className="flex items-center justify-center w-10 h-10 rounded-full bg-surface-container text-primary shrink-0">
+            <Stethoscope className="w-5 h-5" />
+          </span>
+          <span className="flex flex-col">
+            <span className="font-title-md text-lg md:text-title-md text-on-surface font-bold tracking-tight leading-tight">
+              Consult your Doctor
+            </span>
+            <span className="font-label-sm text-label-sm text-indigo-gray-600">Telehealth Platform</span>
+          </span>
+        </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden lg:flex items-center gap-8">
           {navLinks.map((link) => {
             const isActive = isLinkActive(link.href);
             return (
               <Link
                 key={link.name}
                 href={link.href}
-                className={`transition-colors font-semibold ${
-                  isActive ? "text-vibrant-blue font-bold" : "text-slate-600 hover:text-vibrant-blue"
+                aria-current={isActive ? "page" : undefined}
+                className={`font-body-md text-body-md transition-colors ${
+                  isActive ? "text-primary font-bold" : "text-on-surface-variant hover:text-primary"
                 }`}
               >
                 {link.name}
@@ -67,12 +70,12 @@ export function ClientHeader({ user }: { user: any }) {
         </nav>
 
         {/* Desktop Auth / User Action */}
-        <div className="hidden md:flex items-center gap-4">
+        <div className="hidden lg:flex items-center gap-4">
           {user ? (
-            <div className="flex items-center gap-4">
+            <>
               <Link
-                href={user.user_metadata?.role === "doctor" ? "/doctor/dashboard" : user.user_metadata?.role === "diagnostic_center" ? "/diagnostic/dashboard" : "/patient/profile"}
-                className="flex items-center gap-2 text-slate-700 font-bold hover:text-vibrant-blue text-[15px] transition-colors"
+                href={dashboardHref}
+                className="flex items-center gap-2 text-on-surface font-bold hover:text-vibrant-blue text-[15px] transition-colors"
               >
                 <LayoutDashboard className="w-5 h-5 text-vibrant-blue" />
                 Dashboard
@@ -84,21 +87,23 @@ export function ClientHeader({ user }: { user: any }) {
                 <LogOut className="w-4 h-4 text-outline" />
                 Logout
               </button>
-            </div>
+            </>
           ) : (
             <Link
               href="/login"
-              className="rounded-full bg-vibrant-blue text-white px-7 py-2.5 font-bold text-[15px] hover:opacity-90 transition-all shadow-sm"
+              className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-full bg-vibrant-blue text-on-primary font-label-sm text-label-sm shadow-[0_4px_12px_rgba(0,102,255,0.2)] hover:bg-primary transition-all"
             >
-              Login
+              Login / Register <ArrowRight className="w-4 h-4" />
             </Link>
           )}
         </div>
 
         {/* Mobile Menu Toggle */}
         <button
-          className="md:hidden text-on-surface hover:text-vibrant-blue transition-colors p-2"
+          className="lg:hidden text-on-surface hover:text-vibrant-blue transition-colors p-2"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={isMobileMenuOpen}
         >
           {isMobileMenuOpen ? <X className="w-7 h-7" /> : <Menu className="w-7 h-7" />}
         </button>
@@ -106,7 +111,7 @@ export function ClientHeader({ user }: { user: any }) {
 
       {/* Mobile Menu Dropdown */}
       {isMobileMenuOpen && (
-        <div className="md:hidden absolute top-[80px] left-0 w-full bg-surface-container-lowest border-b border-surface-variant shadow-lg flex flex-col py-4 px-6 gap-4 slide-down z-40">
+        <div className="lg:hidden absolute top-20 left-0 w-full bg-surface-container-lowest border-b border-surface-variant shadow-lg flex flex-col py-4 px-6 gap-4 z-40">
           <nav className="flex flex-col gap-4">
             {navLinks.map((link) => {
               const isActive = isLinkActive(link.href);
@@ -116,7 +121,7 @@ export function ClientHeader({ user }: { user: any }) {
                   href={link.href}
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={`text-lg font-semibold ${
-                    isActive ? "text-vibrant-blue font-bold" : "text-slate-600 hover:text-vibrant-blue"
+                    isActive ? "text-primary font-bold" : "text-on-surface-variant hover:text-primary"
                   }`}
                 >
                   {link.name}
@@ -124,15 +129,15 @@ export function ClientHeader({ user }: { user: any }) {
               );
             })}
           </nav>
-          
+
           <div className="h-px w-full bg-surface-variant my-2" />
 
           {user ? (
             <div className="flex flex-col gap-4">
               <Link
-                href={user.user_metadata?.role === "doctor" ? "/doctor/dashboard" : user.user_metadata?.role === "diagnostic_center" ? "/diagnostic/dashboard" : "/patient/profile"}
+                href={dashboardHref}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="flex items-center gap-3 text-slate-700 font-bold hover:text-vibrant-blue text-lg"
+                className="flex items-center gap-3 text-on-surface font-bold hover:text-vibrant-blue text-lg"
               >
                 <LayoutDashboard className="w-6 h-6 text-vibrant-blue" />
                 Dashboard
@@ -142,7 +147,7 @@ export function ClientHeader({ user }: { user: any }) {
                   handleLogout();
                   setIsMobileMenuOpen(false);
                 }}
-                className="flex items-center gap-3 text-slate-700 font-bold hover:text-vibrant-blue text-lg"
+                className="flex items-center gap-3 text-on-surface font-bold hover:text-vibrant-blue text-lg"
               >
                 <LogOut className="w-6 h-6 text-outline" />
                 Logout
@@ -152,9 +157,9 @@ export function ClientHeader({ user }: { user: any }) {
             <Link
               href="/login"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="rounded-xl bg-vibrant-blue text-white px-5 py-3 font-bold text-center text-lg shadow-sm"
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-vibrant-blue text-white px-5 py-3 font-bold text-lg shadow-sm"
             >
-              Login
+              Login / Register <ArrowRight className="w-5 h-5" />
             </Link>
           )}
         </div>

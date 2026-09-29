@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, Suspense } from 'react'
-import { MapPin, Building2, Stethoscope, UserCircle, Calendar, Loader2, Activity } from 'lucide-react'
+import { MapPin, Building2, Stethoscope, UserCircle, Calendar, Loader2, Activity, ArrowRight, ChevronDown, ShieldCheck, type LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { createAppointment, createDiagnosticBooking } from '@/app/actions/booking'
 import { useSearchParams, useRouter } from 'next/navigation'
@@ -244,148 +244,131 @@ export function BookConsultationFormInner({ defaultType = 'consultation' }: { de
     }, 100)
   }
 
+  const selectClass =
+    'w-full py-2.5 pl-9 pr-9 border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 bg-surface-container-lowest text-sm text-on-surface outline-none disabled:opacity-50 appearance-none cursor-pointer'
+
   return (
-    <div className="bg-surface-container-lowest rounded-2xl p-8 card-shadow border border-surface-variant w-full max-w-md mx-auto relative z-10">
-      <h3 className="font-title-md text-title-md text-primary text-center mb-6">
-        {bookingType === 'consultation' ? 'Book Consultation' : 'Book Diagnostics'}
-      </h3>
+    <div className="bg-surface-container-lowest rounded-2xl p-6 md:p-8 card-shadow border border-slate-200 w-full max-w-md lg:max-w-none mx-auto relative z-10 space-y-5">
+      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 className="font-title-md text-lg text-primary font-bold">Book Your Visit</h3>
+        <span className="px-2.5 py-1 rounded-full bg-fresh-teal/10 text-secondary font-label-sm text-[11px] font-bold">Online Now</span>
+      </div>
 
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
           <Loader2 className="w-8 h-8 text-vibrant-blue animate-spin" />
         </div>
       ) : (
-        <form 
+        <form
           ref={formRef}
           action={async (formData) => {
-            const res = bookingType === 'consultation' 
-              ? await createAppointment(formData) 
+            const res = bookingType === 'consultation'
+              ? await createAppointment(formData)
               : await createDiagnosticBooking(formData)
-            
+
             if (res?.error) {
               alert(res.error)
               setIsSubmitting(false)
             } else if (res?.url) {
               router.push(res.url)
             }
-          }} 
-          onSubmit={handleSubmit} 
-          className="space-y-4"
+          }}
+          onSubmit={handleSubmit}
+          className="space-y-3.5"
         >
 
           {/* Toggle Buttons */}
-          <div className="flex bg-surface-container-low rounded-full p-1 mb-6 relative">
-            <div 
-              className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-vibrant-blue rounded-full transition-transform duration-300 ease-in-out ${bookingType === 'diagnostics' ? 'translate-x-full left-1' : 'translate-x-0 left-1'}`}
-            />
-            <button
-              type="button"
-              onClick={() => setBookingType('consultation')}
-              className={`flex-1 relative z-10 py-2.5 rounded-full font-label-sm text-label-sm transition-colors ${bookingType === 'consultation' ? 'text-white' : 'text-on-surface-variant hover:text-primary'}`}
-            >
-              Consultation
-            </button>
-            <button
-              type="button"
-              onClick={() => setBookingType('diagnostics')}
-              className={`flex-1 relative z-10 py-2.5 rounded-full font-label-sm text-label-sm transition-colors ${bookingType === 'diagnostics' ? 'text-white' : 'text-on-surface-variant hover:text-primary'}`}
-            >
-              Diagnostics
-            </button>
+          <div className="flex bg-surface-container-low rounded-xl p-1 mb-1">
+            {([
+              { id: 'consultation', label: 'Hospital Visit' },
+              { id: 'diagnostics', label: 'Diagnostic' },
+            ] as const).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setBookingType(tab.id)}
+                aria-pressed={bookingType === tab.id}
+                className={`flex-1 py-2 rounded-lg font-label-sm text-xs font-bold transition-all ${bookingType === tab.id ? 'bg-vibrant-blue text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-variant/50'}`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
           {/* Location */}
-          <div className="flex flex-col relative">
-            <label className="font-label-sm text-label-sm text-vibrant-blue absolute top-2 left-3 z-10 bg-surface-container-lowest px-1">Location (City)</label>
-            <div className="relative mt-4">
-              <MapPin className="absolute left-3 top-3.5 w-5 h-5 text-vibrant-blue" />
-              <select
-                value={selectedCity}
-                onChange={(e) => setSelectedCity(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 bg-surface-container-lowest text-body-md outline-none text-on-surface appearance-none cursor-pointer"
-              >
-                <option value="" disabled>Select City</option>
-                {(bookingType === 'consultation' ? cities : diagCities).map(city => (
-                  <option key={city} value={city}>{city}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <SelectField label="Location (City)" icon={MapPin}>
+            <select
+              value={selectedCity}
+              onChange={(e) => setSelectedCity(e.target.value)}
+              className={selectClass}
+            >
+              <option value="" disabled>Select City</option>
+              {(bookingType === 'consultation' ? cities : diagCities).map(city => (
+                <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
+          </SelectField>
 
           {bookingType === 'consultation' && (
             <>
               {/* Hospital */}
-              <div className="flex flex-col relative">
-                <label className="font-label-sm text-label-sm text-vibrant-blue absolute top-2 left-3 z-10 bg-surface-container-lowest px-1">Hospital</label>
-                <div className="relative mt-4">
-                  <Building2 className="absolute left-3 top-3.5 w-5 h-5 text-vibrant-blue" />
-                  <select
-                    name="hospital_id"
-                    value={selectedHospital}
-                    onChange={(e) => setSelectedHospital(e.target.value)}
-                    disabled={!selectedCity}
-                    required
-                    className="w-full pl-10 pr-4 py-3 border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 bg-surface-container-lowest text-body-md outline-none text-on-surface disabled:opacity-50 appearance-none cursor-pointer"
-                  >
-                    <option value="" disabled>Select Hospital</option>
-                    {hospitals.map(h => (
-                      <option key={h.id} value={h.id}>{h.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              <SelectField label="Preferred Hospital" icon={Building2}>
+                <select
+                  name="hospital_id"
+                  value={selectedHospital}
+                  onChange={(e) => setSelectedHospital(e.target.value)}
+                  disabled={!selectedCity}
+                  required
+                  className={selectClass}
+                >
+                  <option value="" disabled>Select Hospital</option>
+                  {hospitals.map(h => (
+                    <option key={h.id} value={h.id}>{h.name}</option>
+                  ))}
+                </select>
+              </SelectField>
 
               {/* Speciality */}
-              <div className="flex flex-col relative">
-                <label className="font-label-sm text-label-sm text-vibrant-blue absolute top-2 left-3 z-10 bg-surface-container-lowest px-1">Specialty</label>
-                <div className="relative mt-4">
-                  <Stethoscope className="absolute left-3 top-3.5 w-5 h-5 text-vibrant-blue" />
-                  <select
-                    value={selectedSpecialty}
-                    onChange={(e) => setSelectedSpecialty(e.target.value)}
-                    disabled={!selectedHospital}
-                    className="w-full pl-10 pr-4 py-3 border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 bg-surface-container-lowest text-body-md outline-none text-on-surface disabled:opacity-50 appearance-none cursor-pointer"
-                  >
-                    <option value="" disabled>Select Specialty</option>
-                    {specialties.map(spec => (
-                      <option key={spec} value={spec}>{spec}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              <SelectField label="Select Medical Specialty" icon={Stethoscope}>
+                <select
+                  value={selectedSpecialty}
+                  onChange={(e) => setSelectedSpecialty(e.target.value)}
+                  disabled={!selectedHospital}
+                  className={selectClass}
+                >
+                  <option value="" disabled>Select Specialty</option>
+                  {specialties.map(spec => (
+                    <option key={spec} value={spec}>{spec}</option>
+                  ))}
+                </select>
+              </SelectField>
 
-              {/* Doctor */}
-              <div className="flex flex-col relative">
-                <label className="font-label-sm text-label-sm text-vibrant-blue absolute top-2 left-3 z-10 bg-surface-container-lowest px-1">Doctor</label>
-                <div className="relative mt-4">
-                  <UserCircle className="absolute left-3 top-3.5 w-5 h-5 text-vibrant-blue" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Doctor */}
+                <SelectField label="Preferred Doctor" icon={UserCircle}>
                   <select
                     name="doctor_id"
                     value={selectedDoctor}
                     onChange={(e) => setSelectedDoctor(e.target.value)}
                     disabled={!selectedSpecialty}
                     required
-                    className="w-full pl-10 pr-4 py-3 border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 bg-surface-container-lowest text-body-md outline-none text-on-surface disabled:opacity-50 appearance-none cursor-pointer"
+                    className={selectClass}
                   >
                     <option value="" disabled>Select Doctor</option>
                     {doctors.map(d => (
                       <option key={d.id} value={d.id}>{d.profiles?.full_name}</option>
                     ))}
                   </select>
-                </div>
-              </div>
+                </SelectField>
 
-              {/* Date & Time */}
-              <div className="flex flex-col relative">
-                <label className="font-label-sm text-label-sm text-vibrant-blue absolute top-2 left-3 z-10 bg-surface-container-lowest px-1">Available Slots</label>
-                <div className="relative mt-4">
-                  <Calendar className="absolute left-3 top-3.5 w-5 h-5 text-vibrant-blue" />
+                {/* Date & Time */}
+                <SelectField label="Available Slot" icon={Calendar}>
                   <select
                     name="schedule_id"
                     disabled={!selectedDoctor || schedules.length === 0}
                     required
                     defaultValue=""
-                    className="w-full pl-10 pr-4 py-3 border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 bg-surface-container-lowest text-body-md outline-none text-on-surface disabled:opacity-50 appearance-none cursor-pointer"
+                    className={selectClass}
                   >
                     {schedules.length === 0 ? (
                       <option value="" disabled>{selectedDoctor ? 'No slots available' : 'Select Doctor first'}</option>
@@ -402,7 +385,7 @@ export function BookConsultationFormInner({ defaultType = 'consultation' }: { de
                       </>
                     )}
                   </select>
-                </div>
+                </SelectField>
               </div>
             </>
           )}
@@ -410,24 +393,22 @@ export function BookConsultationFormInner({ defaultType = 'consultation' }: { de
           {bookingType === 'diagnostics' && (
             <>
               {/* Diagnostic Center */}
-              <div className="flex flex-col relative">
-                <label className="font-label-sm text-label-sm text-vibrant-blue absolute top-2 left-3 z-10 bg-surface-container-lowest px-1">Diagnostic Center</label>
-                <div className="relative mt-4">
-                  <Building2 className="absolute left-3 top-3.5 w-5 h-5 text-vibrant-blue" />
+              <div>
+                <SelectField label="Diagnostic Center" icon={Building2}>
                   <select
                     name="center_id"
                     value={selectedCenter}
                     onChange={(e) => setSelectedCenter(e.target.value)}
                     disabled={!selectedCity}
                     required
-                    className="w-full pl-10 pr-4 py-3 border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 bg-surface-container-lowest text-body-md outline-none text-on-surface disabled:opacity-50 appearance-none cursor-pointer"
+                    className={selectClass}
                   >
                     <option value="" disabled>Select Diagnostic Center</option>
                     {centers.map(c => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
-                </div>
+                </SelectField>
                 {selectedCenter && (
                   <div className="mt-2 text-sm text-on-surface-variant bg-surface-container-low p-3 rounded-lg border border-surface-variant flex items-start gap-2">
                     <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-vibrant-blue" />
@@ -437,56 +418,48 @@ export function BookConsultationFormInner({ defaultType = 'consultation' }: { de
               </div>
 
               {/* Diagnostic Type */}
-              <div className="flex flex-col relative">
-                <label className="font-label-sm text-label-sm text-vibrant-blue absolute top-2 left-3 z-10 bg-surface-container-lowest px-1">Diagnostic Test</label>
-                <div className="relative mt-4">
-                  <Activity className="absolute left-3 top-3.5 w-5 h-5 text-vibrant-blue" />
-                  <select
-                    name="test_name"
-                    value={selectedDiagnostic}
-                    onChange={(e) => setSelectedDiagnostic(e.target.value)}
-                    required={bookingType === 'diagnostics'}
-                    disabled={!selectedCenter}
-                    className="w-full pl-10 pr-4 py-3 border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 bg-surface-container-lowest text-body-md outline-none text-on-surface disabled:opacity-50 appearance-none cursor-pointer"
-                  >
-                    <option value="" disabled>Select Diagnostic Test</option>
-                    {centers.find(c => c.id === selectedCenter)?.available_tests?.map((test: string) => {
-                      const center = centers.find(c => c.id === selectedCenter)
-                      const price = center?.test_prices?.[test]
-                      const priceDisplay = price ? ` - ₹${price}` : ''
-                      return (
-                        <option key={test} value={test.toLowerCase().replace(/ /g, '-')}>
-                          {test}{priceDisplay}
-                        </option>
-                      )
-                    })}
-                  </select>
-                </div>
-              </div>
+              <SelectField label="Diagnostic Test" icon={Activity}>
+                <select
+                  name="test_name"
+                  value={selectedDiagnostic}
+                  onChange={(e) => setSelectedDiagnostic(e.target.value)}
+                  required={bookingType === 'diagnostics'}
+                  disabled={!selectedCenter}
+                  className={selectClass}
+                >
+                  <option value="" disabled>Select Diagnostic Test</option>
+                  {centers.find(c => c.id === selectedCenter)?.available_tests?.map((test: string) => {
+                    const center = centers.find(c => c.id === selectedCenter)
+                    const price = center?.test_prices?.[test]
+                    const priceDisplay = price ? ` - ₹${price}` : ''
+                    return (
+                      <option key={test} value={test.toLowerCase().replace(/ /g, '-')}>
+                        {test}{priceDisplay}
+                      </option>
+                    )
+                  })}
+                </select>
+              </SelectField>
 
               {/* Date */}
-              <div className="flex flex-col relative">
-                <label className="font-label-sm text-label-sm text-vibrant-blue absolute top-2 left-3 z-10 bg-surface-container-lowest px-1">Preferred Date</label>
-                <div className="relative mt-4">
-                  <Calendar className="absolute left-3 top-3.5 w-5 h-5 text-vibrant-blue" />
-                  <input
-                    name="preferred_date"
-                    type="date"
-                    value={diagnosticDate}
-                    onChange={(e) => setDiagnosticDate(e.target.value)}
-                    required={bookingType === 'diagnostics'}
-                    min={new Date().toISOString().split('T')[0]}
-                    className="w-full pl-10 pr-4 py-3 border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 bg-surface-container-lowest text-body-md outline-none text-on-surface cursor-pointer"
-                  />
-                </div>
-              </div>
+              <SelectField label="Preferred Date" icon={Calendar} chevron={false}>
+                <input
+                  name="preferred_date"
+                  type="date"
+                  value={diagnosticDate}
+                  onChange={(e) => setDiagnosticDate(e.target.value)}
+                  required={bookingType === 'diagnostics'}
+                  min={new Date().toISOString().split('T')[0]}
+                  className={selectClass}
+                />
+              </SelectField>
             </>
           )}
 
-          <button 
+          <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-vibrant-blue text-on-primary py-4 rounded-xl font-title-md text-base btn-hover mt-6 shadow-lg shadow-vibrant-blue/20 flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full bg-vibrant-blue text-on-primary py-3.5 rounded-xl font-title-md text-sm font-bold btn-hover mt-2 shadow-lg shadow-vibrant-blue/20 flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {isSubmitting ? (
               <>
@@ -494,18 +467,50 @@ export function BookConsultationFormInner({ defaultType = 'consultation' }: { de
                 Booking...
               </>
             ) : (
-              'Book Now'
+              <>
+                {bookingType === 'consultation' ? 'Find & Confirm Appointment' : 'Book Diagnostic Test'}
+                <ArrowRight className="w-4 h-4" />
+              </>
             )}
           </button>
+          <p className="flex items-center justify-center gap-1.5 text-on-surface-variant text-[11px] font-medium text-center">
+            <ShieldCheck className="w-3.5 h-3.5 text-fresh-teal shrink-0" />
+            Instant Confirmation • No Hidden Charges
+          </p>
         </form>
       )}
 
-      <InlineAuthModal 
+      <InlineAuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         onSuccess={handleAuthSuccess}
       />
     </div>
+  )
+}
+
+function SelectField({
+  label,
+  icon: Icon,
+  chevron = true,
+  children,
+}: {
+  label: string
+  icon: LucideIcon
+  chevron?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <label className="flex flex-col">
+      <span className="font-label-sm text-xs font-semibold text-vibrant-blue mb-1">{label}</span>
+      <span className="relative block">
+        <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vibrant-blue pointer-events-none" />
+        {children}
+        {chevron && (
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-outline pointer-events-none" />
+        )}
+      </span>
+    </label>
   )
 }
 

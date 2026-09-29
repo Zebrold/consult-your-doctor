@@ -8,7 +8,7 @@ export interface DirectoryPatientItem {
   rawBookingId: string;
   patientId?: string;
   name: string;
-  age: number;
+  age: number | string;
   gender: string;
   phone: string;
   initials: string;
@@ -85,9 +85,7 @@ export function DiagnosticPatientsDirectoryClient({
         : "Diagnostic Test";
 
       // Modality
-      const isTransit = false;
-      const isHome = false;
-      const modality: DirectoryPatientItem["modality"] = "In-Centre Walk-In";
+      const modality: DirectoryPatientItem["modality"] = (b.modality as DirectoryPatientItem["modality"]) || "In-Centre Walk-In";
 
       // Status badge
       let statusBadge: DirectoryPatientItem["statusBadge"] = "Analysis in Progress";

@@ -75,7 +75,7 @@ export async function middleware(request: NextRequest) {
     }
 
     // Always redirect logged-in users away from auth pages
-    if (path === '/login' || path === '/signup' || path === '/login/patient' || path === '/login/doctor' || path === '/login/hospital' || path === '/login/executive' || path === '/login/diagnostic' || path === '/admin') {
+    if (path === '/login' || path === '/signup' || path === '/signup/doctor' || path === '/login/patient' || path === '/login/doctor' || path === '/login/hospital' || path === '/login/executive' || path === '/login/diagnostic' || path === '/admin') {
       return NextResponse.redirect(new URL(dashboardPath, request.url))
     }
 

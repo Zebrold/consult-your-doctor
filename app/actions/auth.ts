@@ -42,7 +42,8 @@ export async function sendOTP(prevState: any, formData: FormData) {
 
   const supabase = await createClient()
 
-  const options: any = {}
+  // Only registration may create a new account; signing in with an unknown number should fail.
+  const options: any = { shouldCreateUser: isRegister }
   if (isRegister) {
     options.data = { full_name: fullName, role: role }
   }
@@ -53,7 +54,13 @@ export async function sendOTP(prevState: any, formData: FormData) {
   })
 
   if (error) {
-    return { error: error.message, success: false, phone, fullName, role, isRegister }
+    const isUnknownNumber = !isRegister && /signups not allowed/i.test(error.message)
+    return {
+      error: isUnknownNumber
+        ? 'No account found for this number. Switch to "Create Account" to register.'
+        : error.message,
+      success: false, phone, fullName, role, isRegister
+    }
   }
 
   return { success: true, phone, fullName, role, isRegister }

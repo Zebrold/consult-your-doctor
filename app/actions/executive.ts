@@ -37,6 +37,7 @@ export async function updateAppointmentStatus(appointmentId: string, newStatus: 
   }
 
   revalidatePath('/executive/dashboard')
+  revalidatePath('/executive/today')
   return { success: true }
 }
 

@@ -182,7 +182,7 @@ export function StaffListClient({ initialStaff, hospitals, pendingRequests = [],
                             const res = await approveDoctor(req.id)
                             setIsApproving(null)
                             if (res.success && res.credentials) {
-                              alert(`Credentials Generated and Sent!\nEmail: ${res.credentials.email}\nPassword: ${res.credentials.password}`)
+                              alert(`Credentials Generated and Sent!\nStaff ID: ${res.credentials.staffId}\nEmail: ${res.credentials.email}\nPassword: ${res.credentials.password}`)
                               window.location.reload()
                             } else {
                               alert(res.error || 'Failed to approve')

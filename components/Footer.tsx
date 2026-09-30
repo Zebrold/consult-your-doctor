@@ -31,7 +31,7 @@ const footerSections = [
       { label: "Hospital Login", href: "/login/hospital" },
       { label: "Diagnostic Centre Login", href: "/login/diagnostic" },
       { label: "Executive Login", href: "/login/executive" },
-      { label: "Work With Us", href: "/signup" },
+      { label: "Work With Us", href: "/signup/doctor" },
     ],
   },
 ];

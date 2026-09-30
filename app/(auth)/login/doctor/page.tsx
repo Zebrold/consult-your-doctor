@@ -1,31 +1,25 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useActionState, useEffect } from 'react'
+import { useState, useActionState } from 'react'
 import { staffLogin, sendPasswordResetOTP } from '@/app/actions/auth'
-import { getHospitals, submitDoctorSignup } from '@/app/actions/doctorAuth'
-import { ArrowLeft, Loader2, KeyRound, ShieldCheck, RefreshCcw, Users, Activity, IdCard, Lock, Unlock, Building2, User, Mail, Phone, GraduationCap, Stethoscope } from 'lucide-react'
-import Image from 'next/image'
+import { ArrowLeft, ArrowRight, IdCard, Loader2, Lock, MailCheck, Stethoscope, User } from 'lucide-react'
+
+const inputClass =
+  'w-full pl-10 pr-4 py-3 bg-surface-container-lowest text-on-surface text-[14px] rounded-xl border border-outline-variant/60 outline-none focus:border-vibrant-blue focus:ring-2 focus:ring-vibrant-blue/20 transition-all placeholder:text-outline/70'
+
+const primaryButtonClass =
+  'w-full py-3.5 px-6 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary font-title-md text-[15px] font-semibold transition-all duration-200 shadow-[0_4px_14px_rgba(0,102,255,0.3)] hover:shadow-[0_6px_20px_rgba(0,102,255,0.4)] active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-60'
 
 export default function DoctorLoginPage() {
   const [state, formAction, isPending] = useActionState(staffLogin, null)
 
-  const [view, setView] = useState<'login' | 'forgot' | 'verify' | 'signup'>('login')
+  const [view, setView] = useState<'login' | 'forgot' | 'verify'>('login')
   const [staffId, setStaffId] = useState('')
   const [isResetting, setIsResetting] = useState(false)
   const [resetError, setResetError] = useState('')
-  const [resetSuccess, setResetSuccess] = useState('')
 
-  const [signupState, signupAction, isSignupPending] = useActionState(submitDoctorSignup, null)
-  const [hospitals, setHospitals] = useState<any[]>([])
-
-  useEffect(() => {
-    if (view === 'signup' && hospitals.length === 0) {
-      getHospitals().then(setHospitals)
-    }
-  }, [view, hospitals.length])
-
-  const handleSendOTP = async (e: React.FormEvent) => {
+  const handleSendReset = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsResetting(true)
     setResetError('')
@@ -41,310 +35,150 @@ export default function DoctorLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F9FC] p-4 lg:p-8 font-sans flex items-center justify-center">
-      <div className="w-full max-w-xl mx-auto">
-        {/* Authentication Portal */}
-        <div className="bg-white rounded-[2rem] p-6 lg:p-12 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-center border border-slate-100">
+    <div className="w-full max-w-[480px] flex flex-col items-center">
+      <div className="w-full bg-surface-container-lowest rounded-2xl shadow-[0_12px_40px_-8px_rgba(0,102,255,0.08),0_2px_12px_rgba(0,0,0,0.03)] p-6 sm:p-9 relative z-10">
+        {view !== 'login' && (
+          <button
+            type="button"
+            onClick={() => setView('login')}
+            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-on-surface-variant hover:text-on-surface mb-6 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" /> Back to sign in
+          </button>
+        )}
 
-          {view === 'forgot' && (
-            <div>
-              <button onClick={() => setView('login')} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold mb-8 transition-colors">
-                <ArrowLeft className="w-4 h-4" /> Back to Sign In
-              </button>
-              <div className="flex flex-col items-start mb-8">
-                <h2 className="text-3xl font-black text-[#0949B3] tracking-tight">Reset Password</h2>
-                <p className="text-[15px] text-slate-500 font-medium mt-3 leading-relaxed">
-                  Enter your Staff ID to receive a reset OTP on your registered email.
-                </p>
-              </div>
-
-              {resetError && (
-                <div className="mb-6 p-4 bg-red-50 text-red-700 text-sm rounded-xl border border-red-100 font-bold">
-                  {resetError}
-                </div>
-              )}
-
-              <form onSubmit={handleSendOTP} className="flex flex-col gap-6">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-bold text-slate-700">Staff ID</label>
-                  <div className="relative flex items-center">
-                    <IdCard className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                    <input
-                      required
-                      value={staffId}
-                      onChange={e => setStaffId(e.target.value)}
-                      type="text"
-                      placeholder="e.g. CYDAB1234"
-                      className="w-full pl-12 pr-4 py-4 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold uppercase placeholder-slate-400 focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none"
-                    />
-                  </div>
-                </div>
-                <button
-                  disabled={isResetting || !staffId}
-                  type="submit"
-                  className="mt-2 w-full py-4 rounded-full bg-[#096348] text-white text-lg font-black shadow-lg hover:bg-[#075039] transition-all flex justify-center items-center gap-2 disabled:opacity-50"
-                >
-                  {isResetting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Send Reset Link'}
-                </button>
-              </form>
+        {view === 'login' && (
+          <>
+            <div className="text-center mb-7">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-primary font-label-sm text-label-sm uppercase tracking-wider mb-4">
+                <Stethoscope className="w-3.5 h-3.5" /> Clinician Access
+              </span>
+              <h1 className="font-display-lg text-[28px] sm:text-[32px] leading-[38px] font-bold text-on-surface tracking-tight mb-2">
+                Clinical Portal Sign In
+              </h1>
+              <p className="text-on-surface-variant text-[14px] leading-relaxed max-w-[390px] mx-auto">
+                Restricted to verified medical practitioners. Sign in with the Staff ID issued after your credentials were approved.
+              </p>
             </div>
-          )}
 
-          {view === 'verify' && (
-            <div>
-              <button onClick={() => setView('login')} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold mb-8 transition-colors">
-                <ArrowLeft className="w-4 h-4" /> Back to Sign In
-              </button>
-              <div className="flex flex-col items-start mb-8">
-                <h2 className="text-3xl font-black text-[#0949B3] tracking-tight">Check Your Email</h2>
-                <p className="text-[15px] text-slate-500 font-medium mt-3 leading-relaxed">
-                  We've sent a magic reset link to your registered email address. Click the link in the email to set a new password.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {view === 'login' && (
-            <div>
-              <Link href="/login/patient" className="flex w-fit items-center gap-2 text-slate-500 hover:text-slate-800 font-bold mb-6 transition-colors">
-                <ArrowLeft className="w-4 h-4" /> Back to roles
-              </Link>
-              <div className="mb-10">
-                <span className="text-[13px] font-black text-[#096348] uppercase tracking-widest mb-3 block">Clinician Access</span>
-                <h2 className="text-4xl font-black text-[#0949B3] leading-[1.15] tracking-tight">
-                  Clinical Portal Sign In
-                </h2>
-                <p className="text-slate-600 text-[15px] font-medium mt-4 leading-relaxed max-w-sm">
-                  Restricted to authorized medical practitioners and verified health board specialists.
-                </p>
-              </div>
+            <form action={formAction} className="space-y-4">
+              <input type="hidden" name="role" value="doctor" />
 
               {state?.error && (
-                <div className="mb-6 p-4 bg-red-50 text-red-700 text-sm rounded-xl border border-red-100 font-bold">
+                <div role="alert" className="p-3 bg-error-container/60 text-on-error-container text-[13px] rounded-xl font-semibold">
                   {state.error}
                 </div>
               )}
 
-              {resetSuccess && (
-                <div className="mb-6 p-4 bg-green-50 text-green-700 text-sm rounded-xl border border-green-100 font-bold">
-                  {resetSuccess}
+              <div className="flex flex-col gap-1.5">
+                <label className="font-label-sm text-label-sm text-indigo-gray-600 pl-1" htmlFor="staff-id">Staff ID</label>
+                <div className="relative flex items-center">
+                  <IdCard className="absolute left-3.5 w-[18px] h-[18px] text-outline pointer-events-none" />
+                  <input id="staff-id" required name="staffId" type="text" autoComplete="username" placeholder="e.g. CYDAB1234" className={`${inputClass} uppercase placeholder:normal-case`} />
                 </div>
-              )}
-
-              <form action={formAction} className="flex flex-col gap-6">
-                <input type="hidden" name="role" value="doctor" />
-
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-bold text-slate-700">GMC Number or Staff ID</label>
-                  <div className="relative flex items-center">
-                    <IdCard className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                    <input
-                      required
-                      name="staffId"
-                      type="text"
-                      placeholder="e.g. CYDAB1234"
-                      className="w-full pl-12 pr-4 py-4 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold uppercase placeholder-slate-400 focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="text-sm font-bold text-slate-700">Clinical Master Password</label>
-                    <button
-                      type="button"
-                      onClick={() => { setView('forgot'); setResetError(''); setResetSuccess('') }}
-                      className="text-[13px] font-black text-[#096348] hover:underline"
-                    >
-                      Forgot Password?
-                    </button>
-                  </div>
-                  <div className="relative flex items-center">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                    <input
-                      required
-                      name="password"
-                      type="password"
-                      placeholder="••••••••"
-                      className="w-full pl-12 pr-4 py-4 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold placeholder-slate-400 focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none tracking-widest"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 mt-2">
-                  <div className="pt-1">
-                    <input className="w-4 h-4 rounded border-slate-300 text-[#0949B3] focus:ring-[#0949B3] cursor-pointer" id="workstationPersist" type="checkbox" />
-                  </div>
-                  <label className="text-sm text-slate-600 font-medium cursor-pointer leading-relaxed" htmlFor="workstationPersist">
-                    Maintain active session on this secure clinical endpoint <span className="text-[#0949B3] font-bold">(Hospital intranet or registered device only)</span>
-                  </label>
-                </div>
-
-                <button
-                  disabled={isPending}
-                  type="submit"
-                  className="mt-4 w-full py-4 rounded-full bg-[#096348] text-white text-lg font-black shadow-[0_8px_20px_-8px_rgba(9,99,72,0.6)] hover:bg-[#075039] transition-all flex justify-center items-center gap-2 disabled:opacity-50"
-                >
-                  {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : (
-                    <>
-                      <Unlock className="w-5 h-5" />
-                      Sign In to Clinical Portal
-                    </>
-                  )}
-                </button>
-              </form>
-            </div>
-          )}
-
-          {view === 'signup' && (
-            <div>
-              <button onClick={() => setView('login')} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold mb-6 transition-colors">
-                <ArrowLeft className="w-4 h-4" /> Back to Sign In
-              </button>
-              <div className="mb-8">
-                <h2 className="text-3xl font-black text-[#0949B3] tracking-tight">Register Practice</h2>
-                <p className="text-[15px] text-slate-500 font-medium mt-3 leading-relaxed">
-                  Submit your details to apply for clinical access. Your application will be verified by a Super Admin.
-                </p>
               </div>
 
-              {signupState?.error && (
-                <div className="mb-6 p-4 bg-red-50 text-red-700 text-sm rounded-xl border border-red-100 font-bold">
-                  {signupState.error}
-                </div>
-              )}
-              {signupState?.success && (
-                <div className="mb-6 p-4 bg-green-50 text-green-700 text-sm rounded-xl border border-green-100 font-bold">
-                  {signupState.message}
-                </div>
-              )}
-
-              {!signupState?.success && (
-                <form action={signupAction} className="flex flex-col gap-5">
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-bold text-slate-700">Full Name</label>
-                    <div className="relative flex items-center">
-                      <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                      <input required name="fullName" type="text" placeholder="Dr. John Doe" className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold placeholder-slate-400 focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none" />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-bold text-slate-700">Email Address</label>
-                    <div className="relative flex items-center">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                      <input required name="email" type="email" placeholder="doctor@example.com" className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold placeholder-slate-400 focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none" />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-bold text-slate-700">Phone Number</label>
-                    <div className="relative flex items-center">
-                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                      <input required name="phone" type="tel" placeholder="+91 9999999999" className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold placeholder-slate-400 focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none" />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-bold text-slate-700">Specialty</label>
-                      <div className="relative flex items-center">
-                        <Stethoscope className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <select required name="specialty" className="w-full pl-11 pr-8 py-3.5 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none text-sm appearance-none cursor-pointer">
-                          <option value="">Select Specialty</option>
-                          <option value="Cardiology">Cardiology</option>
-                          <option value="Neurology">Neurology</option>
-                          <option value="Orthopedics">Orthopedics</option>
-                          <option value="Pediatrics">Pediatrics</option>
-                          <option value="Oncology">Oncology</option>
-                          <option value="Dermatology">Dermatology</option>
-                          <option value="General Practice">General Practice</option>
-                          <option value="Psychiatry">Psychiatry</option>
-                          <option value="Internal Medicine">Internal Medicine</option>
-                        </select>
-                        <span className="material-symbols-outlined absolute right-3 text-slate-400 pointer-events-none text-lg">expand_more</span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-bold text-slate-700">Qualifications</label>
-                      <div className="relative flex items-center">
-                        <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <select required name="qualifications" className="w-full pl-11 pr-8 py-3.5 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none text-sm appearance-none cursor-pointer">
-                          <option value="">Select Quals</option>
-                          <option value="MBBS">MBBS</option>
-                          <option value="MD">MD</option>
-                          <option value="DO">DO</option>
-                          <option value="PhD">PhD</option>
-                          <option value="MS">MS</option>
-                          <option value="DNB">DNB</option>
-                          <option value="MBBS, MD">MBBS, MD</option>
-                          <option value="MBBS, MS">MBBS, MS</option>
-                        </select>
-                        <span className="material-symbols-outlined absolute right-3 text-slate-400 pointer-events-none text-lg">expand_more</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-bold text-slate-700">Experience (Years)</label>
-                      <div className="relative flex items-center">
-                        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg">work_history</span>
-                        <input required name="experience_years" type="number" min="0" max="80" placeholder="e.g. 5" className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold placeholder-slate-400 focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none text-sm" />
-                      </div>
-                    </div>
-                    
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-bold text-slate-700">Consultation Fee (₹)</label>
-                      <div className="relative flex items-center">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">₹</span>
-                        <input required name="consultation_fee" type="number" min="0" placeholder="e.g. 500" className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold placeholder-slate-400 focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none text-sm" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-bold text-slate-700">Select Hospital</label>
-                    <div className="relative flex items-center">
-                      <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                      <select required name="hospitalId" className="w-full pl-12 pr-10 py-3.5 rounded-xl bg-[#F8F9FC] border border-transparent text-[#0949B3] font-bold focus:border-[#0949B3] focus:ring-1 focus:ring-[#0949B3] focus:bg-white transition-all outline-none appearance-none cursor-pointer">
-                        <option value="">Select a Hospital</option>
-                        {hospitals.map((h) => (
-                          <option key={h.id} value={h.id}>{h.name}</option>
-                        ))}
-                      </select>
-                      <span className="material-symbols-outlined absolute right-4 text-slate-400 pointer-events-none">expand_more</span>
-                    </div>
-                  </div>
-
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between pl-1">
+                  <label className="font-label-sm text-label-sm text-indigo-gray-600" htmlFor="password">Password</label>
                   <button
-                    disabled={isSignupPending}
-                    type="submit"
-                    className="mt-4 w-full py-4 rounded-full bg-[#0949B3] text-white text-lg font-black shadow-[0_8px_20px_-8px_rgba(9,73,179,0.6)] hover:bg-[#073A8F] transition-all flex justify-center items-center gap-2 disabled:opacity-50"
+                    type="button"
+                    onClick={() => { setView('forgot'); setResetError('') }}
+                    className="text-[12px] font-semibold text-vibrant-blue hover:text-primary hover:underline"
                   >
-                    {isSignupPending ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Submit Application'}
+                    Forgot password?
                   </button>
-                </form>
-              )}
-            </div>
-          )}
-
-          {/* Registration Footer Callout */}
-          {view === 'login' && (
-            <div className="mt-10 pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <Building2 className="w-8 h-8 text-[#0949B3]" />
-                <div>
-                  <p className="text-sm font-black text-[#0949B3]">New practitioner?</p>
-                  <p className="text-xs font-bold text-slate-500">Accreditation verified via admin checks</p>
+                </div>
+                <div className="relative flex items-center">
+                  <Lock className="absolute left-3.5 w-[18px] h-[18px] text-outline pointer-events-none" />
+                  <input id="password" required name="password" type="password" autoComplete="current-password" placeholder="••••••••" className={inputClass} />
                 </div>
               </div>
-              <button onClick={() => setView('signup')} type="button" className="px-6 py-2.5 rounded-full border-2 border-slate-200 text-[#0949B3] text-sm font-black hover:border-[#0949B3] transition-all whitespace-nowrap cursor-pointer">
-                Register Practice
+
+              <button disabled={isPending} type="submit" className={`${primaryButtonClass} mt-2`}>
+                {isPending ? (
+                  <>
+                    <Loader2 className="w-[18px] h-[18px] animate-spin" /> Signing in...
+                  </>
+                ) : (
+                  <>
+                    Sign In to Clinical Portal <ArrowRight className="w-[18px] h-[18px]" />
+                  </>
+                )}
               </button>
+            </form>
+          </>
+        )}
+
+        {view === 'forgot' && (
+          <>
+            <div className="mb-7">
+              <h1 className="font-display-lg text-[26px] leading-[34px] font-bold text-on-surface tracking-tight mb-2">Reset Password</h1>
+              <p className="text-on-surface-variant text-[14px] leading-relaxed">
+                Enter your Staff ID and we&apos;ll email a reset link to the address registered on your account.
+              </p>
             </div>
-          )}
-        </div>
+
+            <form onSubmit={handleSendReset} className="space-y-4">
+              {resetError && (
+                <div role="alert" className="p-3 bg-error-container/60 text-on-error-container text-[13px] rounded-xl font-semibold">
+                  {resetError}
+                </div>
+              )}
+              <div className="flex flex-col gap-1.5">
+                <label className="font-label-sm text-label-sm text-indigo-gray-600 pl-1" htmlFor="reset-staff-id">Staff ID</label>
+                <div className="relative flex items-center">
+                  <IdCard className="absolute left-3.5 w-[18px] h-[18px] text-outline pointer-events-none" />
+                  <input
+                    id="reset-staff-id"
+                    required
+                    value={staffId}
+                    onChange={(e) => setStaffId(e.target.value)}
+                    type="text"
+                    placeholder="e.g. CYDAB1234"
+                    className={`${inputClass} uppercase placeholder:normal-case`}
+                  />
+                </div>
+              </div>
+              <button disabled={isResetting || !staffId} type="submit" className={`${primaryButtonClass} mt-2`}>
+                {isResetting ? <Loader2 className="w-[18px] h-[18px] animate-spin" /> : 'Send Reset Link'}
+              </button>
+            </form>
+          </>
+        )}
+
+        {view === 'verify' && (
+          <div className="text-center">
+            <span className="mx-auto mb-4 w-14 h-14 rounded-full bg-fresh-teal/10 text-fresh-teal flex items-center justify-center">
+              <MailCheck className="w-7 h-7" />
+            </span>
+            <h1 className="font-display-lg text-[26px] leading-[34px] font-bold text-on-surface tracking-tight mb-2">Check Your Email</h1>
+            <p className="text-on-surface-variant text-[14px] leading-relaxed">
+              We&apos;ve sent a password reset link to your registered email address. Open it to set a new password.
+            </p>
+          </div>
+        )}
+
+        {view === 'login' && (
+          <div className="mt-6 -mx-6 -mb-6 sm:-mx-9 sm:-mb-9 px-6 py-4 bg-surface-container-low/50 rounded-b-2xl text-center">
+            <p className="text-[13px] text-on-surface-variant">
+              New practitioner?
+              <Link href="/signup/doctor" className="font-title-md text-[13px] text-vibrant-blue hover:text-primary font-semibold ml-1 underline underline-offset-2">
+                Apply to join our network
+              </Link>
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="w-full mt-6 flex items-center gap-3 rounded-2xl bg-surface-container-lowest/80 px-5 py-4 shadow-sm">
+        <span className="flex items-center justify-center w-9 h-9 rounded-full bg-surface-container text-primary shrink-0">
+          <User className="w-[18px] h-[18px]" />
+        </span>
+        <p className="text-[13px] text-on-surface-variant leading-snug">
+          <span className="font-semibold text-on-surface">Looking to book a consultation?</span>{' '}
+          <Link href="/login/patient" className="text-vibrant-blue font-semibold hover:underline">Patient sign in</Link>
+        </p>
       </div>
     </div>
   )

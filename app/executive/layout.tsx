@@ -1,113 +1,64 @@
 import { Metadata } from 'next'
-import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import { LogOut, MapPin, Stethoscope } from 'lucide-react'
+import { requireExecutive, initials } from './_lib/ops'
+import { ExecutiveDock } from './_components/ExecutiveDock'
 
 export const metadata: Metadata = {
-  title: 'Executive Dashboard',
+  title: 'Executive Operations',
 }
-import { createClient } from '@/lib/supabase/server'
-import Link from 'next/link'
-import Image from 'next/image'
-import { LayoutDashboard, Users, LogOut, HeartPulse, Bell, MapPin, CalendarClock } from 'lucide-react'
-import { SidebarLink } from '@/components/SidebarLink'
 
 export default async function ExecutiveLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login/executive')
-
-  const { data: profile } = await supabase.from('profiles').select('*, hospital:hospitals ( name )').eq('id', user.id).single()
-
-  if (profile?.role !== 'executive') {
-    redirect('/')
-  }
+  const { profile } = await requireExecutive()
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col hidden md:flex">
-        <div className="flex flex-col items-start px-6 py-5 border-b border-gray-200">
-          <Link href="/">
-            <Image src="/logo.png" alt="Consult your Doctor" width={190} height={40} className="h-12 w-auto object-contain mb-3" priority />
+    <div className="min-h-screen bg-background font-body-md text-on-surface">
+      <header className="sticky top-0 z-40 bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline-variant/30 shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
+        <div className="h-16 max-w-[1560px] mx-auto px-margin-x-mobile lg:px-margin-x-desktop flex items-center justify-between gap-4">
+          <Link href="/executive/dashboard" className="flex items-center gap-stack-sm min-w-0">
+            <span className="flex items-center justify-center w-9 h-9 rounded-full bg-surface-container text-primary shrink-0">
+              <Stethoscope className="w-5 h-5" />
+            </span>
+            <span className="flex flex-col min-w-0">
+              <span className="font-title-md text-base sm:text-lg font-bold text-on-surface tracking-tight leading-tight truncate">Consult your Doctor</span>
+              <span className="font-label-sm text-label-sm text-indigo-gray-600">Executive Operations</span>
+            </span>
           </Link>
-          <div className="flex items-center gap-2">
-            <HeartPulse className="w-5 h-5 text-[#E31E24]" />
-            <span className="text-lg font-black text-gray-900 tracking-tight">Executive<span className="text-[#E31E24]">Portal</span></span>
-          </div>
-        </div>
 
-        <div className="px-6 py-5 border-b border-gray-200 bg-red-50/30">
-          <div className="flex items-center gap-1.5 text-[#E31E24] text-xs font-bold uppercase tracking-wider mb-1.5">
-            <MapPin className="w-3.5 h-3.5" />
-            Active Branch
-          </div>
-          <div className="text-gray-900 font-black text-xl leading-tight">
-            {(profile?.hospital as any)?.name || 'Unassigned Hospital'}
-          </div>
-        </div>
-
-        <div className="flex-1 py-6 px-4 space-y-1">
-          <SidebarLink
-            href="/executive/dashboard"
-            icon={<LayoutDashboard className="w-5 h-5" />}
-            label="Dashboard"
-            activeClassName="bg-red-50 text-[#E31E24] font-bold"
-            exactMatch={true}
-          />
-          <SidebarLink
-            href="/executive/today"
-            icon={<CalendarClock className="w-5 h-5" />}
-            label="Today's Appointments"
-            activeClassName="bg-red-50 text-[#E31E24] font-bold"
-          />
-          <SidebarLink
-            href="/executive/patients"
-            icon={<Users className="w-5 h-5" />}
-            label="My Patients"
-            activeClassName="bg-red-50 text-[#E31E24] font-bold"
-          />
-        </div>
-
-        <div className="p-4 border-t border-gray-200">
-          <div className="flex items-center gap-3 px-4 py-3">
-            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-bold text-[#E31E24]">
-              {profile.full_name?.charAt(0) || 'E'}
+          <div className="flex items-center gap-3 sm:gap-4">
+            {profile.hospitalName && (
+              <span className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-low text-indigo-gray-900 font-label-sm text-label-sm">
+                <MapPin className="w-3.5 h-3.5 text-vibrant-blue" />
+                {profile.hospitalName}
+              </span>
+            )}
+            <div className="flex items-center gap-2.5">
+              <span className="w-9 h-9 rounded-full bg-vibrant-blue text-on-primary flex items-center justify-center font-bold text-xs shrink-0">
+                {initials(profile.fullName)}
+              </span>
+              <span className="hidden sm:flex flex-col leading-tight">
+                <span className="font-label-sm text-label-sm font-bold text-indigo-gray-900">{profile.fullName}</span>
+                <span className="font-label-sm text-[11px] text-indigo-gray-600">Executive</span>
+              </span>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-gray-900 truncate">{profile.full_name}</p>
-              <p className="text-xs text-gray-500 truncate">Executive</p>
-            </div>
+            <form action="/auth/signout" method="post">
+              <button
+                className="flex items-center gap-1.5 px-3 py-2 rounded-full text-soft-coral hover:bg-soft-coral/10 font-label-sm text-label-sm transition-colors"
+                aria-label="Sign out"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Sign out</span>
+              </button>
+            </form>
           </div>
-          <form action="/auth/signout" method="post">
-            <button className="w-full mt-2 flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-xl font-bold transition-colors">
-              <LogOut className="w-4 h-4" />
-              Sign Out
-            </button>
-          </form>
         </div>
-      </aside>
+      </header>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0">
-        {/* Mobile/Top Header */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="md:hidden flex items-center gap-2">
-            <HeartPulse className="w-6 h-6 text-[#E31E24]" />
-            <span className="font-black text-gray-900">Executive</span>
-          </div>
-          <div className="flex-1" />
-          <div className="flex items-center gap-4">
-            <button className="p-2 text-gray-400 hover:text-gray-500 relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#E31E24] rounded-full"></span>
-            </button>
-          </div>
-        </header>
-
-        <div className="flex-1 overflow-auto">
-          {children}
-        </div>
+      <main className="max-w-[1560px] mx-auto px-margin-x-mobile lg:px-margin-x-desktop pt-6 pb-32 flex flex-col gap-stack-lg">
+        {children}
       </main>
+
+      <ExecutiveDock />
     </div>
   )
 }

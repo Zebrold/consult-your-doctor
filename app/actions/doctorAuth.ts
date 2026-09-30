@@ -15,22 +15,46 @@ export async function getHospitals() {
 
 export async function submitDoctorSignup(prevState: any, formData: FormData) {
   const supabase = await createClient()
-  
-  const fullName = formData.get('fullName') as string
-  const email = formData.get('email') as string
-  const phone = formData.get('phone') as string
-  const specialty = formData.get('specialty') as string
-  const qualificationsRaw = formData.get('qualifications') as string
-  const experienceYears = formData.get('experience_years') as string
-  const consultationFee = formData.get('consultation_fee') as string
-  const hospitalId = formData.get('hospitalId') as string
 
-  // Pack the extra fields into qualifications to avoid needing a DB migration right now
-  const qualifications = `${qualificationsRaw} | EXP:${experienceYears} | FEE:${consultationFee}`
+  // " | " separates the packed fields below, so strip pipes from free-text input.
+  const field = (name: string) => ((formData.get(name) as string | null) ?? '').replace(/\|/g, '/').trim()
 
-  if (!fullName || !email || !hospitalId) {
-    return { error: 'Full Name, Email, and Hospital selection are required.', success: false }
+  const fullName = [field('title'), field('firstName'), field('lastName')].filter(Boolean).join(' ')
+  const email = field('email').toLowerCase()
+  const phoneDigits = field('phone').replace(/\D/g, '')
+  const phone = phoneDigits ? `${field('countryCode')}${phoneDigits}` : ''
+  const specialty = field('specialty')
+  const qualificationsRaw = field('qualifications')
+  const experienceYears = field('experience_years')
+  const consultationFee = field('consultation_fee')
+  const hospitalId = field('hospitalId')
+  const council = field('council')
+  const registrationNumber = field('registrationNumber')
+  const subSpecialty = field('subSpecialty')
+
+  if (!field('firstName') || !field('lastName') || !email || !phone || !hospitalId) {
+    return { error: 'Name, email, mobile number, and hospital selection are required.', success: false }
   }
+
+  if (!council || !registrationNumber || !specialty || !qualificationsRaw) {
+    return { error: 'Medical council, registration number, qualification, and specialty are required for verification.', success: false }
+  }
+
+  if (formData.get('confirmRegistration') !== 'on' || formData.get('consentVerification') !== 'on') {
+    return { error: 'Please confirm both declarations before submitting.', success: false }
+  }
+
+  // Pack the extra fields into qualifications to avoid needing a DB migration right now.
+  // approveDoctor() reads the first part as the qualification and the EXP:/FEE: parts by prefix;
+  // COUNCIL:/REG:/SUB: are shown to the reviewing admin as-is.
+  const qualifications = [
+    qualificationsRaw,
+    `EXP:${experienceYears}`,
+    `FEE:${consultationFee}`,
+    `COUNCIL:${council}`,
+    `REG:${registrationNumber}`,
+    ...(subSpecialty ? [`SUB:${subSpecialty}`] : []),
+  ].join(' | ')
 
   // Check if email already exists in users or requests
   const { data: existingUser } = await supabase.from('profiles').select('id').eq('email', email).single()
@@ -63,7 +87,20 @@ export async function submitDoctorSignup(prevState: any, formData: FormData) {
   return { success: true, message: 'Your application has been submitted and is pending verification by the Super Admin.' }
 }
 
+// Approving creates an account and returns its password, so only reviewers may call these actions.
+async function canReviewApplications() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return false
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  return profile?.role === 'super_admin' || profile?.role === 'executive'
+}
+
 export async function approveDoctor(requestId: string) {
+  if (!(await canReviewApplications())) {
+    return { success: false, error: 'Not authorized to review doctor applications' }
+  }
+
   const adminClient = createAdminClient()
 
   // Fetch the request
@@ -183,12 +220,17 @@ export async function approveDoctor(requestId: string) {
     success: true, 
     credentials: {
       email: request.email,
-      password: password
+      password: password,
+      staffId: generatedStaffId
     }
   }
 }
 
 export async function rejectDoctor(requestId: string) {
+  if (!(await canReviewApplications())) {
+    return { success: false, error: 'Not authorized to review doctor applications' }
+  }
+
   const adminClient = createAdminClient()
   const { error } = await adminClient.from('doctor_signup_requests').update({ status: 'rejected' }).eq('id', requestId)
   if (error) {

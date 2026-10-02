@@ -101,8 +101,26 @@ export async function generateDoctorSlots(formData: FormData) {
     return { error: 'No slots could be generated with the given parameters.' }
   }
 
+  // Skip times the doctor already has a slot for, so running the generator twice doesn't double-book the calendar
+  const { data: existing } = await supabase
+    .from('schedules')
+    .select('start_time, end_time')
+    .eq('doctor_id', doctorId)
+    .lt('start_time', newSlots[newSlots.length - 1].end_time)
+    .gt('end_time', newSlots[0].start_time)
+  const taken = (existing ?? []).map((s) => [Date.parse(s.start_time), Date.parse(s.end_time)])
+  const freshSlots = newSlots.filter((s) => {
+    const start = Date.parse(s.start_time)
+    const end = Date.parse(s.end_time)
+    return !taken.some(([a, b]) => start < b && end > a)
+  })
+  const skipped = newSlots.length - freshSlots.length
+  if (freshSlots.length === 0) {
+    return { error: 'The doctor already has slots covering all of these times.' }
+  }
+
   // Insert all slots
-  const { error: insertError } = await supabase.from('schedules').insert(newSlots)
+  const { error: insertError } = await supabase.from('schedules').insert(freshSlots)
 
   if (insertError) {
     console.error('Failed to generate slots:', insertError)
@@ -110,7 +128,9 @@ export async function generateDoctorSlots(formData: FormData) {
   }
 
   revalidatePath(`/hospital/doctors/${doctorId}/schedule`)
-  return { success: true, count: newSlots.length }
+  revalidatePath('/hospital/doctors')
+  revalidatePath('/hospital/dashboard')
+  return { success: true, count: freshSlots.length, skipped }
 }
 
 export async function deleteDoctorSlot(formData: FormData) {
@@ -143,6 +163,8 @@ export async function deleteDoctorSlot(formData: FormData) {
   }
 
   revalidatePath(`/hospital/doctors/${doctorId}/schedule`)
+  revalidatePath('/hospital/doctors')
+  revalidatePath('/hospital/dashboard')
   return { success: true }
 }
 
@@ -256,6 +278,62 @@ export async function createHospitalDoctor(formData: FormData) {
     return { error: 'Failed to finalize doctor registration.' }
   }
 
-  revalidatePath('/hospital/doctors')
+  for (const path of ['/hospital/dashboard', '/hospital/doctors', '/hospital/staff']) revalidatePath(path)
   return { success: true, doctorId: adminId }
+}
+
+/** Edits one of this hospital's doctors (the details patients see when booking). */
+export async function updateHospitalDoctor(formData: FormData): Promise<{ success: true } | { success: false; error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+  const { data: profile } = await supabase.from('profiles').select('role, hospital_id').eq('id', user.id).single()
+  if (profile?.role !== 'hospital_admin' || !profile.hospital_id) return { success: false, error: 'Unauthorized' }
+
+  const admin = createAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+
+  const doctorId = String(formData.get('doctorId') || '')
+  const { data: doctor } = await admin.from('doctors').select('id, profile_id, hospital_id').eq('id', doctorId).maybeSingle()
+  if (!doctor || doctor.hospital_id !== profile.hospital_id) return { success: false, error: 'Doctor not found in your hospital' }
+
+  const text = (name: string) => String(formData.get(name) || '').trim()
+  const specialty = text('specialty')
+  const experience = Number(text('experience'))
+  const fee = Number(text('fee'))
+  if (!specialty) return { success: false, error: 'Specialty is required.' }
+  if (!Number.isFinite(experience) || experience < 0 || experience > 70) return { success: false, error: 'Enter years of experience (0 to 70).' }
+  if (!Number.isFinite(fee) || fee <= 0) return { success: false, error: 'Enter a consultation fee greater than zero.' }
+
+  // The department follows the specialty, created for this hospital if it's new.
+  let { data: dept } = await admin.from('departments').select('id').eq('hospital_id', profile.hospital_id).eq('name', specialty).maybeSingle()
+  if (!dept) {
+    const { data: created } = await admin.from('departments').insert({ hospital_id: profile.hospital_id, name: specialty }).select('id').single()
+    dept = created
+  }
+
+  const { error } = await admin
+    .from('doctors')
+    .update({
+      specialty,
+      experience_years: Math.round(experience),
+      consultation_fee: Math.round(fee),
+      qualifications: text('qualifications') || null,
+      address: text('address') || null,
+      bio: text('bio') || null,
+      ...(dept ? { department_id: dept.id } : {}),
+    })
+    .eq('id', doctorId)
+  if (error) {
+    console.error('updateHospitalDoctor:', error)
+    return { success: false, error: 'Could not save the doctor’s details.' }
+  }
+
+  const phone = text('phone')
+  const { error: phoneError } = await admin.from('profiles').update({ phone_number: phone || null }).eq('id', doctor.profile_id)
+  if (phoneError) return { success: false, error: phoneError.code === '23505' ? 'This phone number is already in use.' : 'Could not save the phone number.' }
+
+  for (const path of ['/hospital/dashboard', '/hospital/doctors', '/hospital/staff', '/hospital/revenue']) revalidatePath(path)
+  return { success: true }
 }

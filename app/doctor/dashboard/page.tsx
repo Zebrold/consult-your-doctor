@@ -1,394 +1,381 @@
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { redirect } from 'next/navigation'
-import { DoctorDashboardClient } from '@/components/DoctorDashboardClient'
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import { CalendarCheck, CalendarClock, CalendarDays, ClipboardList, Droplet, FolderOpen, History, Hourglass, RefreshCw, Stethoscope, UserCheck, Users, type LucideIcon } from 'lucide-react'
+import { currentTime } from '@/components/patient/data'
+import { ageFrom, doctorName, formatDayLabel, formatShortDate, formatSlot, formatTime, istDateKey } from '@/components/patient/format'
+import { bookingCode, isOpenVisit, loadPatientFacts, loadSlots, loadVisits, minutesBetween, requireDoctor, VISIT_STATUS, type Visit } from '../_lib/doctor'
+import { Avatar, Card, CardHeader, Chip, EmptyState, SegmentBar, StatCard } from '@/components/portal/ui'
+import { CallLink, CheckInButton, NextStepButton, PrescriptionButton, type VisitRef } from '../_components/VisitControls'
+import { WalkInButton } from '../_components/WalkInModal'
 
+export const metadata: Metadata = { title: 'Dashboard | Doctor Portal' }
 export const dynamic = 'force-dynamic'
 
+const DAY = 86_400_000
+const PAID = ['confirmed', 'visited', 'completed']
+
+const ref = (v: Visit): VisitRef => ({ id: v.id, status: v.status, patientName: v.patient?.name ?? 'Patient', phone: v.patient?.phone ?? null })
+
+function greeting(now: number) {
+  const hour = Number(new Date(now).toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', hourCycle: 'h23' }))
+  return hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+}
+
 export default async function DoctorDashboard() {
-  const supabase = await createClient()
+  const { admin, doctor } = await requireDoctor()
+  const now = currentTime()
+  const todayKey = istDateKey(now)
+  const dayStart = Date.parse(`${todayKey}T00:00:00+05:30`)
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login/doctor')
+  const [visits, slots] = await Promise.all([
+    loadVisits(admin, doctor.id),
+    loadSlots(admin, doctor.id, new Date(dayStart).toISOString(), new Date(dayStart + 8 * DAY).toISOString()),
+  ])
 
-  // Verify doctor and fetch profile
-  const { data: doctor } = await supabase.from('doctors').select(`
-    id, 
-    profile_id,
-    hospital_id,
-    department_id,
-    specialty,
-    experience_years,
-    consultation_fee,
-    address,
-    bio,
-    qualifications,
-    image_url,
-    departments ( id, name ),
-    profiles!doctors_profile_id_fkey ( id, full_name, phone_number, email, staff_id )
-  `).eq('profile_id', user.id).single()
-  
-  if (!doctor) redirect('/')
+  const live = visits.filter((v) => v.status !== 'cancelled')
+  const paid = live.filter((v) => PAID.includes(v.status))
+  const todays = live.filter((v) => v.start && istDateKey(v.start) === todayKey)
+  const count = (status: string) => todays.filter((v) => v.status === status).length
 
-  // Fetch hospital name if available
-  let hospitalName = 'Medical Center'
-  let hospital = null
-  if (doctor.hospital_id) {
-    const { data: h } = await supabase.from('hospitals').select('*').eq('id', doctor.hospital_id).single()
-    if (h?.name) {
-      hospitalName = h.name
-      hospital = h
-    }
-  }
+  // Who to see next: someone already checked in, then the next booked slot, then the next day with bookings.
+  const openToday = todays.filter(isOpenVisit)
+  const next =
+    openToday.find((v) => v.status === 'visited') ??
+    openToday.find((v) => Date.parse(v.end ?? v.start!) > now - 15 * 60_000) ??
+    openToday[0] ??
+    live.find((v) => isOpenVisit(v) && v.start && Date.parse(v.start) > now) ??
+    null
+  const queue = todays.filter((v) => v.status !== 'completed' && v.id !== next?.id)
+  const checkedIn = todays.filter((v) => v.status === 'visited')
 
-  // Formatting doctor profile directly from DB
-  const doctorProfile = {
-    ...doctor,
-    full_name: (doctor.profiles as any)?.full_name || 'Doctor',
-    email: (doctor.profiles as any)?.email || user.email || '',
-    phone_number: (doctor.profiles as any)?.phone_number || '',
-    staff_id: (doctor.profiles as any)?.staff_id || '',
-    image_url: doctor.image_url || null,
-    specialty: (doctor.departments as any)?.name || doctor.specialty || 'General Medicine',
-    qualifications: doctor.qualifications || 'MBBS, MD',
-    experience_years: doctor.experience_years ?? 5,
-    consultation_fee: doctor.consultation_fee ?? 500,
-    bio: doctor.bio || '',
-    address: doctor.address || (hospital ? `${hospital.name}, ${hospital.city || ''}` : ''),
-  }
+  // This-month numbers (India time)
+  const monthKey = todayKey.slice(0, 7)
+  const lastMonthKey = istDateKey(Date.parse(`${monthKey}-01T00:00:00+05:30`) - DAY).slice(0, 7)
+  const inMonth = (v: Visit, key: string) => !!v.start && istDateKey(v.start).slice(0, 7) === key
+  const completedThisMonth = visits.filter((v) => v.status === 'completed' && inMonth(v, monthKey)).length
+  const completedLastMonth = visits.filter((v) => v.status === 'completed' && inMonth(v, lastMonthKey)).length
+  const firstVisit = new Map<string, string>()
+  for (const v of paid) if (v.patient && v.start && !firstVisit.has(v.patient.id)) firstVisit.set(v.patient.id, v.start)
+  const newPatientsThisMonth = Array.from(firstVisit.values()).filter((start) => istDateKey(start).slice(0, 7) === monthKey).length
 
-  const adminClient = createAdminClient()
+  const weekSlots = slots.filter((s) => Date.parse(s.start) > now && Date.parse(s.start) < now + 7 * DAY)
+  const openWeek = weekSlots.filter((s) => !s.booked).length
 
-  // Fetch all appointments for this doctor from DB
-  const { data: allAppointmentsRaw } = await adminClient
-    .from('appointments')
-    .select(`
-      id,
-      patient_id,
-      doctor_id,
-      hospital_id,
-      schedule_id,
-      status,
-      created_at,
-      patient:profiles!appointments_patient_id_fkey ( id, full_name, phone_number, email, created_at ),
-      schedules (
-        id,
-        start_time,
-        end_time,
-        is_booked
-      ),
-      medical_records (
-        id,
-        notes,
-        document_type,
-        file_url,
-        created_at
-      )
-    `)
-    .eq('doctor_id', doctor.id)
+  const todaySlots = slots.filter((s) => istDateKey(s.start) === todayKey)
+  const visitBySlot = new Map(live.filter((v) => v.scheduleId).map((v) => [v.scheduleId!, v]))
 
-  const allAppointments = (allAppointmentsRaw || []).sort((a: any, b: any) => {
-    const aTime = a.schedules?.start_time ? new Date(a.schedules.start_time).getTime() : new Date(a.created_at).getTime()
-    const bTime = b.schedules?.start_time ? new Date(b.schedules.start_time).getTime() : new Date(b.created_at).getTime()
-    return aTime - bTime
-  })
+  const factIds = Array.from(new Set([next, ...queue, ...checkedIn].map((v) => v?.patient?.id).filter(Boolean) as string[]))
+  const facts = await loadPatientFacts(admin, factIds)
+  const visitsWith = (patientId: string) => paid.filter((v) => v.patient?.id === patientId)
 
-  // Fetch doctor schedules
-  const { data: doctorSchedules } = await adminClient
-    .from('schedules')
-    .select('*')
-    .eq('doctor_id', doctor.id)
-    .order('start_time', { ascending: true })
-
-  // Asia/Kolkata timezone aware date
-  const now = new Date()
-  const todayStr = now.toISOString().slice(0, 10)
-  const todayIST = now.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
-
-  // Filter today's schedules
-  let allSchedules = doctorSchedules || []
-  let todaySchedules = allSchedules.filter((s: any) => {
-    if (!s.start_time) return false
-    const dUTC = s.start_time.slice(0, 10)
-    const dIST = new Date(s.start_time).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
-    return dUTC === todayStr || dIST === todayIST
-  })
-
-  // Attach appointments to corresponding schedule slots
-  todaySchedules = todaySchedules.map((s: any) => {
-    const matchingApt = allAppointments.find((a: any) => a.schedule_id === s.id)
-    return {
-      ...s,
-      appointment: matchingApt || null
-    }
-  })
-
-  // Calculate today's appointments
-  const todayAppointments = allAppointments.filter((a: any) => {
-    const aptTime = a.schedules?.start_time || a.created_at
-    if (!aptTime) return false
-    const dUTC = aptTime.slice(0, 10)
-    const dIST = new Date(aptTime).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
-    return dUTC === todayStr || dIST === todayIST
-  })
-
-  // Fetch all registered patients from profiles
-  const { data: allPatientProfiles } = await adminClient
-    .from('profiles')
-    .select('*')
-    .eq('role', 'patient')
-
-  // Derive unique patients from all appointments and profiles
-  const patientsMap = new Map<string, any>()
-
-  // First seed from all registered profiles
-  ;(allPatientProfiles || []).forEach((prof: any) => {
-    patientsMap.set(prof.id, {
-      id: prof.id,
-      full_name: prof.full_name || 'Patient',
-      phone_number: prof.phone_number || 'N/A',
-      email: prof.email || '',
-      total_visits: 0,
-      last_visit: null,
-      status: 'active',
-      appointments: [],
-      medical_records: []
-    })
-  })
-
-  // Then populate/merge appointments and medical records
-  allAppointments.forEach((apt: any) => {
-    if (!apt.patient_id) return
-    const aptTime = apt.schedules?.start_time || apt.created_at
-    let existing = patientsMap.get(apt.patient_id)
-    if (!existing) {
-      existing = {
-        id: apt.patient_id,
-        full_name: apt.patient?.full_name || 'Patient',
-        phone_number: apt.patient?.phone_number || 'N/A',
-        email: apt.patient?.email || '',
-        total_visits: 0,
-        last_visit: aptTime,
-        status: apt.status,
-        appointments: [],
-        medical_records: []
-      }
-      patientsMap.set(apt.patient_id, existing)
-    }
-
-    existing.total_visits += 1
-    if (!existing.last_visit || new Date(aptTime).getTime() > new Date(existing.last_visit).getTime()) {
-      existing.last_visit = aptTime
-    }
-    existing.appointments.push(apt)
-    if (apt.medical_records?.length) {
-      existing.medical_records.push(...apt.medical_records)
-    }
-  })
-
-  // Clinical enrichment function from DB records
-  const patientsList = Array.from(patientsMap.values()).map((p: any) => {
-    const notesText = (p.medical_records || []).map((r: any) => r.notes || '').join(' ')
-
-    // Extract BP
-    const bpMatch = notesText.match(/BP[:\s]+([0-9]{2,3}\/[0-9]{2,3})/i)
-    const bp = bpMatch ? bpMatch[1] : (p.full_name?.includes('Eleanor') ? '142/94' : p.full_name?.includes('Arthur') ? '138/84' : p.full_name?.includes('David') ? '122/78' : p.full_name?.includes('Sophia') ? '118/74' : p.full_name?.includes('James') ? '130/82' : '120/80')
-
-    // Extract SpO2
-    const spo2Match = notesText.match(/SpO2[:\s]+([0-9]{2,3}%?)/i)
-    const spo2 = spo2Match ? (spo2Match[1].endsWith('%') ? spo2Match[1] : `${spo2Match[1]}%`) : (p.full_name?.includes('Eleanor') ? '95%' : p.full_name?.includes('Arthur') ? '97%' : p.full_name?.includes('David') ? '99%' : p.full_name?.includes('Sophia') ? '98%' : p.full_name?.includes('James') ? '96%' : '98%')
-
-    // Extract HR
-    const hrMatch = notesText.match(/HR[:\s]+([0-9]{2,3})/i)
-    const hrVal = hrMatch ? hrMatch[1] : (p.full_name?.includes('Eleanor') ? '88' : p.full_name?.includes('Arthur') ? '68' : p.full_name?.includes('David') ? '74' : p.full_name?.includes('Sophia') ? '65' : p.full_name?.includes('James') ? '78' : '72')
-    const hrNum = parseInt(hrVal, 10) || 72
-    const hr = `${hrNum} bpm`
-
-    // Determine severity
-    let severity: 'critical' | 'warning' | 'stable' = 'stable'
-    let hrNote = `HR: ${hrNum} bpm (Normal)`
-
-    if (hrNum > 85 || bp.startsWith('14') || notesText.toLowerCase().includes('coronary') || notesText.toLowerCase().includes('elevated') || p.full_name?.includes('Eleanor')) {
-      severity = 'critical'
-      hrNote = `HR: ${hrNum} bpm (Elevated)`
-    } else if (notesText.toLowerCase().includes('post-cabg') || notesText.toLowerCase().includes('warning') || notesText.toLowerCase().includes('monitored') || p.full_name?.includes('James')) {
-      severity = 'warning'
-      hrNote = `HR: ${hrNum} bpm (Post-Op Monitored)`
-    } else if (notesText.toLowerCase().includes('arrhythmia') || p.full_name?.includes('David')) {
-      severity = 'stable'
-      hrNote = `HR: ${hrNum} bpm (Sinus Rhythm)`
-    } else if (notesText.toLowerCase().includes('optimal') || p.full_name?.includes('Sophia')) {
-      severity = 'stable'
-      hrNote = `HR: ${hrNum} bpm (Optimal)`
-    }
-
-    // Condition / Diagnosis
-    let diagnosis = 'General Consultation'
-    let specialty = 'Cardiology'
-    let cohortStatus: 'in-treatment' | 'active' | 'discharged' = 'active'
-
-    if (notesText.includes('Coronary Artery Disease') || p.full_name?.includes('Eleanor')) {
-      diagnosis = 'Coronary Artery Disease'
-      specialty = 'Cardiology'
-      cohortStatus = 'in-treatment'
-    } else if (notesText.includes('Stage 2 Hypertension') || p.full_name?.includes('Arthur')) {
-      diagnosis = 'Stage 2 Hypertension'
-      specialty = 'Hypertension'
-      cohortStatus = 'active'
-    } else if (notesText.includes('Arrhythmia Follow-up') || p.full_name?.includes('David')) {
-      diagnosis = 'Arrhythmia Follow-up'
-      specialty = 'Cardiology'
-      cohortStatus = 'active'
-    } else if (notesText.includes('Preventive Cardiology') || p.full_name?.includes('Sophia')) {
-      diagnosis = 'Preventive Cardiology'
-      specialty = 'Cardiology'
-      cohortStatus = 'active'
-    } else if (notesText.includes('Post-CABG Recovery') || p.full_name?.includes('James')) {
-      diagnosis = 'Post-CABG Recovery'
-      specialty = 'Post-Op'
-      cohortStatus = 'in-treatment'
-    } else if (p.medical_records?.[0]?.notes) {
-      diagnosis = p.medical_records[0].notes.split('-')[0].split('.')[0].slice(0, 30).trim()
-    }
-
-    // Allergy
-    let allergy = 'No Known Allergies'
-    if (notesText.toLowerCase().includes('penicillin') || p.full_name?.includes('Eleanor')) {
-      allergy = 'Penicillin - Severe (Anaphylaxis Risk)'
-    } else if (notesText.toLowerCase().includes('sulfa') || p.full_name?.includes('Arthur')) {
-      allergy = 'Sulfa Drugs'
-    } else if (notesText.toLowerCase().includes('latex') || p.full_name?.includes('Sophia')) {
-      allergy = 'Latex'
-    } else if (notesText.toLowerCase().includes('aspirin') || p.full_name?.includes('James')) {
-      allergy = 'Aspirin'
-    }
-
-    // Medications
-    let medications = ['As prescribed by physician']
-    const rxMatch = notesText.match(/Rx[:\s]+([^.]+)/i)
-    if (rxMatch) {
-      medications = rxMatch[1].split(',').map((m: string) => m.trim())
-    } else if (p.full_name?.includes('Eleanor')) {
-      medications = ['Atorvastatin 20mg', 'Metoprolol 50mg']
-    } else if (p.full_name?.includes('Arthur')) {
-      medications = ['Lisinopril 10mg', 'Amlodipine 5mg']
-    } else if (p.full_name?.includes('David')) {
-      medications = ['Flecainide 50mg twice daily']
-    } else if (p.full_name?.includes('Sophia')) {
-      medications = ['CoQ10 100mg', 'Multivitamin']
-    } else if (p.full_name?.includes('James')) {
-      medications = ['Clopidogrel 75mg', 'Carvedilol 12.5mg']
-    }
-
-    // Demographics
-    let age = '38y'
-    let gender = 'M'
-    if (p.full_name?.includes('Eleanor')) { age = '42y'; gender = 'F' }
-    else if (p.full_name?.includes('Arthur')) { age = '68y'; gender = 'M' }
-    else if (p.full_name?.includes('David')) { age = '35y'; gender = 'M' }
-    else if (p.full_name?.includes('Sophia')) { age = '29y'; gender = 'F' }
-    else if (p.full_name?.includes('James')) { age = '54y'; gender = 'M' }
-    else if (p.full_name?.includes('Aman')) { age = '26y'; gender = 'M' }
-
-    // Patient ID code
-    const idSuffix = p.id.replace(/[^0-9]/g, '').slice(-4).padStart(4, '9042')
-    const id_code = p.full_name?.includes('Eleanor') ? '#CYD-9042'
-      : p.full_name?.includes('Arthur') ? '#CYD-8104'
-      : p.full_name?.includes('David') ? '#CYD-7239'
-      : p.full_name?.includes('Sophia') ? '#CYD-6540'
-      : p.full_name?.includes('James') ? '#CYD-5198'
-      : `#CYD-${idSuffix}`
-
-    // Photos matching template
-    let avatar = ''
-    if (p.full_name?.includes('Eleanor')) {
-      avatar = 'https://lh3.googleusercontent.com/aida-public/AB6AXuCaNcY3Lt5_v3iSBHk-GzKyWzvxCDmq3VN3-PTLgfIS3juifnDxEe56WzsfIuOm87MYLLm98FHg5tIPGTtTtiUjXLMmGJ1qaHLELtlkRnMJGScW2BNBFVdaiF0ZljWcqazzYKLnLp9dwme8C0YM_ZYCuHCCBsvZ0xPsSNOJj8gclN5moEcxqvXIINocnr6I9MDoakESwLRIRMvPrMzC7iq39aO4UNssubDXiAIr1W5tAEfA7y5Gs3A54A'
-    } else if (p.full_name?.includes('Arthur')) {
-      avatar = 'https://lh3.googleusercontent.com/aida-public/AB6AXuDkIgIaOCP6qV2CXPsnnMhoBxED-RSQVcSt1Cyn2bmYbKulrGX6uLMI7lVdHDucsfsXIGXPU3WRjmWHcACIx_gDmowBo-xbwj7X5RJgkxfUsxj14cS0r9xn9xFuTwL10zctpjB6SJG95kuN0YlXk_w52uEf8-QwU52z6C8jP3HVj3ejpPTuISNFBGndtKXV4NgUOGs7HC-hDmneBTXMj5Q2LBN4IM8ddkjSP4GC0xRFVmoY8ULLy4hMtA'
-    } else if (p.full_name?.includes('David')) {
-      avatar = 'https://lh3.googleusercontent.com/aida-public/AB6AXuDLYnnf69k78fuuXsDn-3AX1nDugHyaMnUCETaTdnx4U58hwXrbwGsLUASuH65dswuDhnaFVmTWMIQOe-zwG7pbcqXGKveXIQfCA5jKSlKNFTSXkoNG8dLa18oy_dDCRQ4I4co0dfl8QKEWCfPBatWtCUY6DvLJTVMDltVszecxpkvMqAqMILtMyQtqKx1aW6dErvlAJbPh_Bxxt14JlE7F8QmO91IBENxEaoY59BFMUu5_QQQ71Yn8PQ'
-    } else if (p.full_name?.includes('Sophia')) {
-      avatar = 'https://lh3.googleusercontent.com/aida-public/AB6AXuASgNFNa4evWUtAhS1N6ebmtbTBCWbY6KFtURkPRma1x4maX_R4JvTCC0Otym8HFBOhmPrNt54aonUMERla9TEf8JJm3lLFxiAXA0lAgcgLoDXbBscZjGJwiTwJcNIYD1qnHBL2rhM1UAf3Se9IebXFXDsmNvbblQdOZZLK9bmf2wcEDWXfmwwYWyM888HMpxjJL_y38OJwFfkY9Lp2Y8Qf8JSEtSW9RR78EZYQp_iugpJpXQKN1euD6A'
-    } else if (p.full_name?.includes('James')) {
-      avatar = 'https://lh3.googleusercontent.com/aida-public/AB6AXuAmqsm9AKaf8lno6aOTQjlYG4nMaIMq5-4eMHFtO5hMDJxbAKBKoGpSsunv37KGyNj5j5DzJ9H4oYgAb2WsA10I0PHhrrnuqfMbyUBE1i1uK-HO7l0ZC63VNddlcTigTkbQE5TocfyaAXRi1oHSXaSuv0oIMlh8CwQi8eZJllRoeR4QmJkg0oRDwDldnidluLNKaVSsOOpKwUPl69R089t7Ml0O9H_gEREXnjKSAIb32b18yL_hCFHjgg'
-    }
-
-    // Emergency Contact
-    let emergency_contact = p.phone_number ? `Primary: ${p.phone_number}` : 'Contact not on file'
-    if (p.full_name?.includes('Eleanor')) emergency_contact = 'Arthur Vance (Spouse): +1 (555) 389-1029'
-    else if (p.full_name?.includes('Arthur')) emergency_contact = 'Grace Pendelton (Daughter): +1 (555) 720-9941'
-    else if (p.full_name?.includes('David')) emergency_contact = 'Mei Chen (Sister): +1 (555) 492-3312'
-    else if (p.full_name?.includes('Sophia')) emergency_contact = 'Carlos Martinez (Father): +1 (555) 819-2045'
-    else if (p.full_name?.includes('James')) emergency_contact = 'Linda Wilson (Wife): +1 (555) 902-4411'
-
-    // Schedule time display
-    const latestApt = p.appointments?.[0]
-    let scheduleDisplay = 'Tomorrow, 10:30 AM'
-    if (latestApt?.schedules?.start_time) {
-      const d = new Date(latestApt.schedules.start_time)
-      scheduleDisplay = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-    } else if (p.full_name?.includes('Arthur')) {
-      scheduleDisplay = 'Oct 28, 02:00 PM'
-    } else if (p.full_name?.includes('David')) {
-      scheduleDisplay = 'Nov 04, 11:15 AM'
-    } else if (p.full_name?.includes('Sophia')) {
-      scheduleDisplay = 'Nov 12, 09:00 AM'
-    } else if (p.full_name?.includes('James')) {
-      scheduleDisplay = 'Tomorrow, 03:30 PM'
-    }
-
-    return {
-      ...p,
-      diagnosis,
-      specialty,
-      cohortStatus,
-      bp,
-      spo2,
-      hr,
-      hr_note: hrNote,
-      severity,
-      allergy,
-      medications,
-      age,
-      gender,
-      avatar,
-      id_code,
-      emergency_contact,
-      scheduleDisplay
-    }
-  })
-
-  // Calculate statistics from DB
-  const totalToday = todayAppointments.length
-  const completedToday = todayAppointments.filter((a: any) => a.status === 'completed').length
-  const pendingToday = totalToday - completedToday
-
-  const totalAllAppointments = allAppointments.length
-  const totalCompletedAll = allAppointments.filter((a: any) => a.status === 'completed').length
-  const totalUniquePatients = patientsList.length
-
-  const todayStats = {
-    total: totalToday > 0 ? totalToday : totalAllAppointments,
-    completed: totalToday > 0 ? completedToday : totalCompletedAll,
-    pending: totalToday > 0 ? pendingToday : (totalAllAppointments - totalCompletedAll),
-    telehealthCount: totalToday > 0 ? totalToday : totalAllAppointments,
-    inClinicCount: 0,
-    totalPatientsMonitored: totalUniquePatients,
-    telehealthHours: Math.round(totalCompletedAll * 0.5 * 10) / 10,
-    trustScore: 4.9
-  }
+  const trendNote =
+    completedLastMonth > 0
+      ? `${completedThisMonth >= completedLastMonth ? '+' : ''}${Math.round(((completedThisMonth - completedLastMonth) / completedLastMonth) * 100)}% vs last month`
+      : completedThisMonth > 0
+        ? 'first this month'
+        : undefined
 
   return (
-    <DoctorDashboardClient 
-      doctorProfile={doctorProfile}
-      hospitalName={hospitalName}
-      hospital={hospital}
-      todayAppointments={todayAppointments}
-      allAppointments={allAppointments}
-      todaySchedules={todaySchedules}
-      schedules={allSchedules}
-      patientsList={patientsList}
-      todayStats={todayStats}
-    />
+    <>
+      {/* Doctor header */}
+      <Card className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 md:gap-gutter">
+        <div className="flex items-center gap-3 md:gap-gutter min-w-0">
+          <span className="relative shrink-0">
+            <Avatar name={doctor.name} image={doctor.image} className="w-12 h-12 md:w-16 md:h-16 text-lg ring-2 ring-primary/10" />
+            <span className="absolute bottom-0 right-0 w-3.5 h-3.5 md:w-4 md:h-4 bg-fresh-teal rounded-full ring-2 ring-surface-container-lowest" title="Signed in" />
+          </span>
+          <div className="min-w-0">
+            <span className="text-[11px] md:text-label-sm font-semibold text-secondary uppercase tracking-wider">{greeting(now)}</span>
+            <h1 className="font-title-md text-[17px] md:font-headline-lg md:text-headline-lg text-indigo-gray-900 font-bold leading-tight truncate">{doctorName(doctor.name)}</h1>
+            <p className="hidden md:block text-sm text-indigo-gray-600 truncate">{[doctor.specialty, doctor.hospital?.name].filter(Boolean).join(' • ')}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:flex md:flex-wrap items-center gap-2 shrink-0">
+          <WalkInButton
+            label="Add Walk-in"
+            className="flex items-center justify-center gap-1.5 md:gap-2 bg-vibrant-blue hover:bg-primary text-on-primary font-label-sm text-[12px] md:text-label-sm px-3 md:px-stack-md py-2.5 md:py-3 rounded-full shadow-[0_4px_16px_rgba(0,102,255,0.22)] transition-all active:scale-95"
+          />
+          <Link
+            href="/doctor/schedule"
+            className="flex items-center justify-center gap-1.5 md:gap-2 bg-surface-container-low hover:bg-surface-container text-indigo-gray-900 font-label-sm text-[12px] md:text-label-sm px-3 md:px-stack-md py-2.5 md:py-3 rounded-full transition-colors"
+          >
+            <CalendarDays className="w-[18px] h-[18px] text-vibrant-blue" /> Open Schedule
+          </Link>
+        </div>
+      </Card>
+
+      {/* Metrics */}
+      <section className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 md:gap-gutter">
+        <StatCard
+          label="Today's Caseload"
+          value={todays.length}
+          note="appointments"
+          noteTone="teal"
+          icon={CalendarDays}
+          tone="blue"
+          footer={
+            <div className="flex flex-col gap-1.5">
+              <SegmentBar
+                parts={[
+                  { value: count('completed'), className: 'bg-fresh-teal', label: 'completed' },
+                  { value: count('visited'), className: 'bg-vibrant-blue', label: 'checked in' },
+                  { value: count('confirmed'), className: 'bg-outline-variant', label: 'still to see' },
+                  { value: count('pending_payment'), className: 'bg-soft-coral', label: 'awaiting payment' },
+                ]}
+              />
+              <span className="hidden md:block text-[11px] text-indigo-gray-600">
+                {count('completed')} done • {count('visited')} checked in • {count('confirmed')} to see
+              </span>
+            </div>
+          }
+        />
+        <StatCard
+          label="My Patients"
+          value={firstVisit.size}
+          note={newPatientsThisMonth ? `+${newPatientsThisMonth} new` : undefined}
+          icon={Users}
+          tone="coral"
+          footer={<span className="hidden md:block text-[11px] text-indigo-gray-600">Patients with a paid visit</span>}
+        />
+        <StatCard
+          label="Consults This Month"
+          value={completedThisMonth}
+          note={trendNote}
+          noteTone={completedThisMonth >= completedLastMonth ? 'teal' : 'coral'}
+          icon={Stethoscope}
+          tone="teal"
+          footer={<span className="text-[11px] text-indigo-gray-600">Last month: {completedLastMonth}</span>}
+        />
+        <StatCard
+          label="Open Slots (7 days)"
+          value={openWeek}
+          note={`of ${weekSlots.length}`}
+          noteTone="neutral"
+          icon={CalendarClock}
+          tone="neutral"
+          footer={
+            <SegmentBar
+              parts={[
+                { value: weekSlots.length - openWeek, className: 'bg-vibrant-blue', label: 'booked' },
+                { value: openWeek, className: 'bg-surface-container-highest', label: 'open' },
+              ]}
+            />
+          }
+        />
+      </section>
+
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-gutter items-start">
+        <div className="lg:col-span-7 flex flex-col gap-4 md:gap-stack-md">
+          {/* Next patient */}
+          <Card className="relative overflow-hidden">
+            <div aria-hidden className="absolute top-0 inset-x-0 h-1 md:h-1.5 bg-gradient-to-r from-vibrant-blue via-fresh-teal to-primary" />
+            {next?.patient ? (
+              <NextPatient visit={next} facts={facts[next.patient.id]} history={visitsWith(next.patient.id)} now={now} />
+            ) : (
+              <EmptyState icon={CalendarCheck}>No upcoming visits. New bookings will show here.</EmptyState>
+            )}
+          </Card>
+
+          {/* Today's queue */}
+          <Card>
+            <CardHeader
+              title="Today's Queue"
+              subtitle="Everyone else booked with you today"
+              action={<Chip tone="neutral">{queue.length} {queue.length === 1 ? 'patient' : 'patients'}</Chip>}
+            />
+            {queue.length === 0 ? (
+              <EmptyState icon={Users}>No one else is booked today.</EmptyState>
+            ) : (
+              <ul className="flex flex-col gap-2.5 md:gap-3">
+                {queue.map((v) => {
+                  const late = v.status === 'confirmed' && v.start && Date.parse(v.start) < now - 10 * 60_000
+                  const status = late
+                    ? { label: `Late (+${Math.round((now - Date.parse(v.start!)) / 60_000)}m)`, tone: 'coral' as const }
+                    : VISIT_STATUS[v.status]
+                  return (
+                    <li key={v.id} className={`p-2.5 md:p-3.5 rounded-xl md:rounded-lg bg-surface-container-low/60 flex items-center justify-between gap-3 ${v.status === 'visited' ? 'border border-fresh-teal/30' : ''}`}>
+                      <div className="flex items-center gap-2.5 md:gap-stack-sm min-w-0">
+                        <Avatar name={v.patient?.name ?? null} className="w-9 h-9 md:w-10 md:h-10 text-xs md:text-sm" />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-title-md text-[14px] md:text-[16px] text-indigo-gray-900 font-bold truncate">{v.patient?.name ?? 'Patient'}</span>
+                            {status && <Chip tone={status.tone}>{status.label}</Chip>}
+                          </div>
+                          <span className="font-label-sm text-[11px] md:text-label-sm text-indigo-gray-600 truncate block">
+                            In-person • {v.start ? formatTime(v.start) : 'Time not set'} • ID {bookingCode(v.id)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <CheckInButton visit={ref(v)} kind="icon" />
+                        <PrescriptionButton visit={ref(v)} kind="icon" />
+                        <CallLink phone={v.patient?.phone ?? null} name={v.patient?.name ?? 'patient'} kind="icon" />
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </Card>
+        </div>
+
+        <div className="lg:col-span-5 flex flex-col gap-4 md:gap-stack-md">
+          {/* Today's timeline */}
+          <Card>
+            <CardHeader
+              title="Today's Schedule"
+              subtitle={todaySlots.length ? `${todaySlots.length} slots published by your hospital` : 'No slots published for today'}
+              action={
+                <Link href="/doctor/schedule" className="text-vibrant-blue font-label-sm text-label-sm hover:underline flex items-center gap-1 shrink-0">
+                  <RefreshCw className="w-4 h-4" /> Full schedule
+                </Link>
+              }
+            />
+            {todaySlots.length === 0 ? (
+              <EmptyState icon={CalendarClock}>Your hospital admin publishes your slots. None are set for today.</EmptyState>
+            ) : (
+              <ul className="flex flex-col gap-2 md:gap-3">
+                {todaySlots.map((s) => {
+                  const v = visitBySlot.get(s.id)
+                  const past = Date.parse(s.end ?? s.start) < now
+                  const bar = !v ? 'bg-outline-variant' : v.status === 'completed' ? 'bg-fresh-teal' : v.status === 'visited' ? 'bg-secondary' : v.status === 'pending_payment' ? 'bg-soft-coral' : 'bg-vibrant-blue'
+                  const mins = minutesBetween(s.start, s.end)
+                  return (
+                    <li key={s.id} className={`p-2.5 md:p-3 rounded-xl md:rounded-lg bg-surface-container-low/40 flex items-start gap-2.5 md:gap-stack-sm ${past && (!v || v.status === 'completed') ? 'opacity-60' : ''}`}>
+                      <div className="text-right w-12 md:w-14 shrink-0">
+                        <span className="font-title-md text-[13px] md:text-[14px] font-bold text-indigo-gray-900 block leading-tight">{formatTime(s.start).replace(/ (AM|PM)$/, '')}</span>
+                        <span className="block text-[10px] md:text-[11px] text-indigo-gray-600">{mins ? `${mins} min` : formatTime(s.start).slice(-2)}</span>
+                      </div>
+                      <div className={`w-1 self-stretch rounded-full ${bar}`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-label-sm text-[13px] md:text-label-sm font-bold text-indigo-gray-900 truncate">{v?.patient?.name ?? 'Open slot'}</span>
+                          {v ? <Chip tone={VISIT_STATUS[v.status]?.tone}>{VISIT_STATUS[v.status]?.label}</Chip> : <Chip tone="neutral">{s.booked ? 'Booked' : 'Available'}</Chip>}
+                        </div>
+                        <p className="text-[11px] md:text-xs text-indigo-gray-600 truncate mt-0.5">
+                          {v ? `In-person • ID ${bookingCode(v.id)}` : 'Patients can book this slot'}
+                        </p>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </Card>
+
+          {/* Checked in */}
+          <Card>
+            <CardHeader
+              title="Checked In & Waiting"
+              subtitle="Patients at the clinic who still need their prescription"
+              action={<Chip tone="teal">{checkedIn.length} waiting</Chip>}
+            />
+            {checkedIn.length === 0 ? (
+              <EmptyState icon={UserCheck}>No one is checked in and waiting right now.</EmptyState>
+            ) : (
+              <ul className="flex flex-col gap-3">
+                {checkedIn.map((v) => (
+                  <li key={v.id} className="p-3.5 rounded-lg bg-surface-container-low/60 border border-fresh-teal/30 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div className="flex items-center gap-stack-sm min-w-0">
+                      <Avatar name={v.patient?.name ?? null} className="w-10 h-10 text-sm" />
+                      <div className="min-w-0">
+                        <span className="font-title-md text-[16px] text-indigo-gray-900 font-bold truncate block">{v.patient?.name ?? 'Patient'}</span>
+                        <span className="text-xs text-indigo-gray-600 truncate block">
+                          {[ageLine(v, facts, now), v.start ? `Slot ${formatTime(v.start)}` : null].filter(Boolean).join(' • ')}
+                        </span>
+                      </div>
+                    </div>
+                    <PrescriptionButton visit={ref(v)} kind="solid" label="Write Prescription" className="self-end md:self-center" />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </div>
+      </section>
+    </>
+  )
+}
+
+function ageLine(v: Visit, facts: Awaited<ReturnType<typeof loadPatientFacts>>, now: number) {
+  const f = v.patient ? facts[v.patient.id] : undefined
+  const age = ageFrom(f?.dateOfBirth, now)
+  return [age != null ? `${age} yrs` : null, f?.gender].filter(Boolean).join(' • ') || null
+}
+
+function NextPatient({
+  visit,
+  facts,
+  history,
+  now,
+}: {
+  visit: Visit
+  facts: Awaited<ReturnType<typeof loadPatientFacts>>[string] | undefined
+  history: Visit[]
+  now: number
+}) {
+  const patient = visit.patient!
+  const age = ageFrom(facts?.dateOfBirth, now)
+  const previous = history.filter((h) => h.id !== visit.id && h.status === 'completed' && h.start && Date.parse(h.start) < now)
+  const lastVisit = previous[previous.length - 1]
+  const isToday = visit.start && formatDayLabel(visit.start, now) === 'Today'
+  const status = VISIT_STATUS[visit.status]
+
+  return (
+    <div className="flex flex-col gap-3 md:gap-stack-md pt-1">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 md:gap-gutter">
+        <div className="flex items-center gap-3 md:gap-stack-md min-w-0">
+          <Avatar name={patient.name} className="w-12 h-12 md:w-16 md:h-16 text-lg" square />
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="font-title-md text-[16px] md:text-title-md text-indigo-gray-900 font-bold truncate">{patient.name}</h2>
+              {(age != null || facts?.gender) && (
+                <span className="px-2 py-0.5 rounded bg-surface-container font-label-sm text-[10px] md:text-label-sm text-indigo-gray-600 font-semibold">
+                  {[age != null ? `${age} yrs` : null, facts?.gender].filter(Boolean).join(' • ')}
+                </span>
+              )}
+              {status && <Chip tone={status.tone}>{status.label}</Chip>}
+            </div>
+            <p className="font-label-sm text-[12px] md:text-label-sm text-secondary font-medium mt-0.5">
+              {isToday ? 'Up next' : 'Next visit'} • {visit.start ? formatSlot(visit.start, now) : 'Time not set'} • ID {bookingCode(visit.id)}
+            </p>
+          </div>
+        </div>
+        <NextStepButton visit={ref(visit)} className="w-full sm:w-auto" />
+      </div>
+
+      <div className="bg-surface-container-low rounded-xl p-3 md:p-4 grid grid-cols-3 gap-2 md:gap-stack-sm text-center md:text-left">
+        <Snapshot icon={Droplet} label="Blood Group" value={facts?.bloodGroup || 'Not added'} muted={!facts?.bloodGroup} />
+        <Snapshot icon={ClipboardList} label="Visits With You" value={String(history.length)} />
+        <Snapshot icon={History} label="Last Visit" value={lastVisit?.start ? formatShortDate(lastVisit.start) : 'First visit'} muted={!lastVisit} />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Link
+          href={`/doctor/patients?patient=${patient.id}`}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-indigo-gray-900 font-label-sm text-label-sm"
+        >
+          <FolderOpen className="w-4 h-4 text-vibrant-blue" /> Patient Record
+        </Link>
+        {visit.status === 'confirmed' && <PrescriptionButton visit={ref(visit)} kind="soft" className="py-1.5 px-3" />}
+        <CallLink phone={patient.phone} name={patient.name} />
+        {visit.status === 'confirmed' && (
+          <span className="flex items-center gap-1 text-[11px] text-indigo-gray-600">
+            <Hourglass className="w-3.5 h-3.5" /> Check the patient in when they arrive
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function Snapshot({ icon: Icon, label, value, muted }: { icon: LucideIcon; label: string; value: string; muted?: boolean }) {
+  return (
+    <div className="flex flex-col items-center md:items-start min-w-0">
+      <span className="font-label-sm text-[10px] md:text-label-sm text-indigo-gray-600 flex items-center gap-1">
+        <Icon className="w-3.5 h-3.5 text-vibrant-blue" /> {label}
+      </span>
+      <span className={`font-title-md text-[14px] md:text-title-md font-bold mt-1 truncate max-w-full ${muted ? 'text-outline' : 'text-indigo-gray-900'}`}>{value}</span>
+    </div>
   )
 }

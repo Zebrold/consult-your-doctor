@@ -20,7 +20,7 @@ export function DeleteSlotButton({ scheduleId, doctorId }: { scheduleId: string,
     <button 
       onClick={handleDelete}
       disabled={isDeleting}
-      className="p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+      className="p-1.5 bg-error-container text-error rounded-full hover:bg-error/20 transition-colors"
       title="Delete Slot"
     >
       {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}

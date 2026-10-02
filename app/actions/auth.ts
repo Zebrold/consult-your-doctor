@@ -118,7 +118,10 @@ export async function verifyOTP(prevState: any, formData: FormData) {
   const cookieStore = await cookies()
   cookieStore.set('user-role', profile?.role || 'patient', { maxAge: 7200, path: '/' })
 
-  redirect('/')
+  // Return patients to the page that asked them to sign in (only same-site paths).
+  const next = String(formData.get('next') || '')
+  const isPatient = !profile?.role || profile.role === 'patient'
+  redirect(isPatient && next.startsWith('/') && !next.startsWith('//') ? next : '/')
 }
 
 export async function verifyOTPInline(prevState: any, formData: FormData) {

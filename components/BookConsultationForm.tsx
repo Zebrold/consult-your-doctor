@@ -5,7 +5,6 @@ import { MapPin, Building2, Stethoscope, UserCircle, Calendar, Loader2, Activity
 import { createClient } from '@/lib/supabase/client'
 import { createAppointment, createDiagnosticBooking } from '@/app/actions/booking'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { InlineAuthModal } from '@/components/InlineAuthModal'
 
 export function BookConsultationFormInner({ defaultType = 'consultation' }: { defaultType?: 'consultation' | 'diagnostics' }) {
   const supabase = createClient()
@@ -36,7 +35,6 @@ export function BookConsultationFormInner({ defaultType = 'consultation' }: { de
   
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [showAuthModal, setShowAuthModal] = useState(false)
 
   const initRef = useRef(false)
   const formRef = useRef<HTMLFormElement>(null)
@@ -225,23 +223,69 @@ export function BookConsultationFormInner({ defaultType = 'consultation' }: { de
     fetchSchedules()
   }, [selectedDoctor])
 
+  // Keep auth state in sync
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(!!session)
+    })
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [supabase])
+
   const handleSubmit = (e: React.FormEvent) => {
     if (!isAuthenticated) {
       e.preventDefault()
-      setShowAuthModal(true)
+
+      let nextUrl = ''
+      if (bookingType === 'consultation') {
+        if (selectedDoctor) {
+          nextUrl = `/book/${selectedDoctor}`
+        } else {
+          const params = new URLSearchParams()
+          if (selectedCity) params.set('city', selectedCity)
+          if (selectedHospital) params.set('hospital_id', selectedHospital)
+          if (selectedSpecialty) params.set('specialty', selectedSpecialty)
+          if (params.toString()) nextUrl = `/?${params.toString()}`
+        }
+      } else {
+        if (selectedCenter) {
+          nextUrl = `/book/diagnostic/${selectedCenter}`
+        } else {
+          const params = new URLSearchParams()
+          params.set('booking', 'diagnostics')
+          if (selectedCity) params.set('city', selectedCity)
+          nextUrl = `/?${params.toString()}`
+        }
+      }
+
+      // Save pending selections in case the user returns
+      if (typeof window !== 'undefined') {
+        try {
+          sessionStorage.setItem(
+            'pending_booking',
+            JSON.stringify({
+              bookingType,
+              selectedCity,
+              selectedHospital,
+              selectedSpecialty,
+              selectedDoctor,
+              selectedCenter,
+              selectedDiagnostic,
+              diagnosticDate,
+            })
+          )
+        } catch {}
+      }
+
+      const loginTarget = nextUrl
+        ? `/login/patient?next=${encodeURIComponent(nextUrl)}`
+        : '/login/patient'
+
+      router.push(loginTarget)
       return
     }
     setIsSubmitting(true)
-  }
-
-  const handleAuthSuccess = async () => {
-    setShowAuthModal(false)
-    setIsAuthenticated(true)
-    
-    // Programmatically submit the form after modal closes
-    setTimeout(() => {
-      formRef.current?.requestSubmit()
-    }, 100)
   }
 
   const selectClass =
@@ -458,6 +502,7 @@ export function BookConsultationFormInner({ defaultType = 'consultation' }: { de
 
           <button
             type="submit"
+            formNoValidate={!isAuthenticated}
             disabled={isSubmitting}
             className="w-full bg-vibrant-blue text-on-primary py-3.5 rounded-xl font-title-md text-sm font-bold btn-hover mt-2 shadow-lg shadow-vibrant-blue/20 flex items-center justify-center gap-2 disabled:opacity-50"
           >
@@ -480,11 +525,6 @@ export function BookConsultationFormInner({ defaultType = 'consultation' }: { de
         </form>
       )}
 
-      <InlineAuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onSuccess={handleAuthSuccess}
-      />
     </div>
   )
 }

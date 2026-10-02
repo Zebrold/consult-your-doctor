@@ -1,776 +1,363 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import {
+  BadgeCheck, Building2, CalendarDays, Check, CircleCheck, FileText, FlaskConical, IdCard, Lock, LoaderCircle,
+  MapPin, Microscope, Navigation, Plus, Search,
+} from "lucide-react";
 import { PatientDock } from "@/components/PatientDock";
 import { PatientNavHeader } from "@/components/PatientNavHeader";
+import { createDiagnosticBooking } from "@/app/actions/booking";
+import { startPayuPayment } from "@/lib/payu-client";
+import { DIAGNOSTIC_PLATFORM_FEE, type BookedTest } from "@/lib/pricing";
+import {
+  appendPatientDetails, Breadcrumbs, DayStrip, FormError, PatientDetailsFields, PayuNote, patientDetailsError,
+  SignInToBook, StepCard, SummaryRow, type PatientDetails,
+} from "@/components/patient/booking-ui";
+import { formatINR, formatLongDate, upcomingDays } from "@/components/patient/format";
 
-export interface DiagnosticCenterData {
+export interface DiagnosticCenter {
   id: string;
   name: string;
-  city?: string | null;
-  address?: string | null;
-  image_url?: string | null;
-  available_tests?: string[] | null;
-  test_prices?: Record<string, number> | null;
-}
-
-export interface InitialPatientData {
-  full_name?: string;
-  age?: number | string;
-  gender?: string;
-  phone?: string;
-  email?: string;
+  city: string | null;
+  address: string | null;
+  image: string | null;
 }
 
 interface DiagnosticBookingClientProps {
-  center: DiagnosticCenterData;
-  initialPatient: InitialPatientData;
-  isUserLoggedIn: boolean;
-  createBookingAction?: (formData: FormData) => Promise<{
-    success?: boolean;
-    error?: string;
-    url?: string;
-    bookingId?: string;
-    isPreview?: boolean;
-  }>;
-  payuKey?: string;
+  center: DiagnosticCenter;
+  /** Tests the lab lists with a price; only these can be booked online. */
+  tests: BookedTest[];
+  patient: PatientDetails | null;
+  now: number;
+  payuKey: string;
 }
 
-interface TestItem {
-  id: string;
-  name: string;
-  subtitle: string;
-  price: number;
-}
+const COLLAPSED = 8;
 
-const DEFAULT_TEST_METADATA: Record<string, { subtitle: string; defaultPrice: number }> = {
-  "Complete Blood Count (CBC)": {
-    subtitle: "Includes 24 essential parameters & Hemogram",
-    defaultPrice: 25,
-  },
-  "Lipid Profile & Liver Function [LFT]": {
-    subtitle: "Cholesterol, Triglycerides, SGOT, SGPT",
-    defaultPrice: 55,
-  },
-  "Thyroid Profile (Total T3, T4, TSH)": {
-    subtitle: "Ultrasensitive CLIA method testing",
-    defaultPrice: 35,
-  },
-  "HbA1c & Fasting Blood Glucose": {
-    subtitle: "Average 3-month glycation monitoring",
-    defaultPrice: 20,
-  },
-};
+export function DiagnosticBookingClient({ center, tests, patient, now, payuKey }: DiagnosticBookingClientProps) {
+  const days = useMemo(() => upcomingDays(now, 6), [now]);
+  const today = days[0].key;
+  const [chosen, setChosen] = useState<string[]>([]);
+  const [filter, setFilter] = useState("");
+  const [showAll, setShowAll] = useState(false);
+  // Late in the evening most labs have closed, so suggest tomorrow (today stays selectable).
+  const [date, setDate] = useState(() =>
+    Number(new Date(now).toLocaleString("en-US", { timeZone: "Asia/Kolkata", hour: "numeric", hourCycle: "h23" })) >= 17 ? days[1].key : today,
+  );
+  const [details, setDetails] = useState<PatientDetails>(() => patient ?? { name: "", phone: "", email: "", dateOfBirth: "", gender: "" });
+  const [error, setError] = useState<string | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-export function DiagnosticBookingClient({
-  center,
-  initialPatient,
-  isUserLoggedIn,
-  createBookingAction,
-  payuKey = "99eKD4",
-}: DiagnosticBookingClientProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const isPreview = searchParams.get("preview") === "patient";
+  const selectedTests = tests.filter((t) => chosen.includes(t.name));
+  const testsTotal = selectedTests.reduce((sum, t) => sum + t.price, 0);
+  const total = testsTotal + DIAGNOSTIC_PLATFORM_FEE;
+  const cheapest = tests.length ? Math.min(...tests.map((t) => t.price)) : null;
 
-  // Modality: Lab Centre Visit vs Home Sample Visit
-  const [modality, setModality] = useState<"centre" | "home">("centre");
+  const q = filter.trim().toLowerCase();
+  const matching = tests.filter((t) => !q || t.name.toLowerCase().includes(q));
+  const shown = showAll || q ? matching : matching.slice(0, COLLAPSED);
 
-  // Tests list built from DB center.available_tests and center.test_prices
-  const testsList: TestItem[] = useMemo(() => {
-    const rawTests = center.available_tests && center.available_tests.length > 0
-      ? center.available_tests
-      : Object.keys(DEFAULT_TEST_METADATA);
-
-    return rawTests.map((tName, idx) => {
-      const meta = DEFAULT_TEST_METADATA[tName] || {
-        subtitle: "Diagnostic pathology & laboratory profile",
-        defaultPrice: 30 + (idx * 15),
-      };
-
-      // Check price from DB test_prices if available
-      let price = meta.defaultPrice;
-      if (center.test_prices && center.test_prices[tName] !== undefined) {
-        price = Number(center.test_prices[tName]);
-      }
-
-      return {
-        id: `test-${idx}-${tName.toLowerCase().replace(/\s+/g, "-")}`,
-        name: tName,
-        subtitle: meta.subtitle,
-        price,
-      };
-    });
-  }, [center]);
-
-  // Selected tests (defaults to first test Complete Blood Count selected)
-  const [selectedTestIds, setSelectedTestIds] = useState<string[]>(() => {
-    return testsList[0] ? [testsList[0].id] : [];
-  });
-
-  const toggleTest = (id: string) => {
-    setSelectedTestIds((prev) =>
-      prev.includes(id) ? (prev.length > 1 ? prev.filter((t) => t !== id) : prev) : [...prev, id]
-    );
+  const toggle = (name: string) => {
+    setChosen((list) => (list.includes(name) ? list.filter((n) => n !== name) : [...list, name]));
+    setError(null);
   };
 
-  // Generate 5 Days starting from today
-  const daysList = useMemo(() => {
-    return Array.from({ length: 5 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() + i);
-      const dateStr = d.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-      const dayName = d.toLocaleDateString("en-US", { weekday: "short", timeZone: "Asia/Kolkata" });
-      const dayNum = parseInt(
-        d.toLocaleDateString("en-US", { day: "numeric", timeZone: "Asia/Kolkata" }),
-        10
-      );
-      return {
-        dateStr,
-        dayName,
-        dayNum,
-      };
+  const confirm = async () => {
+    if (selectedTests.length === 0) return setError("Please select at least one test.");
+    const detailsProblem = patientDetailsError(details);
+    if (detailsProblem) return setError(detailsProblem);
+
+    setSubmitting(true);
+    setError(null);
+    const form = new FormData();
+    form.append("center_id", center.id);
+    form.append("preferred_date", date);
+    for (const t of selectedTests) form.append("test_names", t.name);
+    appendPatientDetails(form, details);
+
+    const res = await createDiagnosticBooking(form);
+    if (res && "error" in res && res.error) {
+      setError(res.error);
+      setSubmitting(false);
+      return;
+    }
+    const bookingId = res && "bookingId" in res ? res.bookingId : undefined;
+    if (!bookingId) {
+      setError("Something went wrong. Please try again.");
+      setSubmitting(false);
+      return;
+    }
+
+    const payError = await startPayuPayment({
+      txnid: bookingId,
+      productinfo: "Diagnostic",
+      firstname: details.name,
+      email: details.email.trim() || "patient@example.com",
+      phone: details.phone,
+      payuKey,
     });
-  }, []);
-
-  const [selectedDate, setSelectedDate] = useState(daysList[1]?.dateStr || daysList[0]?.dateStr);
-
-  // Time Slots
-  const morningSlots = [
-    { id: "m1", time: "07:30 AM", label: "Fasting ideal" },
-    { id: "m2", time: "08:30 AM", label: "Selected" },
-    { id: "m3", time: "09:30 AM", label: "Available" },
-  ];
-
-  const afternoonSlots = [
-    { id: "a1", time: "11:00 AM" },
-    { id: "a2", time: "01:30 PM" },
-    { id: "a3", time: "04:00 PM" },
-  ];
-
-  const [selectedSlotTime, setSelectedSlotTime] = useState("08:30 AM");
-
-  // Patient Info
-  const [patientName, setPatientName] = useState(initialPatient.full_name || "Alex Morgan");
-  const [patientAge, setPatientAge] = useState(initialPatient.age || "28");
-  const [patientGender, setPatientGender] = useState(initialPatient.gender || "Male");
-  const [clinicalNotes, setClinicalNotes] = useState(
-    "Fasting 10 hours overnight. Routine health screening."
-  );
-
-  // Fees calculation
-  const testFee = useMemo(() => {
-    return testsList
-      .filter((t) => selectedTestIds.includes(t.id))
-      .reduce((sum, t) => sum + t.price, 0);
-  }, [testsList, selectedTestIds]);
-
-  const sampleHandlingFee = 10;
-  const totalPayable = testFee + sampleHandlingFee;
-
-  // Form submission state
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [bookingSuccess, setBookingSuccess] = useState(false);
-
-  const handleConfirmAndBook = async () => {
-    try {
-      setIsSubmitting(true);
-      setErrorMessage(null);
-
-      if (!patientName.trim()) {
-        setErrorMessage("Please enter patient full name.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      const selectedTestsNames = testsList
-        .filter((t) => selectedTestIds.includes(t.id))
-        .map((t) => t.name)
-        .join(", ");
-
-      if (createBookingAction) {
-        const formData = new FormData();
-        formData.append("center_id", center.id);
-        formData.append("test_name", selectedTestsNames);
-        formData.append("preferred_date", selectedDate);
-
-        const res = await createBookingAction(formData);
-        if (res?.error) {
-          setErrorMessage(res.error);
-          setIsSubmitting(false);
-          return;
-        }
-
-        if (res?.url) {
-          router.push(res.url);
-          return;
-        }
-      }
-
-      // Demo or direct completion
-      setBookingSuccess(true);
-      setTimeout(() => {
-        router.push(isPreview ? "/patient/appointments?preview=patient" : "/patient/appointments");
-      }, 1500);
-    } catch (err: any) {
-      setErrorMessage(err.message || "Failed to process booking.");
-    } finally {
-      setIsSubmitting(false);
+    if (payError) {
+      setPendingId(bookingId);
+      setError(`Your booking is saved, but the payment couldn't start: ${payError}`);
+      setSubmitting(false);
     }
   };
 
-  const centerName = center.name || "Apex Diagnostics & Imaging";
-  const centerAddress = center.address || center.city || "Pathology & Radiology Hub";
-  const centerImg = center.image_url || null;
+  const location = [center.address, center.city].filter(Boolean).join(", ");
 
   return (
-    <div className="bg-background font-body-md text-body-md text-on-surface antialiased min-h-screen">
-      {/* ============================================================ */}
-      {/* DEDICATED MOBILE VIEW (block md:hidden) - EXACT SCREENSHOT 4 */}
-      {/* ============================================================ */}
-      <div className="block md:hidden w-full bg-slate-50/60 min-h-screen pb-24">
-        {/* Top Header */}
-        <PatientNavHeader title="Book Consultation" />
+    <div className="bg-background text-on-surface antialiased min-h-screen">
+      <PatientNavHeader title="Book Lab Test" isSignedIn={!!patient} name={patient?.name} email={patient?.email} />
 
-        {/* Facility Card */}
-        <div className="mx-4 mt-3.5 p-4 rounded-2xl bg-white border border-slate-100 shadow-xs flex flex-col gap-3">
-          <div className="flex items-start gap-3">
-            <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200/80 flex items-center justify-center">
-              {centerImg ? (
-                <img
-                  src={centerImg}
-                  alt={centerName}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                    const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                    if (fallback) fallback.style.display = "flex";
-                  }}
-                />
-              ) : null}
-              <div
-                className={`w-full h-full bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 flex flex-col items-center justify-center text-teal-700 ${
-                  centerImg ? "hidden" : "flex"
-                }`}
-              >
-                <span className="material-symbols-outlined text-[28px] text-teal-600">biotech</span>
-              </div>
-            </div>
-            <div className="flex-1 min-w-0">
-              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full mb-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
-                NABL &amp; ICMR ACCREDITED
-              </span>
-              <h2 className="text-sm font-bold text-slate-900 truncate leading-snug">
-                {centerName}
-              </h2>
-              <p className="text-[11px] text-slate-500 truncate">{centerAddress}</p>
-              <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700 mt-0.5">
-                <span className="text-amber-500">★</span>
-                <span>4.8</span>
-                <span className="text-slate-400 font-normal">(2,410 reviews)</span>
-              </div>
-            </div>
+      <main className="w-full pb-28 md:pb-32">
+        <div className="max-w-container-max mx-auto px-margin-x-mobile md:px-margin-x-desktop pt-2 md:pt-4">
+          <div className="hidden md:block py-4">
+            <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Diagnostics", href: "/diagnostics" }, { label: center.name }, { label: "Book Diagnostic Test" }]} />
+          </div>
+          <div className="hidden md:block pb-8">
+            <span className="font-label-sm text-label-sm text-primary uppercase tracking-wider font-semibold">Lab Test Booking</span>
+            <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight mt-1">Finalize Diagnostic Booking</h1>
           </div>
 
-          {/* 3 Stats in Row */}
-          <div className="grid grid-cols-3 gap-1 pt-2.5 border-t border-slate-100 text-center">
-            <div className="flex flex-col">
-              <span className="text-[9px] uppercase font-bold text-slate-400">Experience</span>
-              <span className="text-xs font-bold text-slate-800">18 Years</span>
-            </div>
-            <div className="flex flex-col border-x border-slate-100">
-              <span className="text-[9px] uppercase font-bold text-slate-400">Tests Run</span>
-              <span className="text-xs font-bold text-primary">50,000+</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[9px] uppercase font-bold text-slate-400">Starting At</span>
-              <span className="text-xs font-bold text-emerald-600">$45</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Modality Switcher */}
-        <div className="px-4 mt-3">
-          <div className="p-1 bg-white rounded-full border border-slate-200/80 shadow-2xs flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setModality("centre")}
-              className={`flex-1 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                modality === "centre"
-                  ? "bg-primary text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <span className="material-symbols-outlined text-[16px]">location_on</span>
-              <span>Lab Centre Visit</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setModality("home")}
-              className={`flex-1 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                modality === "home"
-                  ? "bg-primary text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <span className="material-symbols-outlined text-[16px]">local_shipping</span>
-              <span>Home Sample Visit</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Select Diagnostic Tests */}
-        <div className="px-4 mt-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-primary"></span>
-              <h3 className="text-xs font-bold text-slate-900">Select Diagnostic Tests</h3>
-            </div>
-            <span className="text-[11px] font-semibold text-primary">
-              View All ({testsList.length})
-            </span>
-          </div>
-
-          <div className="space-y-2">
-            {testsList.map((test) => {
-              const isChecked = selectedTestIds.includes(test.id);
-
-              return (
-                <div
-                  key={test.id}
-                  onClick={() => toggleTest(test.id)}
-                  className={`p-3 rounded-2xl cursor-pointer transition-all flex items-center justify-between gap-2.5 border shadow-2xs ${
-                    isChecked
-                      ? "bg-white border-primary ring-1 ring-primary/30"
-                      : "bg-white border-slate-200/70 hover:border-slate-300"
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all ${
-                        isChecked ? "bg-primary text-white" : "bg-slate-100 text-slate-500"
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-[18px]">
-                        {isChecked ? "check" : "add"}
-                      </span>
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-xs font-bold text-slate-900 leading-snug truncate">
-                        {test.name}
-                      </span>
-                      <span className="text-[10px] text-slate-500 truncate">{test.subtitle}</span>
-                    </div>
-                  </div>
-                  <span className="text-xs font-bold text-slate-900 shrink-0">${test.price}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Select Appointment Date */}
-        <div className="px-4 mt-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-primary"></span>
-              <h3 className="text-xs font-bold text-slate-900">Select Appointment Date</h3>
-            </div>
-            <span className="text-[11px] font-semibold text-slate-600">
-              {new Date(selectedDate || Date.now()).toLocaleDateString("en-US", {
-                month: "long",
-                year: "numeric",
-              })}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
-            {daysList.map((d) => {
-              const isSelected = selectedDate === d.dateStr;
-              return (
-                <button
-                  key={d.dateStr}
-                  type="button"
-                  onClick={() => setSelectedDate(d.dateStr)}
-                  className={`flex-1 min-w-[54px] py-2.5 px-1.5 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all ${
-                    isSelected
-                      ? "bg-primary text-white shadow-xs font-bold"
-                      : "bg-white text-slate-700 border border-slate-200"
-                  }`}
-                >
-                  <span className="text-[10px] uppercase font-semibold">{d.dayName}</span>
-                  <span className="text-base font-bold leading-none my-0.5">{d.dayNum}</span>
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      isSelected ? "bg-white" : "bg-transparent"
-                    }`}
-                  />
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Available Time Slots */}
-        <div className="px-4 mt-4">
-          <div className="flex items-center gap-1.5 mb-2">
-            <span className="w-2 h-2 rounded-full bg-primary"></span>
-            <h3 className="text-xs font-bold text-slate-900">Available Time Slots</h3>
-          </div>
-
-          {/* Morning Slots */}
-          <div className="mb-2">
-            <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 uppercase mb-1.5">
-              <span className="material-symbols-outlined text-emerald-600 text-[14px]">eco</span>
-              <span>MORNING SLOT (RECOMMENDED FOR FASTING)</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {morningSlots.map((slot) => {
-                const isSelected = selectedSlotTime === slot.time;
-                return (
-                  <button
-                    key={slot.id}
-                    type="button"
-                    onClick={() => setSelectedSlotTime(slot.time)}
-                    className={`py-2 px-1 rounded-xl text-center transition-all ${
-                      isSelected
-                        ? "bg-primary text-white shadow-xs font-bold"
-                        : "bg-white text-slate-700 border border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <span className="block text-xs font-bold leading-tight">{slot.time}</span>
-                    <span
-                      className={`block text-[9px] mt-0.5 ${
-                        isSelected ? "text-blue-100" : "text-teal-600"
-                      }`}
-                    >
-                      {slot.label}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+            <div className="lg:col-span-8 flex flex-col gap-6">
+              {/* Lab */}
+              <section className="relative bg-surface-container-lowest rounded-xl p-5 md:p-6 shadow-[0_4px_20px_rgba(0,102,255,0.06)] md:shadow-sm overflow-hidden">
+                <div aria-hidden className="md:hidden absolute -right-8 -top-8 w-28 h-28 rounded-full bg-primary-fixed/40 blur-xl pointer-events-none" />
+                <div className="relative flex items-start gap-4">
+                  {center.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={center.image} alt={center.name} className="w-16 h-16 md:w-14 md:h-14 rounded-xl object-cover shrink-0 shadow-sm" />
+                  ) : (
+                    <span className="w-16 h-16 md:w-14 md:h-14 rounded-xl bg-primary-fixed flex items-center justify-center text-primary shrink-0">
+                      <Microscope className="w-7 h-7" />
                     </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Afternoon Slots */}
-          <div>
-            <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 uppercase mb-1.5">
-              <span className="material-symbols-outlined text-amber-500 text-[14px]">wb_sunny</span>
-              <span>AFTERNOON / EVENING</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {afternoonSlots.map((slot) => {
-                const isSelected = selectedSlotTime === slot.time;
-                return (
-                  <button
-                    key={slot.id}
-                    type="button"
-                    onClick={() => setSelectedSlotTime(slot.time)}
-                    className={`py-2 px-1 rounded-xl text-center transition-all ${
-                      isSelected
-                        ? "bg-primary text-white shadow-xs font-bold"
-                        : "bg-white text-slate-700 border border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <span className="block text-xs font-bold leading-tight">{slot.time}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Patient Information */}
-        <div className="px-4 mt-4">
-          <div className="flex items-center gap-1.5 mb-2">
-            <span className="w-2 h-2 rounded-full bg-primary"></span>
-            <h3 className="text-xs font-bold text-slate-900">Patient Information</h3>
-          </div>
-          <div className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-2xs space-y-2.5">
-            <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase">Full Name</label>
-              <div className="relative mt-1">
-                <input
-                  type="text"
-                  value={patientName}
-                  onChange={(e) => setPatientName(e.target.value)}
-                  placeholder="Alex Morgan"
-                  className="w-full px-3 py-2 bg-slate-50/70 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-primary pr-8"
-                />
-                <span className="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-emerald-500 text-[18px]">
-                  check_circle
-                </span>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase">Age</label>
-                <input
-                  type="number"
-                  value={patientAge}
-                  onChange={(e) => setPatientAge(e.target.value)}
-                  placeholder="28"
-                  className="w-full mt-1 px-3 py-2 bg-slate-50/70 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase">Gender</label>
-                <select
-                  value={patientGender}
-                  onChange={(e) => setPatientGender(e.target.value)}
-                  className="w-full mt-1 px-3 py-2 bg-slate-50/70 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase">
-                Fasting Status &amp; Clinical Notes
-              </label>
-              <textarea
-                rows={2}
-                value={clinicalNotes}
-                onChange={(e) => setClinicalNotes(e.target.value)}
-                placeholder="Fasting 10 hours overnight. Routine health screening."
-                className="w-full mt-1 px-3 py-2 bg-slate-50/70 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Billing Breakdown */}
-        <div className="px-4 mt-4">
-          <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs space-y-2">
-            <div className="flex items-center justify-between pb-1">
-              <h4 className="text-xs font-bold text-slate-900">Billing Breakdown</h4>
-              <span className="text-[10px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">
-                Instant Verified
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-xs text-slate-600">
-              <span>Diagnostic Test Fee</span>
-              <span className="font-semibold text-slate-900">${testFee}.00</span>
-            </div>
-            <div className="flex items-center justify-between text-xs text-slate-600">
-              <span>Sample Handling &amp; Digital Report</span>
-              <span className="font-semibold text-slate-900">${sampleHandlingFee}.00</span>
-            </div>
-            <div className="flex items-center justify-between text-xs text-slate-600">
-              <span>ICMR Verification Levy</span>
-              <span className="font-bold text-emerald-600">FREE</span>
-            </div>
-            <div className="flex items-center justify-between text-sm pt-2 border-t border-slate-100 font-bold text-slate-900">
-              <span>Total Payable</span>
-              <span className="text-base text-primary">${totalPayable}.00</span>
-            </div>
-
-            {/* Payment Pill */}
-            <div className="mt-2.5 p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 text-primary flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-[18px]">credit_card</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[11px] font-bold text-slate-800">Apple Pay / Visa •••• 4892</span>
-                  <span className="text-[9px] text-slate-500">Pre-authorized guarantee</span>
-                </div>
-              </div>
-              <span className="material-symbols-outlined text-emerald-500 text-[20px]">check_circle</span>
-            </div>
-          </div>
-        </div>
-
-        {/* CTA Confirm & Book button */}
-        <div className="px-4 mt-4 pb-8 space-y-2">
-          {errorMessage && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[16px]">error</span>
-              <span>{errorMessage}</span>
-            </div>
-          )}
-
-          {bookingSuccess && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[16px]">check_circle</span>
-              <span>Diagnostic Test Booked Successfully! Redirecting...</span>
-            </div>
-          )}
-
-          <button
-            type="button"
-            disabled={isSubmitting}
-            onClick={handleConfirmAndBook}
-            className="w-full py-3.5 px-4 rounded-full bg-primary text-white text-sm font-bold shadow-md hover:bg-blue-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60"
-          >
-            <span className="material-symbols-outlined text-[18px]">lock</span>
-            <span>
-              {isSubmitting
-                ? "Processing..."
-                : `Confirm & Book Diagnostic Test $${totalPayable}.00`}
-            </span>
-          </button>
-
-          <p className="text-center text-[10px] text-slate-400 flex items-center justify-center gap-1">
-            <span className="material-symbols-outlined text-[13px] text-teal-600">verified_user</span>
-            <span>Encrypted booking with 100% HIPAA and NABL compliance</span>
-          </p>
-        </div>
-      </div>
-
-      {/* ============================================================ */}
-      {/* DESKTOP VIEW (hidden md:block) */}
-      {/* ============================================================ */}
-      <main className="hidden md:block max-w-[1280px] mx-auto px-6 py-12">
-        <div className="mb-8">
-          <nav className="flex items-center gap-2 text-xs text-slate-500 mb-2">
-            <Link href="/" className="hover:text-primary">Home</Link>
-            <span>/</span>
-            <Link href="/diagnostics" className="hover:text-primary">Diagnostics</Link>
-            <span>/</span>
-            <span className="text-primary font-semibold">Book Test</span>
-          </nav>
-          <h1 className="text-2xl font-bold text-slate-900">Book Diagnostic Consultation</h1>
-        </div>
-
-        <div className="grid grid-cols-12 gap-8 items-start">
-          {/* Left 8 Cols */}
-          <div className="col-span-8 space-y-6">
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center gap-6">
-              <div className="w-24 h-24 rounded-xl overflow-hidden bg-slate-100 border border-slate-200/80 flex items-center justify-center shrink-0">
-                {centerImg ? (
-                  <img
-                    src={centerImg}
-                    alt={centerName}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                      const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                      if (fallback) fallback.style.display = "flex";
-                    }}
-                  />
-                ) : null}
-                <div
-                  className={`w-full h-full bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 flex flex-col items-center justify-center text-teal-700 ${
-                    centerImg ? "hidden" : "flex"
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-[36px] text-teal-600">biotech</span>
-                </div>
-              </div>
-              <div>
-                <span className="inline-flex items-center gap-1 text-xs font-bold text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-full mb-1">
-                  NABL &amp; ICMR ACCREDITED
-                </span>
-                <h2 className="text-xl font-bold text-slate-900">{centerName}</h2>
-                <p className="text-sm text-slate-500">{centerAddress}</p>
-                <div className="flex items-center gap-4 mt-2 text-xs text-slate-600">
-                  <span>★ 4.8 (2,410 reviews)</span>
-                  <span>•</span>
-                  <span>18 Years Experience</span>
-                  <span>•</span>
-                  <span>50,000+ Tests</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Test Selection */}
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-              <h3 className="text-base font-bold text-slate-900 mb-4">Select Diagnostic Tests</h3>
-              <div className="grid grid-cols-2 gap-3">
-                {testsList.map((test) => {
-                  const isChecked = selectedTestIds.includes(test.id);
-                  return (
-                    <div
-                      key={test.id}
-                      onClick={() => toggleTest(test.id)}
-                      className={`p-4 rounded-xl cursor-pointer border transition-all flex items-center justify-between ${
-                        isChecked ? "border-primary bg-blue-50/40 ring-1 ring-primary" : "border-slate-200 hover:border-slate-300"
-                      }`}
-                    >
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-900">{test.name}</h4>
-                        <p className="text-[11px] text-slate-500">{test.subtitle}</p>
-                      </div>
-                      <span className="text-sm font-bold text-primary">${test.price}</span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-col-reverse md:flex-row md:items-center gap-1 md:gap-2">
+                      <h2 className="font-title-md text-title-md text-on-surface md:font-bold truncate">{center.name}</h2>
+                      <span className="self-start md:self-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-fresh-teal/15 text-on-secondary-fixed-variant font-label-sm text-[10px] md:text-label-sm uppercase md:normal-case font-semibold shrink-0">
+                        <BadgeCheck className="w-3.5 h-3.5" /> Partner Lab
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
+                    <p className="font-body-md text-[13px] md:text-body-md text-on-surface-variant mt-0.5 line-clamp-2">{location || "Address not listed"}</p>
+                  </div>
+                </div>
+                <div className="relative grid grid-cols-3 gap-3 mt-4 bg-surface-container-low/60 md:bg-surface-container-low rounded-lg p-3 md:p-3.5 text-center">
+                  <LabMetric label="Tests Offered" value={String(tests.length)} />
+                  <LabMetric label="Starting At" value={cheapest ? formatINR(cheapest) : "—"} accent />
+                  <LabMetric label="City" value={center.city || "—"} />
+                </div>
+              </section>
+
+              {/* 1. Visit */}
+              <StepCard step={1} title="Sample Collection">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl bg-primary-fixed/20 ring-2 ring-vibrant-blue/60">
+                  <span className="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center shrink-0 shadow-[0_2px_8px_rgba(0,102,255,0.3)]">
+                    <Building2 className="w-5 h-5" />
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <span className="font-title-md text-body-lg font-bold text-on-surface flex items-center gap-2">
+                      Lab Centre Visit <CircleCheck className="w-4 h-4 text-vibrant-blue" />
+                    </span>
+                    <span className="block text-sm text-on-surface-variant mt-0.5">Samples are collected at the lab: {location || center.name}.</span>
+                  </div>
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([center.name, location].filter(Boolean).join(", "))}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="self-start sm:self-center px-3 py-1.5 rounded-full bg-surface-container-lowest text-on-surface font-label-sm text-label-sm font-semibold shadow-sm hover:bg-surface-variant flex items-center gap-1.5 shrink-0"
+                  >
+                    <Navigation className="w-4 h-4 text-vibrant-blue" /> Directions
+                  </a>
+                </div>
+              </StepCard>
+
+              {/* 2. Tests */}
+              <StepCard
+                step={2}
+                title="Select Diagnostic Tests"
+                aside={<span className="font-label-sm text-label-sm text-on-surface-variant shrink-0">{chosen.length} Selected</span>}
+              >
+                {tests.length === 0 ? (
+                  <div className="py-8 text-center rounded-xl bg-surface-container-low">
+                    <FlaskConical className="w-8 h-8 text-outline mx-auto mb-2" />
+                    <p className="font-title-md text-body-md font-semibold text-on-surface">This lab hasn&apos;t listed bookable tests yet</p>
+                    <p className="text-sm text-indigo-gray-600 mt-1">Please check back later or choose another lab.</p>
+                  </div>
+                ) : (
+                  <>
+                    {tests.length > COLLAPSED && (
+                      <label className="relative block mb-3">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-outline pointer-events-none" />
+                        <span className="sr-only">Search tests</span>
+                        <input
+                          type="search"
+                          value={filter}
+                          onChange={(e) => setFilter(e.target.value)}
+                          placeholder={`Search ${tests.length} tests...`}
+                          className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-surface-container-low text-on-surface text-body-md focus:outline-none focus:ring-2 focus:ring-vibrant-blue/30"
+                        />
+                      </label>
+                    )}
+                    <ul className="flex flex-col gap-2.5 md:gap-3">
+                      {shown.map((t) => {
+                        const on = chosen.includes(t.name);
+                        return (
+                          <li key={t.name}>
+                            <button
+                              type="button"
+                              role="checkbox"
+                              aria-checked={on}
+                              onClick={() => toggle(t.name)}
+                              className={`w-full text-left p-3.5 md:p-4 rounded-xl flex items-center justify-between gap-4 transition-all ${
+                                on ? "bg-primary-fixed/20 ring-2 ring-vibrant-blue" : "bg-surface-container-lowest md:bg-surface-container-low shadow-[0_2px_8px_rgba(0,102,255,0.04)] md:shadow-none hover:bg-surface-container"
+                              }`}
+                            >
+                              <span className="flex items-center gap-3 min-w-0">
+                                <span className={`w-9 h-9 md:w-6 md:h-6 rounded-full md:rounded flex items-center justify-center shrink-0 ${on ? "bg-vibrant-blue text-on-primary" : "bg-surface-container-high md:bg-surface-container-lowest md:ring-1 md:ring-outline-variant text-on-surface-variant"}`}>
+                                  {on ? <Check className="w-5 h-5 md:w-4 md:h-4" /> : <Plus className="w-5 h-5 md:hidden" />}
+                                </span>
+                                <span className="font-label-sm md:font-title-md text-[14px] md:text-body-lg font-semibold text-on-surface">{t.name}</span>
+                              </span>
+                              <span className={`font-title-md text-[15px] md:text-title-md font-bold shrink-0 ${on ? "text-primary" : "text-on-surface"}`}>{formatINR(t.price)}</span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    {q && matching.length === 0 && <p className="text-sm text-indigo-gray-600 mt-2">No tests match &ldquo;{filter}&rdquo;.</p>}
+                    {!q && matching.length > COLLAPSED && (
+                      <button type="button" onClick={() => setShowAll((v) => !v)} className="mt-3 font-label-sm text-label-sm text-vibrant-blue font-semibold hover:underline">
+                        {showAll ? "Show fewer tests" : `View all ${matching.length} tests`}
+                      </button>
+                    )}
+                  </>
+                )}
+              </StepCard>
+
+              {/* 3. Date */}
+              <StepCard
+                step={3}
+                title="Choose Visit Date"
+                aside={
+                  <span className="font-label-sm text-label-sm text-primary font-medium flex items-center gap-1 shrink-0">
+                    <CalendarDays className="w-4 h-4" />
+                    {new Date(now).toLocaleDateString("en-GB", { timeZone: "Asia/Kolkata", month: "long", year: "numeric" })}
+                  </span>
+                }
+              >
+                <DayStrip days={days} selected={date} onSelect={setDate} />
+                <p className="mt-4 flex items-start gap-2 text-sm text-indigo-gray-600">
+                  <IdCard className="w-4 h-4 mt-0.5 text-vibrant-blue shrink-0" />
+                  Visit the lab on {formatLongDate(`${date}T12:00:00+05:30`)} and show your booking ID at the desk. The lab will advise you if any test needs fasting.
+                </p>
+              </StepCard>
+
+              {/* 4. Patient */}
+              <StepCard step={4} title="Patient Details" aside={patient ? <span className="hidden sm:inline font-label-sm text-label-sm text-indigo-gray-600">From your profile</span> : null}>
+                {patient ? (
+                  <PatientDetailsFields value={details} onChange={setDetails} maxDate={today} />
+                ) : (
+                  <p className="text-sm text-indigo-gray-600">Sign in first and we&apos;ll fill in your details from your profile.</p>
+                )}
+              </StepCard>
             </div>
 
-            {/* Date & Time */}
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-              <h3 className="text-base font-bold text-slate-900 mb-4">Select Date &amp; Time</h3>
-              <div className="grid grid-cols-5 gap-3 mb-6">
-                {daysList.map((d) => (
-                  <button
-                    key={d.dateStr}
-                    type="button"
-                    onClick={() => setSelectedDate(d.dateStr)}
-                    className={`py-3 rounded-xl flex flex-col items-center border ${
-                      selectedDate === d.dateStr ? "bg-primary text-white border-primary" : "border-slate-200"
-                    }`}
-                  >
-                    <span className="text-xs font-semibold">{d.dayName}</span>
-                    <span className="text-lg font-bold">{d.dayNum}</span>
-                  </button>
-                ))}
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                {morningSlots.concat(afternoonSlots as any).map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => setSelectedSlotTime(s.time)}
-                    className={`py-2.5 rounded-xl border text-xs font-bold ${
-                      selectedSlotTime === s.time ? "bg-primary text-white border-primary" : "border-slate-200"
-                    }`}
-                  >
-                    {s.time}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+            {/* Summary */}
+            <aside className="lg:col-span-4 flex flex-col gap-6 lg:sticky lg:top-8">
+              <div className="bg-surface-container-lowest rounded-xl p-5 md:p-6 shadow-[0_4px_20px_rgba(0,102,255,0.06)] md:shadow-md">
+                <div className="flex items-center justify-between pb-4 mb-4 border-b border-surface-container-high/60">
+                  <h2 className="font-title-md text-body-lg md:text-title-md font-bold text-on-surface">Booking Summary</h2>
+                  <span className="px-2.5 py-0.5 rounded-full bg-fresh-teal/10 text-secondary font-label-sm text-[11px] font-bold">INR</span>
+                </div>
+                <div className="flex flex-col gap-3.5 pb-5 font-body-md text-body-md">
+                  {selectedTests.length === 0 ? (
+                    <p className="text-sm text-indigo-gray-600">No tests selected yet.</p>
+                  ) : (
+                    selectedTests.map((t) => <SummaryRow key={t.name} label={t.name} value={formatINR(t.price)} />)
+                  )}
+                  <SummaryRow label="Platform fee" value={formatINR(DIAGNOSTIC_PLATFORM_FEE)} />
+                  <SummaryRow label="Sample collection" sub="At the lab" value="Free" tone="free" />
+                </div>
+                <div className="py-4 bg-surface-container-low -mx-5 md:-mx-6 px-5 md:px-6 flex items-center justify-between gap-3">
+                  <div>
+                    <span className="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wide">Total Payable</span>
+                    <span className="block font-label-sm text-[11px] text-indigo-gray-600 mt-0.5">Visit on {formatLongDate(`${date}T12:00:00+05:30`)}</span>
+                  </div>
+                  <span className="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary font-extrabold">{selectedTests.length ? formatINR(total) : "—"}</span>
+                </div>
 
-          {/* Right 4 Cols: Summary */}
-          <div className="col-span-4 bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
-            <h3 className="text-base font-bold text-slate-900">Billing Summary</h3>
-            <div className="space-y-2 text-sm text-slate-600">
-              <div className="flex justify-between">
-                <span>Test Fees</span>
-                <span className="font-semibold text-slate-900">${testFee}.00</span>
+                <div className="mt-5 flex flex-col gap-4">
+                  <PayuNote />
+                  {error && (
+                    <FormError>
+                      {error}
+                      {pendingId && (
+                        <>
+                          {" "}
+                          <Link href={`/patient/checkout/diagnostic/${pendingId}`} className="font-bold underline">Pay from checkout</Link>
+                        </>
+                      )}
+                    </FormError>
+                  )}
+                  {!patient ? (
+                    <SignInToBook next={`/book/diagnostic/${center.id}`} />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={confirm}
+                      disabled={submitting || selectedTests.length === 0}
+                      className="w-full py-4 px-6 rounded-full bg-primary hover:bg-primary-container text-on-primary font-title-md text-body-lg md:text-title-md font-bold shadow-[0_8px_20px_rgba(0,80,203,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {submitting ? (
+                        <>
+                          <LoaderCircle className="w-5 h-5 animate-spin" /> Saving your booking…
+                        </>
+                      ) : selectedTests.length === 0 ? (
+                        "Select a test to continue"
+                      ) : (
+                        <>
+                          <Lock className="w-5 h-5" /> Confirm &amp; Pay {formatINR(total)}
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                <ul className="mt-6 pt-5 border-t border-surface-container-low flex flex-col gap-2.5 font-label-sm text-label-sm text-indigo-gray-600">
+                  <li className="flex items-start gap-2.5">
+                    <CircleCheck className="w-[18px] h-[18px] text-fresh-teal shrink-0" />
+                    Your booking is confirmed as soon as the payment succeeds.
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <FileText className="w-[18px] h-[18px] text-vibrant-blue shrink-0" />
+                    Track the test and its report from your profile.
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <MapPin className="w-[18px] h-[18px] text-on-surface-variant shrink-0" />
+                    {center.name}{center.city ? `, ${center.city}` : ""}
+                  </li>
+                </ul>
               </div>
-              <div className="flex justify-between">
-                <span>Sample Handling</span>
-                <span className="font-semibold text-slate-900">${sampleHandlingFee}.00</span>
-              </div>
-              <div className="flex justify-between pt-3 border-t font-bold text-slate-900 text-base">
-                <span>Total Payable</span>
-                <span className="text-primary">${totalPayable}.00</span>
-              </div>
-            </div>
-            <button
-              type="button"
-              disabled={isSubmitting}
-              onClick={handleConfirmAndBook}
-              className="w-full py-3.5 rounded-full bg-primary text-white text-sm font-bold shadow-md hover:bg-blue-700 transition-all"
-            >
-              {isSubmitting ? "Processing..." : `Confirm & Book $${totalPayable}.00`}
-            </button>
+            </aside>
           </div>
         </div>
       </main>
 
-      {/* FLOATING BOTTOM DOCK WITH BOOK TAB ACTIVE */}
-      <PatientDock activeTab="book" />
+      <PatientDock activeTab="book" isSignedIn={!!patient} />
+    </div>
+  );
+}
+
+function LabMetric({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="flex flex-col items-center justify-center text-center min-w-0">
+      <span className="font-label-sm text-[11px] md:text-label-sm text-on-surface-variant uppercase md:normal-case tracking-wider md:tracking-normal">{label}</span>
+      <span className={`font-title-md text-[15px] md:text-title-md font-bold mt-0.5 truncate max-w-full ${accent ? "text-primary" : "text-on-surface"}`}>{value}</span>
     </div>
   );
 }

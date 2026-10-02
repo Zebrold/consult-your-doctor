@@ -1,184 +1,321 @@
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { redirect } from 'next/navigation'
-import { Calendar, Users, IndianRupee, TrendingUp, Building2, User } from 'lucide-react'
-import { RevenueChart } from '@/components/RevenueChart'
-import { BookingsChart } from '@/components/BookingsChart'
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import {
+  CalendarClock, CalendarDays, CircleAlert, CircleCheck, IndianRupee, ListChecks, Phone, Stethoscope, UserRoundX, Users, type LucideIcon,
+} from 'lucide-react'
+import { currentTime } from '@/components/patient/data'
+import { doctorName, formatINR, formatTime, istDateKey } from '@/components/patient/format'
+import { Avatar, Card, CardHeader, Chip, EmptyState, SegmentBar, StatCard } from '@/components/portal/ui'
+import {
+  dayOf, dayStartIso, hospitalShare, isPaidVisit, loadHospitalDoctors, loadHospitalSlots, loadHospitalVisits, requireHospital, VISIT_STATUS,
+} from '../_lib/hospital'
+import { AddDoctorButton } from '../_components/DoctorDialogs'
 
-export default async function HospitalDashboard() {
-  const supabase = await createClient()
+export const metadata: Metadata = { title: 'Dashboard | Hospital Portal' }
+export const dynamic = 'force-dynamic'
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login/hospital')
+const DAY = 86_400_000
 
-  // Verify hospital admin
-  const { data: profile } = await supabase.from('profiles').select('hospital_id').eq('id', user.id).single()
-  if (!profile || !profile.hospital_id) redirect('/')
+function greeting(now: number) {
+  const hour = Number(new Date(now).toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', hourCycle: 'h23' }))
+  return hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+}
 
-  // Fetch doctors count
-  const { data: doctors } = await supabase.from('doctors').select('id').eq('hospital_id', profile.hospital_id)
+export default async function HospitalDashboardPage() {
+  const { admin, hospital, staff } = await requireHospital()
+  const now = currentTime()
+  const today = istDateKey(now)
 
-  // Fetch appointments for this hospital
-  // Use admin client to bypass RLS for fetching related profiles (patients)
-  const adminClient = createAdminClient()
-  const { data: appointments } = await adminClient
-    .from('appointments')
-    .select(`
-      id,
-      status,
-      created_at,
-      patient:profiles!appointments_patient_id_fkey ( full_name ),
-      doctor:doctors (
-        profiles!doctors_profile_id_fkey ( full_name ),
-        consultation_fee
-      )
-    `)
-    .eq('hospital_id', profile.hospital_id)
-    .order('created_at', { ascending: false })
+  const doctors = await loadHospitalDoctors(admin, hospital.id)
+  const ids = doctors.map((d) => d.id)
+  const [visits, slots] = await Promise.all([
+    loadHospitalVisits(admin, hospital.id, ids),
+    loadHospitalSlots(admin, ids, dayStartIso(today), new Date(Date.parse(dayStartIso(today)) + 7 * DAY).toISOString()),
+  ])
+  const doctorById = new Map(doctors.map((d) => [d.id, d]))
 
-  // Calculate Metrics
-  const totalDoctors = doctors?.length || 0
-  const totalAppointments = appointments?.length || 0
+  const todays = visits.filter((v) => dayOf(v.start) === today)
+  const paidToday = todays.filter(isPaidVisit)
+  const n = (s: string) => paidToday.filter((v) => v.status === s).length
 
-  let totalRevenue = 0
+  const month = today.slice(0, 7)
+  const lastMonth = istDateKey(Date.parse(`${month}-01T12:00:00+05:30`) - DAY).slice(0, 7)
+  const paid = visits.filter(isPaidVisit)
+  const firstVisit = new Map<string, string>()
+  for (const v of paid) {
+    const d = dayOf(v.start ?? v.createdAt)!
+    if (v.patient && (!firstVisit.has(v.patient.id) || d < firstVisit.get(v.patient.id)!)) firstVisit.set(v.patient.id, d)
+  }
+  const patientsThisMonth = new Set(paid.filter((v) => dayOf(v.start ?? v.createdAt)?.startsWith(month)).map((v) => v.patient?.id)).size
+  const newThisMonth = Array.from(firstVisit.values()).filter((d) => d.startsWith(month)).length
+  const revenueIn = (key: string) =>
+    visits.reduce((sum, v) => (v.payment && dayOf(v.payment.createdAt ?? v.createdAt)?.startsWith(key) ? sum + hospitalShare(v.payment) : sum), 0)
+  const revenueThisMonth = revenueIn(month)
+  const revenueLastMonth = revenueIn(lastMonth)
 
-  // Aggregate chart data
-  const last7Days = [...Array(7)].map((_, i) => {
-    const d = new Date()
-    d.setDate(d.getDate() - (6 - i))
-    return { date: d.toISOString().split('T')[0], formatted: d.toLocaleDateString('en-US', { weekday: 'short' }), revenue: 0 }
-  })
+  const todaySlots = slots.filter((s) => dayOf(s.start) === today)
+  const onDuty = doctors.filter((d) => todaySlots.some((s) => s.doctorId === d.id))
+  const weekDoctors = new Set(slots.filter((s) => Date.parse(s.start) > now).map((s) => s.doctorId))
+  const unscheduled = doctors.filter((d) => !weekDoctors.has(d.id))
+  const late = paidToday.filter((v) => v.status === 'confirmed' && v.start && Date.parse(v.start) < now - 15 * 60_000)
+  const unpaidToday = todays.filter((v) => v.status === 'pending_payment' && v.start && Date.parse(v.start) > now)
 
-  const doctorBookingsMap = new Map<string, number>()
+  // Next 7 days: how full each department's published slots are
+  const deptFill = new Map<string, { booked: number; total: number }>()
+  for (const s of slots) {
+    if (Date.parse(s.start) < now) continue
+    const dept = doctorById.get(s.doctorId)?.department ?? 'Other'
+    const entry = deptFill.get(dept) ?? { booked: 0, total: 0 }
+    entry.total++
+    if (s.booked) entry.booked++
+    deptFill.set(dept, entry)
+  }
+  const departments = Array.from(deptFill.entries()).sort((a, b) => b[1].total - a[1].total)
+  const departmentNames = Array.from(new Set(doctors.map((d) => d.department))).sort()
 
-  appointments?.forEach(apt => {
-    const doctor: any = apt.doctor
-    const isCompletedOrConfirmed = apt.status !== 'cancelled' && apt.status !== 'pending_payment'
-
-    if (isCompletedOrConfirmed) {
-      const fee = Number(doctor?.consultation_fee) || 0
-      totalRevenue += fee
-
-      const aptDate = new Date(apt.created_at).toISOString().split('T')[0]
-      const dayData = last7Days.find(d => d.date === aptDate)
-      if (dayData) {
-        dayData.revenue += fee
-      }
-    }
-
-    if (apt.status !== 'cancelled') {
-      const docName = doctor?.profiles?.full_name?.replace('Dr. ', '') || 'Unknown'
-      doctorBookingsMap.set(docName, (doctorBookingsMap.get(docName) || 0) + 1)
-    }
-  })
-
-  const revenueData = last7Days.map(d => ({ date: d.formatted, revenue: d.revenue }))
-
-  const bookingsData = Array.from(doctorBookingsMap.entries())
-    .map(([name, bookings]) => ({ name: name.length > 15 ? name.substring(0, 15) + '...' : name, bookings }))
-    .sort((a, b) => b.bookings - a.bookings)
-    .slice(0, 5) // Top 5 doctors
-
-  const recentBookings = appointments?.slice(0, 5) || []
+  const attention = [
+    late.length > 0 && { tone: 'coral' as const, icon: UserRoundX, title: `${late.length} ${late.length === 1 ? 'patient hasn’t' : 'patients haven’t'} been checked in`, sub: 'Their appointment started more than 15 minutes ago.', href: '/hospital/patients?view=today' },
+    unscheduled.length > 0 && { tone: 'coral' as const, icon: CalendarClock, title: `${unscheduled.length} ${unscheduled.length === 1 ? 'doctor has' : 'doctors have'} no slots this week`, sub: unscheduled.slice(0, 3).map((d) => doctorName(d.name)).join(', ') + (unscheduled.length > 3 ? '…' : ''), href: '/hospital/doctors' },
+    unpaidToday.length > 0 && { tone: 'neutral' as const, icon: IndianRupee, title: `${unpaidToday.length} booking${unpaidToday.length === 1 ? '' : 's'} today not paid yet`, sub: 'The slot is held until the patient pays online.', href: '/hospital/patients?view=today' },
+  ].filter(Boolean) as { tone: 'coral' | 'neutral'; icon: LucideIcon; title: string; sub: string; href: string }[]
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:border-[#0949B3]/30 hover:shadow-[0_8px_30px_rgb(9,73,179,0.08)] transition-all">
-          <div className="absolute top-0 right-0 p-4 opacity-10"><IndianRupee className="w-16 h-16" /></div>
-          <p className="text-sm font-medium text-gray-500 mb-1">Total Revenue generated</p>
-          <p className="text-3xl font-black text-gray-900 flex items-center gap-1">
-            <span className="text-lg text-gray-400">₹</span>{totalRevenue.toLocaleString('en-IN')}
-          </p>
-          <p className="text-xs text-emerald-600 font-bold mt-2 flex items-center gap-1"><TrendingUp className="w-3 h-3" /> All time</p>
-        </div>
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:border-[#0949B3]/30 hover:shadow-[0_8px_30px_rgb(9,73,179,0.08)] transition-all">
-          <div className="absolute top-0 right-0 p-4 opacity-10"><Users className="w-16 h-16" /></div>
-          <p className="text-sm font-medium text-gray-500 mb-1">Total Consultations</p>
-          <p className="text-3xl font-black text-gray-900">{totalAppointments}</p>
-        </div>
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:border-[#0949B3]/30 hover:shadow-[0_8px_30px_rgb(9,73,179,0.08)] transition-all">
-          <div className="absolute top-0 right-0 p-4 opacity-10"><User className="w-16 h-16" /></div>
-          <p className="text-sm font-medium text-gray-500 mb-1">Active Doctors</p>
-          <p className="text-3xl font-black text-gray-900">{totalDoctors}</p>
-        </div>
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-6">Hospital Revenue (Last 7 Days)</h2>
-          <div className="h-72">
-            <RevenueChart data={revenueData} />
+    <>
+      {/* Header */}
+      <Card className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 md:gap-gutter">
+        <div className="flex items-center gap-3 md:gap-gutter min-w-0">
+          <span className="relative shrink-0">
+            <Avatar name={hospital.name} image={hospital.image} square className="w-12 h-12 md:w-16 md:h-16 text-lg" />
+            {hospital.status === 'active' && <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 md:w-4 md:h-4 bg-fresh-teal rounded-full ring-2 ring-surface-container-lowest" title="Live for booking" />}
+          </span>
+          <div className="min-w-0">
+            <span className="text-[11px] md:text-label-sm font-semibold text-secondary uppercase tracking-wider">
+              {greeting(now)}, {staff.name.split(' ')[0]}
+            </span>
+            <h1 className="font-title-md text-[17px] md:font-headline-lg md:text-headline-lg text-indigo-gray-900 font-bold leading-tight truncate">{hospital.name}</h1>
+            <p className="hidden md:block text-sm text-indigo-gray-600 truncate">
+              {[hospital.address, hospital.city].filter(Boolean).join(', ') || 'Hospital portal'} • {doctors.length} doctors • {departmentNames.length} departments
+            </p>
           </div>
         </div>
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-6">Top Doctors by Consultations</h2>
-          <div className="h-72">
-            <BookingsChart data={bookingsData} color="#0949B3" />
-          </div>
+        <div className="grid grid-cols-2 md:flex md:flex-wrap items-center gap-2 shrink-0">
+          <Link
+            href="/hospital/doctors"
+            className="flex items-center justify-center gap-1.5 md:gap-2 bg-surface-container-low hover:bg-surface-container text-indigo-gray-900 font-label-sm text-[12px] md:text-label-sm px-3 md:px-stack-md py-2.5 md:py-3 rounded-full"
+          >
+            <CalendarDays className="w-[18px] h-[18px] text-vibrant-blue" /> Duty Roster
+          </Link>
+          <AddDoctorButton
+            departments={departmentNames}
+            className="flex items-center justify-center gap-1.5 md:gap-2 bg-vibrant-blue hover:bg-primary text-on-primary font-label-sm text-[12px] md:text-label-sm px-3 md:px-stack-md py-2.5 md:py-3 rounded-full shadow-[0_4px_16px_rgba(0,102,255,0.22)] active:scale-95"
+          />
         </div>
-      </div>
+      </Card>
 
-      {/* Recent Activity Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-gray-50 to-white">
-          <h2 className="text-lg font-bold text-gray-900">Recent Bookings</h2>
-        </div>
+      {/* Metrics */}
+      <section className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 md:gap-gutter">
+        <StatCard
+          label="Today's Appointments"
+          value={paidToday.length}
+          note={todays.length > paidToday.length ? `+${todays.length - paidToday.length} unpaid` : 'booked'}
+          noteTone={todays.length > paidToday.length ? 'coral' : 'teal'}
+          icon={CalendarDays}
+          tone="blue"
+          footer={
+            <div className="flex flex-col gap-1.5">
+              <SegmentBar
+                parts={[
+                  { value: n('completed'), className: 'bg-fresh-teal', label: 'completed' },
+                  { value: n('visited'), className: 'bg-vibrant-blue', label: 'checked in' },
+                  { value: n('confirmed'), className: 'bg-outline-variant', label: 'still to come' },
+                ]}
+              />
+              <span className="hidden md:block text-[11px] text-indigo-gray-600">
+                {n('completed')} done • {n('visited')} checked in • {n('confirmed')} to come
+              </span>
+            </div>
+          }
+        />
+        <StatCard
+          label="Patients This Month"
+          value={patientsThisMonth}
+          note={newThisMonth ? `+${newThisMonth} new` : undefined}
+          icon={Users}
+          tone="coral"
+          footer={<span className="text-[11px] text-indigo-gray-600">With a paid consultation</span>}
+        />
+        <StatCard
+          label="Revenue This Month"
+          value={formatINR(revenueThisMonth)}
+          icon={IndianRupee}
+          tone="teal"
+          footer={<span className="text-[11px] text-indigo-gray-600">Fees collected • last month {formatINR(revenueLastMonth)}</span>}
+        />
+        <StatCard
+          label="Doctors On Duty"
+          value={onDuty.length}
+          note={`of ${doctors.length}`}
+          noteTone="neutral"
+          icon={Stethoscope}
+          tone="neutral"
+          footer={
+            <SegmentBar
+              parts={[
+                { value: todaySlots.filter((s) => s.booked).length, className: 'bg-vibrant-blue', label: 'slots booked today' },
+                { value: todaySlots.filter((s) => !s.booked).length, className: 'bg-surface-container-highest', label: 'slots open today' },
+              ]}
+            />
+          }
+        />
+      </section>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-gray-100 text-xs sm:text-sm">
-                <th className="px-4 sm:px-6 py-3 sm:py-4 font-bold text-gray-500">Patient</th>
-                <th className="px-4 sm:px-6 py-3 sm:py-4 font-bold text-gray-500">Doctor</th>
-                <th className="px-4 sm:px-6 py-3 sm:py-4 font-bold text-gray-500">Amount</th>
-                <th className="px-4 sm:px-6 py-3 sm:py-4 font-bold text-gray-500">Status</th>
-                <th className="px-4 sm:px-6 py-3 sm:py-4 font-bold text-gray-500 text-right">Booked On</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {recentBookings.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">No bookings found.</td>
-                </tr>
-              ) : (
-                recentBookings.map(apt => {
-                  const patient: any = apt.patient
-                  const doctor: any = apt.doctor
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-gutter items-start">
+        <div className="lg:col-span-7 flex flex-col gap-4 md:gap-stack-md">
+          {/* Needs attention */}
+          <Card className="relative overflow-hidden">
+            <div aria-hidden className={`absolute top-0 left-0 bottom-0 w-1.5 ${attention.some((a) => a.tone === 'coral') ? 'bg-soft-coral' : 'bg-fresh-teal'}`} />
+            <CardHeader title="Needs Attention" subtitle="Things the front desk and admin can act on now" />
+            {attention.length === 0 ? (
+              <EmptyState icon={CircleCheck}>All clear: every doctor has slots this week and today’s patients are on track.</EmptyState>
+            ) : (
+              <ul className="flex flex-col gap-2.5">
+                {attention.map((a) => (
+                  <li key={a.title}>
+                    <Link href={a.href} className="p-3.5 rounded-xl bg-surface-container-low hover:bg-surface-container flex items-center gap-3">
+                      <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${a.tone === 'coral' ? 'bg-soft-coral/10 text-soft-coral' : 'bg-primary-fixed text-primary'}`}>
+                        <a.icon className="w-5 h-5" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block font-title-md text-[15px] font-bold text-indigo-gray-900">{a.title}</span>
+                        <span className="block text-[12px] text-indigo-gray-600 truncate">{a.sub}</span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+
+          {/* Today's appointments */}
+          <Card>
+            <CardHeader
+              title="Today's Appointments"
+              subtitle="Consultations booked across your doctors"
+              action={
+                <Link href="/hospital/patients?view=today" className="text-vibrant-blue font-label-sm text-label-sm hover:underline shrink-0">
+                  View all
+                </Link>
+              }
+            />
+            {todays.length === 0 ? (
+              <EmptyState icon={CalendarDays}>No appointments today.</EmptyState>
+            ) : (
+              <ul className="flex flex-col gap-2.5 md:gap-3">
+                {todays.slice(0, 8).map((v) => {
+                  const doc = v.doctorId ? doctorById.get(v.doctorId) : undefined
+                  const status = v.status === 'confirmed' && v.start && Date.parse(v.start) < now - 15 * 60_000 ? { label: 'Not checked in', tone: 'coral' as const } : VISIT_STATUS[v.status]
                   return (
-                    <tr key={apt.id} className="hover:bg-gradient-to-r from-gray-50 to-white transition-colors">
-                      <td className="px-4 sm:px-6 py-3 sm:py-4">
-                        <div className="font-bold text-gray-900 whitespace-nowrap">{patient?.full_name || 'Unknown Patient'}</div>
-                      </td>
-                      <td className="px-4 sm:px-6 py-3 sm:py-4">
-                        <div className="font-medium text-gray-600 whitespace-nowrap">Dr. {doctor?.profiles?.full_name?.replace('Dr. ', '') || 'Unknown Doctor'}</div>
-                      </td>
-                      <td className="px-4 sm:px-6 py-3 sm:py-4">
-                        <div className="font-bold text-gray-900">₹{doctor?.consultation_fee || 0}</div>
-                      </td>
-                      <td className="px-4 sm:px-6 py-3 sm:py-4">
-                        <span className={`px-2.5 py-1 text-xs font-bold rounded-md whitespace-nowrap ${apt.status === 'completed' ? 'bg-green-100 text-green-700' :
-                            apt.status === 'confirmed' ? 'bg-yellow-100 text-yellow-700' :
-                              'bg-gray-100 text-gray-700'
-                          }`}>
-                          {apt.status.toUpperCase().replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-right text-xs sm:text-sm text-gray-500 font-medium whitespace-nowrap">
-                        {new Date(apt.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </td>
-                    </tr>
+                    <li key={v.id} className="p-3 md:p-4 rounded-xl bg-surface-container-low/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-14 shrink-0 text-right">
+                          <span className="block font-title-md text-[14px] font-bold text-indigo-gray-900">{v.start ? formatTime(v.start).replace(/ (AM|PM)$/, '') : '—'}</span>
+                          <span className="block text-[11px] text-indigo-gray-600">{v.start ? formatTime(v.start).slice(-2) : ''}</span>
+                        </div>
+                        <Avatar name={v.patient?.name ?? null} className="w-10 h-10 text-sm" />
+                        <div className="min-w-0">
+                          <span className="block font-title-md text-[15px] font-bold text-indigo-gray-900 truncate">{v.patient?.name ?? 'Patient'}</span>
+                          <span className="block text-[12px] text-indigo-gray-600 truncate">{doc ? `${doctorName(doc.name)} • ${doc.department}` : 'Doctor'}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-end gap-2 shrink-0">
+                        {status && <Chip tone={status.tone}>{status.label}</Chip>}
+                        {v.patient?.phone && (
+                          <a href={`tel:${v.patient.phone.replace(/[^\d+]/g, '')}`} aria-label={`Call ${v.patient.name}`} className="p-2 rounded-full hover:bg-surface-container text-vibrant-blue">
+                            <Phone className="w-4 h-4" />
+                          </a>
+                        )}
+                      </div>
+                    </li>
                   )
-                })
-              )}
-            </tbody>
-          </table>
+                })}
+              </ul>
+            )}
+          </Card>
         </div>
-      </div>
-    </div>
+
+        <div className="lg:col-span-5 flex flex-col gap-4 md:gap-stack-md">
+          {/* Department fill */}
+          <Card>
+            <CardHeader title="Bookings by Department" subtitle="Share of published slots booked, next 7 days" />
+            {departments.length === 0 ? (
+              <EmptyState icon={ListChecks}>No slots published for the coming week.</EmptyState>
+            ) : (
+              <ul className="flex flex-col gap-3.5">
+                {departments.map(([dept, f]) => {
+                  const pct = Math.round((f.booked / f.total) * 100)
+                  return (
+                    <li key={dept} className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between gap-2 text-[14px]">
+                        <span className="font-semibold text-indigo-gray-900 truncate">{dept}</span>
+                        <span className={`font-bold shrink-0 ${pct >= 85 ? 'text-soft-coral' : pct >= 50 ? 'text-vibrant-blue' : 'text-secondary'}`}>
+                          {pct}% <span className="font-medium text-indigo-gray-600">({f.booked}/{f.total})</span>
+                        </span>
+                      </div>
+                      <div className="w-full bg-surface-container h-2 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full ${pct >= 85 ? 'bg-soft-coral' : pct >= 50 ? 'bg-vibrant-blue' : 'bg-fresh-teal'}`} style={{ width: `${Math.max(pct, 2)}%` }} />
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </Card>
+
+          {/* On duty */}
+          <Card>
+            <CardHeader title="Doctors On Duty Today" subtitle="Doctors with slots published for today" action={<Chip tone="teal">{onDuty.length} on duty</Chip>} />
+            {onDuty.length === 0 ? (
+              <EmptyState icon={Stethoscope}>No doctor has slots today. Publish slots from the Roster.</EmptyState>
+            ) : (
+              <ul className="flex flex-col gap-2.5">
+                {onDuty.map((d) => {
+                  const mine = todaySlots.filter((s) => s.doctorId === d.id)
+                  const first = mine[0]
+                  const last = mine[mine.length - 1]
+                  const busy = mine.some((s) => s.booked && Date.parse(s.start) <= now && Date.parse(s.end ?? s.start) > now)
+                  return (
+                    <li key={d.id} className="p-3 rounded-xl bg-surface-container-low/70 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar name={d.name} image={d.image} className="w-10 h-10 text-sm" />
+                        <div className="min-w-0">
+                          <span className="block font-title-md text-[14px] md:text-[15px] font-bold text-indigo-gray-900 truncate">{doctorName(d.name)}</span>
+                          <span className="block text-[12px] text-indigo-gray-600 truncate">
+                            {d.department} • {formatTime(first.start)}–{formatTime(last.end ?? last.start)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Chip tone={busy ? 'blue' : 'neutral'}>{busy ? 'In consultation' : `${mine.filter((s) => s.booked).length}/${mine.length} booked`}</Chip>
+                        {d.phone && (
+                          <a href={`tel:${d.phone.replace(/[^\d+]/g, '')}`} aria-label={`Call ${doctorName(d.name)}`} className="p-2 rounded-full hover:bg-surface-container text-vibrant-blue">
+                            <Phone className="w-4 h-4" />
+                          </a>
+                        )}
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </Card>
+
+          {attention.length > 0 && unscheduled.length > 0 && (
+            <p className="text-[12px] text-indigo-gray-600 flex items-start gap-1.5 px-1">
+              <CircleAlert className="w-4 h-4 shrink-0 text-soft-coral" /> Patients can only book doctors who have published slots.
+            </p>
+          )}
+        </div>
+      </section>
+    </>
   )
 }

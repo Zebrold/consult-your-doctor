@@ -50,10 +50,14 @@ export function PayUCheckoutForm({
         return
       }
 
-      // 2. Set Hash in hidden form input
+      // 2. Set Hash (and the server-priced amount it was computed for) in the hidden form
       const hashInput = document.getElementById('payu_hash') as HTMLInputElement
       if (hashInput) {
         hashInput.value = data.hash
+      }
+      const amountInput = document.getElementById('payu_amount') as HTMLInputElement
+      if (amountInput) {
+        amountInput.value = data.amount
       }
 
       // 3. Submit form to PayU
@@ -93,7 +97,7 @@ export function PayUCheckoutForm({
         <input type="hidden" name="key" value={payuKey} />
         <input type="hidden" name="txnid" value={txnid} />
         <input type="hidden" name="productinfo" value={productinfo} />
-        <input type="hidden" name="amount" value={amount.toString()} />
+        <input type="hidden" name="amount" id="payu_amount" defaultValue={amount.toString()} />
         <input type="hidden" name="email" value={email} />
         <input type="hidden" name="firstname" value={firstname} />
         <input type="hidden" name="phone" value={phone || '9999999999'} />

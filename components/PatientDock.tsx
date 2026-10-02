@@ -2,87 +2,51 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Home, Search, Calendar, User } from "lucide-react";
+import { CalendarDays, House, LogIn, Search, UserRound, type LucideIcon } from "lucide-react";
+
+type Tab = "home" | "find" | "book" | "profile";
 
 interface PatientDockProps {
-  activeTab?: "home" | "find" | "book" | "profile";
+  activeTab?: Tab;
+  /** Pass false for signed-out visitors so the last tab offers sign-in instead of the profile. */
+  isSignedIn?: boolean;
 }
 
-export function PatientDock({ activeTab = "home" }: PatientDockProps) {
+export function PatientDock({ activeTab = "home", isSignedIn = true }: PatientDockProps) {
   const searchParams = useSearchParams();
-  const isPreview = searchParams.get("preview") === "patient";
+  const suffix = searchParams.get("preview") === "patient" ? "?preview=patient" : "";
 
-  const homeHref = isPreview ? "/?preview=patient" : "/";
-  const findHref = isPreview ? "/find?preview=patient" : "/find";
-  const bookHref = isPreview ? "/find?preview=patient" : "/find";
-  const profileHref = isPreview ? "/patient/profile?preview=patient" : "/patient/profile";
+  const tabs: { id: Tab; label: string; href: string; icon: LucideIcon }[] = [
+    { id: "home", label: "Home", href: `/${suffix}`, icon: House },
+    { id: "find", label: "Find", href: `/find${suffix}`, icon: Search },
+    { id: "book", label: "Book", href: `/find${suffix}`, icon: CalendarDays },
+    isSignedIn
+      ? { id: "profile", label: "Profile", href: `/patient/profile${suffix}`, icon: UserRound }
+      : { id: "profile", label: "Sign in", href: "/login/patient", icon: LogIn },
+  ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 w-full z-50 bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-1.5 px-4 flex justify-center items-center shadow-lg">
-      <div className="max-w-md w-full flex justify-around items-center">
-        <Link
-          href={homeHref}
-          className={`flex flex-col items-center justify-center gap-1 py-1.5 px-4 sm:px-5 rounded-2xl transition-all ${
-            activeTab === "home"
-              ? "bg-[#e8efff] text-primary font-bold shadow-xs scale-[1.02]"
-              : "text-slate-600 hover:text-slate-900 font-medium"
-          }`}
-        >
-          <Home
-            className={`w-[22px] h-[22px] ${
-              activeTab === "home" ? "stroke-[2.5] text-primary" : "stroke-[1.8] text-slate-600"
-            }`}
-          />
-          <span className="font-label-sm text-[12px] leading-tight">Home</span>
-        </Link>
-
-        <Link
-          href={findHref}
-          className={`flex flex-col items-center justify-center gap-1 py-1.5 px-4 sm:px-5 rounded-2xl transition-all ${
-            activeTab === "find"
-              ? "bg-[#e8efff] text-primary font-bold shadow-xs scale-[1.02]"
-              : "text-slate-600 hover:text-slate-900 font-medium"
-          }`}
-        >
-          <Search
-            className={`w-[22px] h-[22px] ${
-              activeTab === "find" ? "stroke-[2.5] text-primary" : "stroke-[1.8] text-slate-600"
-            }`}
-          />
-          <span className="font-label-sm text-[12px] leading-tight">Find</span>
-        </Link>
-
-        <Link
-          href={bookHref}
-          className={`flex flex-col items-center justify-center gap-1 py-1.5 px-4 sm:px-5 rounded-2xl transition-all ${
-            activeTab === "book"
-              ? "bg-[#e8efff] text-primary font-bold shadow-xs scale-[1.02]"
-              : "text-slate-600 hover:text-slate-900 font-medium"
-          }`}
-        >
-          <Calendar
-            className={`w-[22px] h-[22px] ${
-              activeTab === "book" ? "stroke-[2.5] text-primary" : "stroke-[1.8] text-slate-600"
-            }`}
-          />
-          <span className="font-label-sm text-[12px] leading-tight">Book</span>
-        </Link>
-
-        <Link
-          href={profileHref}
-          className={`flex flex-col items-center justify-center gap-1 py-1.5 px-4 sm:px-5 rounded-2xl transition-all ${
-            activeTab === "profile"
-              ? "bg-[#e8efff] text-primary font-bold shadow-xs scale-[1.02]"
-              : "text-slate-600 hover:text-slate-900 font-medium"
-          }`}
-        >
-          <User
-            className={`w-[22px] h-[22px] ${
-              activeTab === "profile" ? "stroke-[2.5] text-primary" : "stroke-[1.8] text-slate-600"
-            }`}
-          />
-          <span className="font-label-sm text-[12px] leading-tight">Profile</span>
-        </Link>
+    <nav
+      aria-label="Patient navigation"
+      className="fixed z-50 bottom-0 inset-x-0 bg-surface/90 backdrop-blur-xl shadow-[0_-1px_12px_rgba(0,80,203,0.06)] pb-[env(safe-area-inset-bottom)] md:bottom-6 md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:rounded-2xl md:border md:border-surface-container-high md:bg-surface-container-lowest/95 md:shadow-xl md:pb-0"
+    >
+      <div className="flex justify-around items-center h-20 px-4 md:h-auto md:gap-3 md:px-4 md:py-2">
+        {tabs.map(({ id, label, href, icon: Icon }) => {
+          const active = id === activeTab;
+          return (
+            <Link
+              key={id}
+              href={href}
+              aria-current={active ? "page" : undefined}
+              className={`flex flex-col items-center justify-center gap-1 w-16 h-16 md:w-auto md:h-auto md:px-4 md:py-1.5 rounded-xl transition-colors ${
+                active ? "bg-surface-container-high text-primary" : "text-on-surface-variant hover:text-on-surface"
+              }`}
+            >
+              <Icon className="w-6 h-6 md:w-[22px] md:h-[22px]" strokeWidth={active ? 2.3 : 1.8} />
+              <span className={`text-label-sm md:text-[11px] leading-none ${active ? "font-bold" : "font-medium"}`}>{label}</span>
+            </Link>
+          );
+        })}
       </div>
     </nav>
   );

@@ -1,6 +1,8 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { matchBookedTests, pricedTests } from '@/lib/pricing'
 import { redirect } from 'next/navigation'
 
 export async function createAppointment(formData: FormData) {
@@ -59,8 +61,33 @@ export async function createDiagnosticBooking(formData: FormData) {
 
   // 2. Parse form data
   const centerId = formData.get('center_id') as string
-  const testName = formData.get('test_name') as string
+  let testName = formData.get('test_name') as string
   const preferredDate = formData.get('preferred_date') as string
+
+  // The lab booking page sends one `test_names` entry per selected test, plus the patient's details.
+  const selectedTests = formData.getAll('test_names').map(String).filter(Boolean)
+  if (selectedTests.length > 0) {
+    if (!centerId || !preferredDate) {
+      return { error: 'Please select at least one test and a visit date.' }
+    }
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
+    if (preferredDate < today) {
+      return { error: 'Please choose a visit date from today onwards.' }
+    }
+
+    const { data: center } = await supabase.from('diagnostic_centers').select('test_prices').eq('id', centerId).maybeSingle()
+    const offered = new Set(pricedTests(center?.test_prices).map((t) => t.name))
+    if (selectedTests.some((name) => !offered.has(name))) {
+      return { error: 'Some of the selected tests are no longer offered by this lab. Please review your selection.' }
+    }
+    testName = Array.from(new Set(selectedTests)).join(', ')
+    if (!matchBookedTests(testName, center?.test_prices)) {
+      return { error: 'These tests could not be priced together. Please book them separately.' }
+    }
+
+    const detailsError = await savePatientBasics(supabase, user.id, formData)
+    if (detailsError) return { error: detailsError }
+  }
 
   if (!centerId || !testName || !preferredDate) {
     return { error: 'Please select a center, a test, and a preferred date.' }
@@ -85,173 +112,127 @@ export async function createDiagnosticBooking(formData: FormData) {
   }
 
   // 4. Return URL to redirect on the client
-  return { success: true, url: `/patient/checkout/diagnostic/${booking.id}` }
+  return { success: true, bookingId: booking.id as string, url: `/patient/checkout/diagnostic/${booking.id}` }
 }
 
-export async function updateDiagnosticBookingStatus(bookingId: string, status: string) {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Unauthorized' }
+type Supabase = Awaited<ReturnType<typeof createClient>>
 
-  const { error } = await supabase
-    .from('diagnostic_bookings')
-    .update({ status })
-    .eq('id', bookingId)
+const PATIENT_GENDERS = ['Male', 'Female', 'Non-binary', 'Other']
 
-  if (error) {
-    console.error('Error updating status:', error)
-    return { error: 'Failed to update status' }
-  }
-
-  return { success: true }
+/** "+91 98204 77210" / "9820477210" → "+919820477210" (numbers without a country code are taken as Indian). */
+function toE164(raw: string) {
+  const cleaned = raw.replace(/[^\d+]/g, '')
+  if (cleaned.startsWith('+')) return cleaned
+  return cleaned.length === 10 ? `+91${cleaned}` : `+${cleaned}`
 }
 
-export async function verifyAndCheckInDiagnostic(bookingId: string, inputId: string) {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Unauthorized' }
+/**
+ * Saves the patient details entered on a booking page to the patient's own profile,
+ * which is what hospitals, labs and the operations team see for the booking.
+ */
+async function savePatientBasics(supabase: Supabase, userId: string, formData: FormData): Promise<string | null> {
+  const fullName = String(formData.get('patient_name') || '').trim().slice(0, 120)
+  const rawPhone = String(formData.get('patient_phone') || '').trim()
+  const dateOfBirth = String(formData.get('date_of_birth') || '')
+  const gender = String(formData.get('gender') || '')
 
-  // We are expecting the inputId to be the first 8 chars of the bookingId (case-insensitive)
-  if (bookingId.slice(0, 8).toUpperCase() !== inputId.toUpperCase()) {
-    return { error: 'Invalid Booking ID.' }
+  if (!fullName) return "Please enter the patient's full name."
+  if (rawPhone.replace(/\D/g, '').length < 10) return 'Please enter a valid mobile number so the hospital can reach you.'
+  if (dateOfBirth && (Number.isNaN(Date.parse(dateOfBirth)) || Date.parse(dateOfBirth) > Date.now())) {
+    return 'Please enter a valid date of birth.'
   }
 
-  // Update the booking status to visited
-  const { error } = await supabase
-    .from('diagnostic_bookings')
-    .update({ status: 'visited' })
-    .eq('id', bookingId)
-
-  if (error) {
-    console.error('Error checking in:', error)
-    return { error: 'Failed to check in patient.' }
+  const phone = toE164(rawPhone)
+  const { data: current } = await supabase.from('profiles').select('full_name, phone_number').eq('id', userId).maybeSingle()
+  const updates: Record<string, string> = {}
+  if (current?.full_name !== fullName) updates.full_name = fullName
+  if (current?.phone_number !== phone) updates.phone_number = phone
+  if (Object.keys(updates).length > 0) {
+    const { error } = await supabase.from('profiles').update(updates).eq('id', userId)
+    if (error) {
+      console.error('Error saving patient profile:', error)
+      return error.code === '23505' ? 'This mobile number is already registered to another account.' : 'Could not save your details. Please try again.'
+    }
   }
 
-  return { success: true }
+  const details: Record<string, string> = {}
+  if (dateOfBirth) details.date_of_birth = dateOfBirth
+  if (PATIENT_GENDERS.includes(gender)) details.gender = gender
+  if (Object.keys(details).length > 0) {
+    // Only the columns sent are written, so the rest of the medical profile is left as it was.
+    const { error } = await supabase.from('patient_details').upsert({ id: userId, ...details, updated_at: new Date().toISOString() })
+    if (error) {
+      console.error('Error saving patient details:', error)
+      return 'Could not save your details. Please try again.'
+    }
+  }
+  return null
 }
 
 export async function finalizeConsultationAppointment(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-
-  const doctorId = formData.get('doctor_id') as string
-  const hospitalId = formData.get('hospital_id') as string
-  const appointmentDate = formData.get('appointment_date') as string
-  const appointmentTime = formData.get('appointment_time') as string
-  const consultationMode = formData.get('consultation_mode') as string
-  const patientName = formData.get('patient_name') as string
-  const explicitScheduleId = formData.get('schedule_id') as string
-  const patientPhone = formData.get('patient_phone') as string
-  const patientEmail = formData.get('patient_email') as string
-  const reason = formData.get('reason') as string
-
-  if (!doctorId) {
-    return { error: 'Doctor ID is required.' }
-  }
-
-  // If user is not logged in, allow instant preview success
   if (!user) {
-    return { success: true, isPreview: true }
+    return { error: 'Please sign in to book this appointment.' }
   }
+
+  const doctorId = String(formData.get('doctor_id') || '')
+  const scheduleId = String(formData.get('schedule_id') || '')
+  if (!doctorId || !scheduleId) {
+    return { error: 'Please choose an available time slot.' }
+  }
+
+  const detailsError = await savePatientBasics(supabase, user.id, formData)
+  if (detailsError) return { error: detailsError }
 
   try {
-    const { createAdminClient } = await import('@/lib/supabase/admin')
-    const adminClient = createAdminClient()
+    const admin = createAdminClient()
 
-    let scheduleId: string | null = explicitScheduleId || null
-
-    if (scheduleId) {
-      // Mark the selected hospital-generated slot as booked
-      await adminClient.from('schedules').update({ is_booked: true }).eq('id', scheduleId)
-    } else {
-      // Find unbooked schedule or create if none exists
-      const { data: existingSchedule } = await adminClient
-        .from('schedules')
-        .select('id')
-        .eq('doctor_id', doctorId)
-        .eq('is_booked', false)
-        .order('start_time', { ascending: true })
-        .limit(1)
-        .maybeSingle()
-
-      if (existingSchedule) {
-        scheduleId = existingSchedule.id
-        await adminClient.from('schedules').update({ is_booked: true }).eq('id', scheduleId)
-      } else {
-        const datePart = appointmentDate || new Date().toISOString().split('T')[0]
-        const startTime = new Date(`${datePart}T10:00:00Z`).toISOString()
-        const endTime = new Date(`${datePart}T10:30:00Z`).toISOString()
-        const { data: newSchedule } = await adminClient
-          .from('schedules')
-          .insert({
-            doctor_id: doctorId,
-            start_time: startTime,
-            end_time: endTime,
-            is_booked: true,
-          })
-          .select('id')
-          .maybeSingle()
-
-        if (newSchedule) {
-          scheduleId = newSchedule.id
-        }
-      }
+    const { data: doctor } = await admin
+      .from('doctors')
+      .select('id, hospital_id, consultation_fee')
+      .eq('id', doctorId)
+      .maybeSingle()
+    if (!doctor) return { error: 'This doctor is no longer available for booking.' }
+    if (!Number(doctor.consultation_fee)) {
+      return { error: "This doctor's consultation fee hasn't been set yet, so they can't be booked online." }
     }
 
-    let resolvedHospitalId = hospitalId
-    if (!resolvedHospitalId) {
-      const { data: docData } = await adminClient
-        .from('doctors')
-        .select('hospital_id')
-        .eq('id', doctorId)
-        .maybeSingle()
-      if (docData?.hospital_id) {
-        resolvedHospitalId = docData.hospital_id
-      }
+    // Claim the slot only while it is still free and in the future, so two patients can't book the same time.
+    const { data: claimed, error: claimError } = await admin
+      .from('schedules')
+      .update({ is_booked: true })
+      .eq('id', scheduleId)
+      .eq('doctor_id', doctorId)
+      .eq('is_booked', false)
+      .gt('start_time', new Date().toISOString())
+      .select('id')
+    if (claimError || !claimed || claimed.length === 0) {
+      return { error: 'That time slot was just taken. Please pick another one.' }
     }
 
-    const { data: appointment, error: aptError } = await adminClient
+    const { data: appointment, error: aptError } = await admin
       .from('appointments')
       .insert({
         patient_id: user.id,
         doctor_id: doctorId,
-        hospital_id: resolvedHospitalId || null,
+        hospital_id: doctor.hospital_id ?? null,
         schedule_id: scheduleId,
         status: 'pending_payment',
       })
       .select('id')
-      .maybeSingle()
+      .single()
 
     if (aptError || !appointment) {
       console.error('Error finalizing appointment:', aptError)
-      return { error: 'Failed to create appointment in database.' }
+      await admin.from('schedules').update({ is_booked: false }).eq('id', scheduleId)
+      return { error: 'Could not create the appointment. Please try again.' }
     }
 
-    return { success: true, appointmentId: appointment.id, isPreview: false }
-  } catch (err: any) {
+    return { success: true, appointmentId: appointment.id as string }
+  } catch (err) {
     console.error('Error in finalizeConsultationAppointment:', err)
-    return { error: err.message || 'An unexpected error occurred.' }
+    return { error: 'An unexpected error occurred. Please try again.' }
   }
 }
 
-export async function dispatchDiagnosticReportAction(
-  bookingId: string,
-  details?: { reportFileName?: string; smsPhone?: string; token?: string }
-) {
-  try {
-    const { createAdminClient } = await import('@/lib/supabase/admin')
-    const adminClient = createAdminClient()
-    if (bookingId && !bookingId.startsWith('mock-') && !bookingId.startsWith('CYD-')) {
-      await adminClient
-        .from('diagnostic_bookings')
-        .update({ status: 'report_sent' })
-        .eq('id', bookingId)
-    }
-    return { success: true }
-  } catch (err: any) {
-    console.error('Error dispatching diagnostic report:', err)
-    return { success: true }
-  }
-}

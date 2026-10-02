@@ -1,144 +1,87 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
-import {
-  FinalizeBookingClient,
-  BookingDoctor,
-  InitialPatientData,
-} from "@/components/FinalizeBookingClient";
-import { finalizeConsultationAppointment } from "@/app/actions/booking";
+import { FinalizeBookingClient, type BookingDoctor, type BookingSlot } from "@/components/FinalizeBookingClient";
+import { currentTime, loadPatientDefaults, one } from "@/components/patient/data";
+import { doctorName } from "@/components/patient/format";
 
 interface BookDoctorPageProps {
   params: Promise<{ doctorId: string }>;
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export async function generateMetadata({
-  params,
-}: BookDoctorPageProps): Promise<Metadata> {
+const DOCTOR_FIELDS = `
+  id, specialty, experience_years, consultation_fee, image_url, bio, qualifications,
+  profiles!doctors_profile_id_fkey ( full_name ),
+  hospitals ( id, name, city, address )
+`;
+
+type DoctorRow = {
+  id: string;
+  specialty: string | null;
+  experience_years: number | null;
+  consultation_fee: number | null;
+  image_url: string | null;
+  bio: string | null;
+  qualifications: string | null;
+  profiles: { full_name: string | null } | { full_name: string | null }[] | null;
+  hospitals: BookingDoctor["hospital"] | NonNullable<BookingDoctor["hospital"]>[];
+};
+
+export async function generateMetadata({ params }: BookDoctorPageProps): Promise<Metadata> {
   const { doctorId } = await params;
   const supabase = await createClient();
-
-  const { data: doctor } = await supabase
-    .from("doctors")
-    .select("profiles!doctors_profile_id_fkey(full_name)")
-    .eq("id", doctorId)
-    .maybeSingle();
-
-  const doctorProfile = doctor?.profiles as { full_name?: string } | null;
-  const doctorName = doctorProfile?.full_name || "Specialist";
-
+  const { data } = await supabase.from("doctors").select("profiles!doctors_profile_id_fkey ( full_name )").eq("id", doctorId).maybeSingle();
+  const name = doctorName(one((data as { profiles: { full_name: string | null } | null } | null)?.profiles)?.full_name);
   return {
-    title: `Book Consultation with ${doctorName} | Consult Your Doctor`,
-    description: `Finalize consultation and secure appointment with ${doctorName}. ABDM M3 verified, instant confirmation.`,
+    title: `Book a Consultation with ${name} | Consult Your Doctor`,
+    description: `Choose an open slot and book an in-person consultation with ${name}.`,
   };
 }
 
-export default async function BookDoctorPage({
-  params,
-  searchParams,
-}: BookDoctorPageProps) {
+export default async function BookDoctorPage({ params }: BookDoctorPageProps) {
   const { doctorId } = await params;
-  const sParams = await searchParams;
-  const isPreview = sParams?.preview === "patient";
-
   const supabase = await createClient();
+  const now = currentTime();
 
-  // Fetch doctor data with profile and hospital relations
-  const { data: doctor } = await supabase
-    .from("doctors")
-    .select(`
-      id,
-      specialty,
-      experience_years,
-      consultation_fee,
-      image_url,
-      bio,
-      qualifications,
-      profiles!doctors_profile_id_fkey(full_name, email),
-      hospitals(id, name, city, address, image_url)
-    `)
-    .eq("id", doctorId)
-    .maybeSingle();
+  const [{ data: row }, { data: schedules }, patient] = await Promise.all([
+    supabase.from("doctors").select(DOCTOR_FIELDS).eq("id", doctorId).maybeSingle(),
+    supabase
+      .from("schedules")
+      .select("id, start_time, is_booked")
+      .eq("doctor_id", doctorId)
+      .gt("start_time", new Date(now).toISOString())
+      .lt("start_time", new Date(now + 60 * 86_400_000).toISOString())
+      .order("start_time", { ascending: true }),
+    loadPatientDefaults(supabase),
+  ]);
 
-  if (!doctor && !isPreview) {
-    notFound();
-  }
+  if (!row) notFound();
+  const d = row as unknown as DoctorRow;
 
-  // Fallback doctor object if preview mode or doctor not found
-  const doctorData: BookingDoctor = (doctor as unknown as BookingDoctor) || {
-    id: doctorId,
-    specialty: "Senior Cardiologist",
-    experience_years: 14,
-    consultation_fee: 150,
-    image_url: null,
-    bio: "Specialist in Preventive Cardiology & Arrhythmia Disorders",
-    qualifications: "MD, FACC",
-    profiles: {
-      full_name: "Dr. Sarah Jenkins, MD, FACC",
-      email: "sarah.jenkins@hospital.org",
-    },
-    hospitals: {
-      id: "hospital-default",
-      name: "City of Hope Medical Center",
-      city: "New Delhi",
-      address: "Pavilion 4, Suite 302",
-      image_url: null,
-    },
+  const doctor: BookingDoctor = {
+    id: d.id,
+    name: one(d.profiles)?.full_name ?? null,
+    specialty: d.specialty,
+    qualifications: d.qualifications,
+    bio: d.bio,
+    experience: d.experience_years,
+    fee: d.consultation_fee,
+    image: d.image_url,
+    hospital: one(d.hospitals),
   };
 
-  // Fetch upcoming schedules for doctor from start of today onwards
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-
-  const { data: schedules } = await supabase
-    .from("schedules")
-    .select("id, start_time, end_time, is_booked")
-    .eq("doctor_id", doctorId)
-    .gte("start_time", todayStart.toISOString())
-    .order("start_time", { ascending: true });
-
-  if (schedules) {
-    doctorData.schedules = schedules;
-  }
-
-  // Fetch current user / patient details
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  let initialPatient: InitialPatientData = {
-    full_name: "",
-    age: "",
-    gender: "Male",
-    phone: "",
-    email: "",
-  };
-
-  if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("full_name, email, phone, age, gender")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (profile) {
-      initialPatient = {
-        full_name: profile.full_name || "",
-        age: profile.age || "",
-        gender: profile.gender || "Male",
-        phone: profile.phone || "",
-        email: profile.email || user.email || "",
-      };
-    }
-  }
+  const slots: BookingSlot[] = ((schedules ?? []) as { id: string; start_time: string; is_booked: boolean }[]).map((s) => ({
+    id: s.id,
+    start: s.start_time,
+    booked: s.is_booked,
+  }));
 
   return (
     <FinalizeBookingClient
-      doctor={doctorData}
-      initialPatient={initialPatient}
-      isUserLoggedIn={!!user}
-      createAppointmentAction={finalizeConsultationAppointment}
+      doctor={doctor}
+      slots={slots}
+      patient={patient}
+      now={now}
       payuKey={process.env.PAYU_MERCHANT_KEY || "99eKD4"}
     />
   );

@@ -259,12 +259,15 @@ export async function updateDoctorDetails(formData: FormData) {
   
   if (!doctorId || !profileId) return { error: 'Missing IDs' }
 
-  // Verify authorization for hospital admins
+  // Hospital admins may only edit their own hospital's doctors: the login being changed must be that doctor's
+  // (otherwise any account's password could be reset), and they can't move a doctor to another hospital.
   if (profile.role === 'hospital_admin') {
-    const { data: doctor } = await supabase.from('doctors').select('hospital_id').eq('id', doctorId).single()
-    if (doctor?.hospital_id !== profile.hospital_id) {
+    const { data: doctor } = await supabase.from('doctors').select('hospital_id, profile_id').eq('id', doctorId).single()
+    if (!doctor || doctor.hospital_id !== profile.hospital_id || doctor.profile_id !== profileId) {
       return { error: 'Doctor not found in your hospital' }
     }
+    formData.delete('hospital_id')
+    formData.delete('staff_id')
   }
 
   const phone = formData.get('phone') as string

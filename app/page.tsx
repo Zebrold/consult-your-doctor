@@ -3,7 +3,9 @@ import Link from "next/link";
 import { ArrowRight, Bot, BriefcaseMedical, CircleCheck, Headset, Heart, HeartPulse, Pill, ShieldCheck, ShieldPlus, Stethoscope } from "lucide-react";
 import { BookConsultationForm } from "@/components/BookConsultationForm";
 import QuickSearch from '@/components/QuickSearch';
-import { PatientHome } from '@/components/PatientHome';
+import { PatientHome, type HomeDoctor, type HomeFacility } from '@/components/PatientHome';
+import { currentTime, loadAvailability, one } from '@/components/patient/data';
+import { pricedTests } from '@/lib/pricing';
 import { HomePhoneMockup } from '@/components/HomePhoneMockup';
 import { TrustedByPatients } from '@/components/TrustedByPatients';
 
@@ -55,159 +57,105 @@ export default async function Home(props: {
     isPreviewPatient;
 
   if (isPatient) {
-    // 1. Fetch real doctors from DB (limit to 7)
-    const { data: dbDoctors } = await supabase
-      .from('doctors')
-      .select(`
-        id,
-        specialty,
-        experience_years,
-        consultation_fee,
-        image_url,
-        profiles!doctors_profile_id_fkey ( full_name ),
-        hospitals ( id, name, city )
-      `)
-      .order('image_url', { ascending: false, nullsFirst: false })
-      .limit(7);
+    const now = currentTime();
 
-    // 2. Fetch real hospitals from DB including attending doctors count
-    const { data: dbHospitals } = await supabase
-      .from('hospitals')
-      .select(`
-        id,
-        name,
-        city,
-        address,
-        image_url,
-        status,
-        doctors ( id )
-      `)
-      .eq('status', 'active')
-      .order('image_url', { ascending: false, nullsFirst: false })
-      .limit(7);
+    const [{ data: dbDoctors }, { data: dbHospitals }, { data: dbLabs }, availability, { data: myVisits }] = await Promise.all([
+      supabase
+        .from('doctors')
+        .select(`
+          id, specialty, experience_years, consultation_fee, image_url,
+          profiles!doctors_profile_id_fkey ( full_name ),
+          hospitals ( id, name, city )
+        `)
+        .limit(500),
+      supabase
+        .from('hospitals')
+        .select('id, name, city, address, image_url, doctors ( id )')
+        .eq('status', 'active')
+        .order('image_url', { ascending: false, nullsFirst: false }),
+      supabase
+        .from('diagnostic_centers')
+        .select('id, name, city, address, image_url, test_prices')
+        .eq('status', 'active')
+        .order('image_url', { ascending: false, nullsFirst: false }),
+      loadAvailability(supabase, now),
+      user
+        ? supabase
+            .from('appointments')
+            .select('id, status, schedules ( start_time ), doctors ( specialty, profiles!doctors_profile_id_fkey ( full_name ) )')
+            .eq('patient_id', user.id)
+            .in('status', ['confirmed', 'pending_payment'])
+        : Promise.resolve({ data: [] }),
+    ]);
 
-    // 3. Fetch real diagnostic centers from DB including available tests
-    const { data: dbDiagnostics } = await supabase
-      .from('diagnostic_centers')
-      .select('id, name, city, address, image_url, status, available_tests')
-      .eq('status', 'active')
-      .order('image_url', { ascending: false, nullsFirst: false })
-      .limit(3);
-
-    // 4. Fetch all doctor specialties to compute dynamic doctor counts
-    const { data: allDoctorSpecialties } = await supabase
-      .from('doctors')
-      .select('specialty');
-
-    const specialtyCounts: Record<string, number> = {};
-    allDoctorSpecialties?.forEach((d) => {
-      if (d.specialty) {
-        specialtyCounts[d.specialty] = (specialtyCounts[d.specialty] || 0) + 1;
-      }
-    });
-
-    const badges = ["Today 2:30 PM", "Tomorrow", "Today 4:00 PM", "Video Now"];
-    const badgeIcons = ["bolt", "calendar_today", "bolt", "videocam"];
-
-    // Format 6-7 doctors strictly using DB images (null if not uploaded)
-    const formattedDoctors = (dbDoctors || []).slice(0, 7).map((doc: any, i: number) => ({
-      id: doc.id,
-      name: doc.profiles?.full_name || "Specialist Doctor",
-      specialty: doc.specialty || "Senior Clinician",
-      hospital: `${doc.hospitals?.name || "Premier Healthcare Network"}${doc.hospitals?.city ? ` • ${doc.hospitals.city}` : ""} • ${doc.experience_years || 5} yrs exp`,
-      hospitalCity: doc.hospitals?.city,
-      experience_years: doc.experience_years || 5,
-      fee: doc.consultation_fee ? `₹${doc.consultation_fee}` : "₹500",
-      image: doc.image_url || null, // STRICTLY from DB
-      rating: (4.8 + ((i % 3) * 0.1)).toFixed(1),
-      reviews: String(90 + (i * 38)),
-      badge: badges[i % badges.length],
-      badgeIcon: badgeIcons[i % badgeIcons.length],
-      badgeColor: i % 2 === 0 ? "text-secondary" : "text-indigo-gray-900",
-    }));
-
-    const facilityBadges = [
-      { badge: "JCI Accredited", icon: "check_circle", color: "text-fresh-teal" },
-      { badge: "NABH Accredited", icon: "emergency", color: "text-soft-coral" },
-      { badge: "NABL Certified", icon: "biotech", color: "text-vibrant-blue" },
-    ];
-
-    // Combine hospitals and diagnostic centers up to 7 items with exact DB counts
-    const allFacilities = [
-      ...(dbHospitals || []).map((h: any) => ({
-        ...h,
-        type: "hospital" as const,
-        doctorCount: Array.isArray(h.doctors) ? h.doctors.length : 0,
-      })),
-      ...(dbDiagnostics || []).map((d: any) => ({
-        ...d,
-        type: "diagnostic" as const,
-        testCount: Array.isArray(d.available_tests) ? d.available_tests.length : 0,
-      })),
-    ].slice(0, 7);
-
-    const formattedFacilities = allFacilities.map((fac: any, i: number) => {
-      // Calculate exact count fetched from DB
-      const doctorCountText = fac.type === "diagnostic"
-        ? (fac.testCount > 0 ? `${fac.testCount} Available Tests` : "Diagnostic Hub")
-        : (fac.doctorCount === 1 ? "1 Attending Doctor" : `${fac.doctorCount} Attending Doctors`);
-
+    type DoctorRow = {
+      id: string; specialty: string | null; experience_years: number | null; consultation_fee: number | null; image_url: string | null;
+      profiles: { full_name: string | null } | { full_name: string | null }[] | null;
+      hospitals: { id: string; name: string; city: string | null } | { id: string; name: string; city: string | null }[] | null;
+    };
+    const doctors: HomeDoctor[] = ((dbDoctors ?? []) as DoctorRow[]).map((d) => {
+      const hospital = one(d.hospitals);
       return {
-        id: fac.id,
-        name: fac.name,
-        city: fac.city,
-        location: `${fac.city || "Metro Center"} • Open 24/7`,
-        rating: (4.8 + ((i % 2) * 0.1)).toFixed(1),
-        badge: facilityBadges[i % facilityBadges.length].badge,
-        badgeIcon: facilityBadges[i % facilityBadges.length].icon,
-        badgeColor: facilityBadges[i % facilityBadges.length].color,
-        doctors: doctorCountText, // FETCHED DIRECTLY FROM THE DB!
-        desc: fac.address
-          ? `Comprehensive inpatient, outpatient, and surgical wings located at ${fac.address}.`
-          : "Comprehensive inpatient, outpatient, and emergency surgery wings with dedicated clinical staff.",
-        image: fac.image_url || null, // STRICTLY from DB
-        type: fac.type,
+        id: d.id,
+        name: one(d.profiles)?.full_name ?? null,
+        specialty: d.specialty,
+        hospital: hospital?.name ?? null,
+        city: hospital?.city ?? null,
+        experience: d.experience_years,
+        fee: d.consultation_fee,
+        image: d.image_url,
+        nextSlot: availability[d.id]?.nextSlot ?? null,
+        openToday: availability[d.id]?.openToday ?? 0,
       };
     });
 
-    // Specialties meta mapping
-    const specialtyMetaList = [
-      { title: "Cardiology", desc: "Heart, circulation & lipids", icon: "favorite" },
-      { title: "Neurology", desc: "Brain, nerves & spine care", icon: "psychology" },
-      { title: "Pediatrics", desc: "Infant & youth healthcare", icon: "child_care" },
-      { title: "Ophthalmology", desc: "Vision, cornea & eye health", icon: "visibility" },
-      { title: "Orthopaedics", desc: "Bones, joints & ligaments", icon: "orthopedics" },
-      { title: "Dermatology", desc: "Skin, allergies & cosmetic", icon: "health_and_safety" },
-      { title: "General Medicine", desc: "Primary adult preventative care", icon: "medical_services" },
-      { title: "General Surgery", desc: "Minimally invasive & trauma", icon: "precision_manufacturing" },
+    // Real doctor counts per specialty, most-staffed first.
+    const specialtyCounts = new Map<string, number>();
+    for (const d of doctors) if (d.specialty) specialtyCounts.set(d.specialty, (specialtyCounts.get(d.specialty) ?? 0) + 1);
+    const specialties = Array.from(specialtyCounts, ([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+
+    // Doctors who can be booked soonest come first; photos break ties.
+    const recommended = doctors
+      .filter((d) => d.fee)
+      .sort((a, b) => (a.nextSlot ?? '￿').localeCompare(b.nextSlot ?? '￿') || Number(!!b.image) - Number(!!a.image))
+      .slice(0, 8);
+
+    type HospitalRow = { id: string; name: string; city: string | null; address: string | null; image_url: string | null; doctors: { id: string }[] | null };
+    type LabRow = { id: string; name: string; city: string | null; address: string | null; image_url: string | null; test_prices: Record<string, number> | null };
+    const hospitals = (dbHospitals ?? []) as HospitalRow[];
+    const labs = (dbLabs ?? []) as LabRow[];
+    const facilities: HomeFacility[] = [
+      ...hospitals.slice(0, labs.length ? 4 : 6).map((h) => ({
+        id: h.id, kind: 'hospital' as const, name: h.name, city: h.city, address: h.address, image: h.image_url, count: h.doctors?.length ?? 0,
+      })),
+      ...labs.slice(0, 2).map((l) => ({
+        id: l.id, kind: 'lab' as const, name: l.name, city: l.city, address: l.address, image: l.image_url, count: pricedTests(l.test_prices).length,
+      })),
     ];
 
-    const formattedSpecialties = specialtyMetaList.map((spec) => {
-      const count = specialtyCounts[spec.title] || (spec.title === "Orthopaedics" ? specialtyCounts["Orthopedics"] : 0) || (Math.floor(Math.random() * 30) + 40);
-      return {
-        ...spec,
-        count: `${count} Docs`,
-      };
-    });
+    const cities = Array.from(new Set([...hospitals, ...labs].map((f) => f.city).filter(Boolean) as string[])).sort();
 
-    // Extract all unique cities from hospitals and diagnostic centers
-    const dbCities = [
-      ...new Set([
-        ...(dbHospitals?.map((h) => h.city) || []),
-        ...(dbDiagnostics?.map((d) => d.city) || []),
-      ]),
-    ].filter(Boolean) as string[];
-
-    const citiesList = dbCities.length > 0 ? dbCities : ["Mumbai", "New Delhi", "Bengaluru", "Chennai"];
+    type VisitRow = {
+      status: string;
+      schedules: { start_time: string } | { start_time: string }[] | null;
+      doctors: { specialty: string | null; profiles: { full_name: string | null } | { full_name: string | null }[] | null } | { specialty: string | null; profiles: { full_name: string | null } | { full_name: string | null }[] | null }[] | null;
+    };
+    const nextVisit = ((myVisits ?? []) as VisitRow[])
+      .map((v) => ({ status: v.status, at: one(v.schedules)?.start_time ?? '', doctor: one(one(v.doctors)?.profiles)?.full_name ?? null }))
+      .filter((v) => v.at && Date.parse(v.at) > now)
+      .sort((a, b) => a.at.localeCompare(b.at))[0] ?? null;
 
     return (
       <PatientHome
-        user={user}
-        profile={profile}
-        doctors={formattedDoctors}
-        hospitals={formattedFacilities}
-        specialties={formattedSpecialties}
-        cities={citiesList}
+        name={profile?.full_name || user?.user_metadata?.full_name || null}
+        email={user?.email ?? null}
+        isSignedIn={!!user}
+        now={now}
+        nextVisit={nextVisit}
+        doctors={recommended}
+        specialties={specialties}
+        facilities={facilities}
+        cities={cities}
       />
     );
   }

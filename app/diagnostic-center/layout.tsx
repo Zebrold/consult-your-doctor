@@ -1,63 +1,43 @@
-import { Metadata } from 'next'
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { DiagnosticPortalNav } from '@/components/DiagnosticPortalNav'
+import type { Metadata } from 'next'
+import { Building2, LogOut } from 'lucide-react'
+import { PortalDock, PortalMobileHeader } from '@/components/portal/PortalNav'
+import { requireLab } from './_lib/lab'
 
 export const metadata: Metadata = {
-  title: 'Diagnostic Center Hub | Consult Your Doctor',
-  description: 'Real-time telemetry, automated digital dispatch, and diagnostic triage stream.',
+  title: 'Diagnostic Center Portal',
 }
 
-export default async function DiagnosticLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+export default async function DiagnosticCenterLayout({ children }: { children: React.ReactNode }) {
+  const { lab, staff } = await requireLab()
 
-  const adminSupabase = createAdminClient()
-  let center: any = null
-  let profile: any = null
-
-  if (user) {
-    const { data: userProfile } = await adminSupabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    if (userProfile?.diagnostic_center_id) {
-      profile = userProfile
-      const { data: c } = await adminSupabase
-        .from('diagnostic_centers')
-        .select('*')
-        .eq('id', userProfile.diagnostic_center_id)
-        .maybeSingle()
-      if (c) center = c
-    }
+  if (!lab) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-surface-container-lowest rounded-2xl shadow-sm p-8 text-center flex flex-col items-center gap-4">
+          <span className="w-14 h-14 rounded-2xl bg-primary-fixed text-primary flex items-center justify-center">
+            <Building2 className="w-7 h-7" />
+          </span>
+          <h1 className="font-title-md text-title-md font-bold text-indigo-gray-900">Your account isn’t linked to a center yet</h1>
+          <p className="text-sm text-indigo-gray-600">
+            Signed in as {staff.email ?? staff.name}. Ask the Consult Your Doctor team to link this login to your diagnostic center, then sign in again.
+          </p>
+          <form action="/auth/signout" method="post">
+            <button type="submit" className="px-5 py-2.5 rounded-full bg-surface-container text-indigo-gray-900 text-sm font-semibold flex items-center gap-2 hover:bg-surface-container-high">
+              <LogOut className="w-4 h-4" /> Sign out
+            </button>
+          </form>
+        </div>
+      </div>
+    )
   }
-
-  // Fallback to active DB center for instant preview or demo review
-  if (!center) {
-    const { data: firstCenter } = await adminSupabase
-      .from('diagnostic_centers')
-      .select('*')
-      .eq('status', 'active')
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle()
-
-    center = firstCenter
-  }
-
-  const directorName = profile?.full_name || 'Dr. Katherine Vance'
-  const centerName = center?.name || 'Apex Diagnostics & Imaging'
-  const centerCity = center?.city || 'Main Pathology & Radiology Lab'
 
   return (
-    <DiagnosticPortalNav
-      centerName={centerName}
-      centerCity={centerCity}
-      directorName={directorName}
-    >
-      {children}
-    </DiagnosticPortalNav>
+    <div className="min-h-screen bg-background text-on-surface antialiased">
+      <PortalMobileHeader portal="lab" name={lab.name} subtitle="Diagnostic center" image={lab.image} profileHref="/diagnostic-center/profile" />
+      <main className="w-full max-w-[1440px] mx-auto px-4 lg:px-margin-x-desktop pt-4 md:pt-6 pb-28 md:pb-32 flex flex-col gap-4 md:gap-stack-md">
+        {children}
+      </main>
+      <PortalDock portal="lab" />
+    </div>
   )
 }

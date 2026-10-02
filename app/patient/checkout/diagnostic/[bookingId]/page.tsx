@@ -4,6 +4,7 @@ import { Header } from '@/components/Header'
 import { CheckCircle2, AlertCircle, IndianRupee, MapPin, Calendar, Activity, Building2 } from 'lucide-react'
 import Link from 'next/link'
 import { PayUCheckoutForm } from '@/components/PayUCheckoutForm'
+import { DIAGNOSTIC_PLATFORM_FEE, matchBookedTests, sumPrices } from '@/lib/pricing'
 
 export default async function DiagnosticCheckoutPage({ params }: { params: Promise<{ bookingId: string }> }) {
   const { bookingId } = await params
@@ -55,19 +56,10 @@ export default async function DiagnosticCheckoutPage({ params }: { params: Promi
   const center: any = booking.diagnostic_centers
   const formattedDate = new Date(booking.preferred_date).toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
   
-  // Find price from the test_prices JSONB object
-  const testKey = booking.test_name.toLowerCase().replace(/ /g, '-')
-  let rawPrice = 0
-  if (center.test_prices) {
-    const matchingKey = Object.keys(center.test_prices).find(
-      key => key.toLowerCase().replace(/ /g, '-') === testKey
-    )
-    if (matchingKey) {
-      rawPrice = center.test_prices[matchingKey]
-    }
-  }
-  const testPrice = Number(rawPrice)
-  const platformFee = 29
+  // Price each booked test from the lab's price list (a booking can hold several tests)
+  const bookedTests = matchBookedTests(booking.test_name, center.test_prices)
+  const testPrice = bookedTests ? sumPrices(bookedTests) : 0
+  const platformFee = DIAGNOSTIC_PLATFORM_FEE
   const totalPayable = testPrice + platformFee
 
   return (
@@ -131,10 +123,12 @@ export default async function DiagnosticCheckoutPage({ params }: { params: Promi
               <h2 className="text-xl font-bold text-gray-900 mb-6 pb-4 border-b border-gray-100">Payment Summary</h2>
               
               <div className="flex-1 space-y-4">
-                <div className="flex justify-between items-center text-gray-600">
-                  <span className="capitalize">{booking.test_name} Fee</span>
-                  <span className="font-semibold text-gray-900">₹{testPrice}</span>
-                </div>
+                {(bookedTests ?? [{ name: booking.test_name, price: testPrice }]).map((test) => (
+                  <div key={test.name} className="flex justify-between items-center text-gray-600">
+                    <span className="capitalize">{test.name}</span>
+                    <span className="font-semibold text-gray-900">₹{test.price}</span>
+                  </div>
+                ))}
                 <div className="flex justify-between items-center text-gray-600">
                   <span>Platform Fee</span>
                   <span className="font-semibold text-gray-900">₹{platformFee}</span>

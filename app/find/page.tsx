@@ -1,94 +1,74 @@
 import { createClient } from "@/lib/supabase/server";
-import { FindCareClient, DoctorData } from "@/components/FindCareClient";
+import { FindCareClient, type FindDoctor } from "@/components/FindCareClient";
+import { currentTime, loadAvailability, one } from "@/components/patient/data";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Find Doctors & Specialists | Consult Your Doctor",
-  description: "Search and book verified specialists, view clinic locations on interactive map, and schedule consultations.",
+  description: "Search verified doctors by specialty and city, see their next open appointment slot, and book a visit.",
+};
+
+type DoctorRow = {
+  id: string;
+  specialty: string | null;
+  experience_years: number | null;
+  consultation_fee: number | null;
+  image_url: string | null;
+  qualifications: string | null;
+  profiles: { full_name: string | null } | { full_name: string | null }[] | null;
+  hospitals: FindDoctor["hospital"] | NonNullable<FindDoctor["hospital"]>[];
 };
 
 export default async function FindPage(props: {
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  const params = (await props.searchParams) ?? {};
+  const param = (key: string) => (typeof params[key] === "string" ? (params[key] as string) : "");
+
   const supabase = await createClient();
+  const now = currentTime();
 
-  // 1. Fetch doctors from DB
-  const { data: dbDoctors, error: docError } = await supabase
-    .from("doctors")
-    .select(`
-      id,
-      specialty,
-      experience_years,
-      consultation_fee,
-      image_url,
-      bio,
-      qualifications,
-      profiles!doctors_profile_id_fkey (
-        full_name,
-        email
-      ),
-      hospitals (
-        id,
-        name,
-        city,
-        address,
-        image_url
-      )
-    `)
-    .order("image_url", { ascending: false, nullsFirst: false });
+  const [{ data: dbDoctors, error }, availability, { data: { user } }] = await Promise.all([
+    supabase
+      .from("doctors")
+      .select(`
+        id, specialty, experience_years, consultation_fee, image_url, qualifications,
+        profiles!doctors_profile_id_fkey ( full_name ),
+        hospitals ( id, name, city, address )
+      `),
+    loadAvailability(supabase, now),
+    supabase.auth.getUser(),
+  ]);
 
-  if (docError) {
-    console.error("Error fetching doctors in /find:", docError);
+  if (error) {
+    console.error("Error fetching doctors in /find:", error);
   }
 
-  // 2. Fetch unique specialties from doctors
-  const { data: specData } = await supabase
-    .from("doctors")
-    .select("specialty");
+  let profileName: string | null = null;
+  if (user) {
+    const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+    profileName = profile?.full_name ?? user.user_metadata?.full_name ?? null;
+  }
 
-  const uniqueSpecialties = Array.from(
-    new Set(
-      (specData || [])
-        .map((d) => d.specialty)
-        .filter(Boolean)
-    )
-  );
-
-  // Default common specialties if list is short
-  const defaultSpecialties = [
-    "Cardiology",
-    "Neurology",
-    "Orthopaedics",
-    "Pediatrics",
-    "Ophthalmology",
-    "Dermatology",
-    "General Medicine",
-  ];
-  const allSpecialties = Array.from(
-    new Set([...uniqueSpecialties, ...defaultSpecialties])
-  );
-
-  // 3. Fetch unique cities from hospitals
-  const { data: hospitalCities } = await supabase
-    .from("hospitals")
-    .select("city")
-    .eq("status", "active");
-
-  const uniqueCities = Array.from(
-    new Set(
-      (hospitalCities || [])
-        .map((h) => h.city)
-        .filter(Boolean)
-    )
-  );
-
-  const initialDoctors: DoctorData[] = (dbDoctors as any[]) || [];
+  const doctors: FindDoctor[] = ((dbDoctors ?? []) as DoctorRow[]).map((d) => ({
+    id: d.id,
+    name: one(d.profiles)?.full_name ?? null,
+    specialty: d.specialty,
+    qualifications: d.qualifications,
+    experience: d.experience_years,
+    fee: d.consultation_fee,
+    image: d.image_url,
+    hospital: one(d.hospitals),
+    nextSlot: availability[d.id]?.nextSlot ?? null,
+    openToday: availability[d.id]?.openToday ?? 0,
+  }));
 
   return (
     <FindCareClient
-      initialDoctors={initialDoctors}
-      specialties={allSpecialties}
-      cities={uniqueCities.length > 0 ? uniqueCities : ["Mumbai", "New Delhi", "Bengaluru", "Chennai"]}
+      doctors={doctors}
+      now={now}
+      initial={{ q: param("q"), specialty: param("specialty"), city: param("city"), availableToday: param("available") === "today" }}
+      account={{ isSignedIn: !!user, name: profileName, email: user?.email ?? null }}
     />
   );
 }

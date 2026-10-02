@@ -47,7 +47,7 @@ export function SlotGeneratorForm({ doctorId, selectedDate }: { doctorId: string
     if (result.error) {
       setError(result.error)
     } else {
-      setSuccess(`Successfully generated ${result.count} slots!`)
+      setSuccess(`Published ${result.count} slots${result.skipped ? ` (${result.skipped} skipped: those times are already covered)` : ''}.`)
     }
     
     setIsPending(false)
@@ -56,51 +56,51 @@ export function SlotGeneratorForm({ doctorId, selectedDate }: { doctorId: string
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-200 font-medium">
+        <div className="p-3 bg-error-container text-on-error-container text-sm rounded-lg font-medium">
           {error}
         </div>
       )}
       {success && (
-        <div className="p-3 bg-green-50 text-green-700 text-sm rounded-lg border border-green-200 font-medium">
+        <div className="p-3 bg-secondary-container/60 text-on-secondary-container text-sm rounded-lg font-medium">
           {success}
         </div>
       )}
       
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">Start Date</label>
+          <label className="block font-label-sm text-label-sm text-indigo-gray-600 mb-1">Start Date</label>
           <input 
             type="date" 
             name="startDate" 
             required 
             defaultValue={selectedDate}
-            className="w-full border border-gray-200 rounded-xl p-2.5 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 bg-gray-50"
+            className="w-full rounded-lg p-2.5 bg-surface-container-low text-indigo-gray-900 outline-none focus:ring-2 focus:ring-vibrant-blue/30"
           />
         </div>
         <div>
-          <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">End Date</label>
+          <label className="block font-label-sm text-label-sm text-indigo-gray-600 mb-1">End Date</label>
           <input 
             type="date" 
             name="endDate" 
             required 
             defaultValue={selectedDate}
-            className="w-full border border-gray-200 rounded-xl p-2.5 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 bg-gray-50"
+            className="w-full rounded-lg p-2.5 bg-surface-container-low text-indigo-gray-900 outline-none focus:ring-2 focus:ring-vibrant-blue/30"
           />
         </div>
       </div>
 
       <div>
-        <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">Active Days</label>
+        <label className="block font-label-sm text-label-sm text-indigo-gray-600 mb-2">Active Days</label>
         <div className="flex flex-wrap gap-2">
           {DAYS.map(day => (
             <button
               key={day.value}
               type="button"
               onClick={() => toggleDay(day.value)}
-              className={`px-3 py-1.5 text-sm font-semibold rounded-lg border transition-colors ${
+              className={`px-3 py-1.5 text-sm font-semibold rounded-full border transition-colors ${
                 activeDays.includes(day.value) 
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
-                  : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                  ? 'bg-vibrant-blue border-vibrant-blue text-on-primary' 
+                  : 'bg-surface-container-low border-transparent text-indigo-gray-600 hover:bg-surface-container'
               }`}
             >
               {day.label}
@@ -111,33 +111,33 @@ export function SlotGeneratorForm({ doctorId, selectedDate }: { doctorId: string
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">Start Time</label>
+          <label className="block font-label-sm text-label-sm text-indigo-gray-600 mb-1">Start Time</label>
           <input 
             type="time" 
             name="startTime" 
             required 
             defaultValue="09:00"
-            className="w-full border border-gray-200 rounded-xl p-2.5 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 bg-gray-50"
+            className="w-full rounded-lg p-2.5 bg-surface-container-low text-indigo-gray-900 outline-none focus:ring-2 focus:ring-vibrant-blue/30"
           />
         </div>
         <div>
-          <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">End Time</label>
+          <label className="block font-label-sm text-label-sm text-indigo-gray-600 mb-1">End Time</label>
           <input 
             type="time" 
             name="endTime" 
             required 
             defaultValue="17:00"
-            className="w-full border border-gray-200 rounded-xl p-2.5 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 bg-gray-50"
+            className="w-full rounded-lg p-2.5 bg-surface-container-low text-indigo-gray-900 outline-none focus:ring-2 focus:ring-vibrant-blue/30"
           />
         </div>
       </div>
       
       <div>
-        <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">Slot Duration (Mins)</label>
+        <label className="block font-label-sm text-label-sm text-indigo-gray-600 mb-1">Slot Duration (Mins)</label>
         <select 
           name="duration" 
           defaultValue="15"
-          className="w-full border border-gray-200 rounded-xl p-2.5 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 bg-gray-50"
+          className="w-full rounded-lg p-2.5 bg-surface-container-low text-indigo-gray-900 outline-none focus:ring-2 focus:ring-vibrant-blue/30"
         >
           <option value="10">10 Minutes</option>
           <option value="15">15 Minutes</option>
@@ -152,9 +152,9 @@ export function SlotGeneratorForm({ doctorId, selectedDate }: { doctorId: string
         <button 
           type="submit" 
           disabled={isPending}
-          className="w-full py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition-colors disabled:opacity-50 flex justify-center items-center gap-2"
+          className="w-full py-3 bg-vibrant-blue hover:bg-primary text-on-primary font-bold rounded-full transition-colors disabled:opacity-50 flex justify-center items-center gap-2"
         >
-          {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Generate Slots'}
+          {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Publish Slots'}
         </button>
       </div>
     </form>

@@ -1,751 +1,472 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import {
+  ArrowRight, Building2, CalendarClock, CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin,
+  Microscope, Search, Stethoscope, UserRound, Zap, type LucideIcon,
+} from "lucide-react";
 import { PatientDock } from "@/components/PatientDock";
 import { PatientNavHeader } from "@/components/PatientNavHeader";
+import { doctorName, firstName, formatDayLabel, formatINR, formatSlot, formatTime, initials } from "@/components/patient/format";
+import { specialtyMeta } from "@/components/patient/specialties";
 
-export interface DoctorItem {
+export type HomeDoctor = {
   id: string;
-  name: string;
-  specialty: string;
-  hospital: string;
-  hospitalCity?: string;
-  experience_years?: number;
-  fee: string;
-  image?: string | null;
-  rating?: string;
-  reviews?: string;
-  badge?: string;
-  badgeIcon?: string;
-  badgeColor?: string;
-}
+  name: string | null;
+  specialty: string | null;
+  hospital: string | null;
+  city: string | null;
+  experience: number | null;
+  fee: number | null;
+  image: string | null;
+  nextSlot: string | null;
+  openToday: number;
+};
 
-export interface HospitalItem {
+export type HomeFacility = {
   id: string;
+  kind: "hospital" | "lab";
   name: string;
-  city?: string;
-  location: string;
-  rating: string;
-  badge: string;
-  badgeIcon: string;
-  badgeColor: string;
-  doctors: string;
-  desc: string;
-  image?: string | null;
-  type?: "hospital" | "diagnostic";
-}
-
-export interface SpecialtyItem {
-  title: string;
-  desc: string;
-  icon: string;
-  count: string;
-}
+  city: string | null;
+  address: string | null;
+  image: string | null;
+  /** Doctors at a hospital, or priced tests at a lab. */
+  count: number;
+};
 
 interface PatientHomeProps {
-  user?: any;
-  profile?: any;
-  doctors?: DoctorItem[];
-  hospitals?: HospitalItem[];
-  specialties?: SpecialtyItem[];
-  cities?: string[];
+  name: string | null;
+  email: string | null;
+  isSignedIn: boolean;
+  now: number;
+  nextVisit: { doctor: string | null; at: string; status: string } | null;
+  doctors: HomeDoctor[];
+  specialties: { name: string; count: number }[];
+  facilities: HomeFacility[];
+  cities: string[];
 }
 
-export function PatientHome({
-  user,
-  profile,
-  doctors = [],
-  hospitals = [],
-  specialties = [],
-  cities = [],
-}: PatientHomeProps) {
+const facilityHref = (f: HomeFacility) => (f.kind === "lab" ? `/book/diagnostic/${f.id}` : `/hospitals/${f.id}`);
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, specialties, facilities, cities }: PatientHomeProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const isPreview = searchParams.get("preview") === "patient";
-  const [searchQuery, setSearchQuery] = useState("");
-  const defaultCity = cities.length > 0 ? cities[0] : "All Locations";
-  const [selectedLocation, setSelectedLocation] = useState(defaultCity);
+  const [query, setQuery] = useState("");
+  const [city, setCity] = useState("");
+  const carousel = useRef<HTMLDivElement>(null);
 
-  const doctorCarouselRef = useRef<HTMLDivElement>(null);
-  const hospitalCarouselRef = useRef<HTMLDivElement>(null);
-
-  const fullName = profile?.full_name || user?.user_metadata?.full_name || "Patient";
-
-  const getInitials = (name: string) => {
-    const parts = name.trim().split(/\s+/);
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    }
-    return name.slice(0, 2).toUpperCase() || "PT";
-  };
-
-  const initials = getInitials(fullName);
-
-  const handleSearch = (e: React.FormEvent) => {
+  const search = (e: FormEvent) => {
     e.preventDefault();
     const params = new URLSearchParams();
-    params.set("type", "doctor");
-    if (searchQuery.trim()) params.set("q", searchQuery.trim());
-    if (selectedLocation && selectedLocation !== "All Locations") {
-      params.set("location", selectedLocation);
-    }
-    router.push(`/search?${params.toString()}`);
+    if (query.trim()) params.set("q", query.trim());
+    if (city) params.set("city", city);
+    router.push(`/find${params.size ? `?${params}` : ""}`);
   };
 
-  // Smooth infinite / cyclic scroll
-  const scrollCarousel = (
-    ref: React.RefObject<HTMLDivElement | null>,
-    direction: "left" | "right"
-  ) => {
-    if (!ref.current) return;
-    const container = ref.current;
-    const scrollAmount = 320;
-    const maxScroll = container.scrollWidth - container.clientWidth;
-
-    if (direction === "right") {
-      if (container.scrollLeft >= maxScroll - 20) {
-        container.scrollTo({ left: 0, behavior: "smooth" });
-      } else {
-        container.scrollBy({ left: scrollAmount, behavior: "smooth" });
-      }
-    } else {
-      if (container.scrollLeft <= 20) {
-        container.scrollTo({ left: maxScroll, behavior: "smooth" });
-      } else {
-        container.scrollBy({ left: -scrollAmount, behavior: "smooth" });
-      }
-    }
+  const scrollDoctors = (direction: 1 | -1) => {
+    const el = carousel.current;
+    if (!el) return;
+    const card = el.firstElementChild as HTMLElement | null;
+    const step = card ? card.offsetWidth + 24 : 320;
+    const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 8;
+    if (direction === 1 && atEnd) el.scrollTo({ left: 0, behavior: "smooth" });
+    else if (direction === -1 && el.scrollLeft <= 8) el.scrollTo({ left: el.scrollWidth, behavior: "smooth" });
+    else el.scrollBy({ left: direction * step, behavior: "smooth" });
   };
+
+  const visitLine = nextVisit
+    ? `${nextVisit.status === "pending_payment" ? "Awaiting payment: " : "Your next visit: "}${nextVisit.doctor ? doctorName(nextVisit.doctor) : "your doctor"}, ${formatSlot(nextVisit.at, now)}`
+    : "No upcoming visits. Find a doctor below and book in a few taps.";
 
   return (
-    <div className="bg-background font-body-md text-body-md text-on-surface antialiased min-h-screen">
-      {/* MOBILE COMPATIBLE PATIENT DASHBOARD (Block on mobile md:hidden, matching Screenshot 1) */}
-      <div className="block md:hidden">
-        <PatientNavHeader title="Home" user={user} profile={profile} />
+    <div className="bg-background text-on-surface antialiased min-h-screen">
+      <PatientNavHeader title="Home" name={name} email={email} isSignedIn={isSignedIn} />
 
-        <div className="px-5 pt-5 pb-28 space-y-7">
-          {/* Welcome & Specialist Heading */}
-          <div className="space-y-1">
-            <span className="font-bold text-[12px] text-primary uppercase tracking-wider block">
-              WELCOME BACK, {fullName.split(" ")[0].toUpperCase()}
-            </span>
-            <h2 className="font-headline-lg text-[26px] font-extrabold text-slate-900 tracking-tight leading-tight">
-              Find your specialist today
-            </h2>
-          </div>
+      <main className="w-full pb-28 md:pb-32">
+        {/* Hero, greeting & search */}
+        <section className="relative w-full overflow-hidden md:bg-gradient-to-b md:from-surface-container-low md:via-surface md:to-background px-margin-x-mobile lg:px-margin-x-desktop pt-2 md:pt-10 pb-10 md:pb-16">
+          <div aria-hidden className="hidden md:block absolute -top-24 right-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+          <div aria-hidden className="hidden md:block absolute top-1/2 -left-20 w-80 h-80 bg-secondary/10 rounded-full blur-3xl pointer-events-none" />
 
-          {/* Search Doctors Bar */}
-          <form
-            onSubmit={handleSearch}
-            className="relative flex items-center bg-white rounded-full p-1.5 shadow-sm border border-slate-200"
-          >
-            <div className="flex-1 flex items-center gap-2 pl-3">
-              <span className="material-symbols-outlined text-slate-400 text-[20px]">search</span>
-              <input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search doctors, condition"
-                className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
-              />
+          <div className="relative max-w-container-max mx-auto flex flex-col gap-stack-md md:gap-8">
+            {/* Desktop greeting */}
+            <div className="hidden md:flex items-center gap-3">
+              <span className="w-12 h-12 rounded-full bg-surface-container-lowest shadow-sm flex items-center justify-center text-primary font-headline-lg text-xl font-bold">
+                {name ? initials(name) : <UserRound className="w-6 h-6" />}
+              </span>
+              <div className="flex flex-col">
+                <span className="font-title-md text-title-md text-on-surface">{name ? `Welcome back, ${name}` : "Welcome to Consult Your Doctor"}</span>
+                <span className="font-body-md text-body-md text-indigo-gray-600">{isSignedIn ? visitLine : "Sign in to book appointments and lab tests."}</span>
+              </div>
             </div>
-            <button
-              type="submit"
-              className="bg-primary text-white font-semibold text-sm px-6 py-2 rounded-full hover:bg-blue-600 transition-colors shrink-0 shadow-xs cursor-pointer"
+
+            <div className="flex flex-col gap-2 md:gap-4 md:pt-2">
+              <span className="font-label-sm text-label-sm uppercase tracking-wider text-primary md:text-vibrant-blue font-bold">
+                <span className="md:hidden">{name ? `Welcome back, ${firstName(name)}` : "Welcome"}</span>
+                <span className="hidden md:inline">Verified Doctors &amp; Partner Labs</span>
+              </span>
+              <h1 className="font-headline-lg-mobile text-headline-lg-mobile md:font-display-lg md:text-display-lg text-on-surface tracking-tight md:leading-[1.08]">
+                <span className="md:hidden">Find your specialist today</span>
+                <span className="hidden md:inline">Find Your Specialist Today &amp; Book Instant Consultations</span>
+              </h1>
+              <p className="hidden md:block font-body-lg text-body-lg text-indigo-gray-600 max-w-2xl">
+                Search verified doctors, partner hospitals and diagnostic labs, see their real open slots, and book in a few taps.
+              </p>
+            </div>
+
+            {/* Mobile next-visit note */}
+            {isSignedIn && nextVisit && (
+              <Link href="/patient/appointments" className="md:hidden flex items-center gap-3 p-3.5 rounded-xl bg-surface-container-lowest shadow-[0_4px_20px_rgb(0,80,203,0.05)]">
+                <span className="w-10 h-10 rounded-full bg-primary-fixed text-primary flex items-center justify-center shrink-0">
+                  <CalendarClock className="w-5 h-5" />
+                </span>
+                <span className="text-sm text-on-surface leading-snug">{visitLine}</span>
+              </Link>
+            )}
+
+            <form
+              onSubmit={search}
+              className="w-full bg-surface-container-lowest p-2 md:p-3 lg:p-4 rounded-full md:rounded-3xl lg:rounded-full shadow-[0_8px_30px_rgb(0,80,203,0.06)] md:shadow-xl flex items-center md:flex-col lg:flex-row md:items-stretch lg:items-center gap-2"
             >
-              Search
-            </button>
-          </form>
+              <label className="flex-1 w-full flex items-center gap-3 pl-3 md:px-4 md:py-2 min-w-0">
+                <Search className="w-5 h-5 md:w-6 md:h-6 text-outline md:text-vibrant-blue shrink-0" />
+                <span className="sr-only">Search doctors</span>
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="w-full min-w-0 bg-transparent font-body-md text-body-md text-on-surface placeholder:text-outline focus:outline-none"
+                  placeholder="Search doctors, specialties or hospitals..."
+                  type="text"
+                />
+              </label>
+              <div className="hidden lg:block h-8 w-px bg-surface-variant" />
+              <label className="hidden md:flex w-full lg:w-72 items-center gap-3 px-4 py-2">
+                <MapPin className="w-[22px] h-[22px] text-fresh-teal shrink-0" />
+                <span className="sr-only">City</span>
+                <select
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  className="w-full bg-transparent font-body-md text-body-md text-on-surface focus:outline-none cursor-pointer"
+                >
+                  <option value="">All cities</option>
+                  {cities.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="submit"
+                className="shrink-0 px-6 md:px-8 py-3 md:py-3.5 rounded-full bg-primary md:bg-vibrant-blue text-on-primary font-label-sm md:font-title-md text-sm md:text-body-lg font-bold shadow-md hover:scale-[1.02] md:hover:scale-100 md:hover:opacity-95 transition-all flex items-center justify-center gap-2"
+              >
+                <span className="md:hidden">Search</span>
+                <span className="hidden md:inline">Search Doctors</span>
+                <ArrowRight className="hidden md:block w-5 h-5" />
+              </button>
+            </form>
 
-          {/* Popular Specialties */}
-          <div className="space-y-3.5">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-[17px] text-slate-900">Popular Specialties</h3>
-              <Link
-                href={isPreview ? "/find?preview=patient" : "/find"}
-                className="text-xs font-semibold text-primary hover:underline"
-              >
-                See All
-              </Link>
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              <Link
-                href="/find?specialty=Cardiology"
-                className="flex flex-col items-center gap-2 p-2.5 rounded-2xl bg-white border border-slate-100 shadow-xs hover:border-primary/40 transition-all"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#dbeafe] flex items-center justify-center text-primary">
-                  <span
-                    className="material-symbols-outlined text-[24px]"
-                    style={{ fontVariationSettings: "'FILL' 1" }}
-                  >
-                    favorite
-                  </span>
-                </div>
-                <span className="text-[12px] font-semibold text-slate-800 text-center leading-tight">
-                  Cardiology
-                </span>
-              </Link>
-
-              <Link
-                href="/find?specialty=Neurology"
-                className="flex flex-col items-center gap-2 p-2.5 rounded-2xl bg-white border border-slate-100 shadow-xs hover:border-primary/40 transition-all"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#a7f3d0] flex items-center justify-center text-teal-800">
-                  <span
-                    className="material-symbols-outlined text-[24px]"
-                    style={{ fontVariationSettings: "'FILL' 1" }}
-                  >
-                    psychology
-                  </span>
-                </div>
-                <span className="text-[12px] font-semibold text-slate-800 text-center leading-tight">
-                  Neurology
-                </span>
-              </Link>
-
-              <Link
-                href="/find?specialty=Pediatrics"
-                className="flex flex-col items-center gap-2 p-2.5 rounded-2xl bg-white border border-slate-100 shadow-xs hover:border-primary/40 transition-all"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#fed7aa] flex items-center justify-center text-orange-800">
-                  <span
-                    className="material-symbols-outlined text-[24px]"
-                    style={{ fontVariationSettings: "'FILL' 1" }}
-                  >
-                    child_care
-                  </span>
-                </div>
-                <span className="text-[12px] font-semibold text-slate-800 text-center leading-tight">
-                  Pediatrics
-                </span>
-              </Link>
-
-              <Link
-                href="/find?specialty=Ophthalmology"
-                className="flex flex-col items-center gap-2 p-2.5 rounded-2xl bg-white border border-slate-100 shadow-xs hover:border-primary/40 transition-all"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#e0e7ff] flex items-center justify-center text-indigo-700">
-                  <span
-                    className="material-symbols-outlined text-[24px]"
-                    style={{ fontVariationSettings: "'FILL' 1" }}
-                  >
-                    visibility
-                  </span>
-                </div>
-                <span className="text-[12px] font-semibold text-slate-800 text-center leading-tight">
-                  Eye Care
-                </span>
-              </Link>
+            <div className="hidden md:flex flex-wrap items-center gap-2 pt-1">
+              <span className="font-label-sm text-label-sm text-indigo-gray-600 mr-2">Quick Filters:</span>
+              <QuickFilter href="/find?available=today" icon={Zap}>Available today</QuickFilter>
+              <QuickFilter href="#care-network" icon={Microscope}>Lab tests</QuickFilter>
+              <QuickFilter href="/hospitals" icon={Building2}>Hospitals</QuickFilter>
             </div>
           </div>
+        </section>
 
-          {/* Top-Rated Doctors */}
-          <div className="space-y-3.5">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-[17px] text-slate-900">Top-Rated Doctors</h3>
-              <Link
-                href={isPreview ? "/find?preview=patient" : "/find"}
-                className="text-xs font-semibold text-primary hover:underline"
-              >
-                View All
-              </Link>
-            </div>
+        {/* Popular specialties */}
+        {specialties.length > 0 && (
+          <section className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-10 md:py-14">
+            <div className="max-w-container-max mx-auto">
+              <div className="flex items-center md:items-end justify-between gap-4 mb-stack-sm md:mb-8">
+                <div>
+                  <span className="hidden md:block font-label-sm text-label-sm uppercase tracking-wider text-vibrant-blue font-bold">Clinical Domains</span>
+                  <h2 className="font-title-md text-title-md md:font-headline-lg md:text-headline-lg text-on-surface tracking-tight md:mt-1">
+                    <span className="md:hidden">Popular Specialties</span>
+                    <span className="hidden md:inline">Explore Popular Specialties</span>
+                  </h2>
+                </div>
+                <Link href="/find" className="group flex items-center gap-1.5 text-label-sm md:font-body-md md:text-body-md font-semibold text-primary md:text-vibrant-blue hover:text-primary shrink-0">
+                  <span className="md:hidden">See All</span>
+                  <span className="hidden md:inline">View All {specialties.length} {specialties.length === 1 ? "Specialty" : "Specialties"}</span>
+                  <ArrowRight className="hidden md:block w-[18px] h-[18px] group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </div>
 
-            <div className="space-y-3">
-              {doctors.slice(0, 3).map((doc, idx) => (
-                <Link
-                  key={doc.id}
-                  href={`/doctors/${doc.id}`}
-                  className="block p-4 rounded-2xl bg-white border border-slate-100 shadow-xs hover:shadow-md transition-all"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="font-bold text-[16px] text-slate-900 leading-tight">
-                        {doc.name}
-                      </h4>
-                      <p className="text-[13px] text-slate-500 mt-0.5">{doc.specialty}</p>
-                    </div>
-                    <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-800 text-xs font-bold shrink-0">
-                      <span className="text-amber-500">★</span>
-                      <span>{doc.rating || "4.9"}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 mt-3 text-xs">
-                    <span
-                      className={`px-2.5 py-0.5 rounded-md font-semibold ${
-                        idx % 2 === 0
-                          ? "bg-teal-50 text-teal-700"
-                          : "bg-indigo-50 text-indigo-700"
-                      }`}
+              {/* Phone: compact scroller */}
+              <div className="md:hidden flex gap-4 overflow-x-auto pb-2 -mx-margin-x-mobile px-margin-x-mobile [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {specialties.slice(0, 10).map((s, i) => {
+                  const { icon: Icon } = specialtyMeta(s.name);
+                  const tint = ["bg-primary-fixed text-on-primary-fixed", "bg-secondary-fixed text-on-secondary-fixed", "bg-tertiary-fixed text-on-tertiary-fixed", "bg-surface-container-highest text-on-surface"][i % 4];
+                  return (
+                    <Link
+                      key={s.name}
+                      href={`/find?specialty=${encodeURIComponent(s.name)}`}
+                      className="flex flex-col items-center gap-2 min-w-[84px] p-3 rounded-xl bg-surface-container-lowest hover:bg-surface-container shadow-sm transition-colors"
                     >
-                      {idx % 2 === 0 ? "Available Today" : "Next Available: Tomorrow"}
-                    </span>
-                    <span className="text-slate-400">•</span>
-                    <span className="text-slate-500 font-medium">
-                      {doc.experience_years ? `${doc.experience_years} yrs exp` : "8 yrs exp"}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          {/* Featured Hospitals */}
-          <div className="space-y-3.5">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-[17px] text-slate-900">Featured Hospitals</h3>
-              <Link
-                href={isPreview ? "/find?preview=patient" : "/find"}
-                className="text-xs font-semibold text-primary hover:underline"
-              >
-                Explore All
-              </Link>
-            </div>
-
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x -mx-1 px-1">
-              {hospitals.slice(0, 4).map((h) => (
-                <Link
-                  key={h.id}
-                  href={
-                    h.type === "diagnostic"
-                      ? `/patient/checkout/diagnostic/${h.id}`
-                      : `/hospitals/${h.id}`
-                  }
-                  className="min-w-[210px] max-w-[230px] p-3.5 rounded-2xl bg-white border border-slate-100 shadow-xs hover:shadow-md transition-all shrink-0 snap-start flex flex-col justify-between"
-                >
-                  <div className="w-full h-24 rounded-xl bg-slate-100 overflow-hidden relative mb-2.5">
-                    {h.image ? (
-                      <img src={h.image} alt={h.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center text-primary">
-                        <span className="material-symbols-outlined text-[32px]">local_hospital</span>
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-sm text-slate-900 truncate">{h.name}</h4>
-                    <div className="flex items-center gap-1 text-slate-500 text-xs mt-1">
-                      <span className="material-symbols-outlined text-[14px]">location_on</span>
-                      <span className="truncate">{h.location || h.city || "Downtown Metro"}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] font-semibold mt-3 pt-2 border-t border-slate-50">
-                    <span className="text-fresh-teal">Open 24/7</span>
-                    <span className="text-primary">{h.doctors || "45 Doctors"}</span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* DESKTOP VIEW (Hidden on mobile md:block) */}
-      <main className="hidden md:block w-full bg-background min-h-[calc(100vh-20rem)] pb-28">
-        <div className="flex flex-col w-full">
-
-          {/* SECTION 1: HERO & SEARCH */}
-          <section className="relative w-full overflow-hidden bg-gradient-to-b from-surface-container-low via-surface to-background px-margin-x-mobile lg:px-margin-x-desktop pt-8 md:pt-10 pb-16">
-            <div className="absolute -top-24 right-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
-            <div className="absolute top-1/2 -left-20 w-80 h-80 bg-secondary/10 rounded-full blur-3xl pointer-events-none"></div>
-
-            <div className="relative max-w-container-max mx-auto flex flex-col gap-8">
-              {/* User Greeting Bar */}
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-surface-container-lowest shadow-sm flex items-center justify-center text-primary font-headline-lg text-headline-lg-mobile font-bold">
-                    {initials}
-                  </div>
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-2">
-                      <span className="font-title-md text-title-md text-on-surface">
-                        Welcome back, {fullName}
+                      <span className={`w-12 h-12 rounded-full flex items-center justify-center ${tint}`}>
+                        <Icon className="w-6 h-6" />
                       </span>
-                    </div>
-                    <span className="font-body-md text-body-md text-indigo-gray-600">
-                      Your health plan covers 100% of preventative teleconsults
-                    </span>
-                  </div>
-                </div>
+                      <span className="text-label-sm text-on-surface whitespace-nowrap">{s.name}</span>
+                    </Link>
+                  );
+                })}
               </div>
 
-              {/* Title & Headline (The Anchor Alignment Element) */}
-              <div className="flex flex-col gap-4 pt-2">
-                <span className="font-label-sm text-label-sm uppercase tracking-wider text-vibrant-blue font-bold">
-                  Accredited Clinical Network
-                </span>
-                <h1 className="font-display-lg text-display-lg text-on-surface tracking-tight leading-[1.08]">
-                  Find Your Specialist Today &amp; Book Instant Consultations
-                </h1>
-                <p className="font-body-lg text-body-lg text-indigo-gray-600 max-w-2xl">
-                  Connect with verified top-tier physicians, accredited hospital networks, and certified diagnostic centers in seconds with zero friction.
-                </p>
-              </div>
-
-              {/* Instant Search Bar */}
-              <form
-                onSubmit={handleSearch}
-                className="w-full bg-surface-container-lowest p-3 lg:p-4 rounded-3xl md:rounded-full shadow-xl flex flex-col md:flex-row items-center gap-2 border border-surface-variant"
-              >
-                <div className="flex-1 w-full flex items-center gap-3 px-4 py-2">
-                  <span className="material-symbols-outlined text-vibrant-blue text-[24px]">search</span>
-                  <input
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-transparent font-body-md text-body-md text-on-surface placeholder:text-outline focus:outline-none"
-                    placeholder="Specialty, condition, doctor name, or clinical procedure..."
-                    type="text"
-                  />
-                </div>
-                <div className="hidden md:block h-8 w-[1px] bg-surface-variant"></div>
-                <div className="w-full md:w-72 flex items-center gap-3 px-4 py-2">
-                  <span className="material-symbols-outlined text-fresh-teal text-[22px]">location_on</span>
-                  <select
-                    value={selectedLocation}
-                    onChange={(e) => setSelectedLocation(e.target.value)}
-                    className="w-full bg-transparent font-body-md text-body-md text-on-surface focus:outline-none cursor-pointer"
-                  >
-                    <option value="All Locations">All Locations</option>
-                    {cities.map((city) => (
-                      <option key={city} value={city}>
-                        {city}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <button
-                  className="w-full md:w-auto px-8 py-3.5 rounded-full bg-vibrant-blue text-on-primary font-title-md text-body-lg font-bold shadow-md hover:opacity-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  type="submit"
-                >
-                  <span>Search Doctors</span>
-                  <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
-                </button>
-              </form>
-
-              {/* Quick Filters */}
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <span className="font-label-sm text-label-sm text-indigo-gray-600 mr-2">Quick Filters:</span>
-                <Link
-                  href="/search?type=doctor&consultation=video"
-                  className="px-4 py-1.5 rounded-full bg-surface-container-lowest text-on-surface font-body-md text-body-md hover:bg-primary-container hover:text-on-primary-container transition-all flex items-center gap-1.5 shadow-sm"
-                >
-                  <span className="material-symbols-outlined text-[18px]">videocam</span>
-                  Video Consult
-                </Link>
-                <Link
-                  href="/search?type=doctor&consultation=in-person"
-                  className="px-4 py-1.5 rounded-full bg-surface-container-lowest text-on-surface font-body-md text-body-md hover:bg-primary-container hover:text-on-primary-container transition-all flex items-center gap-1.5 shadow-sm"
-                >
-                  <span className="material-symbols-outlined text-[18px]">person_pin_circle</span>
-                  In-Person Visit
-                </Link>
-                <Link
-                  href="/search?type=doctor&insurance=true"
-                  className="px-4 py-1.5 rounded-full bg-surface-container-lowest text-on-surface font-body-md text-body-md hover:bg-primary-container hover:text-on-primary-container transition-all flex items-center gap-1.5 shadow-sm"
-                >
-                  <span className="material-symbols-outlined text-[18px]">shield</span>
-                  Insurance Accepted
-                </Link>
+              {/* Tablet & desktop: cards */}
+              <div className="hidden md:grid grid-cols-3 lg:grid-cols-4 gap-4">
+                {specialties.slice(0, 8).map((s) => {
+                  const { icon: Icon, desc } = specialtyMeta(s.name);
+                  return (
+                    <Link
+                      key={s.name}
+                      href={`/find?specialty=${encodeURIComponent(s.name)}`}
+                      className="group p-5 rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md hover:bg-primary/5 transition-all flex flex-col justify-between h-44"
+                    >
+                      <div className="flex items-start justify-between">
+                        <span className="w-12 h-12 rounded-xl bg-surface-container-low text-primary flex items-center justify-center group-hover:bg-vibrant-blue group-hover:text-on-primary transition-colors">
+                          <Icon className="w-[26px] h-[26px]" />
+                        </span>
+                        <span className="px-2 py-1 rounded-full bg-surface-container text-indigo-gray-600 font-label-sm text-label-sm">{plural(s.count, "Doctor")}</span>
+                      </div>
+                      <div>
+                        <h3 className="font-title-md text-title-md text-on-surface font-bold group-hover:text-vibrant-blue transition-colors">{s.name}</h3>
+                        <p className="font-body-md text-body-md text-indigo-gray-600 mt-1 line-clamp-1">{desc}</p>
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           </section>
+        )}
 
-          {/* SECTION 2: EXPLORE POPULAR SPECIALTIES (Aligned with Main Heading) */}
-          <section className="w-full py-14 px-margin-x-mobile lg:px-margin-x-desktop">
-            <div className="max-w-container-max mx-auto flex flex-col">
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <span className="font-label-sm text-label-sm uppercase tracking-wider text-vibrant-blue font-bold">
-                    Clinical Domains
-                  </span>
-                  <h2 className="font-headline-lg text-headline-lg text-on-surface tracking-tight mt-1">
-                    Explore Popular Specialties
-                  </h2>
+        {/* Doctors */}
+        <section className="w-full md:bg-surface-container-low px-margin-x-mobile lg:px-margin-x-desktop pb-10 md:py-16">
+          <div className="max-w-container-max mx-auto flex flex-col gap-stack-sm md:gap-8">
+            <div className="flex items-center md:items-end justify-between gap-4">
+              <div>
+                <span className="hidden md:block font-label-sm text-label-sm uppercase tracking-wider text-vibrant-blue font-bold">Top Verified Clinicians</span>
+                <h2 className="font-title-md text-title-md md:font-headline-lg md:text-headline-lg text-on-surface tracking-tight md:mt-1">
+                  <span className="md:hidden">Available Doctors</span>
+                  <span className="hidden md:inline">Recommended Doctors For You</span>
+                </h2>
+                <p className="hidden md:block font-body-md text-body-md text-indigo-gray-600 mt-1">Verified doctors, sorted by their earliest open appointment slot.</p>
+              </div>
+              <Link href="/find" className="md:hidden text-label-sm text-primary font-semibold">View All</Link>
+              {doctors.length > 4 && (
+                <div className="hidden md:flex items-center gap-2">
+                  <CarouselButton label="Previous doctors" onClick={() => scrollDoctors(-1)}><ChevronLeft className="w-5 h-5" /></CarouselButton>
+                  <CarouselButton label="Next doctors" onClick={() => scrollDoctors(1)}><ChevronRight className="w-5 h-5" /></CarouselButton>
                 </div>
-                <Link
-                  className="group flex items-center gap-1.5 font-body-md text-body-md font-semibold text-vibrant-blue hover:text-primary transition-colors"
-                  href="/search?type=doctor"
-                >
-                  <span>View All {specialties.length > 8 ? specialties.length : 42} Specialties</span>
-                  <span className="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">
-                    arrow_forward
-                  </span>
-                </Link>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {specialties.map((spec) => (
-                  <Link
-                    key={spec.title}
-                    className="group p-5 rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md hover:bg-primary/5 transition-all flex flex-col justify-between h-44 border border-surface-variant/40"
-                    href={`/search?type=doctor&specialty=${encodeURIComponent(spec.title)}`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="w-12 h-12 rounded-xl bg-surface-container-low text-primary flex items-center justify-center group-hover:bg-vibrant-blue group-hover:text-on-primary transition-colors">
-                        <span className="material-symbols-outlined text-[26px]">{spec.icon}</span>
-                      </div>
-                      <span className="px-2 py-1 rounded-full bg-surface-container text-indigo-gray-600 font-label-sm text-label-sm">
-                        {spec.count}
-                      </span>
-                    </div>
-                    <div>
-                      <h3 className="font-title-md text-title-md text-on-surface font-bold group-hover:text-vibrant-blue transition-colors">
-                        {spec.title}
-                      </h3>
-                      <p className="font-body-md text-body-md text-indigo-gray-600 mt-1 line-clamp-1">
-                        {spec.desc}
-                      </p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
+              )}
             </div>
-          </section>
 
-          {/* SECTION 3: RECOMMENDED DOCTORS (1 Single Row + Infinite Arrows, Aligned with Main Heading) */}
-          <section className="w-full bg-surface-container-low py-16 px-margin-x-mobile lg:px-margin-x-desktop">
-            <div className="max-w-container-max mx-auto flex flex-col gap-8">
-              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                <div>
-                  <span className="font-label-sm text-label-sm uppercase tracking-wider text-vibrant-blue font-bold">
-                    Top Verified Clinicians
-                  </span>
-                  <h2 className="font-headline-lg text-headline-lg text-on-surface tracking-tight mt-1">
-                    Recommended Doctors For You
-                  </h2>
-                  <p className="font-body-md text-body-md text-indigo-gray-600 mt-1">
-                    Vetted practitioners with guaranteed clinical availability this week
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => scrollCarousel(doctorCarouselRef, "left")}
-                    className="w-10 h-10 rounded-full bg-surface-container-lowest flex items-center justify-center text-on-surface hover:bg-primary hover:text-on-primary transition-colors shadow-sm cursor-pointer border border-surface-variant/40 active:scale-95"
-                    type="button"
-                    aria-label="Previous doctors"
-                  >
-                    <span className="material-symbols-outlined text-[20px]">chevron_left</span>
-                  </button>
-                  <button
-                    onClick={() => scrollCarousel(doctorCarouselRef, "right")}
-                    className="w-10 h-10 rounded-full bg-surface-container-lowest flex items-center justify-center text-on-surface hover:bg-primary hover:text-on-primary transition-colors shadow-sm cursor-pointer border border-surface-variant/40 active:scale-95"
-                    type="button"
-                    aria-label="Next doctors"
-                  >
-                    <span className="material-symbols-outlined text-[20px]">chevron_right</span>
-                  </button>
-                </div>
+            {doctors.length === 0 ? (
+              <div className="p-8 rounded-xl bg-surface-container-lowest text-center text-indigo-gray-600">
+                <Stethoscope className="w-10 h-10 mx-auto mb-2 text-outline" />
+                No doctors are listed yet. Please check back soon.
               </div>
+            ) : (
+              <>
+                {/* Phone: list rows */}
+                <div className="md:hidden flex flex-col gap-base">
+                  {doctors.slice(0, 4).map((d) => (
+                    <Link key={d.id} href={`/book/${d.id}`} className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_4px_20px_rgb(0,80,203,0.04)] flex gap-4 items-center">
+                      <DoctorPhoto doctor={d} className="w-16 h-16 rounded-full" />
+                      <div className="flex flex-col flex-1 min-w-0">
+                        <h3 className="font-title-md text-body-lg font-semibold text-on-surface truncate">{doctorName(d.name)}</h3>
+                        <p className="text-sm text-outline truncate">{d.specialty || "Specialist"}{d.hospital ? ` · ${d.hospital}` : ""}</p>
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                          <AvailabilityChip doctor={d} now={now} />
+                          {d.experience ? <span className="text-label-sm text-outline">• {d.experience} yrs exp</span> : null}
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
 
-              {/* 1 Single Row with horizontal carousel scroll */}
-              <div
-                ref={doctorCarouselRef}
-                className="flex flex-nowrap gap-6 overflow-x-auto scroll-smooth pb-4 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-              >
-                {doctors.map((doctor) => (
-                  <div
-                    key={doctor.id}
-                    className="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between hover:shadow-md transition-all border border-surface-variant/40 w-[280px] sm:w-[300px] flex-shrink-0"
-                  >
-                    <div className="flex flex-col gap-4">
-                      <Link
-                        href={isPreview ? `/doctors/${doctor.id}?preview=patient` : `/doctors/${doctor.id}`}
-                        className="relative w-full h-48 rounded-lg overflow-hidden bg-slate-950 group/img block cursor-pointer"
-                      >
-                        {doctor.image ? (
-                          <img
-                            className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-300"
-                            alt={doctor.name}
-                            src={doctor.image}
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center relative overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-t from-black via-slate-900 to-slate-950 opacity-95" />
-                            <div className="relative z-10 w-16 h-16 rounded-full bg-slate-800/80 border border-slate-700 flex items-center justify-center text-vibrant-blue shadow-inner">
-                              <span className="material-symbols-outlined text-[32px]">person</span>
-                            </div>
-                            <span className="relative z-10 font-label-sm text-[11px] text-slate-400 mt-2 font-medium">
-                              {doctor.specialty}
-                            </span>
+                {/* Tablet & desktop: card carousel */}
+                <div
+                  ref={carousel}
+                  className="hidden md:flex gap-6 overflow-x-auto snap-x scroll-smooth pb-4 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                >
+                  {doctors.map((d) => (
+                    <article
+                      key={d.id}
+                      className="snap-start shrink-0 w-[calc((100%-24px)/2)] lg:w-[calc((100%-72px)/4)] bg-surface-container-lowest rounded-xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+                    >
+                      <div className="flex flex-col gap-4">
+                        <Link href={`/doctors/${d.id}`} className="relative block w-full h-48 rounded-lg overflow-hidden bg-surface-container">
+                          <DoctorPhoto doctor={d} className="w-full h-full" large />
+                          <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-surface-container-lowest/90 backdrop-blur-md font-label-sm text-label-sm font-semibold flex items-center gap-1 shadow-sm">
+                            <SlotBadge doctor={d} now={now} />
+                          </span>
+                        </Link>
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-label-sm text-label-sm text-vibrant-blue font-semibold uppercase truncate">{d.specialty || "Specialist"}</span>
+                            {d.experience ? <span className="font-label-sm text-label-sm text-outline shrink-0">{d.experience} yrs exp</span> : null}
                           </div>
+                          <Link href={`/doctors/${d.id}`} className="font-title-md text-body-lg font-bold text-on-surface mt-1 block truncate hover:text-vibrant-blue transition-colors">
+                            {doctorName(d.name)}
+                          </Link>
+                          <p className="font-body-md text-body-md text-indigo-gray-600 truncate">{[d.hospital, d.city].filter(Boolean).join(" • ") || "Partner hospital"}</p>
+                        </div>
+                      </div>
+                      <div className="pt-4 mt-4 border-t border-surface-variant flex items-center justify-between gap-3">
+                        <div>
+                          <span className="font-label-sm text-label-sm text-outline">Fee</span>
+                          <p className="font-title-md text-body-lg font-bold text-on-surface">{d.fee ? formatINR(d.fee) : "—"}</p>
+                        </div>
+                        <Link href={`/book/${d.id}`} className="px-5 py-2.5 rounded-full bg-vibrant-blue text-on-primary font-body-md text-body-md font-semibold hover:bg-primary transition-all">
+                          Book Now
+                        </Link>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+
+        {/* Hospitals & labs */}
+        {facilities.length > 0 && (
+          <section id="care-network" className="scroll-mt-6 w-full px-margin-x-mobile lg:px-margin-x-desktop md:py-16">
+            <div className="max-w-container-max mx-auto">
+              <div className="flex items-center md:items-end justify-between gap-4 mb-stack-sm md:mb-8">
+                <div>
+                  <span className="hidden md:block font-label-sm text-label-sm uppercase tracking-wider text-vibrant-blue font-bold">Network Centers</span>
+                  <h2 className="font-title-md text-title-md md:font-headline-lg md:text-headline-lg text-on-surface tracking-tight md:mt-1">
+                    <span className="md:hidden">Featured Hospitals &amp; Labs</span>
+                    <span className="hidden md:inline">Partner Hospitals &amp; Diagnostics</span>
+                  </h2>
+                </div>
+                <Link href="/hospitals" className="text-label-sm md:font-body-md md:text-body-md font-semibold text-primary md:text-vibrant-blue hover:text-primary shrink-0">
+                  <span className="md:hidden">Explore All</span>
+                  <span className="hidden md:inline">View Hospital Directory</span>
+                </Link>
+              </div>
+
+              <div className="flex md:grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 overflow-x-auto md:overflow-visible pb-2 -mx-margin-x-mobile px-margin-x-mobile md:mx-0 md:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {facilities.map((f) => {
+                  const Icon = f.kind === "lab" ? Microscope : Building2;
+                  return (
+                    <article key={`${f.kind}-${f.id}`} className="min-w-[260px] max-w-[260px] md:min-w-0 md:max-w-none bg-surface-container-lowest rounded-xl overflow-hidden shadow-[0_4px_20px_rgb(0,80,203,0.04)] md:shadow-sm hover:shadow-md transition-all flex flex-col">
+                      <Link href={facilityHref(f)} className="h-32 md:h-48 w-full relative bg-surface-container block">
+                        {f.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img className="w-full h-full object-cover" alt={f.name} src={f.image} />
+                        ) : (
+                          <span className="w-full h-full bg-gradient-to-br from-primary-fixed via-surface-container to-secondary-fixed/40 flex items-center justify-center text-primary">
+                            <Icon className="w-10 h-10" />
+                          </span>
                         )}
-                        <span className={`absolute top-3 left-3 px-2.5 py-1 rounded-full bg-surface-container-lowest/90 backdrop-blur-md ${doctor.badgeColor || 'text-secondary'} font-label-sm text-label-sm font-semibold flex items-center gap-1 shadow-sm`}>
-                          <span className="material-symbols-outlined text-[14px]">{doctor.badgeIcon || 'bolt'}</span>
-                          {doctor.badge || 'Available Today'}
+                        <span className={`hidden md:flex absolute top-3 right-3 px-3 py-1 rounded-full bg-surface-container-lowest/90 backdrop-blur-md font-label-sm text-label-sm font-bold items-center gap-1 ${f.kind === "lab" ? "text-vibrant-blue" : "text-secondary"}`}>
+                          <Icon className="w-3.5 h-3.5" /> {f.kind === "lab" ? "Diagnostic Lab" : "Hospital"}
                         </span>
                       </Link>
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <span className="font-label-sm text-label-sm text-vibrant-blue font-semibold uppercase truncate">
-                            {doctor.specialty}
-                          </span>
-                          <span className="flex items-center gap-1 font-label-sm text-label-sm font-bold text-on-surface flex-shrink-0">
-                            <span
-                              className="material-symbols-outlined text-amber-500 text-[16px]"
-                              style={{ fontVariationSettings: "'FILL' 1" }}
-                            >
-                              star
+                      <div className="p-4 md:p-6 flex flex-col justify-between flex-1 gap-1 md:gap-4">
+                        <div>
+                          {f.city && (
+                            <span className="hidden md:flex font-label-sm text-label-sm text-indigo-gray-600 mb-1 items-center gap-1">
+                              <MapPin className="w-3.5 h-3.5" /> {f.city}
                             </span>
-                            {doctor.rating || '4.9'} <span className="font-normal text-outline">({doctor.reviews || '120+'})</span>
-                          </span>
+                          )}
+                          <h3 className="font-title-md text-body-lg md:text-title-md font-semibold md:font-bold text-on-surface truncate" title={f.name}>{f.name}</h3>
+                          <p className="md:hidden text-sm text-outline flex items-center gap-1 truncate">
+                            <MapPin className="w-4 h-4 shrink-0" /> {f.city || f.address || "Partner facility"}
+                          </p>
+                          {f.address && <p className="hidden md:block font-body-md text-body-md text-indigo-gray-600 mt-2 line-clamp-2">{f.address}</p>}
                         </div>
-                        <Link
-                          href={isPreview ? `/doctors/${doctor.id}?preview=patient` : `/doctors/${doctor.id}`}
-                          className="font-title-md text-body-lg font-bold text-on-surface mt-1 truncate block hover:text-vibrant-blue transition-colors cursor-pointer"
-                          title={doctor.name}
-                        >
-                          {doctor.name}
-                        </Link>
-                        <p className="font-body-md text-body-md text-indigo-gray-600 truncate" title={doctor.hospital}>
-                          {doctor.hospital}
-                        </p>
+                        <div className="flex items-center justify-between mt-2 md:mt-0 pt-2 md:pt-4 border-t border-indigo-gray-50 md:border-surface-variant">
+                          <span className="text-label-sm font-semibold text-primary md:text-indigo-gray-900">
+                            {f.kind === "lab" ? plural(f.count, "Test") : plural(f.count, "Doctor")}
+                          </span>
+                          <Link href={facilityHref(f)} className="text-label-sm md:font-body-md md:text-body-md font-bold text-fresh-teal md:text-vibrant-blue hover:underline">
+                            {f.kind === "lab" ? "Book a Test" : "Explore Hospital"}
+                          </Link>
+                        </div>
                       </div>
-                    </div>
-                    <div className="pt-4 mt-4 border-t border-surface-variant flex items-center justify-between gap-2">
-                      <div>
-                        <span className="font-label-sm text-label-sm text-outline">Fee</span>
-                        <p className="font-title-md text-body-lg font-bold text-on-surface">{doctor.fee}</p>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Link
-                          href={isPreview ? `/doctors/${doctor.id}?preview=patient` : `/doctors/${doctor.id}`}
-                          className="px-3.5 py-2 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface font-body-md text-label-sm font-semibold transition-colors text-center cursor-pointer"
-                        >
-                          Profile
-                        </Link>
-                        <Link
-                          href={isPreview ? `/book/${doctor.id}?preview=patient` : `/book/${doctor.id}`}
-                          className="px-4 py-2 rounded-full bg-vibrant-blue text-on-primary font-body-md text-label-sm font-semibold hover:bg-primary transition-all text-center cursor-pointer"
-                        >
-                          Book
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    </article>
+                  );
+                })}
               </div>
             </div>
           </section>
-
-          {/* SECTION 4: ACCREDITED HOSPITALS (1 Single Row + Infinite Arrows, Aligned with Main Heading) */}
-          <section className="w-full py-16 px-margin-x-mobile lg:px-margin-x-desktop">
-            <div className="max-w-container-max mx-auto flex flex-col gap-8">
-              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                <div>
-                  <span className="font-label-sm text-label-sm uppercase tracking-wider text-vibrant-blue font-bold">
-                    Network Centers
-                  </span>
-                  <h2 className="font-headline-lg text-headline-lg text-on-surface tracking-tight mt-1">
-                    Accredited Hospitals &amp; Diagnostics
-                  </h2>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Link
-                    className="font-body-md text-body-md font-semibold text-vibrant-blue hover:text-primary mr-2"
-                    href="/search?type=hospital"
-                  >
-                    View Facility Directory
-                  </Link>
-                  <button
-                    onClick={() => scrollCarousel(hospitalCarouselRef, "left")}
-                    className="w-10 h-10 rounded-full bg-surface-container-lowest flex items-center justify-center text-on-surface hover:bg-primary hover:text-on-primary transition-colors shadow-sm cursor-pointer border border-surface-variant/40 active:scale-95"
-                    type="button"
-                    aria-label="Previous hospitals"
-                  >
-                    <span className="material-symbols-outlined text-[20px]">chevron_left</span>
-                  </button>
-                  <button
-                    onClick={() => scrollCarousel(hospitalCarouselRef, "right")}
-                    className="w-10 h-10 rounded-full bg-surface-container-lowest flex items-center justify-center text-on-surface hover:bg-primary hover:text-on-primary transition-colors shadow-sm cursor-pointer border border-surface-variant/40 active:scale-95"
-                    type="button"
-                    aria-label="Next hospitals"
-                  >
-                    <span className="material-symbols-outlined text-[20px]">chevron_right</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* 1 Single Row with horizontal carousel scroll */}
-              <div
-                ref={hospitalCarouselRef}
-                className="flex flex-nowrap gap-6 overflow-x-auto scroll-smooth pb-4 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-              >
-                {hospitals.map((fac) => (
-                  <div
-                    key={fac.id}
-                    className="bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col border border-surface-variant/40 w-[320px] sm:w-[360px] flex-shrink-0"
-                  >
-                    <div className="h-48 w-full relative bg-slate-950">
-                      {fac.image ? (
-                        <img
-                          className="w-full h-full object-cover"
-                          alt={fac.name}
-                          src={fac.image}
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center relative overflow-hidden">
-                          <div className="absolute inset-0 bg-gradient-to-t from-black via-slate-900 to-slate-950 opacity-95" />
-                          <div className="relative z-10 w-16 h-16 rounded-2xl bg-slate-800/80 border border-slate-700 flex items-center justify-center text-fresh-teal shadow-inner">
-                            <span className="material-symbols-outlined text-[32px]">
-                              {fac.type === "diagnostic" ? "biotech" : "local_hospital"}
-                            </span>
-                          </div>
-                          <span className="relative z-10 font-label-sm text-[11px] text-slate-400 mt-2 font-medium">
-                            {fac.city || "Healthcare Facility"}
-                          </span>
-                        </div>
-                      )}
-                      <span className={`absolute top-3 right-3 px-3 py-1 rounded-full bg-surface-container-lowest/90 backdrop-blur-md ${fac.badgeColor} font-label-sm text-label-sm font-bold flex items-center gap-1`}>
-                        <span className="material-symbols-outlined text-[14px]">{fac.badgeIcon}</span>
-                        {fac.badge}
-                      </span>
-                    </div>
-                    <div className="p-6 flex flex-col justify-between flex-1 gap-4">
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-label-sm text-label-sm text-indigo-gray-600 truncate">
-                            {fac.location}
-                          </span>
-                          <span className="flex items-center gap-1 font-label-sm text-label-sm font-bold text-on-surface flex-shrink-0">
-                            <span
-                              className="material-symbols-outlined text-amber-500 text-[16px]"
-                              style={{ fontVariationSettings: "'FILL' 1" }}
-                            >
-                              star
-                            </span>
-                            {fac.rating}
-                          </span>
-                        </div>
-                        <h3 className="font-title-md text-title-md font-bold text-on-surface line-clamp-1" title={fac.name}>
-                          {fac.name}
-                        </h3>
-                        <p className="font-body-md text-body-md text-indigo-gray-600 mt-2 line-clamp-2">
-                          {fac.desc}
-                        </p>
-                      </div>
-                      <div className="flex items-center justify-between pt-4 border-t border-surface-variant">
-                        <span className="font-label-sm text-label-sm text-indigo-gray-900 font-semibold">
-                          {fac.doctors}
-                        </span>
-                        <Link
-                          className="font-body-md text-body-md font-bold text-vibrant-blue hover:underline"
-                          href={fac.type === "diagnostic" ? `/search?type=diagnostic&q=${encodeURIComponent(fac.name)}` : `/search?type=hospital&q=${encodeURIComponent(fac.name)}`}
-                        >
-                          Explore {fac.type === "diagnostic" ? "Center" : "Hospital"}
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-        </div>
+        )}
       </main>
 
-      <PatientDock activeTab="home" />
+      <PatientDock activeTab="home" isSignedIn={isSignedIn} />
     </div>
+  );
+}
+
+function QuickFilter({ href, icon: Icon, children }: { href: string; icon: LucideIcon; children: ReactNode }) {
+  return (
+    <Link href={href} className="px-4 py-1.5 rounded-full bg-surface-container-lowest text-on-surface font-body-md text-body-md hover:bg-primary-container hover:text-on-primary-container transition-all flex items-center gap-1.5 shadow-sm">
+      <Icon className="w-[18px] h-[18px]" />
+      {children}
+    </Link>
+  );
+}
+
+function CarouselButton({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className="w-10 h-10 rounded-full bg-surface-container-lowest flex items-center justify-center text-on-surface hover:bg-primary hover:text-on-primary transition-colors shadow-sm"
+    >
+      {children}
+    </button>
+  );
+}
+
+function DoctorPhoto({ doctor, className, large }: { doctor: HomeDoctor; className: string; large?: boolean }) {
+  if (doctor.image) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={doctor.image} alt={doctorName(doctor.name)} className={`${className} object-cover shrink-0`} />;
+  }
+  return (
+    <span className={`${className} shrink-0 bg-gradient-to-br from-primary-fixed to-surface-container flex items-center justify-center text-primary font-headline-lg font-bold ${large ? "text-4xl" : "text-lg"}`}>
+      {initials(doctor.name)}
+    </span>
+  );
+}
+
+/** Desktop photo badge: the doctor's next open slot. */
+function SlotBadge({ doctor, now }: { doctor: HomeDoctor; now: number }) {
+  if (!doctor.nextSlot) {
+    return (
+      <span className="flex items-center gap-1 text-indigo-gray-600">
+        <Clock className="w-3.5 h-3.5" /> No open slots
+      </span>
+    );
+  }
+  const day = formatDayLabel(doctor.nextSlot, now);
+  return day === "Today" ? (
+    <span className="flex items-center gap-1 text-secondary">
+      <Zap className="w-3.5 h-3.5" /> Today {formatTime(doctor.nextSlot)}
+    </span>
+  ) : (
+    <span className="flex items-center gap-1 text-indigo-gray-900">
+      <CalendarDays className="w-3.5 h-3.5" /> {day}
+    </span>
+  );
+}
+
+/** Phone list chip: "Available Today" or the next day with an open slot. */
+function AvailabilityChip({ doctor, now }: { doctor: HomeDoctor; now: number }) {
+  if (doctor.openToday > 0) {
+    return <span className="px-2 py-0.5 rounded-full bg-fresh-teal/10 text-fresh-teal text-label-sm">Available Today</span>;
+  }
+  return (
+    <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant text-label-sm">
+      {doctor.nextSlot ? `Next Available: ${formatDayLabel(doctor.nextSlot, now)}` : "No open slots"}
+    </span>
   );
 }

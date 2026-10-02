@@ -16,8 +16,11 @@ const RESEND_SECONDS = 30
 const inputClass =
   'w-full py-3 bg-surface-container-lowest text-on-surface text-[14px] rounded-xl border border-outline-variant/60 outline-none focus:border-vibrant-blue focus:ring-2 focus:ring-vibrant-blue/20 transition-all placeholder:text-outline/70 disabled:opacity-60'
 
-export function PatientAuthForm({ googleEnabled }: { googleEnabled: boolean }) {
+export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: boolean }) {
   const searchParams = useSearchParams()
+  // Where to return after signing in, e.g. the booking page that sent the patient here.
+  const rawNext = searchParams.get('next') || ''
+  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : ''
   const [mode, setMode] = useState<Mode>(searchParams.get('mode') === 'register' ? 'register' : 'signin')
   const [step, setStep] = useState<1 | 2>(1)
 
@@ -69,7 +72,7 @@ export function PatientAuthForm({ googleEnabled }: { googleEnabled: boolean }) {
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: `${window.location.origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ''}` },
     })
     if (error) {
       setGoogleError(error.message)
@@ -291,6 +294,7 @@ export function PatientAuthForm({ googleEnabled }: { googleEnabled: boolean }) {
             <input type="hidden" name="role" value="patient" />
             <input type="hidden" name="isRegister" value={String(isRegister)} />
             <input type="hidden" name="token" value={otp.join('')} />
+            <input type="hidden" name="next" value={next} />
 
             <div className="text-center">
               <p className="text-[14px] text-on-surface-variant">

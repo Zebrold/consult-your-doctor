@@ -20,9 +20,12 @@ export async function addPrescription(formData: FormData) {
   const { data: doctor } = await supabase.from('doctors').select('id').eq('profile_id', user.id).single()
   if (!doctor) return { error: 'Not a doctor' }
 
-  const { data: appointment } = await supabase.from('appointments').select('doctor_id').eq('id', appointmentId).single()
+  const { data: appointment } = await supabase.from('appointments').select('doctor_id, status').eq('id', appointmentId).single()
   if (!appointment || appointment.doctor_id !== doctor.id) {
     return { error: 'Not authorized for this appointment' }
+  }
+  if (!['confirmed', 'visited', 'completed'].includes(appointment.status)) {
+    return { error: 'Prescriptions can only be added to paid, active appointments.' }
   }
 
   let fileUrl = 'none'
@@ -67,11 +70,17 @@ export async function addPrescription(formData: FormData) {
     return { error: 'Failed to add prescription' }
   }
 
-  // Auto-complete the appointment
-  await supabase.from('appointments').update({ status: 'completed' }).eq('id', appointmentId)
+  // Writing the prescription completes the visit
+  if (appointment.status !== 'completed') {
+    await supabase.from('appointments').update({ status: 'completed' }).eq('id', appointmentId)
+  }
 
-  revalidatePath('/doctor/dashboard')
+  revalidateDoctorPages()
   return { success: true }
+}
+
+function revalidateDoctorPages() {
+  for (const path of ['/doctor/dashboard', '/doctor/schedule', '/doctor/patients', '/doctor/profile']) revalidatePath(path)
 }
 
 export async function blockScheduleSlot(scheduleId: string) {
@@ -94,7 +103,7 @@ export async function blockScheduleSlot(scheduleId: string) {
     return { error: 'Failed to block the slot. It might be already booked.' }
   }
 
-  revalidatePath('/doctor/dashboard/schedules')
+  revalidateDoctorPages()
   return { success: true }
 }
 
@@ -154,7 +163,7 @@ export async function updateDoctorProfile(formData: FormData) {
   }
 
   // Update doctor
-  const doctorUpdates: any = {
+  const doctorUpdates: Record<string, string | number | null> = {
     specialty: specialty || 'General Physician',
     experience_years: experienceYears,
     consultation_fee: consultationFee,
@@ -177,11 +186,17 @@ export async function updateDoctorProfile(formData: FormData) {
     return { success: false, error: doctorError.message }
   }
 
-  revalidatePath('/doctor/dashboard')
+  revalidateDoctorPages()
   return { success: true }
 }
 
+// Doctors move a paid visit between booked → checked in → completed. Unpaid or cancelled
+// bookings are left to the payment flow and the operations team.
+const DOCTOR_STATUSES = ['confirmed', 'visited', 'completed']
+
 export async function updateAppointmentStatus(appointmentId: string, status: string) {
+  if (!DOCTOR_STATUSES.includes(status)) return { success: false, error: 'That status change is not allowed.' }
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Unauthorized' }
@@ -190,17 +205,22 @@ export async function updateAppointmentStatus(appointmentId: string, status: str
   if (!doctor) return { success: false, error: 'Not a doctor' }
 
   const adminClient = createAdminClient()
-  const { error } = await adminClient
+  const { data: updated, error } = await adminClient
     .from('appointments')
     .update({ status })
     .match({ id: appointmentId, doctor_id: doctor.id })
+    .in('status', DOCTOR_STATUSES)
+    .select('id')
 
   if (error) {
     console.error('Error updating appointment status:', error)
     return { success: false, error: error.message }
   }
+  if (!updated || updated.length === 0) {
+    return { success: false, error: 'This appointment is unpaid or cancelled, so its status cannot be changed here.' }
+  }
 
-  revalidatePath('/doctor/dashboard')
+  revalidateDoctorPages()
   return { success: true }
 }
 
@@ -216,12 +236,14 @@ export async function addNewPatient(formData: FormData) {
   const phoneNumber = formData.get('phone_number') as string
   const rawEmail = formData.get('email') as string
   const email = rawEmail && rawEmail.includes('@') ? rawEmail : `patient-${Date.now()}@consultyourdoctor.internal`
-  const diagnosis = (formData.get('diagnosis') as string) || 'General Consultation'
-  const bp = (formData.get('bp') as string) || '120/80'
-  const spo2 = (formData.get('spo2') as string) || '98%'
-  const hr = (formData.get('hr') as string) || '72 bpm'
-  const allergy = (formData.get('allergy') as string) || 'No Known Allergies'
-  const medications = (formData.get('medications') as string) || 'As prescribed by physician'
+  // Only what the doctor actually entered is recorded; nothing clinical is filled in by default.
+  const field = (name: string) => String(formData.get(name) || '').trim()
+  const diagnosis = field('diagnosis')
+  const bp = field('bp')
+  const spo2 = field('spo2')
+  const hr = field('hr')
+  const allergy = field('allergy')
+  const medications = field('medications')
 
   if (!fullName) return { success: false, error: 'Patient name is required' }
 
@@ -257,9 +279,9 @@ export async function addNewPatient(formData: FormData) {
     hospital_id: doctor.hospital_id || null
   })
 
-  // Create schedule slot
-  const startTime = new Date(Date.now() + 3600000).toISOString()
-  const endTime = new Date(Date.now() + 5400000).toISOString()
+  // The walk-in is seen now: give the visit a 30-minute slot starting now
+  const startTime = new Date(Date.now()).toISOString()
+  const endTime = new Date(Date.now() + 1800000).toISOString()
   const { data: newSchedule } = await adminClient.from('schedules').insert({
     doctor_id: doctor.id,
     start_time: startTime,
@@ -277,17 +299,23 @@ export async function addNewPatient(formData: FormData) {
       status: 'confirmed'
     }).select('id').single()
 
-    if (newApt) {
-      // Create medical record with clinical notes
+    const vitals = [bp && `BP ${bp}`, spo2 && `SpO2 ${spo2}`, hr && `HR ${hr}`].filter(Boolean).join(', ')
+    const notes = [
+      diagnosis,
+      vitals && `Vitals: ${vitals}.`,
+      allergy && `Allergy: ${allergy}.`,
+      medications && `Rx: ${medications}`,
+    ].filter(Boolean).join(' ')
+    if (newApt && notes) {
       await adminClient.from('medical_records').insert({
         appointment_id: newApt.id,
         document_type: 'prescription',
-        notes: `${diagnosis} - Vitals: BP ${bp}, SpO2 ${spo2}, HR ${hr}. Allergy: ${allergy}. Rx: ${medications}`,
+        notes,
         file_url: 'none'
       })
     }
   }
 
-  revalidatePath('/doctor/dashboard')
+  revalidateDoctorPages()
   return { success: true }
 }

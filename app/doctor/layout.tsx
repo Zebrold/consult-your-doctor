@@ -1,15 +1,13 @@
 import { Metadata } from 'next'
 import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import { doctorName } from '@/components/patient/format'
+import { PortalDock, PortalMobileHeader } from '@/components/portal/PortalNav'
+import { requireDoctor } from './_lib/doctor'
 
 export const metadata: Metadata = {
   title: 'Doctor Portal',
 }
-import { createClient } from '@/lib/supabase/server'
-import Link from 'next/link'
-import Image from 'next/image'
-import { CalendarDays, Users, ClipboardList, LogOut, Stethoscope, Bell } from 'lucide-react'
-import { SidebarLink } from '@/components/SidebarLink'
-import { MobileDashboardMenu } from '@/components/MobileDashboardMenu'
 
 export default async function DoctorLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -17,54 +15,27 @@ export default async function DoctorLayout({ children }: { children: React.React
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login/doctor')
 
-  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'doctor') {
     redirect('/')
   }
 
-  const navLinks = (
-    <>
-      <SidebarLink
-        href="/doctor/dashboard"
-        icon={<CalendarDays className="w-5 h-5" />}
-        label="Today's Appointments"
-        activeClassName="bg-blue-50 text-blue-700 font-bold"
-        exactMatch={true}
-      />
-      <SidebarLink
-        href="/doctor/dashboard/schedules"
-        icon={<CalendarDays className="w-5 h-5" />}
-        label="My Schedule"
-        activeClassName="bg-blue-50 text-blue-700 font-bold"
-      />
-      <SidebarLink
-        href="/doctor/patients"
-        icon={<Users className="w-5 h-5" />}
-        label="My Patients"
-        activeClassName="bg-blue-50 text-blue-700 font-bold"
-      />
-      <SidebarLink
-        href="/doctor/records"
-        icon={<ClipboardList className="w-5 h-5" />}
-        label="Medical Records"
-        activeClassName="bg-blue-50 text-blue-700 font-bold"
-      />
-    </>
-  )
-
-  const logoutForm = (
-    <form action="/auth/signout" method="post">
-      <button className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-xl font-bold transition-colors cursor-pointer">
-        <LogOut className="w-5 h-5" />
-        Sign Out
-      </button>
-    </form>
-  )
+  const { doctor } = await requireDoctor()
 
   return (
-    <div className="min-h-screen bg-background text-on-surface">
-      {children}
+    <div className="min-h-screen bg-background text-on-surface antialiased">
+      <PortalMobileHeader
+        portal="doctor"
+        name={doctorName(doctor.name)}
+        subtitle="Doctor portal"
+        image={doctor.image}
+        profileHref="/doctor/profile"
+        extraLink={{ href: `/doctors/${doctor.id}`, label: 'My public profile' }}
+      />
+      <main className="w-full max-w-[1440px] mx-auto px-4 lg:px-margin-x-desktop pt-4 md:pt-6 pb-28 md:pb-32 flex flex-col gap-4 md:gap-stack-md">
+        {children}
+      </main>
+      <PortalDock portal="doctor" />
     </div>
   )
 }

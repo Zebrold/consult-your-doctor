@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { matchBookedTests, sumPrices } from '@/lib/pricing'
 
 type Admin = ReturnType<typeof createAdminClient>
 
@@ -68,8 +69,6 @@ export function initials(name: string | null | undefined) {
     .map((p) => p[0]?.toUpperCase() ?? '')
     .join('')
 }
-
-const slug = (s: string) => s.toLowerCase().trim().replace(/\s+/g, '-')
 
 /** Splits the packed `qualifications` string written by submitDoctorSignup (see app/actions/doctorAuth.ts). */
 export function parseApplication(qualifications: string | null) {
@@ -221,10 +220,13 @@ export type LabBooking = {
   price: number | null
 }
 
-/** Bookings store the test as a slug (e.g. "lipid-profile") while labs key prices by display name. */
+/**
+ * Bookings store the test as a slug (e.g. "lipid-profile") or as display names joined with ", " (several tests),
+ * while labs key prices by display name.
+ */
 function resolveTest(testName: string, prices: Record<string, number> | null) {
-  const entry = Object.entries(prices ?? {}).find(([name]) => name === testName || slug(name) === testName)
-  if (entry) return { label: entry[0], price: Number(entry[1]) || null }
+  const tests = matchBookedTests(testName, prices)
+  if (tests) return { label: tests.map((t) => t.name).join(' + '), price: sumPrices(tests) || null }
   const label = testName.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
   return { label, price: null }
 }

@@ -66,44 +66,8 @@ export default async function PatientAppointments() {
     .eq('patient_id', user.id)
     .order('created_at', { ascending: false })
 
-  // Use fetched data or fallback to mock data if empty
-  const appointments = fetchedAppointments && fetchedAppointments.length > 0 ? fetchedAppointments : [
-    {
-      id: 'mock-apt-1',
-      status: 'confirmed',
-      doctors: { specialty: 'Cardiologist', profiles: { full_name: 'Sarah Jenkins' } },
-      hospitals: { name: 'Lilavati Hospital', city: 'Mumbai' },
-      schedules: { start_time: new Date(Date.now() + 86400000 * 2).toISOString() }, // 2 days from now
-      medical_records: []
-    },
-    {
-      id: 'mock-apt-2',
-      status: 'completed',
-      doctors: { specialty: 'Dermatologist', profiles: { full_name: 'Marcus Vance' } },
-      hospitals: { name: 'Apollo Spectra', city: 'Mumbai' },
-      schedules: { start_time: new Date(Date.now() - 86400000 * 5).toISOString() }, // 5 days ago
-      medical_records: [
-        { id: 'mock-rec-1', notes: 'Prescribed topical cream', file_url: '#', document_type: 'prescription' }
-      ]
-    }
-  ]
-
-  const diagnosticBookings = fetchedDiagnosticBookings && fetchedDiagnosticBookings.length > 0 ? fetchedDiagnosticBookings : [
-    {
-      id: 'mock-diag-1',
-      status: 'confirmed',
-      test_name: 'Comprehensive Metabolic Panel',
-      preferred_date: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
-      diagnostic_centers: { name: 'Apex Diagnostics', city: 'Mumbai', address: 'Andheri West' }
-    },
-    {
-      id: 'mock-diag-2',
-      status: 'pending_payment',
-      test_name: 'Lipid Profile',
-      preferred_date: new Date(Date.now() + 86400000 * 3).toISOString(), // 3 days from now
-      diagnostic_centers: { name: 'Suburban Diagnostics', city: 'Mumbai', address: 'Bandra West' }
-    }
-  ]
+  const appointments = fetchedAppointments ?? []
+  const diagnosticBookings = fetchedDiagnosticBookings ?? []
 
   // Extract prescriptions from medical_records
   const fetchedPrescriptions = fetchedAppointments?.flatMap(apt =>
@@ -115,26 +79,7 @@ export default async function PatientAppointments() {
     }))
   ) || []
 
-  const prescriptions = fetchedPrescriptions.length > 0 ? fetchedPrescriptions : [
-    {
-      id: 'mock-pres-1',
-      notes: 'Take 1 tablet after meals for 5 days.',
-      file_url: '#',
-      document_type: 'prescription',
-      doctor_name: 'Dr. Marcus Vance',
-      date: new Date(Date.now() - 86400000 * 5).toISOString(),
-      hospital_name: 'Apollo Spectra'
-    },
-    {
-      id: 'mock-pres-2',
-      notes: 'Blood test report attached.',
-      file_url: '#',
-      document_type: 'lab_report',
-      doctor_name: 'Apex Diagnostics',
-      date: new Date(Date.now() - 86400000 * 10).toISOString(),
-      hospital_name: 'Apex Diagnostics'
-    }
-  ]
+  const prescriptions = fetchedPrescriptions
 
   const upcomingAppointments = appointments?.filter(a => a.status === 'scheduled' || a.status === 'confirmed') || []
 

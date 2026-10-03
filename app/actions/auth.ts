@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 
-function formatPhoneNumber(phone: string, countryCode: string = '+44') {
+function formatPhoneNumber(phone: string, countryCode: string = '+91') {
   if (phone.startsWith('+')) return phone
   let cleaned = phone.replace(/\D/g, '')
   
@@ -25,7 +25,7 @@ function formatPhoneNumber(phone: string, countryCode: string = '+44') {
 
 export async function sendOTP(prevState: any, formData: FormData) {
   let phone = formData.get('phone') as string
-  const countryCode = formData.get('countryCode') as string || '+44'
+  const countryCode = formData.get('countryCode') as string || '+91'
   const fullName = formData.get('fullName') as string | null
   const role = formData.get('role') as string | null
   const isRegister = formData.get('isRegister') === 'true'
@@ -298,7 +298,7 @@ export async function sendPasswordResetOTP(staffId: string) {
 
   const supabase = await createClient()
   const { error } = await supabase.auth.resetPasswordForEmail(profile.email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/update-password`,
+    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/update-password`,
   })
 
   if (error) {

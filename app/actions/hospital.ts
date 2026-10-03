@@ -28,7 +28,7 @@ export async function generateDoctorSlots(formData: FormData) {
   let activeDays: number[] = []
   try {
     activeDays = JSON.parse(activeDaysStr)
-  } catch (e) {
+  } catch {
     return { error: 'Invalid active days' }
   }
 
@@ -39,9 +39,6 @@ export async function generateDoctorSlots(formData: FormData) {
   const { data: doctor } = await supabase.from('doctors').select('hospital_id').eq('id', doctorId).single()
   if (doctor?.hospital_id !== profile.hospital_id) return { error: 'Doctor not found in your hospital' }
 
-  const [startHour, startMin] = startTimeStr.split(':').map(Number)
-  const [endHour, endMin] = endTimeStr.split(':').map(Number)
-
   // Use Z to parse strictly as UTC midnight to safely iterate over days
   const startDate = new Date(`${startDateStr}T00:00:00Z`)
   const endDate = new Date(`${endDateStr}T00:00:00Z`)
@@ -50,10 +47,16 @@ export async function generateDoctorSlots(formData: FormData) {
     return { error: 'End date must be on or after start date' }
   }
 
-  const newSlots = []
+  type GeneratedSlot = {
+    doctor_id: string
+    start_time: string
+    end_time: string
+    is_booked: boolean
+  }
+  const newSlots: GeneratedSlot[] = []
   
   // Iterate through each day in the date range
-  let currentDate = new Date(startDate.getTime())
+  const currentDate = new Date(startDate.getTime())
   
   // Cap at 90 days to prevent abuse or browser timeout
   const maxDays = 90;
@@ -108,11 +111,15 @@ export async function generateDoctorSlots(formData: FormData) {
     .eq('doctor_id', doctorId)
     .lt('start_time', newSlots[newSlots.length - 1].end_time)
     .gt('end_time', newSlots[0].start_time)
-  const taken = (existing ?? []).map((s) => [Date.parse(s.start_time), Date.parse(s.end_time)])
+  type ExistingSlot = { start_time: string; end_time: string }
+  const taken: [number, number][] = ((existing as ExistingSlot[] | null) ?? []).map((s: ExistingSlot) => [
+    Date.parse(s.start_time),
+    Date.parse(s.end_time),
+  ])
   const freshSlots = newSlots.filter((s) => {
     const start = Date.parse(s.start_time)
     const end = Date.parse(s.end_time)
-    return !taken.some(([a, b]) => start < b && end > a)
+    return !taken.some(([a, b]: [number, number]) => start < b && end > a)
   })
   const skipped = newSlots.length - freshSlots.length
   if (freshSlots.length === 0) {
@@ -205,9 +212,9 @@ export async function createHospitalDoctor(formData: FormData) {
     adminId = `CYD${initials}${Math.floor(1000 + Math.random() * 9000)}`
     emailForAuth = `${adminId.toLowerCase()}@cyd.internal`
     
-    // Check if exists
-    const { data: existing } = await adminAuthClient.auth.admin.listUsers()
-    if (!existing.users.some(u => u.email === emailForAuth)) {
+    // Check if exists (listUsers() is paginated and would miss users beyond the first page)
+    const { data: taken } = await adminAuthClient.from('profiles').select('id').eq('staff_id', adminId).maybeSingle()
+    if (!taken) {
       isUnique = true
     }
   }

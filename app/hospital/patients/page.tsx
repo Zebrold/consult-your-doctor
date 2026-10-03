@@ -80,7 +80,7 @@ export default async function HospitalPatientsPage(props: { searchParams?: Promi
 
       <section className="flex md:grid md:grid-cols-5 gap-2.5 md:gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
         <Counter icon={Users} label="Patients" value={counters.patients} tone="text-indigo-gray-900" />
-        <Counter icon={CalendarDays} label="Today" value={counters.today} tone="text-vibrant-blue" />
+        <Counter icon={CalendarDays} label="Booked today" value={counters.today} tone="text-vibrant-blue" />
         <Counter icon={UserCheck} label="Checked in" value={counters.checkedIn} tone="text-secondary" />
         <Counter icon={CalendarCheck} label="Next 7 days" value={counters.upcoming} tone="text-primary" />
         <Counter icon={CircleDollarSign} label="Unpaid bookings" value={counters.unpaid} tone={counters.unpaid ? 'text-soft-coral' : 'text-indigo-gray-900'} />

@@ -4,6 +4,13 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 
+/** "98204 77210" / "+91 98204 77210" → "+919820477210" (numbers without a country code are taken as Indian). */
+function toE164(raw: string) {
+  const cleaned = raw.replace(/[^\d+]/g, '')
+  if (cleaned.startsWith('+')) return cleaned
+  return cleaned.length === 10 ? `+91${cleaned}` : `+${cleaned}`
+}
+
 export async function updateAppointmentStatus(appointmentId: string, newStatus: string) {
   const supabase = await createClient()
   
@@ -108,13 +115,17 @@ export async function createWalkInAppointment(formData: FormData) {
   if (executiveProfile?.role !== 'executive') return { error: 'Forbidden' }
 
   const patientName = formData.get('patientName') as string
-  const patientPhone = formData.get('patientPhone') as string
+  const rawPatientPhone = formData.get('patientPhone') as string
   const doctorId = formData.get('doctorId') as string
   const scheduleId = formData.get('scheduleId') as string
 
-  if (!patientName || !patientPhone || !doctorId || !scheduleId) {
+  if (!patientName || !rawPatientPhone || !doctorId || !scheduleId) {
     return { error: 'All fields are required' }
   }
+  if (rawPatientPhone.replace(/\D/g, '').length < 10) {
+    return { error: 'Please enter a valid mobile number' }
+  }
+  const patientPhone = toE164(rawPatientPhone)
 
   try {
     // 2. Offline-to-Online: Check if patient exists or create them using Admin Client
@@ -124,12 +135,15 @@ export async function createWalkInAppointment(formData: FormData) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    // Look for existing user by phone
-    // Note: listUsers is paginated, but for this demo we'll assume we can find them if they exist
-    const { data: existingUsers } = await adminAuthClient.auth.admin.listUsers()
-    
-    // Auth phone format is usually E.164, but we just check if it ends with the provided number
-    let patientUserId = existingUsers.users.find(u => u.phone?.includes(patientPhone))?.id
+    // Look for an existing patient by phone. profiles.phone_number is stored in E.164;
+    // this is an indexed lookup, unlike listUsers() which only returns the first page of users.
+    const { data: existingProfile } = await adminAuthClient
+      .from('profiles')
+      .select('id')
+      .in('phone_number', [patientPhone, patientPhone.replace('+', '')])
+      .limit(1)
+      .maybeSingle()
+    let patientUserId: string | undefined = existingProfile?.id
 
     if (!patientUserId) {
       // Create new user silently
@@ -152,16 +166,17 @@ export async function createWalkInAppointment(formData: FormData) {
     }
 
     // 3. Create Appointment and Payment
-    // We need to mark schedule as booked and create appointment in a transaction-like manner
-    
-    // Check if slot is still available
-    const { data: schedule } = await supabase.from('schedules').select('is_booked').eq('id', scheduleId).single()
-    if (!schedule || schedule.is_booked) {
+    // Claim the slot only while it is still free, so two bookings can't take the same time.
+    const { data: claimed } = await adminAuthClient
+      .from('schedules')
+      .update({ is_booked: true })
+      .eq('id', scheduleId)
+      .eq('doctor_id', doctorId)
+      .eq('is_booked', false)
+      .select('id')
+    if (!claimed || claimed.length === 0) {
       return { error: 'This time slot is no longer available' }
     }
-
-    // Mark booked
-    await adminAuthClient.from('schedules').update({ is_booked: true }).eq('id', scheduleId)
 
     // Get consultation fee
     const { data: doctorProfile } = await supabase.from('doctors').select('consultation_fee').eq('id', doctorId).single()

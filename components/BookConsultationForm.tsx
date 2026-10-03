@@ -477,7 +477,7 @@ export function BookConsultationFormInner({ defaultType = 'consultation' }: { de
                     const price = center?.test_prices?.[test]
                     const priceDisplay = price ? ` - ₹${price}` : ''
                     return (
-                      <option key={test} value={test.toLowerCase().replace(/ /g, '-')}>
+                      <option key={test} value={test}>
                         {test}{priceDisplay}
                       </option>
                     )

@@ -129,6 +129,8 @@ export type HospitalVisit = {
   start: string | null
   end: string | null
   doctorId: string | null
+  /** The front-desk executive who booked it, for walk-ins. */
+  executiveId: string | null
   patient: { id: string; name: string; phone: string | null; email: string | null } | null
   payment: Payment | null
 }
@@ -138,6 +140,7 @@ type VisitRow = {
   status: string
   created_at: string
   doctor_id: string | null
+  executive_id: string | null
   schedules: Joined<{ start_time: string; end_time: string | null }>
   patient: Joined<{ id: string; full_name: string | null; phone_number: string | null; email: string | null }>
 }
@@ -148,7 +151,7 @@ export async function loadHospitalVisits(admin: Admin, hospitalId: string, docto
   const { data } = await admin
     .from('appointments')
     .select(`
-      id, status, created_at, doctor_id,
+      id, status, created_at, doctor_id, executive_id,
       schedules ( start_time, end_time ),
       patient:profiles!appointments_patient_id_fkey ( id, full_name, phone_number, email )
     `)
@@ -171,6 +174,7 @@ export async function loadHospitalVisits(admin: Admin, hospitalId: string, docto
         start: slot?.start_time ?? null,
         end: slot?.end_time ?? null,
         doctorId: r.doctor_id,
+        executiveId: r.executive_id,
         patient: patient ? { id: patient.id, name: patient.full_name || 'Patient', phone: patient.phone_number, email: realEmail(patient.email) } : null,
         payment: payments.get(r.id) ?? null,
       }

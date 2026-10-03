@@ -48,9 +48,9 @@ export async function createStaffAccount(formData: FormData) {
     adminId = `CYD${initials}${Math.floor(1000 + Math.random() * 9000)}`
     emailForAuth = `${adminId.toLowerCase()}@cyd.internal`
     
-    // Check if exists
-    const { data: existing } = await adminAuthClient.auth.admin.listUsers()
-    if (!existing.users.some(u => u.email === emailForAuth)) {
+    // Check if exists (listUsers() is paginated and would miss users beyond the first page)
+    const { data: taken } = await adminAuthClient.from('profiles').select('id').eq('staff_id', adminId).maybeSingle()
+    if (!taken) {
       isUnique = true
     }
   }
@@ -406,9 +406,10 @@ export async function createHospitalCredentials(formData: FormData) {
 
   const emailForAuth = `${adminId.toLowerCase()}@cyd.internal`
 
-  // 1. Check if auth user exists
-  const { data: existing } = await adminAuthClient.auth.admin.listUsers()
-  if (existing.users.some(u => u.email === emailForAuth)) {
+  // 1. Check if the Admin ID is already taken
+  const { data: taken } = await adminAuthClient
+    .from('profiles').select('id').in('staff_id', [adminId, adminId.toUpperCase()]).limit(1).maybeSingle()
+  if (taken) {
     return { error: 'This Admin ID is already in use.' }
   }
 
@@ -466,9 +467,10 @@ export async function createDiagnosticCredentials(formData: FormData) {
 
   const emailForAuth = `${adminId.toLowerCase()}@cyd.internal`
 
-  // 1. Check if auth user exists
-  const { data: existing } = await adminAuthClient.auth.admin.listUsers()
-  if (existing.users.some(u => u.email === emailForAuth)) {
+  // 1. Check if the Admin ID is already taken
+  const { data: taken } = await adminAuthClient
+    .from('profiles').select('id').in('staff_id', [adminId, adminId.toUpperCase()]).limit(1).maybeSingle()
+  if (taken) {
     return { error: 'This Admin ID is already in use.' }
   }
 

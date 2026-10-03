@@ -40,7 +40,8 @@ type LabRow = {
   diagnostic_centers: Joined<{ id: string; name: string; city: string | null; test_prices: Record<string, number> | null }>
 }
 
-type PaymentRow = { appointment_id: string; amount: number | string; gateway: string | null; status: string; created_at?: string | null }
+type PaymentRow = { appointment_id: string | null; diagnostic_booking_id?: string | null; amount: number | string; gateway: string | null; status: string; created_at?: string | null }
+type Payment = PaymentRow & { booking_id: string }
 
 const VISIT_STATUS: Record<string, { label: string; tone: Tone }> = {
   pending_payment: { label: 'Awaiting payment', tone: 'coral' },
@@ -121,12 +122,21 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
   })
 
   // Payments are keyed by the booking they settle; the ids come from this patient's own bookings.
-  const bookingIds = [...visits.map((v) => v.id), ...labBookings.map((b) => b.id)]
-  let payments: PaymentRow[] = []
-  if (bookingIds.length > 0) {
-    const { data } = await createAdminClient().from('payments').select('*').in('appointment_id', bookingIds).eq('status', 'success')
-    payments = ((data ?? []) as PaymentRow[]).sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
-  }
+  // Consultations use appointment_id, lab bookings use diagnostic_booking_id.
+  const visitIds = visits.map((v) => v.id)
+  const labIds = labBookings.map((b) => b.id)
+  const admin = createAdminClient()
+  const [visitPayments, labPayments] = await Promise.all([
+    visitIds.length > 0
+      ? admin.from('payments').select('*').in('appointment_id', visitIds).eq('status', 'success')
+      : Promise.resolve({ data: [] as PaymentRow[] }),
+    labIds.length > 0
+      ? admin.from('payments').select('*').in('diagnostic_booking_id', labIds).eq('status', 'success')
+      : Promise.resolve({ data: [] as PaymentRow[] }),
+  ])
+  const payments: Payment[] = [...((visitPayments.data ?? []) as PaymentRow[]), ...((labPayments.data ?? []) as PaymentRow[])]
+    .map((p) => ({ ...p, booking_id: (p.appointment_id ?? p.diagnostic_booking_id) as string }))
+    .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
 
   // Private, short-lived links to the reports labs have uploaded for this patient's own bookings.
   const reportLinks = await signReportLinks(
@@ -405,9 +415,9 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
               ) : (
                 <ul className="flex flex-col divide-y divide-surface-container">
                   {payments.slice(0, 5).map((p, i) => (
-                    <li key={`${p.appointment_id}-${i}`} className="flex items-center justify-between gap-3 py-2.5 px-1">
+                    <li key={`${p.booking_id}-${i}`} className="flex items-center justify-between gap-3 py-2.5 px-1">
                       <span className="min-w-0">
-                        <span className="block text-sm text-on-surface truncate capitalize">{describePayment(p.appointment_id)}</span>
+                        <span className="block text-sm text-on-surface truncate capitalize">{describePayment(p.booking_id)}</span>
                         <span className="block text-xs text-on-surface-variant">
                           {[p.created_at ? formatShortDate(p.created_at) : null, p.gateway === 'payu' ? 'Paid online' : p.gateway ? 'Paid at the desk' : null].filter(Boolean).join(' • ')}
                         </span>

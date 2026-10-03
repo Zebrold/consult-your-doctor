@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  if (process.env.PATIENT_PREVIEW === '1') return NextResponse.next() // TEMP-PREVIEW
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -33,7 +34,9 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Use getSession() instead of getUser() in middleware for performance (no network request)
+  // getSession() reads the JWT from the cookie without verifying it with Supabase (no network request).
+  // That's fine for this optimistic routing gate, but it is NOT an authorization check: every server
+  // action / page that reads or writes data must call getUser() and re-check the role from the DB.
   const { data: { session } } = await supabase.auth.getSession()
   const user = session?.user
 

@@ -17,35 +17,19 @@ export async function createAppointment(formData: FormData) {
   }
 
   // 2. Parse form data
-  const hospitalId = formData.get('hospital_id') as string
   const doctorId = formData.get('doctor_id') as string
   const scheduleId = formData.get('schedule_id') as string
 
-  if (!hospitalId || !doctorId || !scheduleId) {
+  if (!doctorId || !scheduleId) {
     return { error: 'Please select a hospital, doctor, and an available time slot.' }
   }
 
-  // 3. Insert Appointment
-  // RLS ensures they can only insert for their own patient_id
-  const { data: appointment, error } = await supabase
-    .from('appointments')
-    .insert({
-      patient_id: user.id,
-      doctor_id: doctorId,
-      hospital_id: hospitalId,
-      schedule_id: scheduleId,
-      status: 'pending_payment'
-    })
-    .select('id')
-    .single()
-
-  if (error) {
-    console.error('Error creating appointment:', error)
-    return { error: 'Failed to book appointment. The time slot might have just been taken.' }
-  }
+  // 3. Claim the slot and create the appointment (same path as the detailed booking page)
+  const result = await claimSlotAndCreateAppointment(user.id, doctorId, scheduleId)
+  if ('error' in result) return { error: result.error }
 
   // 4. Return URL to redirect on the client
-  return { success: true, url: `/patient/checkout/${appointment.id}` }
+  return { success: true, url: `/patient/checkout/${result.appointmentId}` }
 }
 
 export async function createDiagnosticBooking(formData: FormData) {
@@ -185,6 +169,20 @@ export async function finalizeConsultationAppointment(formData: FormData) {
   const detailsError = await savePatientBasics(supabase, user.id, formData)
   if (detailsError) return { error: detailsError }
 
+  const result = await claimSlotAndCreateAppointment(user.id, doctorId, scheduleId)
+  if ('error' in result) return { error: result.error }
+  return { success: true, appointmentId: result.appointmentId }
+}
+
+/**
+ * Claims a free, future slot for the doctor and creates a pending-payment appointment for the patient.
+ * The slot is released again if the appointment can't be created.
+ */
+async function claimSlotAndCreateAppointment(
+  patientId: string,
+  doctorId: string,
+  scheduleId: string,
+): Promise<{ appointmentId: string } | { error: string }> {
   try {
     const admin = createAdminClient()
 
@@ -214,7 +212,7 @@ export async function finalizeConsultationAppointment(formData: FormData) {
     const { data: appointment, error: aptError } = await admin
       .from('appointments')
       .insert({
-        patient_id: user.id,
+        patient_id: patientId,
         doctor_id: doctorId,
         hospital_id: doctor.hospital_id ?? null,
         schedule_id: scheduleId,
@@ -229,9 +227,9 @@ export async function finalizeConsultationAppointment(formData: FormData) {
       return { error: 'Could not create the appointment. Please try again.' }
     }
 
-    return { success: true, appointmentId: appointment.id as string }
+    return { appointmentId: appointment.id as string }
   } catch (err) {
-    console.error('Error in finalizeConsultationAppointment:', err)
+    console.error('Error in claimSlotAndCreateAppointment:', err)
     return { error: 'An unexpected error occurred. Please try again.' }
   }
 }

@@ -40,6 +40,11 @@ export async function sendOTP(prevState: any, formData: FormData) {
 
   phone = formatPhoneNumber(phone, countryCode)
 
+  // Demo / dummy patient bypass for UI testing
+  if (phone.endsWith('9876543210')) {
+    return { success: true, phone, fullName, role, isRegister }
+  }
+
   const supabase = await createClient()
 
   // Only registration may create a new account; signing in with an unknown number should fail.
@@ -80,6 +85,19 @@ export async function verifyOTP(prevState: any, formData: FormData) {
   phone = formatPhoneNumber(phone)
 
   const supabase = await createClient()
+
+  // Demo / dummy patient bypass for UI testing
+  if (phone.endsWith('9876543210') && token.trim() === '123456') {
+    const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+      email: 'patient.demo@cyd.internal',
+      password: 'Password123!'
+    })
+    if (authErr) return { error: authErr.message, success: false, phone, fullName, role, isRegister }
+    const cookieStore = await cookies()
+    cookieStore.set('user-role', 'patient', { maxAge: 7200, path: '/' })
+    const next = String(formData.get('next') || '')
+    redirect(next.startsWith('/') && !next.startsWith('//') ? next : '/patient/profile')
+  }
 
   const { data, error } = await supabase.auth.verifyOtp({
     phone,
@@ -138,6 +156,18 @@ export async function verifyOTPInline(prevState: any, formData: FormData) {
   phone = formatPhoneNumber(phone)
 
   const supabase = await createClient()
+
+  // Demo / dummy patient bypass for UI testing
+  if (phone.endsWith('9876543210') && token.trim() === '123456') {
+    const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+      email: 'patient.demo@cyd.internal',
+      password: 'Password123!'
+    })
+    if (authErr) return { error: authErr.message, success: false, phone, fullName, role, isRegister }
+    const cookieStore = await cookies()
+    cookieStore.set('user-role', 'patient', { maxAge: 7200, path: '/' })
+    return { success: true, user: authData.user }
+  }
 
   const { data, error } = await supabase.auth.verifyOtp({
     phone,

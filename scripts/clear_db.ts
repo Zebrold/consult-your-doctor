@@ -1,7 +1,17 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = "https://roehneuuwtpsgcwitgzs.supabase.co"
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvZWhuZXV1d3Rwc2djd2l0Z3pzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NjQzOTIxNywiZXhwIjoyMTAyMDE1MjE3fQ.aVl8FiYaSU9pfq5xQGzRkIYEOhYKVvXpa2N3JHB9ii8"
+// Credentials come from the environment only; never hardcode a service-role key in the repo.
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+if (!supabaseUrl || !supabaseKey) {
+  console.error("Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY before running this script.")
+  process.exit(1)
+}
+// This wipes almost every table. Require an explicit opt-in so it cannot be run by accident.
+if (process.env.CONFIRM_CLEAR_DB !== "yes-delete-everything") {
+  console.error("Refusing to run: set CONFIRM_CLEAR_DB=yes-delete-everything to confirm you want to delete all data.")
+  process.exit(1)
+}
 
 const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {

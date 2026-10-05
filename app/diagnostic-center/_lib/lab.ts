@@ -77,7 +77,7 @@ export const requireLab = cache(async () => {
     .select('full_name, email, role, diagnostic_center_id')
     .eq('id', user.id)
     .maybeSingle()
-  if (profile?.role !== 'diagnostic_admin') redirect('/')
+  if (profile?.role !== 'diagnostic_admin') redirect('/auth/signout?next=/login/diagnostic')
 
   const staff: LabStaff = { id: user.id, name: profile.full_name || 'Lab staff', email: realEmail(profile.email || user.email) }
   if (!profile.diagnostic_center_id) return { user, admin, staff, lab: null }

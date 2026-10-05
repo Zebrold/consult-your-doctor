@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { ROLE_COOKIE, ROLE_COOKIE_OPTIONS, roleCookieValue } from '@/lib/role-cookie'
 import { createClient } from '@/lib/supabase/server'
 
 // OAuth (Google) sign-in lands here with a one-time code to exchange for a session.
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
       }
 
       const cookieStore = await cookies()
-      cookieStore.set('user-role', profile?.role || 'patient', { maxAge: 7200, path: '/' })
+      cookieStore.set(ROLE_COOKIE, roleCookieValue(data.user.id, profile?.role || 'patient'), ROLE_COOKIE_OPTIONS)
 
       return NextResponse.redirect(`${origin}${safeNext}`)
     }

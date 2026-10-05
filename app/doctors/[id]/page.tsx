@@ -66,7 +66,7 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
       qualifications,
       hospital_id,
       department_id,
-      profiles!doctors_profile_id_fkey(full_name, email, phone_number, staff_id),
+      profiles!doctors_profile_id_fkey(full_name),
       hospitals(id, name, city, address, image_url, contact_email),
       departments(id, name)
     `)

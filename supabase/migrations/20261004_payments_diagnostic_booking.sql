@@ -7,6 +7,11 @@ alter table public.payments
     references public.diagnostic_bookings (id) on delete set null,
   add column if not exists created_at timestamptz not null default now();
 
+-- A diagnostic payment has no appointment, so appointment_id can no longer be required
+-- (it is NOT NULL today, which would make every diagnostic payment insert fail).
+alter table public.payments
+  alter column appointment_id drop not null;
+
 -- A payment settles at most one booking.
 alter table public.payments
   drop constraint if exists payments_single_booking_chk;

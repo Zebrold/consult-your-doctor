@@ -14,7 +14,7 @@ export default async function AdminDoctorsPage() {
       hospitals (name),
       profiles!doctors_profile_id_fkey ( full_name, email )
     `)
-    .order('created_at', { ascending: false })
+    .order('created_at', { referencedTable: 'profiles', ascending: false })
 
   return (
     <div>

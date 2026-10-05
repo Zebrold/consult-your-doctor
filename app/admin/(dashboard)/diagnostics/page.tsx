@@ -13,7 +13,7 @@ export default async function AdminDiagnostics() {
 
   // Verify super admin
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'super_admin') redirect('/')
+  if (profile?.role !== 'super_admin') redirect('/auth/signout?next=/admin')
 
   // Fetch Diagnostic Centers
   const { data: centers } = await supabase

@@ -17,7 +17,7 @@ export default async function DoctorLayout({ children }: { children: React.React
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'doctor') {
-    redirect('/')
+    redirect('/auth/signout?next=/login/doctor')
   }
 
   const { doctor } = await requireDoctor()

@@ -22,7 +22,7 @@ export async function requireExecutive() {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'executive') redirect('/')
+  if (profile?.role !== 'executive') redirect('/auth/signout?next=/login/executive')
 
   return {
     user,

@@ -18,7 +18,7 @@ export async function generateMetadata(
 
   const { data: hospital } = await supabase
     .from('hospitals')
-    .select('name, city, address, state, zip_code')
+    .select('name, city, address')
     .eq('id', id)
     .single()
 
@@ -28,7 +28,7 @@ export async function generateMetadata(
 
   return {
     title: `${hospital.name} in ${hospital.city} | Consult Your Doctor`,
-    description: `Book consultations at ${hospital.name} located at ${[hospital.address, hospital.city, hospital.state].filter(Boolean).join(', ')}. View affiliated doctors and specialties.`,
+    description: `Book consultations at ${hospital.name} located at ${[hospital.address, hospital.city].filter(Boolean).join(', ')}. View affiliated doctors and specialties.`,
   }
 }
 

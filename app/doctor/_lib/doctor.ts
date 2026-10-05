@@ -42,7 +42,7 @@ export const requireDoctor = cache(async () => {
     `)
     .eq('profile_id', user.id)
     .maybeSingle()
-  if (!data) redirect('/')
+  if (!data) redirect('/auth/signout?next=/login/doctor')
 
   type Row = {
     id: string; specialty: string | null; experience_years: number | null; consultation_fee: number | null
@@ -90,7 +90,7 @@ export async function loadVisits(admin: Admin, doctorId: string): Promise<Visit[
       id, status, created_at, schedule_id,
       patient:profiles!appointments_patient_id_fkey ( id, full_name, phone_number, email ),
       schedules ( start_time, end_time ),
-      medical_records ( id, notes, document_type, file_url, created_at )
+      medical_records ( id, notes, document_type, file_url )
     `)
     .eq('doctor_id', doctorId)
 
@@ -98,7 +98,7 @@ export async function loadVisits(admin: Admin, doctorId: string): Promise<Visit[
     id: string; status: string; created_at: string; schedule_id: string | null
     patient: Joined<{ id: string; full_name: string | null; phone_number: string | null; email: string | null }>
     schedules: Joined<{ start_time: string; end_time: string | null }>
-    medical_records: { id: string; notes: string | null; document_type: string | null; file_url: string | null; created_at: string | null }[] | null
+    medical_records: { id: string; notes: string | null; document_type: string | null; file_url: string | null }[] | null
   }
   return ((data ?? []) as unknown as Row[])
     .map((r) => {
@@ -113,8 +113,8 @@ export async function loadVisits(admin: Admin, doctorId: string): Promise<Visit[
         end: slot?.end_time ?? null,
         patient: patient ? { id: patient.id, name: patient.full_name || 'Patient', phone: patient.phone_number, email: patient.email } : null,
         records: (r.medical_records ?? [])
-          .map((m) => ({ id: m.id, type: m.document_type, notes: m.notes, fileUrl: m.file_url && m.file_url !== 'none' ? m.file_url : null, createdAt: m.created_at }))
-          .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '')),
+          // medical_records has no timestamp column; a record dates from its visit.
+          .map((m) => ({ id: m.id, type: m.document_type, notes: m.notes, fileUrl: m.file_url && m.file_url !== 'none' ? m.file_url : null, createdAt: null })),
       }
     })
     .sort((a, b) => (a.start ?? a.createdAt).localeCompare(b.start ?? b.createdAt))

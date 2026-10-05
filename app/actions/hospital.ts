@@ -158,11 +158,13 @@ export async function deleteDoctorSlot(formData: FormData) {
   const { data: doctor } = await supabase.from('doctors').select('hospital_id').eq('id', doctorId).single()
   if (doctor?.hospital_id !== profile.hospital_id) return { error: 'Unauthorized access to this doctor' }
 
-  // Ensure it's not booked
-  const { data: schedule } = await supabase.from('schedules').select('is_booked').eq('id', scheduleId).single()
-  if (schedule?.is_booked) return { error: 'Cannot delete a booked slot.' }
+  // Ensure the slot is this doctor's (not just any slot id) and not booked
+  const { data: schedule } = await supabase.from('schedules').select('is_booked').eq('id', scheduleId).eq('doctor_id', doctorId).maybeSingle()
+  if (!schedule) return { error: 'Slot not found.' }
+  if (schedule.is_booked) return { error: 'Cannot delete a booked slot.' }
 
-  const { error } = await supabase.from('schedules').delete().eq('id', scheduleId)
+  // The doctor and is_booked filters also close the gap between the check above and the delete.
+  const { error } = await supabase.from('schedules').delete().eq('id', scheduleId).eq('doctor_id', doctorId).eq('is_booked', false)
 
   if (error) {
     console.error('Failed to delete slot:', error)

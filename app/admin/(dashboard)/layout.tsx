@@ -20,7 +20,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
 
   if (profile?.role !== 'super_admin') {
-    redirect('/')
+    redirect('/auth/signout?next=/admin')
   }
 
   const navLinks = (

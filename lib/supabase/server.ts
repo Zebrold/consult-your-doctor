@@ -1,9 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { previewClient } from './preview-mock' // TEMP-PREVIEW
 
 export async function createClient() {
-  if (process.env.PATIENT_PREVIEW === '1') return previewClient() // TEMP-PREVIEW
   const cookieStore = await cookies()
 
   return createServerClient(

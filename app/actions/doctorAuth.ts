@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { randomInt } from 'node:crypto'
 
 export async function getHospitals() {
   const supabase = await createClient()
@@ -14,7 +15,9 @@ export async function getHospitals() {
 }
 
 export async function submitDoctorSignup(prevState: any, formData: FormData) {
-  const supabase = await createClient()
+  // Applicants aren't signed in, and database policies rightly hide profiles and other applications from the
+  // public, so the duplicate checks and the insert run server-side with the admin client.
+  const supabase = createAdminClient()
 
   // " | " separates the packed fields below, so strip pipes from free-text input.
   const field = (name: string) => ((formData.get(name) as string | null) ?? '').replace(/\|/g, '/').trim()
@@ -57,12 +60,12 @@ export async function submitDoctorSignup(prevState: any, formData: FormData) {
   ].join(' | ')
 
   // Check if email already exists in users or requests
-  const { data: existingUser } = await supabase.from('profiles').select('id').eq('email', email).single()
+  const { data: existingUser } = await supabase.from('profiles').select('id').eq('email', email).maybeSingle()
   if (existingUser) {
     return { error: 'This email is already registered in the system.', success: false }
   }
 
-  const { data: existingReq } = await supabase.from('doctor_signup_requests').select('id').eq('email', email).single()
+  const { data: existingReq } = await supabase.from('doctor_signup_requests').select('id').eq('email', email).eq('status', 'pending').limit(1).maybeSingle()
   if (existingReq) {
     return { error: 'A registration request for this email is already pending.', success: false }
   }
@@ -118,12 +121,12 @@ export async function approveDoctor(requestId: string) {
     return { success: false, error: 'Request is already processed' }
   }
 
-  // Generate secure random password
+  // Generate a random password (crypto RNG: Math.random is predictable and must not be used for credentials)
   const generatePassword = () => {
     const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
     let password = ""
-    for (let i = 0; i < 12; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length))
+    for (let i = 0; i < 14; i++) {
+      password += chars.charAt(randomInt(chars.length))
     }
     return password
   }

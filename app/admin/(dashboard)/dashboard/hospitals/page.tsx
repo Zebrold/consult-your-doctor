@@ -7,7 +7,7 @@ export const revalidate = 0
 
 export default async function AdminHospitalsPage() {
   const supabase = createAdminClient()
-  const { data: hospitals } = await supabase.from('hospitals').select('*').order('created_at', { ascending: false })
+  const { data: hospitals } = await supabase.from('hospitals').select('*').order('name', { ascending: true })
 
   return (
     <div>

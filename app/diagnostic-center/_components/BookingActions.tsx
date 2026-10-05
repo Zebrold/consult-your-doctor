@@ -94,7 +94,7 @@ export function UploadReportButton({
     const form = new FormData(e.currentTarget)
     const file = form.get('report') as File | null
     if (!file || file.size === 0) return setError('Choose the report file to upload.')
-    if (file.size > 10 * 1024 * 1024) return setError('The report must be under 10 MB.')
+    if (file.size > 5 * 1024 * 1024) return setError('The report must be under 5 MB.')
     start(async () => {
       const res = await uploadLabReport(form)
       if (!res.success) return setError(res.error)
@@ -140,7 +140,7 @@ export function UploadReportButton({
             </div>
 
             <label className="flex flex-col gap-1.5">
-              <span className="font-label-sm text-label-sm text-indigo-gray-600">Report file (PDF, JPG, PNG or WebP, up to 10 MB)</span>
+              <span className="font-label-sm text-label-sm text-indigo-gray-600">Report file (PDF, JPG, PNG or WebP, up to 5 MB)</span>
               <input
                 name="report"
                 type="file"

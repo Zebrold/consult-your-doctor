@@ -114,7 +114,7 @@ export async function uploadLabReport(formData: FormData): Promise<Result> {
   const file = formData.get('report')
   if (!(file instanceof File) || file.size === 0) return fail('Choose the report file to upload.')
   if (!REPORT_TYPES.includes(file.type)) return fail('Upload the report as a PDF, JPG, PNG or WebP file.')
-  if (file.size > REPORT_MAX_BYTES) return fail('The report must be under 10 MB.')
+  if (file.size > REPORT_MAX_BYTES) return fail('The report must be under 5 MB.')
 
   const { data: booking } = await ctx.admin
     .from('diagnostic_bookings')

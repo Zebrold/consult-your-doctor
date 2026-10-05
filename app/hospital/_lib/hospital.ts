@@ -32,14 +32,14 @@ export const requireHospital = cache(async () => {
 
   const admin = createAdminClient()
   const { data: profile } = await admin.from('profiles').select('full_name, email, role, hospital_id').eq('id', user.id).maybeSingle()
-  if (profile?.role !== 'hospital_admin' || !profile.hospital_id) redirect('/')
+  if (profile?.role !== 'hospital_admin' || !profile.hospital_id) redirect('/auth/signout?next=/login/hospital')
 
   const { data: h } = await admin
     .from('hospitals')
-    .select('id, name, city, address, image_url, contact_phone, contact_email, status')
+    .select('id, name, city, address, image_url, contact_email, status')
     .eq('id', profile.hospital_id)
     .maybeSingle()
-  if (!h) redirect('/')
+  if (!h) redirect('/auth/signout?next=/login/hospital')
 
   const hospital: HospitalInfo = {
     id: h.id,
@@ -47,7 +47,7 @@ export const requireHospital = cache(async () => {
     city: h.city,
     address: h.address,
     image: h.image_url,
-    phone: h.contact_phone,
+    phone: null,
     email: realEmail(h.contact_email),
     status: h.status,
   }
@@ -187,7 +187,7 @@ async function loadPayments(admin: Admin, ids: string[]): Promise<Map<string, Pa
   for (let i = 0; i < ids.length; i += 150) {
     const { data } = await admin
       .from('payments')
-      .select('appointment_id, amount, gateway, status, created_at')
+      .select('*')
       .in('appointment_id', ids.slice(i, i + 150))
       .eq('status', 'success')
     for (const p of (data ?? []) as { appointment_id: string; amount: number | string; gateway: string | null; created_at: string | null }[]) {

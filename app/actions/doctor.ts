@@ -4,6 +4,9 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
+const IMAGE_TYPES: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
+const DOCUMENT_TYPES: Record<string, string> = { ...IMAGE_TYPES, 'application/pdf': 'pdf' }
+
 export async function addPrescription(formData: FormData) {
   const appointmentId = formData.get('appointmentId') as string
   const notes = formData.get('notes') as string
@@ -33,16 +36,17 @@ export async function addPrescription(formData: FormData) {
   if (file && file.size > 0) {
     // Basic validation
     if (file.size > 5242880) return { error: 'File size must be under 5MB' }
-    
+    const fileExt = DOCUMENT_TYPES[file.type]
+    if (!fileExt) return { error: 'Upload the prescription as a PDF, JPG, PNG or WebP file.' }
+
     // Generate unique filename
-    const fileExt = file.name.split('.').pop()
     const fileName = `${appointmentId}-${Date.now()}.${fileExt}`
     
     // Upload to supabase storage using admin client to bypass Storage RLS
     const adminClient = createAdminClient()
     const { data: uploadData, error: uploadError } = await adminClient.storage
       .from('medical_records')
-      .upload(fileName, file, { upsert: true })
+      .upload(fileName, file, { upsert: true, contentType: file.type })
 
     if (uploadError) {
       console.error('Storage upload error:', uploadError)
@@ -112,6 +116,11 @@ export async function updateDoctorProfile(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Unauthorized' }
 
+  // Writes below use the admin client, so check here that the caller really is a doctor.
+  const adminClient = createAdminClient()
+  const { data: doctor } = await adminClient.from('doctors').select('id').eq('profile_id', user.id).maybeSingle()
+  if (!doctor) return { success: false, error: 'Not a doctor' }
+
   const fullName = formData.get('full_name') as string
   const phoneNumber = formData.get('phone_number') as string
   const specialty = formData.get('specialty') as string
@@ -121,8 +130,12 @@ export async function updateDoctorProfile(formData: FormData) {
   const qualifications = formData.get('qualifications') as string
   const address = formData.get('address') as string
 
+  const image = formData.get('image') as File | null
+  if (image && image.size > 0 && !IMAGE_TYPES[image.type]) {
+    return { success: false, error: 'The photo must be a JPG, PNG or WebP image.' }
+  }
+
   // Update profile
-  const adminClient = createAdminClient()
   const { error: profileError } = await adminClient
     .from('profiles')
     .update({ 
@@ -136,19 +149,16 @@ export async function updateDoctorProfile(formData: FormData) {
     return { success: false, error: profileError.message }
   }
 
-  const image = formData.get('image') as File | null
-  
   let imageUrl: string | undefined = undefined
 
   if (image && image.size > 0) {
     if (image.size > 5242880) return { success: false, error: 'Image size must be under 5MB' }
     
-    const fileExt = image.name.split('.').pop()
-    const fileName = `doctors/${user.id}-${Date.now()}.${fileExt}`
+    const fileName = `doctors/${user.id}-${Date.now()}.${IMAGE_TYPES[image.type]}`
     
     const { data: uploadData, error: uploadError } = await adminClient.storage
       .from('avatars')
-      .upload(fileName, image, { upsert: true })
+      .upload(fileName, image, { upsert: true, contentType: image.type })
 
     if (uploadError) {
       console.error('Image upload error:', uploadError)

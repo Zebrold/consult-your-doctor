@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { randomBytes } from 'node:crypto'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 
 /** "98204 77210" / "+91 98204 77210" → "+919820477210" (numbers without a country code are taken as Indian). */
@@ -11,7 +12,13 @@ function toE164(raw: string) {
   return cleaned.length === 10 ? `+91${cleaned}` : `+${cleaned}`
 }
 
+// The statuses the executive's status menu offers. Unpaid ('pending') bookings and finished ones can't be changed here.
+const EXECUTIVE_STATUSES = ['confirmed', 'visited', 'completed', 'cancelled']
+const FINAL_STATUSES = ['completed', 'cancelled']
+
 export async function updateAppointmentStatus(appointmentId: string, newStatus: string) {
+  if (!EXECUTIVE_STATUSES.includes(newStatus)) return { error: 'That status change is not allowed.' }
+
   const supabase = await createClient()
   
   const { data: { user } } = await supabase.auth.getUser()
@@ -31,12 +38,16 @@ export async function updateAppointmentStatus(appointmentId: string, newStatus: 
   if (appointment.executive_id !== user.id) {
     return { error: 'Not authorized to update this appointment' }
   }
+  if (appointment.status === 'pending' || FINAL_STATUSES.includes(appointment.status)) {
+    return { error: 'This appointment is unpaid or already closed, so its status cannot be changed.' }
+  }
 
   // Update status
   const { error: updateError } = await supabase
     .from('appointments')
     .update({ status: newStatus })
     .eq('id', appointmentId)
+    .eq('executive_id', user.id)
 
   if (updateError) {
     console.error('Failed to update status:', updateError)
@@ -149,7 +160,7 @@ export async function createWalkInAppointment(formData: FormData) {
       // Create new user silently
       const { data: newUser, error: createError } = await adminAuthClient.auth.admin.createUser({
         phone: patientPhone,
-        password: `CYD${Math.random().toString(36).slice(2, 10)}!`, // Random secure password
+        password: `CYD${randomBytes(18).toString('base64url')}!`, // never shown to anyone; patients sign in by OTP
         phone_confirm: true // Auto confirm so they can use OTP later
       })
 

@@ -5,7 +5,7 @@ type Admin = ReturnType<typeof createAdminClient>
 // Lab reports live in the medical records bucket, one file per booking, and are only ever handed out as
 // short-lived signed links (to the lab that uploaded them and to the patient they belong to).
 export const REPORT_BUCKET = 'medical_records'
-export const REPORT_MAX_BYTES = 10 * 1024 * 1024
+export const REPORT_MAX_BYTES = 5 * 1024 * 1024
 export const REPORT_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp']
 
 export const reportPath = (centerId: string, bookingId: string) => `diagnostic-reports/${centerId}/${bookingId}`

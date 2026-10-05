@@ -64,6 +64,10 @@ export function PatientsBoard({ rows, today, now, initialView, departments }: { 
   const [query, setQuery] = useState('')
   const [limit, setLimit] = useState(30)
 
+  // Patients whose slot started over 15 minutes ago today and who haven't been checked in
+  const statusOf = (r: BoardRow) =>
+    r.status === 'confirmed' && r.start && r.day === today && Date.parse(r.start) < now - 15 * 60_000 ? { label: 'Not checked in', tone: 'coral' as Tone } : STATUS[r.status]
+
   const counts = useMemo(() => Object.fromEntries(VIEWS.map((v) => [v.key, rows.filter((r) => matchesView(r, v.key, today)).length])) as Record<BoardView, number>, [rows, today])
 
   const shown = useMemo(() => {
@@ -149,8 +153,7 @@ export function PatientsBoard({ rows, today, now, initialView, departments }: { 
                 </thead>
                 <tbody className="divide-y divide-surface-container-low">
                   {shown.slice(0, limit).map((r) => {
-                    const late = r.status === 'confirmed' && r.start && Date.parse(r.start) < now - 15 * 60_000 && r.day === today
-                    const status = late ? { label: 'Not checked in', tone: 'coral' as Tone } : STATUS[r.status]
+                    const status = statusOf(r)
                     return (
                       <tr key={r.id} className="hover:bg-surface-container-low/40">
                         <td className="py-3.5 px-5 whitespace-nowrap">
@@ -199,7 +202,7 @@ export function PatientsBoard({ rows, today, now, initialView, departments }: { 
 
             <ul className="md:hidden flex flex-col gap-3 p-3">
               {shown.slice(0, limit).map((r) => {
-                const status = STATUS[r.status]
+                const status = statusOf(r)
                 return (
                   <li key={r.id} className="rounded-xl p-3.5 bg-surface-container-low/60 flex flex-col gap-2.5">
                     <div className="flex items-start justify-between gap-2">

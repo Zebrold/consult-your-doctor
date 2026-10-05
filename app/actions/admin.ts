@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
+import { ROLE_COOKIE, ROLE_COOKIE_OPTIONS, roleCookieValue } from '@/lib/role-cookie'
 
 export async function createStaffAccount(formData: FormData) {
   const supabase = await createClient()
@@ -373,11 +375,20 @@ export async function superAdminLogin(prevState: any, formData: FormData) {
     password: formData.get('password') as string,
   }
 
-  const { error } = await supabase.auth.signInWithPassword(data)
+  const { data: signedIn, error } = await supabase.auth.signInWithPassword(data)
 
   if (error) {
-    return { error: error.message }
+    return { error: 'Invalid admin ID or password.' }
   }
+
+  // Any account can authenticate here, so keep the session only for super admins.
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', signedIn.user.id).single()
+  if (profile?.role !== 'super_admin') {
+    await supabase.auth.signOut()
+    return { error: 'Invalid admin ID or password.' }
+  }
+  const cookieStore = await cookies()
+  cookieStore.set(ROLE_COOKIE, roleCookieValue(signedIn.user.id, 'super_admin'), ROLE_COOKIE_OPTIONS)
 
   redirect('/admin/dashboard')
 }

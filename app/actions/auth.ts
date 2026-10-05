@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
+import { ROLE_COOKIE, ROLE_COOKIE_OPTIONS, roleCookieValue } from '@/lib/role-cookie'
 
 function formatPhoneNumber(phone: string, countryCode: string = '+91') {
   if (phone.startsWith('+')) return phone
@@ -27,15 +28,16 @@ export async function sendOTP(prevState: any, formData: FormData) {
   let phone = formData.get('phone') as string
   const countryCode = formData.get('countryCode') as string || '+91'
   const fullName = formData.get('fullName') as string | null
-  const role = formData.get('role') as string | null
+  // Phone sign-up is for patients only. Staff accounts are created by an admin, so the form's role is ignored.
+  const role = 'patient'
   const isRegister = formData.get('isRegister') === 'true'
 
   if (!phone) {
     return { error: 'Phone number is required.', success: false, phone, fullName, role, isRegister }
   }
   
-  if (isRegister && (!fullName || !role)) {
-    return { error: 'Full name and role are required for registration.', success: false, phone, fullName, role, isRegister }
+  if (isRegister && !fullName?.trim()) {
+    return { error: 'Full name is required for registration.', success: false, phone, fullName, role, isRegister }
   }
 
   phone = formatPhoneNumber(phone, countryCode)
@@ -75,7 +77,7 @@ export async function verifyOTP(prevState: any, formData: FormData) {
   let phone = formData.get('phone') as string
   const token = formData.get('token') as string
   const fullName = formData.get('fullName') as string | null
-  const role = formData.get('role') as string | null
+  const role = 'patient' // see sendOTP: phone sign-up only creates patients
   const isRegister = formData.get('isRegister') === 'true'
 
   if (!phone || !token) {
@@ -94,7 +96,7 @@ export async function verifyOTP(prevState: any, formData: FormData) {
     })
     if (authErr) return { error: authErr.message, success: false, phone, fullName, role, isRegister }
     const cookieStore = await cookies()
-    cookieStore.set('user-role', 'patient', { maxAge: 7200, path: '/' })
+    cookieStore.set(ROLE_COOKIE, roleCookieValue(authData.user.id, 'patient'), ROLE_COOKIE_OPTIONS)
     const next = String(formData.get('next') || '')
     redirect(next.startsWith('/') && !next.startsWith('//') ? next : '/patient/profile')
   }
@@ -110,17 +112,14 @@ export async function verifyOTP(prevState: any, formData: FormData) {
   }
 
   if (data.user && isRegister) {
-    const profileData: any = {
-      id: data.user.id,
-      full_name: fullName,
-      phone_number: phone,
-      role: role,
-    }
-
-    // Insert or update profile
+    // Create the patient profile only if this number has none yet. Registering again with a number that already
+    // has an account just signs in; it must not rename the account or change its role.
     const { error: profileError } = await supabase
       .from('profiles')
-      .upsert(profileData)
+      .upsert(
+        { id: data.user.id, full_name: fullName?.trim(), phone_number: phone, role },
+        { onConflict: 'id', ignoreDuplicates: true }
+      )
 
     if (profileError) {
       return { error: `Profile creation failed: ${profileError.message}`, success: false, phone, fullName, role, isRegister }
@@ -134,7 +133,7 @@ export async function verifyOTP(prevState: any, formData: FormData) {
   // Fetch the role to set the cookie
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
   const cookieStore = await cookies()
-  cookieStore.set('user-role', profile?.role || 'patient', { maxAge: 7200, path: '/' })
+  cookieStore.set(ROLE_COOKIE, roleCookieValue(data.user.id, profile?.role || 'patient'), ROLE_COOKIE_OPTIONS)
 
   // Return patients to the page that asked them to sign in (only same-site paths).
   const next = String(formData.get('next') || '')
@@ -146,7 +145,7 @@ export async function verifyOTPInline(prevState: any, formData: FormData) {
   let phone = formData.get('phone') as string
   const token = formData.get('token') as string
   const fullName = formData.get('fullName') as string | null
-  const role = formData.get('role') as string | null
+  const role = 'patient' // see sendOTP: phone sign-up only creates patients
   const isRegister = formData.get('isRegister') === 'true'
 
   if (!phone || !token) {
@@ -165,7 +164,7 @@ export async function verifyOTPInline(prevState: any, formData: FormData) {
     })
     if (authErr) return { error: authErr.message, success: false, phone, fullName, role, isRegister }
     const cookieStore = await cookies()
-    cookieStore.set('user-role', 'patient', { maxAge: 7200, path: '/' })
+    cookieStore.set(ROLE_COOKIE, roleCookieValue(authData.user.id, 'patient'), ROLE_COOKIE_OPTIONS)
     return { success: true, user: authData.user }
   }
 
@@ -180,17 +179,14 @@ export async function verifyOTPInline(prevState: any, formData: FormData) {
   }
 
   if (data.user && isRegister) {
-    const profileData: any = {
-      id: data.user.id,
-      full_name: fullName,
-      phone_number: phone,
-      role: role,
-    }
-
-    // Insert or update profile
+    // Create the patient profile only if this number has none yet. Registering again with a number that already
+    // has an account just signs in; it must not rename the account or change its role.
     const { error: profileError } = await supabase
       .from('profiles')
-      .upsert(profileData)
+      .upsert(
+        { id: data.user.id, full_name: fullName?.trim(), phone_number: phone, role },
+        { onConflict: 'id', ignoreDuplicates: true }
+      )
 
     if (profileError) {
       return { error: `Profile creation failed: ${profileError.message}`, success: false, phone, fullName, role, isRegister }
@@ -204,7 +200,7 @@ export async function verifyOTPInline(prevState: any, formData: FormData) {
   // Fetch the role to set the cookie
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
   const cookieStore = await cookies()
-  cookieStore.set('user-role', profile?.role || 'patient', { maxAge: 7200, path: '/' })
+  cookieStore.set(ROLE_COOKIE, roleCookieValue(data.user.id, profile?.role || 'patient'), ROLE_COOKIE_OPTIONS)
 
   return { success: true, user: data.user }
 }
@@ -213,7 +209,7 @@ export async function logout() {
   const supabase = await createClient()
   await supabase.auth.signOut()
   const cookieStore = await cookies()
-  cookieStore.delete('user-role')
+  cookieStore.delete(ROLE_COOKIE)
   redirect('/')
 }
 
@@ -265,7 +261,7 @@ export async function staffLogin(prevState: any, formData: FormData) {
   }
 
   const cookieStore = await cookies()
-  cookieStore.set('user-role', expectedRole, { maxAge: 7200, path: '/' })
+  cookieStore.set(ROLE_COOKIE, roleCookieValue(data.user.id, expectedRole), ROLE_COOKIE_OPTIONS)
 
   if (expectedRole === 'doctor') {
     redirect('/doctor/dashboard')
@@ -289,7 +285,7 @@ export async function sendPasswordResetOTP(staffId: string) {
   const { data: profile } = await adminClient
     .from('profiles')
     .select('email, role')
-    .eq('staff_id', staffId)
+    .eq('staff_id', staffId.trim().toUpperCase())
     .single()
 
   if (!profile || !profile.email) {
@@ -306,7 +302,14 @@ export async function sendPasswordResetOTP(staffId: string) {
     return { error: error.message }
   }
 
-  return { success: true, email: profile.email }
+  return { success: true, email: maskEmail(profile.email) }
+}
+
+/** "priya.sharma@gmail.com" → "pr•••••••@gmail.com": enough to recognise, not enough to harvest. */
+function maskEmail(email: string) {
+  const [local, domain] = email.split('@')
+  if (!domain) return '•••'
+  return `${local.slice(0, 2)}${'•'.repeat(Math.max(local.length - 2, 3))}@${domain}`
 }
 
 export async function verifyOTPAndUpdatePassword(email: string, token: string, newPassword: string) {

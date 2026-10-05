@@ -51,6 +51,7 @@ export const metadata: Metadata = {
 
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
+import { ROLE_COOKIE, readRoleCookie } from "@/lib/role-cookie";
 
 export default async function RootLayout({
   children,
@@ -58,11 +59,11 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const cookieStore = await cookies();
-  const userRole = cookieStore.get("user-role")?.value;
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const userRole = user ? readRoleCookie(cookieStore.get(ROLE_COOKIE)?.value, user.id) : null;
 
   const isPatientLoggedIn = !!user && (userRole === "patient" || !userRole);
 

@@ -1,14 +1,15 @@
 import type { Metadata } from 'next'
+import type { ReactNode } from 'react'
 import Link from 'next/link'
 import {
-  Building2, CalendarCheck, CalendarDays, ClipboardCheck, ExternalLink, FileText, History, IndianRupee, LogOut,
+  Building2, CalendarCheck, CalendarDays, ClipboardCheck, ExternalLink, FileText, Globe, History, House, IndianRupee, LogOut,
   MapPin, ShieldCheck, Stethoscope, Users, type LucideIcon,
 } from 'lucide-react'
 import { currentTime } from '@/components/patient/data'
 import { doctorName, formatINR, formatShortDate, formatTime, istDateKey } from '@/components/patient/format'
 import { CONSULTATION_PLATFORM_FEE } from '@/lib/pricing'
 import { loadSlots, loadVisits, requireDoctor } from '../_lib/doctor'
-import { Avatar, Card, Chip, EmptyState } from '@/components/portal/ui'
+import { Avatar, Card, EmptyState } from '@/components/portal/ui'
 import { ProfileEditor } from '../_components/ProfileEditor'
 
 export const metadata: Metadata = { title: 'Profile | Doctor Portal' }
@@ -29,7 +30,7 @@ export default async function DoctorProfilePage() {
 
   const [visits, slots, application] = await Promise.all([
     loadVisits(admin, doctor.id),
-    loadSlots(admin, doctor.id, new Date(now).toISOString(), new Date(now + 7 * DAY).toISOString()),
+    loadSlots(admin, doctor.id, new Date(now).toISOString(), new Date(now + 14 * DAY).toISOString()),
     doctor.email
       ? admin.from('doctor_signup_requests').select('qualifications').eq('email', doctor.email).eq('status', 'approved').maybeSingle()
       : Promise.resolve({ data: null }),
@@ -48,9 +49,23 @@ export default async function DoctorProfilePage() {
   const completeness = Math.round((checks.filter((c) => c !== null && c !== undefined && c !== '').length / checks.length) * 100)
 
   // Next 7 days of published slots, grouped by day
+  const weekSlots = slots.filter((s) => Date.parse(s.start) < now + 7 * DAY)
   const byDay = new Map<string, typeof slots>()
-  for (const s of slots) byDay.set(istDateKey(s.start), [...(byDay.get(istDateKey(s.start)) ?? []), s])
+  for (const s of weekSlots) byDay.set(istDateKey(s.start), [...(byDay.get(istDateKey(s.start)) ?? []), s])
   const days = Array.from(byDay.entries()).slice(0, 4)
+
+  // Which weekdays the doctor consults on (next 14 days) and the busiest day's slot count
+  const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const perDay = new Map<string, number>()
+  const weekdays = new Set<number>()
+  for (const s of slots) {
+    const key = istDateKey(s.start)
+    perDay.set(key, (perDay.get(key) ?? 0) + 1)
+    weekdays.add(new Date(`${key}T12:00:00+05:30`).getUTCDay())
+  }
+  const consultingDays =
+    weekdays.size === 7 ? 'Daily' : weekdays.size === 0 ? 'No slots yet' : [1, 2, 3, 4, 5, 6, 0].filter((d) => weekdays.has(d)).map((d) => WEEKDAYS[d]).join(' • ')
+  const maxPerDay = Math.max(0, ...perDay.values())
 
   const editable = {
     name: doctor.name,
@@ -151,39 +166,55 @@ export default async function DoctorProfilePage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 md:gap-stack-md">
         <div className="xl:col-span-8 flex flex-col gap-4 md:gap-stack-lg">
-          {/* Affiliation */}
+          {/* Affiliations */}
           <Card>
-            <SectionTitle icon={Building2} eyebrow="Practice Location" title="Hospital Affiliation" />
+            <div className="flex items-start justify-between gap-3">
+              <SectionTitle icon={Building2} eyebrow="Active Locations" title="Clinic & Hospital Affiliations" />
+              <Link href="/doctor/schedule" className="shrink-0 text-primary hover:bg-surface-container-low px-3 py-1.5 rounded-full font-label-sm text-[12px] md:text-label-sm transition-colors flex items-center gap-1">
+                <CalendarDays className="w-[18px] h-[18px]" /> <span className="hidden sm:inline">My Schedule</span>
+              </Link>
+            </div>
             {doctor.hospital ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-stack-sm">
-                <div className="bg-surface-container-low rounded-xl p-4 flex flex-col justify-between gap-3">
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="w-8 h-8 rounded-lg bg-surface-container-highest flex items-center justify-center text-primary">
-                        <Building2 className="w-5 h-5" />
-                      </span>
-                      <Chip tone="teal">In-person visits</Chip>
-                    </div>
-                    <h3 className="font-title-md text-[16px] md:text-title-md text-on-surface leading-tight mb-1">{doctor.hospital.name}</h3>
-                    <p className="text-label-sm text-on-surface-variant flex items-start gap-1.5">
-                      <MapPin className="w-4 h-4 text-primary shrink-0 mt-px" />
-                      {[doctor.hospital.address, doctor.hospital.city].filter(Boolean).join(', ') || 'Address not listed'}
-                    </p>
-                  </div>
-                  <div className="pt-3 border-t border-surface-container-high/70 flex items-center justify-between font-label-sm text-label-sm">
-                    <span className="text-secondary font-semibold">{slots.length} slots in the next 7 days</span>
-                    <Link href="/doctor/schedule" className="text-primary hover:underline text-[12px]">View schedule</Link>
-                  </div>
-                </div>
-                <div className="bg-surface-container-low rounded-xl p-4 flex flex-col gap-2 text-sm text-on-surface-variant">
-                  <span className="font-label-sm text-label-sm text-on-surface font-semibold">How your slots work</span>
-                  <p>Your hospital admin publishes your appointment slots. Patients book and pay online, and you can block any open slot from your schedule.</p>
-                  {doctor.address && (
-                    <p className="text-[12px]">
-                      <strong className="text-on-surface">Clinic address on your profile:</strong> {doctor.address}
-                    </p>
-                  )}
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 md:gap-stack-sm">
+                <Affiliation
+                  icon={Building2}
+                  chip={consultingDays}
+                  chipClass="bg-secondary-container text-on-secondary-container"
+                  title={doctor.hospital.name}
+                  address={[doctor.hospital.address, doctor.hospital.city].filter(Boolean).join(', ') || 'Address not listed'}
+                  lines={[
+                    { icon: Stethoscope, text: 'In-person consultations' },
+                    { icon: CalendarCheck, text: `${slots.length} slots in the next 14 days` },
+                  ]}
+                  footLeft={maxPerDay ? `Max ${maxPerDay} Slots/Day` : 'Slots set by your hospital'}
+                  footRight={<Link href="/doctor/schedule" className="text-primary hover:underline">View Times</Link>}
+                />
+                {doctor.address && (
+                  <Affiliation
+                    icon={House}
+                    chip="Your clinic"
+                    chipClass="bg-primary-fixed text-on-primary-fixed"
+                    title="Clinic Address"
+                    address={doctor.address}
+                    lines={[{ icon: MapPin, text: 'Shown on your public profile' }]}
+                    footLeft="Patients see this"
+                    footRight={<Link href={`/doctors/${doctor.id}`} className="text-primary hover:underline">Preview</Link>}
+                  />
+                )}
+                <Affiliation
+                  icon={Globe}
+                  iconClass="text-fresh-teal"
+                  chip="Online booking"
+                  chipClass="bg-fresh-teal/15 text-secondary"
+                  title="Consult Your Doctor"
+                  address="Patients find, book and pay for you online"
+                  lines={[
+                    { icon: IndianRupee, text: doctor.fee ? `${formatINR(doctor.fee)} consultation fee` : 'Set your fee to take bookings' },
+                    { icon: ShieldCheck, text: 'Paid before the visit' },
+                  ]}
+                  footLeft={`${upcoming.length} upcoming ${upcoming.length === 1 ? 'booking' : 'bookings'}`}
+                  footRight={<Link href="/doctor/patients" className="text-primary hover:underline">Patients</Link>}
+                />
               </div>
             ) : (
               <EmptyState icon={Building2}>You aren&apos;t linked to a hospital yet. Ask the admin team to add you.</EmptyState>
@@ -235,6 +266,7 @@ export default async function DoctorProfilePage() {
                 <IndianRupee className="w-5 h-5" />
                 <h2 className="font-title-md text-[16px] md:text-title-md text-on-surface font-semibold">Fee Structure</h2>
               </div>
+              <ProfileEditor profile={editable} label="Update Fee" className="font-label-sm text-[12px] md:text-label-sm text-primary hover:underline flex items-center gap-1" />
             </div>
             <p className="text-label-sm text-on-surface-variant mb-4">What patients pay when they book you online.</p>
             <div className="flex flex-col gap-2.5">
@@ -242,7 +274,6 @@ export default async function DoctorProfilePage() {
               <FeeRow title="Platform fee" sub="Added at checkout" value={formatINR(CONSULTATION_PLATFORM_FEE)} />
               {doctor.fee ? <FeeRow title="Patient pays" sub="Total at checkout" value={formatINR(doctor.fee + CONSULTATION_PLATFORM_FEE)} /> : null}
             </div>
-            <p className="text-[11px] text-on-surface-variant mt-3">Change your fee with &ldquo;Edit Public Profile&rdquo;.</p>
           </Card>
 
           {/* Hours */}
@@ -252,7 +283,9 @@ export default async function DoctorProfilePage() {
                 <CalendarDays className="w-5 h-5" />
                 <h2 className="font-title-md text-[16px] md:text-title-md text-on-surface font-semibold">Appointment Hours</h2>
               </div>
-              <span className="text-[11px] text-on-surface-variant">Next 7 days</span>
+              <span className="flex items-center gap-1.5 text-[11px] text-on-surface-variant">
+                Next 7 days <span className="w-2.5 h-2.5 rounded-full bg-fresh-teal animate-pulse" title="Live from your schedule" />
+              </span>
             </div>
             {days.length === 0 ? (
               <EmptyState icon={CalendarDays}>No slots published for the next 7 days.</EmptyState>
@@ -312,6 +345,55 @@ function Tile({ label, value, unit, sub, icon: Icon, accent = 'text-on-surface' 
       <span className="font-label-sm text-[10px] md:text-[11px] text-secondary mt-0.5 md:mt-1 flex items-center gap-1">
         <Icon className="w-3 h-3 md:w-3.5 md:h-3.5" /> {sub}
       </span>
+    </div>
+  )
+}
+
+function Affiliation({
+  icon: Icon,
+  iconClass = 'text-primary',
+  chip,
+  chipClass,
+  title,
+  address,
+  lines,
+  footLeft,
+  footRight,
+}: {
+  icon: LucideIcon
+  iconClass?: string
+  chip: string
+  chipClass: string
+  title: string
+  address: string
+  lines: { icon: LucideIcon; text: string }[]
+  footLeft: string
+  footRight: ReactNode
+}) {
+  return (
+    <div className="bg-surface-container-low rounded-xl p-3 md:p-4 flex flex-col justify-between gap-2 md:gap-0 hover:bg-surface-container transition-colors">
+      <div>
+        <div className="flex items-center justify-between gap-2 mb-1 md:mb-3">
+          <span className={`hidden md:flex w-8 h-8 rounded-lg bg-surface-container-highest items-center justify-center ${iconClass}`}>
+            <Icon className="w-5 h-5" />
+          </span>
+          <span className="md:hidden font-title-md text-[14px] font-semibold text-on-surface truncate">{title}</span>
+          <span className={`px-2 md:px-2.5 py-0.5 rounded-full font-label-sm text-[10px] md:text-[11px] font-semibold whitespace-nowrap ${chipClass}`}>{chip}</span>
+        </div>
+        <h3 className="hidden md:block font-title-md text-title-md text-on-surface leading-tight mb-1">{title}</h3>
+        <p className="text-[12px] md:text-label-sm text-on-surface-variant md:mb-3">{address}</p>
+        <div className="hidden md:flex flex-col gap-1.5 text-on-surface-variant font-label-sm text-[13px]">
+          {lines.map((l) => (
+            <span key={l.text} className="flex items-center gap-2">
+              <l.icon className="w-4 h-4 text-primary shrink-0" /> {l.text}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="md:mt-4 pt-1.5 md:pt-3 border-t border-surface-container-high/70 flex items-center justify-between gap-2 font-label-sm text-[11px] md:text-label-sm">
+        <span className="text-secondary font-semibold">{footLeft}</span>
+        <span className="text-[11px] md:text-[12px]">{footRight}</span>
+      </div>
     </div>
   )
 }

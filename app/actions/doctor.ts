@@ -3,13 +3,15 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { vitalsSentence } from '@/lib/vitals'
 
 const IMAGE_TYPES: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
 const DOCUMENT_TYPES: Record<string, string> = { ...IMAGE_TYPES, 'application/pdf': 'pdf' }
 
 export async function addPrescription(formData: FormData) {
   const appointmentId = formData.get('appointmentId') as string
-  const notes = formData.get('notes') as string
+  const vitals = vitalsSentence({ bp: formData.get('bp'), spo2: formData.get('spo2'), hr: formData.get('hr') })
+  const notes = [String(formData.get('notes') || '').trim(), vitals].filter(Boolean).join(' ')
   const file = formData.get('file') as File | null
 
   if (!appointmentId || !notes) return { error: 'Missing required fields' }
@@ -249,9 +251,6 @@ export async function addNewPatient(formData: FormData) {
   // Only what the doctor actually entered is recorded; nothing clinical is filled in by default.
   const field = (name: string) => String(formData.get(name) || '').trim()
   const diagnosis = field('diagnosis')
-  const bp = field('bp')
-  const spo2 = field('spo2')
-  const hr = field('hr')
   const allergy = field('allergy')
   const medications = field('medications')
 
@@ -261,6 +260,7 @@ export async function addNewPatient(formData: FormData) {
 
   // Create auth user or use existing
   let patientId: string | null = null
+  let created = false
   const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
     email,
     email_confirm: true,
@@ -269,9 +269,13 @@ export async function addNewPatient(formData: FormData) {
 
   if (authUser?.user?.id) {
     patientId = authUser.user.id
+    created = true
   } else {
     // If user exists or failed, find profile
-    const { data: existingProfile } = await adminClient.from('profiles').select('id').eq('email', email).maybeSingle()
+    const { data: existingProfile } = await adminClient.from('profiles').select('id, role').eq('email', email).maybeSingle()
+    if (existingProfile && existingProfile.role && existingProfile.role !== 'patient') {
+      return { success: false, error: 'That email belongs to a staff account. Use the patient’s own email, or leave it blank.' }
+    }
     if (existingProfile) {
       patientId = existingProfile.id
     } else {
@@ -279,8 +283,8 @@ export async function addNewPatient(formData: FormData) {
     }
   }
 
-  // Ensure profile is updated
-  await adminClient.from('profiles').upsert({
+  // Fill in the profile only for an account created just now; an existing patient's details stay as they are.
+  if (created) await adminClient.from('profiles').upsert({
     id: patientId,
     full_name: fullName,
     phone_number: phoneNumber || null,
@@ -309,10 +313,9 @@ export async function addNewPatient(formData: FormData) {
       status: 'confirmed'
     }).select('id').single()
 
-    const vitals = [bp && `BP ${bp}`, spo2 && `SpO2 ${spo2}`, hr && `HR ${hr}`].filter(Boolean).join(', ')
     const notes = [
       diagnosis,
-      vitals && `Vitals: ${vitals}.`,
+      vitalsSentence({ bp: field('bp'), spo2: field('spo2'), hr: field('hr') }),
       allergy && `Allergy: ${allergy}.`,
       medications && `Rx: ${medications}`,
     ].filter(Boolean).join(' ')

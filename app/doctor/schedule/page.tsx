@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { currentTime } from '@/components/patient/data'
 import { ageFrom, istDateKey } from '@/components/patient/format'
-import { loadPatientFacts, loadSlots, loadVisits, requireDoctor } from '../_lib/doctor'
+import { latestVitals, loadPatientFacts, loadSlots, loadVisits, requireDoctor } from '../_lib/doctor'
 import { ScheduleBoard, type BoardPatientFacts, type BoardVisit } from '../_components/ScheduleBoard'
 
 export const metadata: Metadata = { title: 'Schedule | Doctor Portal' }
@@ -40,15 +40,34 @@ export default async function DoctorSchedulePage(props: { searchParams?: Promise
     hasNotes: v.records.length > 0,
   }))
 
+  const vitals = latestVitals(visits)
   const boardFacts: Record<string, BoardPatientFacts> = {}
-  for (const [id, f] of Object.entries(facts)) {
-    boardFacts[id] = { age: ageFrom(f.dateOfBirth, now), gender: f.gender, bloodGroup: f.bloodGroup }
+  for (const id of new Set(inWindow.map((v) => v.patient?.id).filter(Boolean) as string[])) {
+    const f = facts[id]
+    boardFacts[id] = { age: ageFrom(f?.dateOfBirth, now), gender: f?.gender ?? null, bloodGroup: f?.bloodGroup ?? null, vitals: vitals[id] ?? null }
   }
 
   return (
     <ScheduleBoard
       key={date}
-      doctor={{ name: doctor.name, image: doctor.image, specialty: doctor.specialty, hospital: doctor.hospital, fee: doctor.fee }}
+      doctor={{
+        name: doctor.name,
+        image: doctor.image,
+        specialty: doctor.specialty,
+        qualifications: doctor.qualifications,
+        hospital: doctor.hospital,
+        fee: doctor.fee,
+        editable: {
+          name: doctor.name,
+          phone: doctor.phone,
+          specialty: doctor.specialty,
+          qualifications: doctor.qualifications,
+          experience: doctor.experience,
+          fee: doctor.fee,
+          bio: doctor.bio,
+          address: doctor.address,
+        },
+      }}
       slots={slots}
       visits={boardVisits}
       facts={boardFacts}

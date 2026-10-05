@@ -11,8 +11,10 @@ export type BookingRef = { id: string; code: string; status: string; patientName
 const styles = {
   teal: 'bg-fresh-teal hover:bg-secondary text-on-secondary shadow-[0_4px_14px_rgba(20,184,166,0.3)]',
   blue: 'bg-vibrant-blue hover:bg-primary text-on-primary shadow-sm',
+  coral: 'bg-soft-coral hover:bg-tertiary-container text-on-tertiary shadow-sm',
   soft: 'bg-surface-container-high hover:bg-surface-container-highest text-indigo-gray-900',
   icon: 'p-2 hover:bg-surface-container text-vibrant-blue',
+  light: 'bg-surface-container-lowest hover:bg-surface-container-low text-primary shadow-md',
 }
 type Kind = keyof typeof styles
 
@@ -173,10 +175,10 @@ export function UploadReportButton({
 
 /** The one thing to do next for a booking: check in, upload the report, or open the sent report. */
 export function NextStep({ booking, reportUrl, kind = 'blue' }: { booking: BookingRef; reportUrl?: string | null; kind?: Kind }) {
-  if (booking.status === 'confirmed') return <CheckInButton booking={booking} kind={kind === 'icon' ? 'icon' : 'teal'} />
+  if (booking.status === 'confirmed') return <CheckInButton booking={booking} kind={kind === 'icon' || kind === 'light' ? kind : 'teal'} />
   if (booking.status === 'visited' || booking.status === 'completed') return <UploadReportButton booking={booking} kind={kind} />
   if (booking.status === 'report_sent') {
-    return reportUrl ? <ReportLink href={reportUrl} kind={kind === 'icon' ? 'icon' : 'soft'} /> : <UploadReportButton booking={booking} kind={kind} />
+    return reportUrl ? <ReportLink href={reportUrl} kind={kind === 'icon' || kind === 'light' ? kind : 'soft'} /> : <UploadReportButton booking={booking} kind={kind} />
   }
   return null
 }

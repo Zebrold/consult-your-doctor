@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { one } from '@/components/patient/data'
 import type { Tone } from '@/components/portal/ui'
+import { parseVitals, type Vitals } from '@/lib/vitals'
 
 export { loadPatientFacts, type PatientFacts } from '@/lib/patient-facts'
 export type { Tone }
@@ -118,6 +119,26 @@ export async function loadVisits(admin: Admin, doctorId: string): Promise<Visit[
       }
     })
     .sort((a, b) => (a.start ?? a.createdAt).localeCompare(b.start ?? b.createdAt))
+}
+
+export type RecordedVitals = Vitals & { date: string | null }
+
+/** Each patient's most recent vitals written in a visit's notes (walk-in or prescription form), by patient id. */
+export function latestVitals(visits: Visit[]): Record<string, RecordedVitals> {
+  const found: Record<string, RecordedVitals> = {}
+  // visits come oldest slot first, so walk them newest first
+  for (const v of [...visits].reverse()) {
+    const id = v.patient?.id
+    if (!id || found[id]) continue
+    for (const r of v.records) {
+      const vitals = parseVitals(r.notes)
+      if (vitals) {
+        found[id] = { ...vitals, date: v.start ?? v.createdAt }
+        break
+      }
+    }
+  }
+  return found
 }
 
 export type Slot = { id: string; start: string; end: string | null; booked: boolean }

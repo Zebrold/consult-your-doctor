@@ -14,6 +14,8 @@ const styles = {
   solid: 'bg-fresh-teal hover:bg-secondary text-on-secondary shadow-[0_4px_14px_rgba(20,184,166,0.3)]',
   blue: 'bg-vibrant-blue hover:bg-primary text-on-primary shadow-sm',
   soft: 'bg-surface-container-high hover:bg-surface-container-highest text-indigo-gray-900',
+  light: 'bg-surface-container-lowest hover:bg-surface-container-low text-primary shadow-md',
+  pale: 'bg-surface-container-low hover:bg-surface-container text-indigo-gray-900',
   icon: 'p-2 hover:bg-surface-container text-vibrant-blue',
 }
 
@@ -24,6 +26,7 @@ function Button({
   title,
   children,
   className = '',
+  pad = 'px-3.5 py-2',
 }: {
   kind: keyof typeof styles
   onClick: () => void
@@ -31,6 +34,8 @@ function Button({
   title?: string
   children: ReactNode
   className?: string
+  /** Padding classes (kept separate so callers can resize without two competing padding utilities). */
+  pad?: string
 }) {
   return (
     <button
@@ -39,8 +44,8 @@ function Button({
       aria-label={kind === 'icon' ? title : undefined}
       onClick={onClick}
       disabled={pending}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-full font-label-sm text-label-sm transition-all active:scale-95 disabled:opacity-60 ${
-        kind === 'icon' ? '' : 'px-3.5 py-2'
+      className={`inline-flex items-center justify-center gap-1.5 rounded-full font-label-sm text-label-sm whitespace-nowrap transition-all active:scale-95 disabled:opacity-60 ${
+        kind === 'icon' ? '' : pad
       } ${styles[kind]} ${className}`}
     >
       {pending ? <LoaderCircle className="w-4 h-4 animate-spin" /> : null}
@@ -49,7 +54,7 @@ function Button({
   )
 }
 
-export function CheckInButton({ visit, kind = 'soft', label = 'Check In', className }: { visit: VisitRef; kind?: keyof typeof styles; label?: string; className?: string }) {
+export function CheckInButton({ visit, kind = 'soft', label = 'Check In', className, pad }: { visit: VisitRef; kind?: keyof typeof styles; label?: string; className?: string; pad?: string }) {
   const router = useRouter()
   const [pending, start] = useTransition()
   if (!canCheckIn(visit)) return null
@@ -59,6 +64,7 @@ export function CheckInButton({ visit, kind = 'soft', label = 'Check In', classN
       title={`Mark ${visit.patientName} as checked in`}
       pending={pending}
       className={className}
+      pad={pad}
       onClick={() =>
         start(async () => {
           const res = await updateAppointmentStatus(visit.id, 'visited')
@@ -73,12 +79,12 @@ export function CheckInButton({ visit, kind = 'soft', label = 'Check In', classN
   )
 }
 
-export function PrescriptionButton({ visit, kind = 'soft', label = 'Write Prescription', className }: { visit: VisitRef; kind?: keyof typeof styles; label?: string; className?: string }) {
+export function PrescriptionButton({ visit, kind = 'soft', label = 'Write Prescription', className, pad }: { visit: VisitRef; kind?: keyof typeof styles; label?: ReactNode; className?: string; pad?: string }) {
   const [open, setOpen] = useState(false)
   if (!canPrescribe(visit)) return null
   return (
     <>
-      <Button kind={kind} title={`Write a prescription for ${visit.patientName}`} onClick={() => setOpen(true)} className={className}>
+      <Button kind={kind} title={`Write a prescription for ${visit.patientName}`} onClick={() => setOpen(true)} className={className} pad={pad}>
         <FilePenLine className="w-4 h-4" />
         {kind !== 'icon' && label}
       </Button>
@@ -87,14 +93,14 @@ export function PrescriptionButton({ visit, kind = 'soft', label = 'Write Prescr
   )
 }
 
-export function CallLink({ phone, name, kind = 'soft' }: { phone: string | null; name: string; kind?: keyof typeof styles }) {
+export function CallLink({ phone, name, kind = 'soft', pad = 'px-3.5 py-2', className = '' }: { phone: string | null; name: string; kind?: keyof typeof styles; pad?: string; className?: string }) {
   if (!phone) return null
   return (
     <a
       href={`tel:${phone.replace(/[^\d+]/g, '')}`}
       title={`Call ${name}`}
       aria-label={`Call ${name}`}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-full font-label-sm text-label-sm transition-colors ${kind === 'icon' ? '' : 'px-3.5 py-2'} ${styles[kind]}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-full font-label-sm text-label-sm transition-colors ${kind === 'icon' ? '' : pad} ${styles[kind]} ${className}`}
     >
       <Phone className="w-4 h-4" />
       {kind !== 'icon' && 'Call Patient'}
@@ -103,15 +109,16 @@ export function CallLink({ phone, name, kind = 'soft' }: { phone: string | null;
 }
 
 /** The one action that moves a visit forward: check the patient in, then write their prescription. */
-export function NextStepButton({ visit, className = '' }: { visit: VisitRef; className?: string }) {
-  if (canCheckIn(visit)) return <CheckInButton visit={visit} kind="solid" label="Check In Patient" className={`px-6 py-3 ${className}`} />
-  if (canPrescribe(visit)) return <PrescriptionButton visit={visit} kind="solid" label="Write Prescription" className={`px-6 py-3 ${className}`} />
+export function NextStepButton({ visit, kind = 'solid', className = '', pad = 'px-6 py-3' }: { visit: VisitRef; kind?: keyof typeof styles; className?: string; pad?: string }) {
+  if (canCheckIn(visit)) return <CheckInButton visit={visit} kind={kind} label="Check In Patient" className={className} pad={pad} />
+  if (canPrescribe(visit)) return <PrescriptionButton visit={visit} kind={kind} label="Write Prescription" className={className} pad={pad} />
   return null
 }
 
 function PrescriptionModal({ visit, onClose }: { visit: VisitRef; onClose: () => void }) {
   const router = useRouter()
   const [notes, setNotes] = useState('')
+  const [vitals, setVitals] = useState({ bp: '', spo2: '', hr: '' })
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
@@ -122,6 +129,7 @@ function PrescriptionModal({ visit, onClose }: { visit: VisitRef; onClose: () =>
     const form = new FormData()
     form.append('appointmentId', visit.id)
     form.append('notes', notes)
+    for (const [key, value] of Object.entries(vitals)) if (value.trim()) form.append(key, value)
     if (file) form.append('file', file)
     start(async () => {
       const res = await addPrescription(form)
@@ -158,6 +166,27 @@ function PrescriptionModal({ visit, onClose }: { visit: VisitRef; onClose: () =>
             className="w-full rounded-lg bg-surface-container-low p-3 text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-vibrant-blue/30"
           />
         </label>
+        <fieldset className="flex flex-col gap-1.5">
+          <legend className="font-label-sm text-label-sm text-indigo-gray-600 mb-1.5">Vitals measured at this visit (optional)</legend>
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              ['bp', 'BP', 'mmHg'],
+              ['spo2', 'SpO2', '%'],
+              ['hr', 'Heart rate', 'bpm'],
+            ] as const).map(([key, label, unit]) => (
+              <label key={key} className="flex flex-col gap-1">
+                <span className="text-[11px] text-indigo-gray-600">{label}</span>
+                <input
+                  value={vitals[key]}
+                  onChange={(e) => setVitals((v) => ({ ...v, [key]: e.target.value }))}
+                  placeholder={unit}
+                  maxLength={20}
+                  className="w-full rounded-lg bg-surface-container-low px-3 py-2 text-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-vibrant-blue/30"
+                />
+              </label>
+            ))}
+          </div>
+        </fieldset>
         <label className="flex flex-col gap-1.5">
           <span className="font-label-sm text-label-sm text-indigo-gray-600">Attach a document (optional, PDF or image, up to 5 MB)</span>
           <input

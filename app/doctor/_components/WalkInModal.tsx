@@ -18,7 +18,7 @@ function Field({ label, children, className = '' }: { label: string; children: R
 }
 
 /** Registers a patient who is seeing the doctor now, with a visit starting immediately. */
-export function WalkInButton({ className, label = 'Add Walk-in Patient' }: { className: string; label?: string }) {
+export function WalkInButton({ className, label = 'Add Walk-in Patient', icon }: { className: string; label?: ReactNode; icon?: ReactNode }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -42,7 +42,7 @@ export function WalkInButton({ className, label = 'Add Walk-in Patient' }: { cla
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className={className}>
-        <UserPlus className="w-[18px] h-[18px]" />
+        {icon ?? <UserPlus className="w-[18px] h-[18px]" />}
         <span>{label}</span>
       </button>
 

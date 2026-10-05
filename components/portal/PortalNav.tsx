@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { CalendarDays, CircleUserRound, ExternalLink, IdCard, LayoutGrid, LogOut, Menu, Users, Wallet, X } from 'lucide-react'
@@ -8,7 +8,9 @@ import { initials } from '@/components/patient/format'
 
 export type Portal = 'doctor' | 'lab' | 'hospital'
 
-const TABS = {
+type Tab = { href: string; label: string; icon: typeof LayoutGrid; /** Longer label for the desktop dock. */ wide?: string }
+
+const TABS: Record<Portal, Tab[]> = {
   doctor: [
     { href: '/doctor/dashboard', label: 'Dashboard', icon: LayoutGrid },
     { href: '/doctor/schedule', label: 'Schedule', icon: CalendarDays },
@@ -23,40 +25,64 @@ const TABS = {
   ],
   hospital: [
     { href: '/hospital/dashboard', label: 'Dashboard', icon: LayoutGrid },
-    { href: '/hospital/patients', label: 'Patients', icon: Users },
-    { href: '/hospital/doctors', label: 'Roster', icon: CalendarDays },
-    { href: '/hospital/revenue', label: 'Finance', icon: Wallet },
-    { href: '/hospital/staff', label: 'Staff', icon: IdCard },
+    { href: '/hospital/patients', label: 'Patients', icon: Users, wide: 'Patients & Visits' },
+    { href: '/hospital/doctors', label: 'Roster', icon: CalendarDays, wide: 'Duty Roster & Doctors' },
+    { href: '/hospital/revenue', label: 'Finance', icon: Wallet, wide: 'Finance & Revenue' },
+    { href: '/hospital/staff', label: 'Staff', icon: IdCard, wide: 'Staff Directory' },
   ],
-} as const
+}
 
 const NAV_LABEL: Record<Portal, string> = { doctor: 'Doctor navigation', lab: 'Diagnostic center navigation', hospital: 'Hospital navigation' }
 
 const isActive = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`)
 
-/** Bottom navigation: full-width bar on phones, floating dock from tablet up. */
+/** Bottom navigation: full-width bar on phones; a floating glass pill with the active tab filled from tablet up. */
 export function PortalDock({ portal }: { portal: Portal }) {
   const pathname = usePathname()
+  return <PillDock portal={portal} pathname={pathname} />
+}
+
+function PillDock({ portal, pathname }: { portal: Portal; pathname: string }) {
+  const tabs = TABS[portal]
   return (
     <nav
       aria-label={NAV_LABEL[portal]}
-      className="fixed z-50 bottom-0 inset-x-0 bg-surface-container-lowest/95 backdrop-blur-md border-t border-surface-container-high pb-[env(safe-area-inset-bottom)] md:bottom-6 md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:rounded-2xl md:border md:shadow-xl md:pb-0"
+      className="fixed z-50 bottom-0 inset-x-0 bg-surface-container-lowest/85 backdrop-blur-xl shadow-[0_-4px_16px_rgba(0,102,255,0.06)] pb-[env(safe-area-inset-bottom)] md:bottom-6 md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:pb-0 md:rounded-full md:bg-surface-container-lowest/80 md:border md:border-outline-variant/40 md:shadow-[0_8px_30px_rgba(0,102,255,0.08)]"
     >
-      <div className="flex items-center justify-around md:gap-6 px-4 md:px-6 py-2">
-        {TABS[portal].map(({ href, label, icon: Icon }) => {
+      <div className="flex items-center justify-around h-16 md:h-auto px-base md:p-2 md:gap-1.5">
+        {tabs.map(({ href, label, icon: Icon, wide }, i) => {
           const active = isActive(pathname, href)
+          const profile = i === tabs.length - 1 && label === 'Profile'
           return (
-            <Link
-              key={href}
-              href={href}
-              aria-current={active ? 'page' : undefined}
-              className={`flex flex-col items-center gap-0.5 md:gap-1 px-2 py-1 text-[11px] md:text-xs transition-colors ${
-                active ? 'text-vibrant-blue font-bold' : 'text-indigo-gray-600 hover:text-indigo-gray-900 font-medium'
-              }`}
-            >
-              <Icon className="w-[22px] h-[22px] md:w-6 md:h-6" strokeWidth={active ? 2.2 : 1.8} />
-              {label}
-            </Link>
+            <Fragment key={href}>
+              {profile && <span aria-hidden className="hidden md:block h-6 w-px bg-outline-variant/50 mx-1" />}
+              <Link
+                href={href}
+                aria-current={active ? 'page' : undefined}
+                className={`flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 min-w-[56px] md:min-w-0 h-12 md:h-auto md:rounded-full transition-all text-[10px] md:text-label-sm font-semibold md:font-label-sm ${
+                  profile ? 'md:pl-2 md:pr-4 md:py-1.5' : 'md:px-5 md:py-2.5'
+                } ${active ? 'text-vibrant-blue md:bg-primary md:text-on-primary md:shadow-md' : 'text-on-surface-variant hover:text-vibrant-blue md:hover:text-on-surface md:hover:bg-surface-container'}`}
+              >
+                {profile && !active ? (
+                  <>
+                    <Icon className="md:hidden w-6 h-6" strokeWidth={1.8} />
+                    <span className="hidden md:flex w-7 h-7 rounded-full bg-primary text-on-primary items-center justify-center shrink-0">
+                      <Icon className="w-4 h-4" />
+                    </span>
+                  </>
+                ) : (
+                  <Icon className="w-6 h-6 md:w-5 md:h-5" strokeWidth={active ? 2.2 : 1.8} />
+                )}
+                {wide ? (
+                  <>
+                    <span className="xl:hidden">{label}</span>
+                    <span className="hidden xl:inline whitespace-nowrap">{wide}</span>
+                  </>
+                ) : (
+                  label
+                )}
+              </Link>
+            </Fragment>
           )
         })}
       </div>

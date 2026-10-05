@@ -30,7 +30,18 @@ function Field({ label, hint, children, className = '' }: { label: string; hint?
 }
 
 /** Edits the details patients see on your public profile (saved with updateDoctorProfile). */
-export function ProfileEditor({ profile, className }: { profile: EditableProfile; className: string }) {
+export function ProfileEditor({
+  profile,
+  className,
+  label = 'Edit Public Profile',
+  ariaLabel,
+}: {
+  profile: EditableProfile
+  className: string
+  /** Button text; pass an empty string for an icon-only button (then give it an ariaLabel). */
+  label?: string
+  ariaLabel?: string
+}) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -55,9 +66,9 @@ export function ProfileEditor({ profile, className }: { profile: EditableProfile
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={className}>
-        <Pencil className="w-[18px] h-[18px]" />
-        <span>Edit Public Profile</span>
+      <button type="button" onClick={() => setOpen(true)} className={className} aria-label={ariaLabel} title={ariaLabel}>
+        <Pencil className={label ? 'w-[18px] h-[18px]' : 'w-3.5 h-3.5'} />
+        {label && <span>{label}</span>}
       </button>
 
       {open && (

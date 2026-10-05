@@ -18,7 +18,7 @@ function Field({ label, children, className = '' }: { label: string; children: R
 }
 
 /** Edits the center details patients see when they find and book the lab. */
-export function LabProfileEditor({ name, city, address, className }: { name: string; city: string | null; address: string | null; className: string }) {
+export function LabProfileEditor({ name, city, address, className, label = 'Edit Details' }: { name: string; city: string | null; address: string | null; className: string; label?: string }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -41,7 +41,7 @@ export function LabProfileEditor({ name, city, address, className }: { name: str
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className={className}>
-        <SlidersHorizontal className="w-[18px] h-[18px]" /> Edit Details
+        <SlidersHorizontal className="w-[18px] h-[18px]" /> {label}
       </button>
 
       {open && (

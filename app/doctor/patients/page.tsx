@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { currentTime } from '@/components/patient/data'
 import { ageFrom, istDateKey } from '@/components/patient/format'
-import { loadPatientFacts, loadVisits, patientCode, requireDoctor, type Visit } from '../_lib/doctor'
+import { latestVitals, loadPatientFacts, loadVisits, patientCode, requireDoctor, type Visit } from '../_lib/doctor'
 import { PatientRoster, type RosterPatient } from '../_components/PatientRoster'
 
 export const metadata: Metadata = { title: 'Patients | Doctor Portal' }
@@ -20,6 +20,7 @@ export default async function DoctorPatientsPage(props: { searchParams?: Promise
   const byPatient = new Map<string, Visit[]>()
   for (const v of visits) byPatient.set(v.patient!.id, [...(byPatient.get(v.patient!.id) ?? []), v])
   const facts = await loadPatientFacts(admin, Array.from(byPatient.keys()))
+  const vitals = latestVitals(visits)
 
   const roster: RosterPatient[] = Array.from(byPatient.entries()).map(([id, list]) => {
     const p = list[0].patient!
@@ -51,6 +52,7 @@ export default async function DoctorPatientsPage(props: { searchParams?: Promise
       active: active ? { id: active.id, status: active.status } : null,
       group: checkedIn ? 'checked-in' : upcoming.length ? 'upcoming' : 'past',
       records: records.slice(0, 6),
+      vitals: vitals[id] ?? null,
     }
   })
 

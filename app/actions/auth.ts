@@ -98,7 +98,7 @@ export async function verifyOTP(prevState: any, formData: FormData) {
     const cookieStore = await cookies()
     cookieStore.set(ROLE_COOKIE, roleCookieValue(authData.user.id, 'patient'), ROLE_COOKIE_OPTIONS)
     const next = String(formData.get('next') || '')
-    redirect(next.startsWith('/') && !next.startsWith('//') ? next : '/patient/profile')
+    redirect(next.startsWith('/') && !next.startsWith('//') ? next : '/')
   }
 
   const { data, error } = await supabase.auth.verifyOtp({

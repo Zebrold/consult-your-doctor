@@ -2,7 +2,10 @@ import { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { doctorName } from '@/components/patient/format'
-import { PortalDock, PortalMobileHeader } from '@/components/portal/PortalNav'
+import { CircleUserRound, ExternalLink, MapPin } from 'lucide-react'
+import { PortalDock } from '@/components/portal/PortalNav'
+import { TopBar } from '@/components/portal/TopBar'
+import { TopBarChip } from '@/components/portal/TopBarChip'
 import { requireDoctor } from './_lib/doctor'
 
 export const metadata: Metadata = {
@@ -24,13 +27,15 @@ export default async function DoctorLayout({ children }: { children: React.React
 
   return (
     <div className="min-h-screen bg-background text-on-surface antialiased">
-      <PortalMobileHeader
-        portal="doctor"
-        name={doctorName(doctor.name)}
-        subtitle="Doctor portal"
-        image={doctor.image}
-        profileHref="/doctor/profile"
-        extraLink={{ href: `/doctors/${doctor.id}`, label: 'My public profile' }}
+      <TopBar
+        homeHref="/doctor/dashboard"
+        section="Doctor Portal"
+        person={{ name: doctorName(doctor.name), role: doctor.specialty || 'Doctor', image: doctor.image }}
+        chips={doctor.hospital && <TopBarChip icon={MapPin}>{doctor.hospital.name}</TopBarChip>}
+        links={[
+          { href: '/doctor/profile', label: 'My profile', icon: <CircleUserRound /> },
+          { href: `/doctors/${doctor.id}`, label: 'My public profile', icon: <ExternalLink /> },
+        ]}
       />
       <main className="w-full max-w-[1440px] mx-auto px-4 lg:px-margin-x-desktop pt-4 md:pt-6 pb-28 md:pb-32 flex flex-col gap-4 md:gap-stack-md">
         {children}

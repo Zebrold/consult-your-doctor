@@ -709,14 +709,30 @@ function SpotFact({ icon: Icon, label, value, unit }: { icon?: LucideIcon; label
 
 function RowAction({ v, kind, past }: { v: BoardVisit; kind: Exclude<Filter, 'all'>; past: boolean }) {
   if (kind === 'done') {
-    return v.recordUrl ? (
-      <a href={v.recordUrl} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container text-indigo-gray-900 font-label-sm text-[11px] flex items-center gap-1 transition-colors">
-        <FileText className="w-3.5 h-3.5 text-vibrant-blue" /> View Prescription
-      </a>
-    ) : (
-      <span className="px-3 py-1.5 rounded-full bg-surface-container-low text-indigo-gray-600 font-label-sm text-[11px] flex items-center gap-1">
-        <ClipboardCheck className="w-3.5 h-3.5 text-secondary" /> {v.hasNotes ? 'Notes saved' : 'Completed'}
-      </span>
+    return (
+      <>
+        {v.recordUrl ? (
+          <a href={v.recordUrl} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container text-indigo-gray-900 font-label-sm text-[11px] flex items-center gap-1 transition-colors">
+            <FileText className="w-3.5 h-3.5 text-vibrant-blue" /> View Prescription
+          </a>
+        ) : (
+          <span className="hidden sm:flex px-3 py-1.5 rounded-full bg-surface-container-low text-indigo-gray-600 font-label-sm text-[11px] items-center gap-1">
+            <ClipboardCheck className="w-3.5 h-3.5 text-secondary" /> {v.hasNotes ? 'Notes saved' : 'Completed'}
+          </span>
+        )}
+        {/* A finished visit can still get a prescription, e.g. to send the patient an update in their account. */}
+        <PrescriptionButton
+          visit={ref(v)}
+          kind="blue"
+          label={
+            <>
+              <span className="md:hidden">Write Rx</span>
+              <span className="hidden md:inline">Write Prescription</span>
+            </>
+          }
+          pad="px-3 py-1.5"
+        />
+      </>
     )
   }
   if (v.status === 'pending_payment') {
@@ -766,7 +782,7 @@ function TimelineRow({ item, now }: { item: Item; now: number }) {
         live
           ? 'bg-primary/5 border-2 border-vibrant-blue md:border-0 md:ring-2 md:ring-vibrant-blue/60 shadow-[0_4px_16px_rgba(0,102,255,0.08)]'
           : `bg-surface-container-lowest shadow-[0_2px_12px_rgba(0,102,255,0.02)] hover:shadow-md border ${!v && kind === 'open' ? 'border-dashed border-outline-variant/70' : 'border-surface-container md:border-transparent'}`
-      } ${(kind === 'done' || (kind === 'open' && past)) && !live ? 'opacity-75 hover:opacity-100' : ''}`}
+      } ${kind === 'open' && past && !live ? 'opacity-75 hover:opacity-100' : ''}`}
     >
       <div className="w-11 md:w-16 shrink-0 flex flex-col items-center justify-center">
         <span className={`font-title-md text-[12px] md:text-[14px] font-bold leading-none md:leading-normal ${live ? 'text-primary' : 'text-indigo-gray-900'}`}>{formatTime(item.start).replace(/ (AM|PM)$/, '')}</span>
@@ -907,6 +923,7 @@ function BookingList({ itemsByDay, from, now }: { itemsByDay: Map<string, Item[]
                       <Chip tone={v.status === 'pending_payment' ? 'coral' : v.status === 'visited' ? 'teal' : v.status === 'completed' ? 'neutral' : 'blue'}>
                         {v.status === 'pending_payment' ? 'Unpaid' : v.status === 'visited' ? 'Checked in' : v.status === 'completed' ? 'Done' : 'Booked'}
                       </Chip>
+                      <PrescriptionButton visit={ref(v)} kind="icon" />
                       <CallLink phone={v.patient?.phone ?? null} name={v.patient?.name ?? 'patient'} kind="icon" />
                     </div>
                   </li>

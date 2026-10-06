@@ -82,7 +82,7 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
 
   return (
     <div className="bg-background text-on-surface antialiased min-h-screen">
-      <PatientNavHeader title="Home" name={name} email={email} isSignedIn={isSignedIn} />
+      <PatientNavHeader name={name} email={email} isSignedIn={isSignedIn} container="max-w-[1296px] px-margin-x-mobile lg:px-margin-x-desktop" />
 
       <main className="w-full pb-28 md:pb-32">
         {/* Hero, greeting & search */}

@@ -11,7 +11,7 @@ function homeFor(role: string) {
   if (role === 'hospital_admin') return { dashboardPath: '/hospital/dashboard', allowedPrefix: '/hospital' }
   if (role === 'diagnostic_admin') return { dashboardPath: '/diagnostic-center/dashboard', allowedPrefix: '/diagnostic' }
   if (role === 'super_admin') return { dashboardPath: '/admin/dashboard', allowedPrefix: '/admin' }
-  return { dashboardPath: '/patient/profile', allowedPrefix: '/' }
+  return { dashboardPath: '/', allowedPrefix: '/' }
 }
 
 export async function middleware(request: NextRequest) {
@@ -100,7 +100,8 @@ export async function middleware(request: NextRequest) {
     if (AUTH_PAGES.includes(path)) {
       target = dashboardPath
     // STRICT CONFINEMENT: If they are not a patient, they can ONLY visit their allowedPrefix
-    } else if (role !== 'patient' && !path.startsWith(allowedPrefix) && !path.startsWith('/auth/signout')) {
+    // (plus the site-wide chat assistant, which every portal shows and which checks the session itself).
+    } else if (role !== 'patient' && !path.startsWith(allowedPrefix) && !path.startsWith('/auth/signout') && path !== '/api/assistant') {
       target = dashboardPath
     // Role-based protection for patients trying to access staff routes
     } else if (role === 'patient') {

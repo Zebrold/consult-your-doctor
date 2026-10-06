@@ -127,7 +127,7 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey }: 
 
   return (
     <div className="bg-background text-on-surface antialiased min-h-screen">
-      <PatientNavHeader title="Book" isSignedIn={!!patient} name={patient?.name} email={patient?.email} backHref="/find" />
+      <PatientNavHeader isSignedIn={!!patient} name={patient?.name} email={patient?.email} backHref="/find" container="max-w-[1280px] px-margin-x-mobile lg:px-margin-x-desktop" />
 
       <main className="relative w-full overflow-hidden pb-28 md:pb-32 md:pt-8">
         <div aria-hidden className="hidden md:block absolute -top-32 left-1/4 w-[600px] h-[450px] bg-gradient-to-br from-primary-container/10 via-fresh-teal/5 to-transparent rounded-full blur-3xl pointer-events-none" />

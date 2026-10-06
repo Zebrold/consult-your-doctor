@@ -12,7 +12,7 @@ import {
   type RecordedVitals, type Visit,
 } from '../_lib/doctor'
 import { Avatar, Card, CardHeader, Chip, EmptyState, ProgressBar, SegmentBar, StatCard, StatFooterRow } from '@/components/portal/ui'
-import { CallLink, CheckInButton, NextStepButton, PrescriptionButton, type VisitRef } from '../_components/VisitControls'
+import { CallLink, CheckInButton, NextStepButton, PrescriptionButton, WritePrescriptionButton, type PickVisit, type VisitRef } from '../_components/VisitControls'
 import { WalkInButton } from '../_components/WalkInModal'
 import { RefreshButton } from '@/components/portal/RefreshButton'
 
@@ -97,6 +97,16 @@ export default async function DoctorDashboard() {
 
   // The quick prescription button works on whoever is in front of the doctor: checked in, else up next today.
   const prescribeFor = checkedIn[0] ?? (next && next.start && istDateKey(next.start) === todayKey ? next : null)
+  // Otherwise it offers the paid visits of the last 30 days (none later than today): checked in first, then newest.
+  const endOfToday = dayStart + DAY
+  const recentVisits: PickVisit[] = paid
+    .filter((v) => {
+      const at = Date.parse(v.start ?? v.createdAt)
+      return at < endOfToday && at >= endOfToday - 30 * DAY
+    })
+    .sort((a, b) => Number(b.status === 'visited') - Number(a.status === 'visited') || (b.start ?? b.createdAt).localeCompare(a.start ?? a.createdAt))
+    .slice(0, 15)
+    .map((v) => ({ ...ref(v), when: formatSlot(v.start ?? v.createdAt, now) }))
 
   return (
     <>
@@ -126,24 +136,18 @@ export default async function DoctorDashboard() {
             icon={<CalendarPlus className="w-[18px] h-[18px]" />}
             className={`${headerButton} bg-vibrant-blue hover:bg-primary text-on-primary shadow-[0_4px_16px_rgba(0,102,255,0.22)] md:hover:scale-[1.02]`}
           />
-          {prescribeFor ? (
-            <PrescriptionButton
-              visit={ref(prescribeFor)}
-              kind="pale"
-              label={
-                <>
-                  <span className="md:hidden">Write Rx</span>
-                  <span className="hidden md:inline">Write Prescription</span>
-                </>
-              }
-              pad={headerPad}
-              className="md:gap-2"
-            />
-          ) : (
-            <Link href="/doctor/schedule" className={`${headerButton} bg-surface-container-low hover:bg-surface-container text-indigo-gray-900`}>
-              <CalendarDays className="w-[18px] h-[18px] text-vibrant-blue" /> Open Schedule
-            </Link>
-          )}
+          <WritePrescriptionButton
+            current={prescribeFor ? ref(prescribeFor) : null}
+            recent={recentVisits}
+            label={
+              <>
+                <span className="md:hidden">Write Rx</span>
+                <span className="hidden md:inline">Write Prescription</span>
+              </>
+            }
+            pad={headerPad}
+            className="md:gap-2"
+          />
         </div>
       </Card>
 

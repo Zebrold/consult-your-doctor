@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
-import { Building2, LogOut } from 'lucide-react'
-import { PortalDock, PortalMobileHeader } from '@/components/portal/PortalNav'
+import { Building2, LogOut, MapPin } from 'lucide-react'
+import { PortalDock } from '@/components/portal/PortalNav'
+import { TopBar } from '@/components/portal/TopBar'
+import { TopBarChip } from '@/components/portal/TopBarChip'
 import { requireLab } from './_lib/lab'
 
 export const metadata: Metadata = {
@@ -33,7 +35,18 @@ export default async function DiagnosticCenterLayout({ children }: { children: R
 
   return (
     <div className="min-h-screen bg-background text-on-surface antialiased">
-      <PortalMobileHeader portal="lab" name={lab.name} subtitle="Diagnostic center" image={lab.image} profileHref="/diagnostic-center/profile" />
+      <TopBar
+        homeHref="/diagnostic-center/dashboard"
+        section="Diagnostic Center"
+        person={{ name: staff.name, role: 'Lab admin' }}
+        links={[{ href: '/diagnostic-center/profile', label: 'Center profile', icon: <Building2 /> }]}
+        chips={
+          <TopBarChip icon={MapPin}>
+            {lab.name}
+            {lab.city ? `, ${lab.city}` : ''}
+          </TopBarChip>
+        }
+      />
       <main className="w-full max-w-[1440px] mx-auto px-4 lg:px-margin-x-desktop pt-4 md:pt-6 pb-28 md:pb-32 flex flex-col gap-4 md:gap-stack-md">
         {children}
       </main>

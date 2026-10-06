@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowRight, Menu, X, LogOut, LayoutDashboard, Stethoscope } from "lucide-react";
 import { useState } from "react";
@@ -38,10 +39,15 @@ export function ClientHeader({ user }: { user: any }) {
     <header className="fixed top-0 left-0 w-full z-50 bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline-variant/30 shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
       <div className="h-20 max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop flex items-center justify-between gap-gutter">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-stack-sm" aria-label="Consult your Doctor home">
-          <span className="flex items-center justify-center w-10 h-10 rounded-full bg-surface-container text-primary shrink-0">
-            <Stethoscope className="w-5 h-5" />
-          </span>
+        <Link href="/" className="flex items-center gap-2.5 group" aria-label="Consult your Doctor home">
+          <Image
+            src="/logo-icon.png"
+            alt="Consult your Doctor"
+            width={40}
+            height={40}
+            className="w-10 h-10 object-contain shrink-0 transition-transform group-hover:scale-105"
+            priority
+          />
           <span className="flex flex-col">
             <span className="font-title-md text-lg md:text-title-md text-on-surface font-bold tracking-tight leading-tight">
               Consult your Doctor

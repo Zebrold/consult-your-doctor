@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight, Bot, BriefcaseMedical, CircleCheck, Headset, Heart, HeartPulse, Pill, ShieldCheck, ShieldPlus, Stethoscope } from "lucide-react";
 import { BookConsultationForm } from "@/components/BookConsultationForm";
 import QuickSearch from '@/components/QuickSearch';
@@ -221,8 +222,8 @@ export default async function Home(props: {
       {/* Stats Section */}
       <section className="py-12 bg-white border-b border-slate-100">
         <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop grid grid-cols-2 md:grid-cols-5 gap-4 items-center">
-          <div className="col-span-2 md:col-span-1 flex items-center gap-2 justify-center md:justify-start">
-            <Stethoscope className="w-9 h-9 text-vibrant-blue shrink-0" />
+          <div className="col-span-2 md:col-span-1 flex items-center gap-2.5 justify-center md:justify-start">
+            <Image src="/logo-icon.png" alt="Consult your Doctor" width={36} height={36} className="w-9 h-9 object-contain shrink-0" />
             <span className="font-display-lg text-lg text-primary font-bold tracking-tight">Consult your Doctor</span>
           </div>
           {stats.map((stat) => (

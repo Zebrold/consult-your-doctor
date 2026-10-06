@@ -22,6 +22,7 @@ function ConditionalLayoutInner({
 
   const isDashboard =
     isPatientHome ||
+    pathname === "/ai" ||
     pathname?.startsWith("/hospital") ||
     pathname?.startsWith("/executive") ||
     pathname?.startsWith("/corporate") ||

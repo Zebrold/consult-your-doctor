@@ -110,7 +110,7 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey }
 
   return (
     <div className="bg-background text-on-surface antialiased min-h-screen">
-      <PatientNavHeader title="Book Lab Test" isSignedIn={!!patient} name={patient?.name} email={patient?.email} />
+      <PatientNavHeader isSignedIn={!!patient} name={patient?.name} email={patient?.email} container="max-w-container-max px-margin-x-mobile md:px-margin-x-desktop" />
 
       <main className="w-full pb-28 md:pb-32">
         <div className="max-w-container-max mx-auto px-margin-x-mobile md:px-margin-x-desktop pt-2 md:pt-4">

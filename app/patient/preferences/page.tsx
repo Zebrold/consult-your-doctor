@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Home, Search, Calendar as CalendarIcon, User, Bell, Smartphone, Mail, Moon, Globe } from 'lucide-react'
 import { PatientSidebar } from '@/components/PatientSidebar'
+import { PatientNavHeader } from '@/components/PatientNavHeader'
 
 export default async function PatientPreferences() {
   const supabase = await createClient()
@@ -29,6 +30,7 @@ export default async function PatientPreferences() {
 
   return (
     <div className="bg-background font-body-md text-body-md text-on-surface antialiased min-h-screen">
+      <PatientNavHeader name={profile?.full_name} email={profile?.email || user.email} isSignedIn container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop" />
       <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-24">
         <div className="flex flex-col w-full">
           <div className="relative w-full overflow-hidden">

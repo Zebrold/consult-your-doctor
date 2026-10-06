@@ -168,7 +168,7 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
 
   return (
     <div className="bg-background text-on-surface antialiased min-h-screen">
-      <PatientNavHeader title="Find" isSignedIn={account.isSignedIn} name={account.name} email={account.email} />
+      <PatientNavHeader isSignedIn={account.isSignedIn} name={account.name} email={account.email} container="max-w-[1536px] px-margin-x-mobile lg:px-margin-x-desktop" />
 
       <main className="w-full pb-28 md:pb-32">
         {/* Search & filters */}

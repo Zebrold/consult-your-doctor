@@ -5,6 +5,9 @@ import {
   DoctorProfileClient,
   ProfileDoctorData,
 } from "@/components/DoctorProfileClient";
+import { PatientNavHeader } from "@/components/PatientNavHeader";
+import { TopBar } from "@/components/portal/TopBar";
+import { doctorName } from "@/components/patient/format";
 
 export const revalidate = 0;
 
@@ -52,6 +55,10 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const isLoggedIn = !!user;
+  // For the top bar: doctors open this page from their portal ("My public profile"); everyone else is a patient or visitor.
+  const { data: viewer } = user
+    ? await supabase.from("profiles").select("full_name, email, role").eq("id", user.id).maybeSingle()
+    : { data: null };
 
   // Fetch full doctor data from DB
   const { data: doctor, error: doctorError } = await supabase
@@ -129,6 +136,23 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
       />
+      {viewer?.role === "doctor" ? (
+        <TopBar
+          homeHref="/doctor/dashboard"
+          section="Doctor Portal"
+          person={{ name: doctorName(viewer.full_name), role: "Doctor" }}
+          container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop"
+          className="hidden md:block"
+        />
+      ) : (
+        <PatientNavHeader
+          isSignedIn={isLoggedIn}
+          name={viewer?.full_name}
+          email={viewer?.email || user?.email}
+          container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop"
+          className="hidden md:block"
+        />
+      )}
       <DoctorProfileClient doctor={doctorData} isLoggedIn={isLoggedIn} />
     </>
   );

@@ -4,6 +4,7 @@ import "./globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { ConditionalLayout } from "@/components/ConditionalLayout";
+import { Support } from "@/components/assistant/Support";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -98,6 +99,7 @@ export default async function RootLayout({
         >
           {children}
         </ConditionalLayout>
+        <Support role={user ? userRole ?? "patient" : null} />
       </body>
     </html>
   );

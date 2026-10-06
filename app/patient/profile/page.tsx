@@ -195,7 +195,7 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
 
   return (
     <div className="bg-surface text-on-surface antialiased min-h-screen">
-      <PatientNavHeader title="Profile" name={name} email={email} isSignedIn />
+      <PatientNavHeader name={name} email={email} isSignedIn />
 
       <main className="w-full max-w-[1240px] mx-auto px-margin-x-mobile lg:px-12 pt-2 md:py-8 pb-28 md:pb-32 flex flex-col gap-6 md:gap-8">
         <Link href="/" className="hidden md:flex items-center gap-1 font-label-sm text-label-sm text-on-surface-variant hover:text-primary w-fit">

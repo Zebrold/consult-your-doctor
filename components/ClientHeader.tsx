@@ -48,11 +48,8 @@ export function ClientHeader({ user }: { user: any }) {
             className="w-10 h-10 object-contain shrink-0 transition-transform group-hover:scale-105"
             priority
           />
-          <span className="flex flex-col">
-            <span className="font-title-md text-lg md:text-title-md text-on-surface font-bold tracking-tight leading-tight">
-              Consult your Doctor
-            </span>
-            <span className="font-label-sm text-label-sm text-indigo-gray-600">Telehealth Platform</span>
+          <span className="font-title-md text-lg md:text-title-md text-on-surface font-bold tracking-tight leading-tight">
+            Consult your Doctor
           </span>
         </Link>
 

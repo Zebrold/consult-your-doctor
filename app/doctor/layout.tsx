@@ -40,7 +40,7 @@ export default async function DoctorLayout({ children }: { children: React.React
       <main className="w-full max-w-[1440px] mx-auto px-4 lg:px-margin-x-desktop pt-4 md:pt-6 pb-28 md:pb-32 flex flex-col gap-4 md:gap-stack-md">
         {children}
       </main>
-      <PortalDock portal="doctor" />
+      <PortalDock portal="doctor" avatar={{ name: doctor.name, image: doctor.image }} />
     </div>
   )
 }

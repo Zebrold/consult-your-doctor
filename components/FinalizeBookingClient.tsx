@@ -398,7 +398,7 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey }: 
         </div>
       </main>
 
-      <PatientDock activeTab="book" isSignedIn={!!patient} />
+      <PatientDock activeTab="book" isSignedIn={!!patient} name={patient?.name} />
     </div>
   );
 }

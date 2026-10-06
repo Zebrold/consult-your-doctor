@@ -83,7 +83,7 @@ export function Support({ role }: { role: string | null }) {
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Open Support"
-          className={`fixed z-[70] right-4 md:right-6 ${lifted ? 'bottom-[calc(84px+env(safe-area-inset-bottom))] md:bottom-[100px]' : 'bottom-5 md:bottom-6'} h-12 w-12 sm:w-auto sm:pl-3 sm:pr-5 rounded-full bg-gradient-to-r from-primary to-vibrant-blue text-on-primary shadow-[0_8px_24px_rgba(0,102,255,0.35)] flex items-center justify-center gap-2 font-label-sm text-label-sm font-bold hover:scale-[1.03] active:scale-95 transition-transform print:hidden`}
+          className={`fixed z-[70] right-4 md:right-6 ${lifted ? 'bottom-[calc(92px+env(safe-area-inset-bottom))] md:bottom-[100px]' : 'bottom-5 md:bottom-6'} h-12 w-12 sm:w-auto sm:pl-3 sm:pr-5 rounded-full bg-gradient-to-r from-primary to-vibrant-blue text-on-primary shadow-[0_8px_24px_rgba(0,102,255,0.35)] flex items-center justify-center gap-2 font-label-sm text-label-sm font-bold hover:scale-[1.03] active:scale-95 transition-transform print:hidden`}
         >
           <span className="sm:w-8 sm:h-8 sm:rounded-full sm:bg-on-primary/15 flex items-center justify-center">
             <Headset className="w-5 h-5" />

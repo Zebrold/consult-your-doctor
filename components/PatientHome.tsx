@@ -399,7 +399,7 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
         )}
       </main>
 
-      <PatientDock activeTab="home" isSignedIn={isSignedIn} />
+      <PatientDock activeTab="home" isSignedIn={isSignedIn} name={name} />
     </div>
   );
 }

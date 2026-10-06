@@ -50,7 +50,7 @@ export default async function DiagnosticCenterLayout({ children }: { children: R
       <main className="w-full max-w-[1440px] mx-auto px-4 lg:px-margin-x-desktop pt-4 md:pt-6 pb-28 md:pb-32 flex flex-col gap-4 md:gap-stack-md">
         {children}
       </main>
-      <PortalDock portal="lab" />
+      <PortalDock portal="lab" avatar={{ name: lab.name, image: lab.image }} />
     </div>
   )
 }

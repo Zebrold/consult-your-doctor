@@ -28,7 +28,7 @@ export default async function AiPage() {
       <main className="w-full max-w-[1240px] mx-auto px-margin-x-mobile lg:px-12 pt-2 md:pt-6 pb-28 md:pb-32">
         <AssistantPage role={user ? 'patient' : null} />
       </main>
-      <PatientDock activeTab="ai" isSignedIn={!!user} />
+      <PatientDock activeTab="ai" isSignedIn={!!user} name={name} />
     </div>
   )
 }

@@ -413,7 +413,7 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
         </div>
       )}
 
-      <PatientDock activeTab="find" isSignedIn={account.isSignedIn} />
+      <PatientDock activeTab="find" isSignedIn={account.isSignedIn} name={account.name} />
     </div>
   );
 }

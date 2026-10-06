@@ -134,7 +134,7 @@ export default async function PatientAppointments() {
         </div>
       </main>
 
-      <PatientDock activeTab="book" />
+      <PatientDock activeTab="book" name={profile?.full_name} />
     </div>
   )
 }

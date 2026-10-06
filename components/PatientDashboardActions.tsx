@@ -31,7 +31,7 @@ export function PatientDashboardActions() {
           </div>
           <div className="text-left">
             <p className="font-label-sm text-label-sm font-semibold leading-tight">Book Doctor</p>
-            <p className="font-label-sm text-[11px] opacity-80 leading-none mt-0.5">In-clinic or video</p>
+            <p className="font-label-sm text-[11px] opacity-80 leading-none mt-0.5">In-clinic visit</p>
           </div>
         </button>
         <button
@@ -42,7 +42,7 @@ export function PatientDashboardActions() {
           </div>
           <div className="text-left">
             <p className={`font-label-sm text-label-sm font-semibold leading-tight ${activeForm === 'diagnostics' ? 'text-white' : 'text-indigo-gray-900'}`}>Lab &amp; Diagnostics</p>
-            <p className={`font-label-sm text-[11px] leading-none mt-0.5 ${activeForm === 'diagnostics' ? 'text-white/80' : 'text-indigo-gray-600'}`}>Home sample pick-up</p>
+            <p className={`font-label-sm text-[11px] leading-none mt-0.5 ${activeForm === 'diagnostics' ? 'text-white/80' : 'text-indigo-gray-600'}`}>At a partner lab</p>
           </div>
         </button>
         {/* <button className="group flex items-center gap-3 p-3.5 rounded-xl bg-surface-container-low text-indigo-gray-900 hover:bg-surface-container transition-all duration-200 transform hover:-translate-y-0.5 shadow-sm" type="button">
@@ -54,15 +54,16 @@ export function PatientDashboardActions() {
             <p className="font-label-sm text-[11px] text-indigo-gray-600 leading-none mt-0.5">Express delivery in 2h</p>
           </div>
         </button> */}
-        <button className="group flex items-center gap-3 p-3.5 rounded-xl bg-tertiary-fixed text-tertiary hover:bg-error-container transition-all duration-200 transform hover:-translate-y-0.5 shadow-sm" type="button">
+        {/* No emergency care through the site: send people to the national emergency number. */}
+        <a href="tel:112" className="group flex items-center gap-3 p-3.5 rounded-xl bg-tertiary-fixed text-tertiary hover:bg-error-container transition-all duration-200 transform hover:-translate-y-0.5 shadow-sm">
           <div className="w-10 h-10 rounded-lg bg-surface-container-lowest flex items-center justify-center text-tertiary group-hover:scale-105 transition-transform">
             <ShieldAlert className="w-[22px] h-[22px]" />
           </div>
           <div className="text-left">
-            <p className="font-label-sm text-label-sm font-semibold leading-tight">Emergency Teleconsult</p>
-            <p className="font-label-sm text-[11px] opacity-80 leading-none mt-0.5">Connect in &lt; 90 sec</p>
+            <p className="font-label-sm text-label-sm font-semibold leading-tight">Emergency?</p>
+            <p className="font-label-sm text-[11px] opacity-80 leading-none mt-0.5">Call 112 now</p>
           </div>
-        </button>
+        </a>
       </div>
 
       {activeForm && (

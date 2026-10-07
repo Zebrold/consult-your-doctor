@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronRight } from "lucide-react";
+import { BriefcaseBusiness, ChevronRight, FlaskConical, Hospital, LogIn, Stethoscope } from "lucide-react";
 
 const ourServices = [
   { label: "Find a Doctor Near Me", href: "/search?type=doctor" },
@@ -22,6 +22,13 @@ const companyLinks = [
   { label: "Security & Privacy", href: "/privacy-policy" },
   { label: "Terms & Conditions", href: "/terms-of-use" },
   { label: "Contact Us", href: "/contact" },
+];
+
+const staffLogins = [
+  { label: "Doctor Login", href: "/login/doctor", icon: Stethoscope },
+  { label: "Hospital Login", href: "/login/hospital", icon: Hospital },
+  { label: "Diagnostic Center Login", href: "/login/diagnostic", icon: FlaskConical },
+  { label: "Executive Login", href: "/login/executive", icon: BriefcaseBusiness },
 ];
 
 export function Footer() {
@@ -77,7 +84,7 @@ export function Footer() {
         </div>
       </div>
 
-      <div className="relative max-w-[1360px] mx-auto px-6 sm:px-8 lg:px-12 pt-14 pb-8">
+      <div className="relative max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop pt-14 pb-8">
         {/* Main 3-Column Section */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
           {/* Column 1: Brand & Badges */}
@@ -115,7 +122,8 @@ export function Footer() {
                 title="People love us on Trustpilot"
               >
                 <Image
-                  src="/badge-trustpilot.png"
+                  src="/badge-trustpilot.svg"
+                  unoptimized
                   alt="People love us on Trustpilot"
                   width={80}
                   height={86}
@@ -127,7 +135,8 @@ export function Footer() {
                 title="LegitScript Certified"
               >
                 <Image
-                  src="/badge-legitscript.png"
+                  src="/badge-legitscript.svg"
+                  unoptimized
                   alt="LegitScript Certified"
                   width={80}
                   height={86}
@@ -186,6 +195,32 @@ export function Footer() {
               ))}
             </ul>
           </div>
+        </div>
+
+        {/* Staff & Partner Portal Logins */}
+        <div className="mt-10 flex flex-col lg:flex-row lg:items-center gap-4 rounded-2xl bg-white/[0.08] border border-white/15 px-5 py-4 backdrop-blur-sm">
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center">
+              <LogIn className="w-4 h-4" />
+            </span>
+            <div>
+              <h3 className="font-bold text-white text-[15px] leading-tight">Staff &amp; Partner Login</h3>
+              <p className="text-[12px] text-white/70">Portals for our doctors, hospitals, labs and team</p>
+            </div>
+          </div>
+          <ul className="flex flex-wrap gap-2.5 lg:ml-auto">
+            {staffLogins.map(({ label, href, icon: Icon }) => (
+              <li key={href}>
+                <Link
+                  href={href}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-[13px] font-semibold text-white hover:bg-white hover:text-[#0052d4] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  {label}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
 
         {/* Horizontal Divider Line */}

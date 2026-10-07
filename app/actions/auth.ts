@@ -24,6 +24,19 @@ function formatPhoneNumber(phone: string, countryCode: string = '+91') {
   return `${cleanedCC}${cleaned}`
 }
 
+// Codes are texted by the send-otp Supabase hook through Fast2SMS, which only reaches Indian mobile numbers.
+const SMS_COUNTRY_CODE = '+91'
+
+/** Turns Supabase's error for a failed text into something a patient can act on. */
+function smsErrorMessage(message: string) {
+  if (/signups not allowed/i.test(message)) return message
+  // Our hook's own messages come through as-is; a crash or bad configuration shows up as a bare status code.
+  if (/unexpected status code|hook|unexpected_failure|sms provider/i.test(message)) {
+    return 'We couldn’t send the code right now. Please try again in a minute or continue with Google.'
+  }
+  return message
+}
+
 export async function sendOTP(prevState: any, formData: FormData) {
   let phone = formData.get('phone') as string
   const countryCode = formData.get('countryCode') as string || '+91'
@@ -47,6 +60,13 @@ export async function sendOTP(prevState: any, formData: FormData) {
     return { success: true, phone, fullName, role, isRegister }
   }
 
+  if (!phone.startsWith(SMS_COUNTRY_CODE)) {
+    return { error: 'We can only text codes to Indian (+91) mobile numbers. Choose IN +91, or continue with Google.', success: false, phone, fullName, role, isRegister }
+  }
+  if (!/^[6-9]\d{9}$/.test(phone.slice(SMS_COUNTRY_CODE.length))) {
+    return { error: 'Enter a valid 10-digit Indian mobile number.', success: false, phone, fullName, role, isRegister }
+  }
+
   const supabase = await createClient()
 
   // Only registration may create a new account; signing in with an unknown number should fail.
@@ -65,7 +85,7 @@ export async function sendOTP(prevState: any, formData: FormData) {
     return {
       error: isUnknownNumber
         ? 'No account found for this number. Switch to "Create Account" to register.'
-        : error.message,
+        : smsErrorMessage(error.message),
       success: false, phone, fullName, role, isRegister
     }
   }

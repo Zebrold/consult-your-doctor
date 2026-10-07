@@ -25,7 +25,8 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
   const [step, setStep] = useState<1 | 2>(1)
 
   const [fullName, setFullName] = useState('')
-  const [countryCode, setCountryCode] = useState('+49')
+  // Codes can only be texted to Indian numbers (see sendOTP), so India comes first.
+  const [countryCode, setCountryCode] = useState('+91')
   const [phone, setPhone] = useState('')
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const otpRefs = useRef<(HTMLInputElement | null)[]>([])
@@ -75,7 +76,11 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
       options: { redirectTo: `${window.location.origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ''}` },
     })
     if (error) {
-      setGoogleError(error.message)
+      setGoogleError(
+        /provider is not enabled|unsupported provider/i.test(error.message)
+          ? 'Google sign-in isn’t switched on yet. Please use your mobile number for now.'
+          : error.message,
+      )
       setIsGoogleLoading(false)
     }
   }

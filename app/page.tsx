@@ -1,23 +1,15 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Bot, BriefcaseMedical, CircleCheck, Headset, Heart, HeartPulse, Pill, ShieldCheck, ShieldPlus, Stethoscope } from "lucide-react";
-import { BookConsultationForm } from "@/components/BookConsultationForm";
+import { ArrowRight, CircleCheck, FlaskConical, Hospital, ShieldCheck, Stethoscope } from "lucide-react";
+import { HomeHeroActions } from "@/components/HomeHeroActions";
+import { HomeHeroArt } from "@/components/HomeHeroArt";
 import QuickSearch from '@/components/QuickSearch';
 import { PatientHome, type HomeDoctor, type HomeFacility } from '@/components/PatientHome';
 import { currentTime, loadAvailability, one } from '@/components/patient/data';
 import { pricedTests } from '@/lib/pricing';
 import { HomePhoneMockup } from '@/components/HomePhoneMockup';
 import { TrustedByPatients } from '@/components/TrustedByPatients';
-
-const careFeatures = [
-  { icon: BriefcaseMedical, title: "Expert Medical Consultation", desc: "Connect directly with licensed specialists across 35+ branches of modern medicine for thorough clinical diagnostic discussions." },
-  { icon: Bot, title: "AI Doctor & Vitals Support", desc: "24/7 intelligent health triage answering dosage queries, symptom checks, and monitoring bio-markers around the clock." },
-  { icon: ShieldCheck, title: "23 Days Complimentary Recovery", desc: "Continuous messaging, dose adjustment checks, and recovery tracking for 23 days post-visit at no added expense." },
-  { icon: Pill, title: "Digital Rx & Same-Day Dispatch", desc: "Instant e-prescriptions sent directly to national partner pharmacies with door-step delivery available within 2 hours." },
-  { icon: HeartPulse, title: "Continuous Health Tracking", desc: "Sync wearable data, lab results, and blood pressure graphs directly into your private encrypted medical record vault." },
-  { icon: Headset, title: "24/7 Care Concierge", desc: "Dedicated clinical coordinators to book lab work, coordinate hospital admissions, and arrange second medical opinions." },
-];
 
 const stats = [
   { value: "60,000+", label: "Patients treated" },
@@ -37,6 +29,8 @@ export default async function Home(props: {
 }) {
   const searchParams = props.searchParams ? await props.searchParams : {};
   const isPreviewPatient = searchParams?.preview === "patient";
+  // Links such as /?booking=diagnostics open the booking form straight away.
+  const heroBooking = searchParams?.booking === "diagnostics" ? "diagnostics" : searchParams?.booking === "consultation" ? "consultation" : undefined;
 
   const supabase = await createClient();
   const {
@@ -164,50 +158,36 @@ export default async function Home(props: {
   return (
     <>
       {/* Hero Section */}
-      <section className="w-full bg-white border-b border-slate-100">
-        <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop py-12 md:py-16 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          <div className="lg:col-span-7 space-y-6">
-            <h1 className="font-display-lg text-4xl md:text-display-lg text-indigo-gray-900 font-extrabold tracking-tight">
-              Healthcare That Continues <br className="hidden sm:block" />
-              <span className="text-vibrant-blue">Beyond Your Consultation</span>
+      <section className="relative isolate overflow-hidden bg-[#FAFBFD] border-b border-slate-100">
+        <div aria-hidden className="absolute -top-40 -left-40 w-[520px] h-[520px] rounded-full bg-blue-100/40 blur-3xl pointer-events-none -z-10" />
+        <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop pt-10 pb-4 md:pt-14 lg:py-10 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-4 items-center">
+          <div className="lg:col-span-6 flex flex-col gap-6 md:gap-8">
+            <h1 className="font-display-lg text-[44px] leading-[1.06] sm:text-6xl lg:text-[76px] lg:leading-[1.04] font-extrabold tracking-tight text-indigo-gray-900">
+              Healthcare <br />
+              <span className="text-vibrant-blue">Made Simple,</span>
+              <br />
+              For Everyone.
             </h1>
-            <p className="font-body-lg text-base md:text-body-lg text-on-surface-variant max-w-3xl">
-              Expert care doesn&apos;t end when your appointment concludes. Experience an integrated clinical ecosystem combining board-certified physicians, AI-assisted symptom triage, 23 days of complimentary post-consultation follow-up, rapid digital prescriptions, and continuous vitals oversight designed for your lifelong wellness.
+            <p className="font-body-lg text-base md:text-[19px] md:leading-relaxed text-slate-600 max-w-xl">
+              AI-powered technology that connects you with the right doctors, makes booking a visit quick, and simplifies diagnostics.
             </p>
-
-            <div className="pt-4 space-y-4">
-              <h2 className="font-title-md text-lg text-primary font-bold flex items-center gap-2">
-                <ShieldPlus className="w-5 h-5 text-vibrant-blue" /> Care Designed Around You &amp; Your Family
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {careFeatures.map(({ icon: Icon, title, desc }) => (
-                  <div key={title} className="p-4 rounded-xl border border-slate-100 bg-surface-container-lowest hover:border-blue-200 transition-all flex items-start gap-3">
-                    <Icon className="w-5 h-5 text-vibrant-blue mt-0.5 shrink-0" />
-                    <div>
-                      <p className="font-semibold text-sm text-on-surface">{title}</p>
-                      <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">{desc}</p>
-                    </div>
-                  </div>
+            <HomeHeroActions initial={heroBooking} />
+            <div className="flex items-center gap-4 pt-1">
+              <div className="flex -space-x-3 shrink-0" aria-hidden>
+                {[Stethoscope, Hospital, FlaskConical, ShieldCheck].map((Icon, i) => (
+                  <span key={i} className="w-11 h-11 rounded-full bg-primary-fixed text-primary ring-[3px] ring-[#FAFBFD] flex items-center justify-center">
+                    <Icon className="w-5 h-5" />
+                  </span>
                 ))}
               </div>
-
-              <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/70 flex flex-wrap sm:flex-nowrap items-center justify-between gap-4 mt-2">
-                <div className="flex items-center gap-3">
-                  <Heart className="w-7 h-7 text-vibrant-blue shrink-0" />
-                  <div>
-                    <p className="font-bold text-sm text-on-surface">Consult. Connect. Continue Your Care.</p>
-                    <p className="text-xs text-on-surface-variant">One consultation. 23 days of physician-monitored recovery support.</p>
-                  </div>
-                </div>
-                <a href="#book-visit" className="inline-flex items-center gap-1.5 px-4 py-2 bg-vibrant-blue text-white rounded-lg text-xs font-bold hover:bg-primary transition-colors shrink-0">
-                  Book Appointment <ArrowRight className="w-3.5 h-3.5" />
-                </a>
-              </div>
+              <p className="text-sm md:text-base text-slate-600 leading-snug">
+                <span className="font-bold text-vibrant-blue">Verified doctors</span>, partner hospitals and labs, booked in minutes
+              </p>
             </div>
           </div>
 
-          <div id="book-visit" className="lg:col-span-5 scroll-mt-28">
-            <BookConsultationForm />
+          <div className="lg:col-span-6 flex justify-center lg:justify-end">
+            <HomeHeroArt />
           </div>
         </div>
       </section>

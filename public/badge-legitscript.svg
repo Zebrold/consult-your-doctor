@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 160" width="150" height="160" role="img" aria-label="LegitScript Certified">
+  <polygon points="75,10 135.62,45 135.62,115 75,150 14.38,115 14.38,45" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="16" stroke-linejoin="round"/>
+  <polygon points="75,10 135.62,45 135.62,115 75,150 14.38,115 14.38,45" fill="#0B2442" stroke="#0B2442" stroke-width="10" stroke-linejoin="round"/>
+  <g>
+    <circle cx="27.5" cy="60" r="4.6" fill="#FFFFFF"/>
+    <circle cx="35.5" cy="55.5" r="3.2" fill="#8FD0FF"/>
+    <circle cx="34.5" cy="64.5" r="3.6" fill="#3E9BF0"/>
+    <circle cx="27" cy="69" r="2.6" fill="#BFE3FF"/>
+  </g>
+  <text x="41.5" y="69" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="16" font-weight="700" letter-spacing="-0.3"><tspan fill="#FFFFFF">Legit</tspan><tspan fill="#7EC4FF">Script</tspan></text>
+  <text x="75" y="93" text-anchor="middle" font-family="Inter, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="13.5" font-weight="600" fill="#D2DEEE">Certified</text>
+  <polygon points="75,104 87.12,111 87.12,125 75,132 62.88,125 62.88,111" fill="#7DC242" stroke="#7DC242" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M68.6 118.4 L73.2 122.8 L81.6 114" fill="none" stroke="#0B2442" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

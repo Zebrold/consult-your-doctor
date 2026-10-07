@@ -1,5 +1,7 @@
-import { Globe, ShieldCheck, MapPin, Mail, Phone } from "lucide-react";
+import { Globe, ShieldCheck, MapPin, Mail, Phone, Navigation } from "lucide-react";
 import Image from "next/image";
+import { GoogleMap } from "@/components/GoogleMap";
+import { COMPANY, directionsUrl } from "@/lib/company";
 
 export default function AboutPage() {
   return (
@@ -15,7 +17,7 @@ export default function AboutPage() {
             <span className="text-vibrant-blue">Healthcare.</span>
           </h1>
           <p className="font-body-lg text-body-lg text-indigo-gray-600 max-w-lg">
-            We believe accessing world-class medical expertise shouldn't be constrained by borders. Consult Your Doctor connects patients with premier specialists and hospitals globally, ensuring transparent, empathetic, and premium care.
+            We believe accessing world-class medical expertise shouldn&apos;t be constrained by borders. Consult Your Doctor connects patients with premier specialists and hospitals globally, ensuring transparent, empathetic, and premium care.
           </p>
           <div className="pt-stack-sm">
             <button className="font-label-sm text-label-sm bg-vibrant-blue text-white px-8 py-3 rounded-full hover:scale-[1.02] hover:bg-primary transition-all shadow-[0_4px_14px_0_rgba(0,102,255,0.39)]">
@@ -35,8 +37,8 @@ export default function AboutPage() {
       </section>
 
       {/* Mission & Values Bento Grid */}
-      <section className="w-full py-stack-lg px-margin-x-mobile md:px-margin-x-desktop bg-surface-container-low mt-stack-lg">
-        <div className="max-w-container-max mx-auto">
+      <section className="w-full py-stack-lg bg-surface-container-low mt-stack-lg">
+        <div className="max-w-container-max mx-auto px-margin-x-mobile md:px-margin-x-desktop">
           <div className="text-center mb-stack-lg">
             <h2 className="font-headline-lg text-headline-lg text-indigo-gray-900 mb-stack-sm">The Pillars of Our Care</h2>
             <p className="font-body-md text-body-md text-indigo-gray-600 max-w-2xl mx-auto">
@@ -151,29 +153,33 @@ export default function AboutPage() {
               Located in the heart of medical innovation, our global headquarters orchestrates care across 40+ countries.
             </p>
             <div className="flex flex-col gap-stack-sm font-body-md text-body-md text-indigo-gray-900">
-              <div className="flex items-center gap-base">
-                <MapPin className="w-5 h-5 text-vibrant-blue" />
-                <span className="">Bockenheimer Landstrasse 17-19, 60325 Frankfurt am Main, Germany</span>
+              <div className="flex items-start gap-base">
+                <MapPin className="w-5 h-5 text-vibrant-blue shrink-0 mt-[3px]" />
+                <span>{COMPANY.address}</span>
               </div>
-              <div className="flex items-center gap-base">
-                <Mail className="w-5 h-5 text-vibrant-blue" />
-                <span className="">info@zebrold.de</span>
-              </div>
-              <div className="flex items-center gap-base">
-                <Phone className="w-5 h-5 text-vibrant-blue" />
-                <span className="">+496921004800</span>
-              </div>
+              <a href={`mailto:${COMPANY.email}`} className="flex items-center gap-base hover:text-vibrant-blue transition-colors">
+                <Mail className="w-5 h-5 text-vibrant-blue shrink-0" />
+                <span>{COMPANY.email}</span>
+              </a>
+              <a href={COMPANY.phoneHref} className="flex items-center gap-base hover:text-vibrant-blue transition-colors">
+                <Phone className="w-5 h-5 text-vibrant-blue shrink-0" />
+                <span>{COMPANY.phone}</span>
+              </a>
             </div>
+            <a
+              href={directionsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-stack-md inline-flex items-center gap-2 self-start px-6 py-3 rounded-full bg-vibrant-blue text-on-primary font-label-sm text-label-sm shadow-[0_4px_12px_rgba(0,102,255,0.2)] hover:bg-primary transition-all"
+            >
+              <Navigation className="w-4 h-4" /> Get Directions
+            </a>
           </div>
-          <div className="w-full md:w-2/3 h-[400px] rounded-xl overflow-hidden shadow-[0px_4px_20px_rgba(0,102,255,0.05)] border border-indigo-gray-200/50">
-            <iframe
-              className="w-full h-full border-0"
-              src="https://www.openstreetmap.org/export/embed.html?bbox=8.6600%2C50.1150%2C8.6750%2C50.1220&layer=mapnik&marker=50.1185%2C8.6675"
-              allowFullScreen
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-          </div>
+          <GoogleMap
+            query={COMPANY.address}
+            title="Consult Your Doctor headquarters on Google Maps"
+            className="w-full md:w-2/3 h-[400px] md:h-[440px] rounded-xl shadow-[0px_4px_20px_rgba(0,102,255,0.05)] border border-indigo-gray-200/50"
+          />
         </div>
       </section>
     </div>

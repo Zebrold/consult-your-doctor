@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ArrowRight, Menu, X, LogOut, LayoutDashboard, Stethoscope } from "lucide-react";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { AppComingSoon } from "./AppComingSoon";
 
 const navLinks = [
   { name: "How it works", href: "/how-it-works" },
@@ -74,6 +75,7 @@ export function ClientHeader({ user }: { user: any }) {
 
         {/* Desktop Auth / User Action */}
         <div className="hidden lg:flex items-center gap-4">
+          <AppComingSoon />
           {user ? (
             <>
               <Link
@@ -101,15 +103,18 @@ export function ClientHeader({ user }: { user: any }) {
           )}
         </div>
 
-        {/* Mobile Menu Toggle */}
-        <button
-          className="lg:hidden text-on-surface hover:text-vibrant-blue transition-colors p-2"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
-          aria-expanded={isMobileMenuOpen}
-        >
-          {isMobileMenuOpen ? <X className="w-7 h-7" /> : <Menu className="w-7 h-7" />}
-        </button>
+        {/* Mobile: app badge and menu toggle */}
+        <div className="lg:hidden flex items-center gap-2">
+          <AppComingSoon compact />
+          <button
+            className="text-on-surface hover:text-vibrant-blue transition-colors p-2"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={isMobileMenuOpen}
+          >
+            {isMobileMenuOpen ? <X className="w-7 h-7" /> : <Menu className="w-7 h-7" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Menu Dropdown */}

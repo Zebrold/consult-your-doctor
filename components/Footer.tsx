@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { BriefcaseBusiness, ChevronRight, FlaskConical, Hospital, LogIn, Stethoscope } from "lucide-react";
+import { BriefcaseBusiness, ChevronRight, FlaskConical, Hospital, Stethoscope, UserRound } from "lucide-react";
 
 const ourServices = [
   { label: "Find a Doctor Near Me", href: "/search?type=doctor" },
@@ -13,22 +13,23 @@ const ourServices = [
   { label: "Work With Us", href: "/signup/doctor" },
 ];
 
+const portalLogins = [
+  { label: "Patient Login", href: "/login/patient", icon: UserRound },
+  { label: "Doctor Login", href: "/login/doctor", icon: Stethoscope },
+  { label: "Hospital Login", href: "/login/hospital", icon: Hospital },
+  { label: "Diagnostic Center Login", href: "/login/diagnostic", icon: FlaskConical },
+  { label: "Executive Login", href: "/login/executive", icon: BriefcaseBusiness },
+];
+
 const companyLinks = [
   { label: "About Us", href: "/about" },
   { label: "Patient Stories", href: "/how-it-works#stories" },
-  { label: "Locations", href: "/search?type=hospital" },
+  { label: "Logins", logins: portalLogins },
   { label: "How It Works", href: "/how-it-works" },
   { label: "Help | FAQ", href: "/how-it-works#faq" },
   { label: "Security & Privacy", href: "/privacy-policy" },
   { label: "Terms & Conditions", href: "/terms-of-use" },
   { label: "Contact Us", href: "/contact" },
-];
-
-const staffLogins = [
-  { label: "Doctor Login", href: "/login/doctor", icon: Stethoscope },
-  { label: "Hospital Login", href: "/login/hospital", icon: Hospital },
-  { label: "Diagnostic Center Login", href: "/login/diagnostic", icon: FlaskConical },
-  { label: "Executive Login", href: "/login/executive", icon: BriefcaseBusiness },
 ];
 
 export function Footer() {
@@ -184,43 +185,39 @@ export function Footer() {
             <ul className="flex flex-col space-y-2 text-[13.5px]">
               {companyLinks.map((item) => (
                 <li key={item.label}>
-                  <Link
-                    href={item.href}
-                    className="group inline-flex items-center gap-2 text-white/85 hover:text-white transition-all hover:translate-x-1 focus-visible:outline-none focus-visible:underline"
-                  >
-                    <ChevronRight className="w-3.5 h-3.5 text-white/60 group-hover:text-white transition-colors shrink-0" />
-                    <span>{item.label}</span>
-                  </Link>
+                  {item.logins ? (
+                    <details className="group/logins">
+                      <summary className="group inline-flex items-center gap-2 text-white/85 hover:text-white transition-all hover:translate-x-1 cursor-pointer list-none [&::-webkit-details-marker]:hidden focus-visible:outline-none focus-visible:underline">
+                        <ChevronRight className="w-3.5 h-3.5 text-white/60 group-hover:text-white transition-transform shrink-0 group-open/logins:rotate-90" />
+                        <span>{item.label}</span>
+                      </summary>
+                      <ul className="mt-2 ml-[6px] pl-4 border-l border-white/25 flex flex-col space-y-2">
+                        {item.logins.map(({ label, href, icon: Icon }) => (
+                          <li key={href}>
+                            <Link
+                              href={href}
+                              className="inline-flex items-center gap-2 text-white/80 hover:text-white transition-all hover:translate-x-1 focus-visible:outline-none focus-visible:underline"
+                            >
+                              <Icon className="w-3.5 h-3.5 text-white/70 shrink-0" />
+                              <span>{label}</span>
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  ) : (
+                    <Link
+                      href={item.href}
+                      className="group inline-flex items-center gap-2 text-white/85 hover:text-white transition-all hover:translate-x-1 focus-visible:outline-none focus-visible:underline"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5 text-white/60 group-hover:text-white transition-colors shrink-0" />
+                      <span>{item.label}</span>
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
           </div>
-        </div>
-
-        {/* Staff & Partner Portal Logins */}
-        <div className="mt-10 flex flex-col lg:flex-row lg:items-center gap-4 rounded-2xl bg-white/[0.08] border border-white/15 px-5 py-4 backdrop-blur-sm">
-          <div className="flex items-center gap-3 shrink-0">
-            <span className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center">
-              <LogIn className="w-4 h-4" />
-            </span>
-            <div>
-              <h3 className="font-bold text-white text-[15px] leading-tight">Staff &amp; Partner Login</h3>
-              <p className="text-[12px] text-white/70">Portals for our doctors, hospitals, labs and team</p>
-            </div>
-          </div>
-          <ul className="flex flex-wrap gap-2.5 lg:ml-auto">
-            {staffLogins.map(({ label, href, icon: Icon }) => (
-              <li key={href}>
-                <Link
-                  href={href}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-[13px] font-semibold text-white hover:bg-white hover:text-[#0052d4] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-                >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  {label}
-                </Link>
-              </li>
-            ))}
-          </ul>
         </div>
 
         {/* Horizontal Divider Line */}
@@ -257,6 +254,11 @@ export function Footer() {
             .
           </p>
         </div>
+
+        {/* Copyright */}
+        <p className="mt-6 pt-5 border-t border-white/15 text-center text-[12px] sm:text-[12.5px] text-white/75">
+          &copy; {new Date().getFullYear()} Zebrold International Pvt Ltd. All rights reserved.
+        </p>
       </div>
     </footer>
   );

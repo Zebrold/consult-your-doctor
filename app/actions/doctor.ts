@@ -4,21 +4,55 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { vitalsSentence } from '@/lib/vitals'
-import { RECORD_MAX_BYTES, RECORD_TYPES, storeRecordFile } from '@/lib/records'
-import { issuePrescription } from '@/lib/prescriptions'
+import { RECORD_BUCKET, RECORD_MAX_BYTES, RECORD_TYPES, storeRecordFile } from '@/lib/records'
+import { issuePrescription, prescriptionTemplatePdf, signaturePath } from '@/lib/prescriptions'
+import { z } from 'zod'
+import { EducationSchema } from '@/lib/education'
+import { RxSchema, filledMedicines, type RxData } from '@/lib/rx'
+import { cleanList } from '@/lib/profile-lists'
+import { migrationHint } from '@/lib/desk-payments'
 
 const IMAGE_TYPES: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
 
 export async function addPrescription(formData: FormData) {
   const appointmentId = String(formData.get('appointmentId') || '')
   const field = (name: string) => String(formData.get(name) || '').trim()
-  // `notes` is the form's older single box; it still counts as the diagnosis.
-  const diagnosis = field('diagnosis') || field('notes')
-  const medicines = field('medicines')
-  const advice = field('advice')
   const file = formData.get('file') as File | null
 
-  if (!appointmentId || !(diagnosis || medicines)) return { error: 'Enter the diagnosis or the medicines.' }
+  // The prescription writer sends everything as one JSON `payload`; older forms send plain fields.
+  let rx: RxData
+  if (formData.has('payload')) {
+    let raw: unknown
+    try {
+      raw = JSON.parse(field('payload'))
+    } catch {
+      return { error: 'Could not read the prescription. Please try again.' }
+    }
+    const parsed = RxSchema.safeParse(raw)
+    if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Check the prescription details.' }
+    rx = parsed.data
+  } else {
+    rx = {
+      complaints: '',
+      findings: '',
+      // `notes` is the form's older single box; it still counts as the diagnosis.
+      diagnosis: field('diagnosis') || field('notes'),
+      allergy: '',
+      medicines: field('medicines')
+        .split('\n')
+        .map((name) => name.trim())
+        .filter(Boolean)
+        .map((name) => ({ form: 'Other' as const, name: name.slice(0, 120), generic: '', dose: '', frequency: '', timing: '', duration: '', instructions: '' })),
+      investigations: '',
+      advice: field('advice'),
+      followUp: null,
+      referral: '',
+      vitals: { bp: field('bp'), spo2: field('spo2'), hr: field('hr'), rr: field('rr'), temp: field('temp'), weight: field('weight'), height: field('height') },
+    }
+  }
+  const medicines = filledMedicines(rx.medicines)
+
+  if (!appointmentId || !(rx.diagnosis || medicines.length)) return { error: 'Enter the diagnosis or at least one medicine.' }
 
   const supabase = await createClient()
 
@@ -49,10 +83,16 @@ export async function addPrescription(formData: FormData) {
   const adminClient = createAdminClient()
   const issued = await issuePrescription(adminClient, {
     appointmentId,
-    diagnosis,
+    diagnosis: rx.diagnosis,
     medicines,
-    advice,
-    vitals: { bp: field('bp'), spo2: field('spo2'), hr: field('hr'), temp: field('temp'), weight: field('weight'), height: field('height') },
+    advice: rx.advice,
+    allergy: rx.allergy,
+    complaints: rx.complaints,
+    findings: rx.findings,
+    investigations: rx.investigations,
+    followUp: rx.followUp,
+    referral: rx.referral,
+    vitals: rx.vitals,
   })
   if (!issued.ok) return { error: issued.error }
 
@@ -129,6 +169,27 @@ export async function updateDoctorProfile(formData: FormData) {
     return { success: false, error: 'The photo must be a JPG, PNG or WebP image.' }
   }
 
+  // Education & training arrives as JSON from the editor's list; registration and insurance as plain fields.
+  let education: z.infer<typeof EducationSchema> | null = null
+  if (formData.has('education')) {
+    let raw: unknown
+    try {
+      raw = JSON.parse(String(formData.get('education') || '[]'))
+    } catch {
+      return { success: false, error: 'Could not read the education entries. Please try again.' }
+    }
+    const parsed = EducationSchema.safeParse(raw)
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Check the education entries.' }
+    education = parsed.data
+  }
+  const extras: Record<string, unknown> = {}
+  if (education) extras.education = education
+  if (formData.has('registration_number')) {
+    extras.registration_number = String(formData.get('registration_number') || '').trim().slice(0, 40) || null
+    extras.registration_council = String(formData.get('registration_council') || '').trim().slice(0, 80) || null
+  }
+  if (formData.has('insurance_present')) extras.insurance_accepted = cleanList(formData.getAll('insurance').map(String), 60)
+
   // Update profile
   const { error: profileError } = await adminClient
     .from('profiles')
@@ -190,7 +251,23 @@ export async function updateDoctorProfile(formData: FormData) {
     return { success: false, error: doctorError.message }
   }
 
+  if (Object.keys(extras).length) {
+    const { error: extrasError } = await adminClient.from('doctors').update(extras).eq('profile_id', user.id)
+    if (extrasError) {
+      console.error('Doctor profile extras update error:', extrasError)
+      revalidateDoctorPages()
+      const hint = migrationHint(extrasError)
+      return {
+        success: false,
+        error: hint
+          ? `Your details were saved, but education, insurance and registration need a database update first. ${hint}`
+          : 'Your details were saved, but education, insurance and registration could not be saved. Please try again.',
+      }
+    }
+  }
+
   revalidateDoctorPages()
+  revalidatePath(`/doctors/${doctor.id}`)
   return { success: true }
 }
 
@@ -318,4 +395,82 @@ export async function addNewPatient(formData: FormData) {
 
   revalidateDoctorPages()
   return { success: true }
+}
+
+/** The signed-in doctor with what their prescription letterhead needs. */
+async function doctorForTemplate() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const admin = createAdminClient()
+  const select = (withRegistration: boolean) =>
+    admin
+      .from('doctors')
+      .select(`id, ${withRegistration ? 'registration_number, registration_council,' : ''} profiles!doctors_profile_id_fkey ( full_name ), hospitals ( name, address, city )`)
+      .eq('profile_id', user.id)
+      .maybeSingle()
+  let { data, error } = await select(true)
+  if (error) ({ data, error } = await select(false))
+  if (!data) return null
+  type Row = {
+    id: string
+    registration_number?: string | null
+    registration_council?: string | null
+    profiles: { full_name: string | null } | { full_name: string | null }[] | null
+    hospitals: { name: string; address: string | null; city: string | null } | { name: string; address: string | null; city: string | null }[] | null
+  }
+  const row = data as unknown as Row
+  const one = <T,>(v: T | T[] | null) => (Array.isArray(v) ? v[0] : v) ?? null
+  return {
+    admin,
+    doctor: {
+      id: row.id,
+      name: one(row.profiles)?.full_name ?? 'Doctor',
+      registrationNumber: row.registration_number ?? null,
+      registrationCouncil: row.registration_council ?? null,
+      hospital: one(row.hospitals),
+    },
+  }
+}
+
+const SIGNATURE_TYPES = ['image/png', 'image/jpeg']
+
+/** Saves the doctor's signature (a PNG or JPG, ideally on a white or clear background). It prints on every prescription. */
+export async function uploadSignature(formData: FormData): Promise<{ success: true } | { success: false; error: string }> {
+  const ctx = await doctorForTemplate()
+  if (!ctx) return { success: false, error: 'Please sign in with your doctor account.' }
+  const file = formData.get('signature')
+  if (!(file instanceof File) || file.size === 0) return { success: false, error: 'Choose an image of your signature.' }
+  if (!SIGNATURE_TYPES.includes(file.type)) return { success: false, error: 'Upload the signature as a PNG or JPG image.' }
+  if (file.size > 1024 * 1024) return { success: false, error: 'The signature image must be under 1 MB.' }
+  try {
+    await storeRecordFile(ctx.admin, signaturePath(ctx.doctor.id), file, file.type)
+  } catch (err) {
+    console.error('uploadSignature:', err)
+    return { success: false, error: 'Could not save your signature. Please try again.' }
+  }
+  revalidatePath('/doctor/profile')
+  return { success: true }
+}
+
+export async function removeSignature(): Promise<{ success: true } | { success: false; error: string }> {
+  const ctx = await doctorForTemplate()
+  if (!ctx) return { success: false, error: 'Please sign in with your doctor account.' }
+  const { error } = await ctx.admin.storage.from(RECORD_BUCKET).remove([signaturePath(ctx.doctor.id)])
+  if (error) return { success: false, error: 'Could not remove your signature. Please try again.' }
+  revalidatePath('/doctor/profile')
+  return { success: true }
+}
+
+/** A sample prescription with the doctor's letterhead, registration and signature, as base64, to download and check. */
+export async function prescriptionTemplatePreview(): Promise<{ success: true; pdf: string } | { success: false; error: string }> {
+  const ctx = await doctorForTemplate()
+  if (!ctx) return { success: false, error: 'Please sign in with your doctor account.' }
+  try {
+    const pdf = await prescriptionTemplatePdf(ctx.admin, ctx.doctor)
+    return { success: true, pdf: Buffer.from(pdf).toString('base64') }
+  } catch (err) {
+    console.error('prescriptionTemplatePreview:', err)
+    return { success: false, error: 'Could not create the preview. Please try again.' }
+  }
 }

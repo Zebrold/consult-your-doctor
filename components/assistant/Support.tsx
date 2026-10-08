@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { BrainCircuit, Headset, MessageSquareText, RotateCcw, X } from 'lucide-react'
-import { ChatThread, Composer, useChat } from './chat'
+import { ChatThread, Composer, LanguagePicker, chatKey, useChat, useLanguage } from './chat'
 
 // Common support questions per role. Every answer exists on the site (see lib/assistant/knowledge.ts).
 const SUGGESTIONS: Record<string, string[]> = {
@@ -41,13 +41,17 @@ const isAiPage = (path: string) => /^\/(?:(?:doctor|diagnostic-center|hospital|e
 // Pages with the navigation pill along the bottom: lift the button above it.
 const BAR_PREFIXES = ['/doctor', '/diagnostic-center', '/hospital', '/executive', '/patient', '/find', '/book']
 
-/** The help-center chat behind the Support button on every page, answered by Zebrold AI. */
-export function Support({ role }: { role: string | null }) {
+/**
+ * The help-center chat behind the Human AI button on every page, answered by Zebrold AI. Each panel (patient, doctor,
+ * lab, hospital, front desk) and each signed-in person keeps a separate conversation.
+ */
+export function Support({ role, viewer }: { role: string | null; viewer: string | null }) {
   const pathname = usePathname() ?? '/'
   const [open, setOpen] = useState(false)
-  const chat = useChat('zebrold-support-chat', 'support')
-
   const key = PORTAL_ROLE.find(([prefix]) => pathname.startsWith(prefix))?.[1] ?? role ?? 'visitor'
+  const [language, setLanguage] = useLanguage()
+  const chat = useChat(chatKey('support', key, viewer), 'support', language)
+
   const suggestions = SUGGESTIONS[key] ?? SUGGESTIONS.visitor
   const aiHref = AI_PAGE[key]
   // Staff accounts can only open their own portal, so the public contact pages are offered to patients and visitors.
@@ -82,13 +86,13 @@ export function Support({ role }: { role: string | null }) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          aria-label="Open Support"
+          aria-label="Open Human AI"
           className={`fixed z-[70] right-4 md:right-6 ${lifted ? 'bottom-[calc(92px+env(safe-area-inset-bottom))] md:bottom-[100px]' : 'bottom-5 md:bottom-6'} h-12 w-12 sm:w-auto sm:pl-3 sm:pr-5 rounded-full bg-gradient-to-r from-primary to-vibrant-blue text-on-primary shadow-[0_8px_24px_rgba(0,102,255,0.35)] flex items-center justify-center gap-2 font-label-sm text-label-sm font-bold hover:scale-[1.03] active:scale-95 transition-transform print:hidden`}
         >
           <span className="sm:w-8 sm:h-8 sm:rounded-full sm:bg-on-primary/15 flex items-center justify-center">
             <Headset className="w-5 h-5" />
           </span>
-          <span className="hidden sm:inline">Support</span>
+          <span className="hidden sm:inline">Human AI</span>
           {chat.messages.length > 0 && <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-fresh-teal ring-2 ring-surface-container-lowest" />}
         </button>
       )}
@@ -96,7 +100,7 @@ export function Support({ role }: { role: string | null }) {
       {open && (
         <section
           role="dialog"
-          aria-label="Support"
+          aria-label="Human AI"
           className="fixed z-[70] inset-0 md:inset-auto md:right-6 md:bottom-6 md:w-[400px] md:h-[min(640px,calc(100vh-48px))] bg-background md:rounded-2xl shadow-[0_16px_48px_rgba(0,50,140,0.22)] md:border md:border-outline-variant/40 flex flex-col overflow-hidden pb-[env(safe-area-inset-bottom)] print:hidden"
         >
           <header className="bg-gradient-to-r from-primary to-vibrant-blue text-on-primary px-4 py-3 flex items-center justify-between gap-3 shrink-0">
@@ -105,11 +109,12 @@ export function Support({ role }: { role: string | null }) {
                 <Headset className="w-5 h-5" />
               </span>
               <div className="min-w-0">
-                <p className="font-title-md text-[16px] font-bold leading-tight">Support</p>
+                <p className="font-title-md text-[16px] font-bold leading-tight">Human AI</p>
                 <p className="text-[11px] text-on-primary/80 truncate">Help center • answered by Zebrold AI</p>
               </div>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
+              <LanguagePicker value={language} onChange={setLanguage} tone="onPrimary" />
               {aiHref && (
                 <Link href={aiHref} onClick={close} title="Open Zebrold AI" aria-label="Open Zebrold AI" className="w-8 h-8 rounded-full bg-on-primary/15 hover:bg-on-primary/25 flex items-center justify-center">
                   <BrainCircuit className="w-4 h-4" />
@@ -120,7 +125,7 @@ export function Support({ role }: { role: string | null }) {
                   <RotateCcw className="w-4 h-4" />
                 </button>
               )}
-              <button type="button" onClick={close} title="Close" aria-label="Close Support" className="w-8 h-8 rounded-full bg-on-primary/15 hover:bg-on-primary/25 flex items-center justify-center">
+              <button type="button" onClick={close} title="Close" aria-label="Close Human AI" className="w-8 h-8 rounded-full bg-on-primary/15 hover:bg-on-primary/25 flex items-center justify-center">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -132,7 +137,8 @@ export function Support({ role }: { role: string | null }) {
             onNavigate={closeOnPhone}
             intro={
               <>
-                <p>Hi! You’re in the Consult Your Doctor help center. Tell me what you need help with, like signing in, a booking, a payment, a report or using your portal, and I’ll walk you through it.</p>
+                <p className="font-semibold">Hey there, welcome to Consult Your Doctor.</p>
+                <p className="mt-1.5">Tell me what you need help with, like signing in, a booking, a payment, a report or using your portal, and I’ll walk you through it. Pick a language at the top to get answers in it.</p>
                 <p className="mt-1.5 text-on-surface-variant text-[13px]">Answers come from Zebrold AI, not a person, and it isn’t a doctor. In an emergency, call 112.</p>
               </>
             }

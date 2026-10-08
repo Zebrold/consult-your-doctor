@@ -1,4 +1,4 @@
-// Vitals are kept in the visit's notes as "Vitals: BP 120/80, SpO2 98, HR 72, Temp 98.6, Weight 70, Height 170, BMI 24.2."
+// Vitals are kept in the visit's notes as "Vitals: BP 120/80, SpO2 98, HR 72, RR 16, Temp 98.6, Weight 70, Height 170, BMI 24.2."
 // (the walk-in form, the prescription form and the hospital's health record form all write them this way), so the
 // portals can show the latest reading without a separate table. Only what staff typed is ever shown; BMI is worked
 // out from the weight and height they typed.
@@ -7,6 +7,8 @@ export type Vitals = {
   bp: string | null
   spo2: string | null
   hr: string | null
+  /** Respiratory rate, breaths a minute. */
+  rr: string | null
   temp: string | null
   /** Kilograms. */
   weight: string | null
@@ -21,6 +23,7 @@ const LABELS: [keyof Vitals, string][] = [
   ['bp', 'BP'],
   ['spo2', 'SpO2'],
   ['hr', 'HR'],
+  ['rr', 'RR'],
   ['temp', 'Temp'],
   ['weight', 'Weight'],
   ['height', 'Height'],
@@ -80,6 +83,7 @@ export const withoutVitals = (notes: string | null | undefined) => (notes ?? '')
 const bare = (v: string) => /^\d+(\.\d+)?$/.test(v)
 export const showSpO2 = (v: string) => (bare(v) ? `${v}%` : v)
 export const showHR = (v: string) => (bare(v) ? `${v} bpm` : v)
+export const showRR = (v: string) => (bare(v) ? `${v} breaths/min` : v)
 export const showTemp = (v: string) => (bare(v) ? `${v} °${Number(v) > 50 ? 'F' : 'C'}` : v)
 export const showWeight = (v: string) => (bare(v) ? `${v} kg` : v)
 export const showHeight = (v: string) => (bare(v) ? `${v} cm` : v)
@@ -94,6 +98,7 @@ export function vitalsList(v: Vitals | null): { label: string; value: string }[]
   const rows: [string, string | null, (s: string) => string][] = [
     ['Blood pressure', v.bp, (s) => (bare(s.replace('/', '')) ? `${s} mmHg` : s)],
     ['Pulse', v.hr, showHR],
+    ['Respiratory rate', v.rr, showRR],
     ['SpO2', v.spo2, showSpO2],
     ['Temperature', v.temp, showTemp],
     ['Weight', v.weight, showWeight],

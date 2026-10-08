@@ -15,6 +15,8 @@ import { Avatar, Card, CardHeader, Chip, EmptyState, ProgressBar, SegmentBar, St
 import { CallLink, CheckInButton, NextStepButton, PrescriptionButton, WritePrescriptionButton, type PickVisit, type VisitRef } from '../_components/VisitControls'
 import { WalkInButton } from '../_components/WalkInModal'
 import { RefreshButton } from '@/components/portal/RefreshButton'
+import { loadDoctorInpatients } from '@/lib/beds'
+import { Inpatients } from '../_components/Inpatients'
 
 export const metadata: Metadata = { title: 'Dashboard | Doctor Portal' }
 export const dynamic = 'force-dynamic'
@@ -41,9 +43,10 @@ export default async function DoctorDashboard() {
   const todayKey = istDateKey(now)
   const dayStart = Date.parse(`${todayKey}T00:00:00+05:30`)
 
-  const [visits, slots] = await Promise.all([
+  const [visits, slots, inpatients] = await Promise.all([
     loadVisits(admin, doctor.id),
     loadSlots(admin, doctor.id, new Date(dayStart).toISOString(), new Date(dayStart + 8 * DAY).toISOString()),
+    loadDoctorInpatients(admin, doctor.id),
   ])
 
   const live = visits.filter((v) => v.status !== 'cancelled')
@@ -326,6 +329,9 @@ export default async function DoctorDashboard() {
         </div>
 
         <div className="lg:col-span-5 min-w-0 flex flex-col gap-4 md:gap-stack-md">
+          {/* Patients admitted under this doctor (bed allocation from the hospital) */}
+          <Inpatients admissions={inpatients} now={now} />
+
           {/* Rest of today */}
           <Card>
             <div className="flex items-start justify-between gap-3 mb-3 md:mb-4">

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { Header } from '@/components/Header'
-import { MapPin, Mail, Phone, Building2, UserCircle, CheckCircle2 } from 'lucide-react'
+import { MapPin, Mail, Phone, Building2, UserCircle, CheckCircle2, Award, FlaskConical, ShieldCheck, Siren } from 'lucide-react'
+import { testList } from '@/lib/pricing'
 import Image from 'next/image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -52,6 +53,13 @@ export default async function HospitalProfilePage(
   if (hospitalError || !hospital) {
     notFound()
   }
+
+  // Profile lists the hospital fills in on its portal (empty until the 20261009 migration adds the columns).
+  const list = (v: unknown) => (Array.isArray(v) ? (v as string[]).filter((s) => typeof s === 'string' && s.trim()) : [])
+  const facilities = list(hospital.facilities)
+  const accreditations = list(hospital.accreditations)
+  const insurance = list(hospital.insurance_accepted)
+  const tests = testList(list(hospital.available_tests), hospital.test_prices).filter((t): t is { name: string; price: number } => !!t.price)
 
   // Fetch affiliated doctors
   const { data: doctors, error: doctorsError } = await supabase
@@ -122,8 +130,14 @@ export default async function HospitalProfilePage(
                   <div className="grid sm:grid-cols-2 gap-4 max-w-2xl">
                     <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
                       <Phone className="w-5 h-5 text-gray-500" />
-                      <span className="text-gray-900 font-medium">{hospital.contact_phone || 'N/A'}</span>
+                      <span className="text-gray-900 font-medium">{hospital.phone || hospital.contact_phone || 'N/A'}</span>
                     </div>
+                    {hospital.emergency_phone && (
+                      <div className="flex items-center gap-3 bg-red-50 p-3 rounded-xl border border-red-100">
+                        <Siren className="w-5 h-5 text-[#E31E24]" />
+                        <span className="text-gray-900 font-medium">Emergency: {hospital.emergency_phone}</span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
                       <Mail className="w-5 h-5 text-gray-500" />
                       <span className="text-gray-900 font-medium">{hospital.contact_email || 'N/A'}</span>
@@ -143,6 +157,70 @@ export default async function HospitalProfilePage(
               </div>
             </div>
           </div>
+
+          {/* About, facilities, insurance and test charges, from the hospital's own profile */}
+          {(hospital.about || facilities.length > 0 || insurance.length > 0 || tests.length > 0) && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
+              <div className="lg:col-span-2 flex flex-col gap-6">
+                {hospital.about && (
+                  <section className="bg-white rounded-2xl border border-gray-100 p-6">
+                    <h2 className="text-xl font-bold text-gray-900 mb-3">About {hospital.name}</h2>
+                    <p className="text-gray-700 leading-relaxed whitespace-pre-line">{hospital.about}</p>
+                    {hospital.established_year && <p className="mt-3 text-sm text-gray-500">Serving patients since {hospital.established_year}</p>}
+                  </section>
+                )}
+                {tests.length > 0 && (
+                  <section className="bg-white rounded-2xl border border-gray-100 p-6">
+                    <h2 className="text-xl font-bold text-gray-900 mb-1 flex items-center gap-2">
+                      <FlaskConical className="w-5 h-5 text-[#E31E24]" /> Test Charges
+                    </h2>
+                    <p className="text-sm text-gray-500 mb-4">Amount for each test at the hospital</p>
+                    <ul className="divide-y divide-gray-100">
+                      {tests.map((t) => (
+                        <li key={t.name} className="py-2.5 flex items-center justify-between gap-4">
+                          <span className="text-gray-800 font-medium">{t.name}</span>
+                          <span className="font-bold text-gray-900 shrink-0">₹{t.price.toLocaleString('en-IN')}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+              </div>
+              <div className="flex flex-col gap-6">
+                {(facilities.length > 0 || accreditations.length > 0) && (
+                  <section className="bg-white rounded-2xl border border-gray-100 p-6">
+                    <h2 className="text-lg font-bold text-gray-900 mb-3">Facilities</h2>
+                    <div className="flex flex-wrap gap-2">
+                      {accreditations.map((a) => (
+                        <span key={a} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-sm font-bold">
+                          <Award className="w-3.5 h-3.5" /> {a}
+                        </span>
+                      ))}
+                      {facilities.map((f) => (
+                        <span key={f} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-100 text-gray-800 text-sm font-medium">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> {f}
+                        </span>
+                      ))}
+                    </div>
+                  </section>
+                )}
+                {insurance.length > 0 && (
+                  <section className="bg-white rounded-2xl border border-gray-100 p-6">
+                    <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                      <ShieldCheck className="w-5 h-5 text-green-600" /> Insurance Accepted
+                    </h2>
+                    <ul className="flex flex-col gap-2">
+                      {insurance.map((i) => (
+                        <li key={i} className="flex items-center gap-2 text-gray-800 text-sm font-medium">
+                          <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" /> {i}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Affiliated Doctors Section */}
           <div className="mb-12">

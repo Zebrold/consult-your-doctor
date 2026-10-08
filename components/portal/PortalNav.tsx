@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { BrainCircuit, CalendarDays, CircleUserRound, IdCard, LayoutGrid, Users, Wallet } from 'lucide-react'
+import { BedDouble, BrainCircuit, CalendarDays, CircleUserRound, IdCard, LayoutGrid, Users, Wallet } from 'lucide-react'
 import { PillNav, type PillTab } from './PillNav'
 
 export type Portal = 'doctor' | 'lab' | 'hospital'
@@ -26,6 +26,7 @@ const TABS: Record<Portal, Tab[]> = {
   hospital: [
     { href: '/hospital/dashboard', label: 'Dashboard', icon: LayoutGrid },
     { href: '/hospital/patients', label: 'Patients', icon: Users, wide: 'Patients & Visits' },
+    { href: '/hospital/beds', label: 'Beds', icon: BedDouble, wide: 'Inpatient Beds' },
     { href: '/hospital/doctors', label: 'Roster', icon: CalendarDays, wide: 'Duty Roster & Doctors' },
     { href: '/hospital/revenue', label: 'Finance', icon: Wallet, wide: 'Finance & Revenue' },
     { href: '/hospital/staff', label: 'Staff', icon: IdCard, wide: 'Staff Directory' },

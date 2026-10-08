@@ -5,8 +5,14 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { ArrowLeft, ArrowRight, ChevronDown, IdCard, KeyRound, Loader2, LogIn, MessageSquare, Stethoscope, User, UserPlus } from 'lucide-react'
 import { patientIdLogin, sendOTP, verifyOTP } from '@/app/actions/auth'
-import { createClient } from '@/lib/supabase/client'
 import { COUNTRY_CODES } from '@/lib/countryCodes'
+import { createClient } from '@/lib/supabase/client'
+
+declare global {
+  interface Window {
+    google?: any
+  }
+}
 
 type Mode = 'signin' | 'register'
 
@@ -53,6 +59,8 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
     searchParams.get('error') === 'google' ? 'Google sign-in could not be completed. Please try again or use your mobile number.' : ''
   )
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const [gsiLoaded, setGsiLoaded] = useState(false)
+  const googleBtnContainerRef = useRef<HTMLDivElement>(null)
 
   const isRegister = mode === 'register'
 
@@ -69,21 +77,120 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
     setOtp(['', '', '', '', '', ''])
   }
 
+  const handleGoogleCredential = async (credential: string) => {
+    setIsGoogleLoading(true)
+    setGoogleError('')
+    try {
+      const res = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential, next }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        setGoogleError(data.error || 'Google sign-in could not be completed. Please try again.')
+        setIsGoogleLoading(false)
+        return
+      }
+      window.location.href = data.redirect || next || '/'
+    } catch {
+      setGoogleError('Connection error during Google authentication. Please try again.')
+      setIsGoogleLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!googleEnabled) return
+
+    const rawClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''
+    const clientId = rawClientId.replace(/^https?:\/\//i, '').trim()
+    if (!clientId) return
+
+    function initGoogle() {
+      if (!window.google?.accounts?.id) return
+      try {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: (response: { credential?: string }) => {
+            if (response.credential) {
+              handleGoogleCredential(response.credential)
+            }
+          },
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        })
+
+        // Prompt Google One Tap in real time
+        window.google.accounts.id.prompt()
+
+        // Render official Google button into container
+        if (googleBtnContainerRef.current) {
+          googleBtnContainerRef.current.innerHTML = ''
+          window.google.accounts.id.renderButton(googleBtnContainerRef.current, {
+            type: 'standard',
+            theme: 'outline',
+            size: 'large',
+            text: isRegister ? 'signup_with' : 'continue_with',
+            shape: 'pill',
+            width: 380,
+            logo_alignment: 'left',
+          })
+          setGsiLoaded(true)
+        }
+      } catch (err) {
+        console.error('[GIS setup error]:', err)
+      }
+    }
+
+    if (window.google?.accounts?.id) {
+      initGoogle()
+    } else {
+      const scriptId = 'google-gsi-client'
+      let script = document.getElementById(scriptId) as HTMLScriptElement | null
+      if (!script) {
+        script = document.createElement('script')
+        script.id = scriptId
+        script.src = 'https://accounts.google.com/gsi/client'
+        script.async = true
+        script.defer = true
+        script.onload = () => initGoogle()
+        document.body.appendChild(script)
+      } else {
+        script.addEventListener('load', initGoogle)
+      }
+    }
+  }, [googleEnabled, isRegister, next])
+
   const handleGoogle = async () => {
     setGoogleError('')
     setIsGoogleLoading(true)
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ''}` },
-    })
-    if (error) {
-      setGoogleError(
-        /provider is not enabled|unsupported provider/i.test(error.message)
-          ? 'Google sign-in isn’t switched on yet. Please use your mobile number for now.'
-          : error.message,
-      )
+
+    // 1. If GIS button exists inside container, trigger it
+    const gsiBtn = googleBtnContainerRef.current?.querySelector('div[role="button"]') as HTMLElement | null
+    if (gsiBtn) {
+      gsiBtn.click()
       setIsGoogleLoading(false)
+      return
+    }
+
+    // 2. Try Supabase native OAuth first
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ''}` },
+      })
+      if (error) {
+        // Fallback to direct Google OAuth route
+        if (/provider is not enabled|unsupported provider/i.test(error.message)) {
+          window.location.href = `/api/auth/google/login?next=${encodeURIComponent(next || '/')}`
+          return
+        }
+        setGoogleError(error.message)
+        setIsGoogleLoading(false)
+      }
+    } catch {
+      window.location.href = `/api/auth/google/login?next=${encodeURIComponent(next || '/')}`
     }
   }
 
@@ -163,24 +270,33 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
 
             {googleEnabled && (
               <>
-                <button
-                  type="button"
-                  onClick={handleGoogle}
-                  disabled={isGoogleLoading}
-                  className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-full bg-surface-container-lowest hover:bg-surface-container-low text-on-surface text-[14px] font-semibold ring-1 ring-outline-variant/50 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] transition-all active:scale-[0.99] disabled:opacity-60"
-                >
-                  {isGoogleLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <svg aria-hidden="true" className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05" />
-                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335" />
-                    </svg>
+                <div className="w-full flex flex-col items-center">
+                  <div
+                    ref={googleBtnContainerRef}
+                    className={`w-full flex justify-center ${gsiLoaded ? 'block' : 'hidden'}`}
+                    style={{ minHeight: gsiLoaded ? '44px' : '0px' }}
+                  />
+                  {!gsiLoaded && (
+                    <button
+                      type="button"
+                      onClick={handleGoogle}
+                      disabled={isGoogleLoading}
+                      className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-full bg-surface-container-lowest hover:bg-surface-container-low text-on-surface text-[14px] font-semibold ring-1 ring-outline-variant/50 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] transition-all active:scale-[0.99] disabled:opacity-60"
+                    >
+                      {isGoogleLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <svg aria-hidden="true" className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05" />
+                          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335" />
+                        </svg>
+                      )}
+                      {isRegister ? 'Sign up with Google' : 'Continue with Google'}
+                    </button>
                   )}
-                  {isRegister ? 'Sign up with Google' : 'Continue with Google'}
-                </button>
+                </div>
 
                 <div className="relative flex items-center justify-center my-6">
                   <div className="w-full h-px bg-surface-container" />
@@ -296,7 +412,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
 
               <p className="text-center text-[11px] text-on-surface-variant/80 pt-1 leading-normal">
                 By continuing, you agree to our{' '}
-                <Link className="text-primary hover:underline font-medium" href="/terms-of-use">Terms of Service</Link> &amp;{' '}
+                <Link className="text-primary hover:underline font-medium" href="/terms-of-use">Terms &amp; Conditions</Link> &amp;{' '}
                 <Link className="text-primary hover:underline font-medium" href="/privacy-policy">Privacy Policy</Link>.
               </p>
             </form>

@@ -44,8 +44,9 @@ export async function recordDeskPayment(admin: Admin, booking: Booking, payment:
   if (!moved?.length) return { recorded: false as const }
 
   const { error } = await admin.from('payments').insert({
-    appointment_id: booking.kind === 'appointment' ? booking.id : null,
-    diagnostic_booking_id: booking.kind === 'diagnostic' ? booking.id : null,
+    // Only the column in use is sent, so a consultation paid in cash also saves on a database without the
+    // diagnostic_booking_id column (UPI needs the 20261008 migration either way).
+    ...(booking.kind === 'appointment' ? { appointment_id: booking.id } : { appointment_id: null, diagnostic_booking_id: booking.id }),
     amount: payment.amount,
     gateway: payment.method,
     transaction_id: payment.reference,
@@ -62,8 +63,10 @@ export async function recordDeskPayment(admin: Admin, booking: Booking, payment:
 /** A Postgres error from a database that hasn't had the latest migration yet, explained for staff. */
 export function migrationHint(error: { message?: string; code?: string } | null | undefined) {
   const message = error?.message ?? ''
-  if (/invalid input value for enum|diagnostic_booking_id|patient_code|results/i.test(message)) {
-    return 'The database needs the latest update first (supabase/migrations/20261008_desk_registration_reports.sql). Ask your administrator to run it.'
+  // 42P01 / PGRST205: no such table. 42703 / PGRST204: no such column.
+  const missing = ['42P01', 'PGRST205', '42703', 'PGRST204'].includes(error?.code ?? '')
+  if (missing || /invalid input value for enum|diagnostic_booking_id|patient_code|results|does not exist|schema cache/i.test(message)) {
+    return 'The database needs the latest update first (run supabase/migrations/20261008_desk_registration_reports.sql, then 20261009_beds_reviews_profiles.sql). Ask your administrator to run them.'
   }
   return null
 }

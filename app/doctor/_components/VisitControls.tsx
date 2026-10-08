@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useTransition, type FormEvent, type ReactNode } from 'react'
+import { useState, useTransition, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { FilePenLine, LoaderCircle, Phone, UserCheck, X } from 'lucide-react'
 import { initials } from '@/components/patient/format'
-import { addPrescription, updateAppointmentStatus } from '@/app/actions/doctor'
-import { bmiCategory, bmiOf } from '@/lib/vitals'
+import { updateAppointmentStatus } from '@/app/actions/doctor'
+import { PrescriptionWriter } from './PrescriptionWriter'
 
 export type VisitRef = { id: string; status: string; patientName: string; phone: string | null }
 
@@ -91,7 +91,7 @@ export function PrescriptionButton({ visit, kind = 'soft', label = 'Write Prescr
         <FilePenLine className="w-4 h-4" />
         {kind !== 'icon' && label}
       </Button>
-      {open && <PrescriptionModal visit={visit} onClose={() => setOpen(false)} />}
+      {open && <PrescriptionWriter visit={visit} onClose={() => setOpen(false)} />}
     </>
   )
 }
@@ -170,7 +170,7 @@ export function WritePrescriptionButton({
           }}
         />
       )}
-      {visit && <PrescriptionModal visit={visit} onClose={() => setVisit(null)} />}
+      {visit && <PrescriptionWriter visit={visit} onClose={() => setVisit(null)} />}
     </>
   )
 }
@@ -217,115 +217,6 @@ function VisitPicker({ visits, onPick, onClose }: { visits: PickVisit[]; onPick:
           </p>
         )}
       </div>
-    </div>
-  )
-}
-
-function PrescriptionModal({ visit, onClose }: { visit: VisitRef; onClose: () => void }) {
-  const router = useRouter()
-  const [vitals, setVitals] = useState({ bp: '', spo2: '', hr: '', temp: '', weight: '', height: '' })
-  const [file, setFile] = useState<File | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [pending, start] = useTransition()
-  const bmi = bmiOf(vitals.weight, vitals.height)
-
-  const submit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    if (file && file.size > 5 * 1024 * 1024) return setError('The attachment must be under 5 MB.')
-    const fields = new FormData(e.currentTarget)
-    if (!String(fields.get('diagnosis')).trim() && !String(fields.get('medicines')).trim()) return setError('Enter the diagnosis or the medicines.')
-    const form = new FormData()
-    form.append('appointmentId', visit.id)
-    for (const name of ['diagnosis', 'medicines', 'advice']) form.append(name, String(fields.get(name) || ''))
-    for (const [key, value] of Object.entries(vitals)) if (value.trim()) form.append(key, value)
-    if (file) form.append('file', file)
-    start(async () => {
-      const res = await addPrescription(form)
-      if ('error' in res && res.error) {
-        setError(res.error)
-        return
-      }
-      onClose()
-      router.refresh()
-    })
-  }
-
-  const box = 'w-full rounded-lg bg-surface-container-low p-3 text-[15px] text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-vibrant-blue/30'
-  const small = 'w-full rounded-lg bg-surface-container-low px-3 py-2 text-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-vibrant-blue/30'
-
-  return (
-    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true" aria-label={`Prescription for ${visit.patientName}`}>
-      <button type="button" aria-label="Close" className="absolute inset-0 bg-indigo-gray-900/50 backdrop-blur-sm" onClick={onClose} />
-      <form onSubmit={submit} className="relative w-full sm:max-w-2xl max-h-[94vh] overflow-y-auto bg-surface-container-lowest rounded-t-2xl sm:rounded-2xl shadow-2xl p-5 sm:p-6 flex flex-col gap-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="font-title-md text-title-md font-bold text-indigo-gray-900">Prescription</h3>
-            <p className="text-sm text-indigo-gray-600">
-              For {visit.patientName}. A PDF is created, added to their records and sent to them on WhatsApp and email
-              {visit.status === 'completed' ? '.' : '; saving it completes the visit.'}
-            </p>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-variant flex items-center justify-center shrink-0">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <label className="flex flex-col gap-1.5">
-          <span className="font-label-sm text-label-sm text-indigo-gray-600">Diagnosis &amp; notes</span>
-          <textarea name="diagnosis" rows={3} placeholder="Findings and diagnosis" className={`${box} resize-none`} />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className="font-label-sm text-label-sm text-indigo-gray-600">Medicines</span>
-          <textarea name="medicines" rows={4} placeholder={'One per line, with dose and duration, e.g.\nParacetamol 650 mg: 1 tablet three times a day for 3 days'} className={`${box} resize-none`} />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className="font-label-sm text-label-sm text-indigo-gray-600">Advice &amp; follow-up (optional)</span>
-          <textarea name="advice" rows={2} placeholder="Diet, rest, tests to do, when to come back" className={`${box} resize-none`} />
-        </label>
-
-        <fieldset className="flex flex-col gap-1.5">
-          <legend className="font-label-sm text-label-sm text-indigo-gray-600 mb-1.5">Vitals measured at this visit (optional)</legend>
-          <div className="grid grid-cols-3 gap-2">
-            {([
-              ['bp', 'BP', 'mmHg'],
-              ['spo2', 'SpO2', '%'],
-              ['hr', 'Heart rate', 'bpm'],
-              ['temp', 'Temperature', '°F'],
-              ['weight', 'Weight', 'kg'],
-              ['height', 'Height', 'cm'],
-            ] as const).map(([key, label, unit]) => (
-              <label key={key} className="flex flex-col gap-1">
-                <span className="text-[11px] text-indigo-gray-600">{label}</span>
-                <input value={vitals[key]} onChange={(e) => setVitals((v) => ({ ...v, [key]: e.target.value }))} placeholder={unit} maxLength={20} className={small} />
-              </label>
-            ))}
-          </div>
-          <p className="mt-1 p-2.5 rounded-lg bg-surface-container-low text-[13px] flex justify-between gap-2" aria-live="polite">
-            <span className="text-indigo-gray-600">BMI</span>
-            <span className="font-bold text-indigo-gray-900">{bmi ? `${bmi} • ${bmiCategory(bmi)}` : 'Worked out from weight and height'}</span>
-          </p>
-        </fieldset>
-
-        <label className="flex flex-col gap-1.5">
-          <span className="font-label-sm text-label-sm text-indigo-gray-600">Attach a document (optional, PDF or image, up to 5 MB)</span>
-          <input
-            type="file"
-            accept="application/pdf,image/jpeg,image/png,image/webp"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="block w-full text-sm text-indigo-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-surface-container-high file:text-primary"
-          />
-        </label>
-        {error && <p role="alert" className="p-3 rounded-lg bg-error-container text-on-error-container text-sm">{error}</p>}
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-full text-sm font-semibold text-indigo-gray-600 hover:bg-surface-container">
-            Cancel
-          </button>
-          <button type="submit" disabled={pending} className="px-5 py-2.5 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary text-sm font-bold flex items-center gap-2 disabled:opacity-60">
-            {pending && <LoaderCircle className="w-4 h-4 animate-spin" />}
-            {visit.status === 'completed' ? 'Save & Send PDF' : 'Save, Send PDF & Complete'}
-          </button>
-        </div>
-      </form>
     </div>
   )
 }

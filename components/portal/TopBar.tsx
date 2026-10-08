@@ -176,6 +176,15 @@ function AccountMenu({ person, links }: { person: Person; links: TopBarLink[] })
               <LogOut className="w-[18px] h-[18px]" /> Sign out
             </button>
           </form>
+          {/* The legal pages are open to every portal (see SHARED_PAGES in the middleware). */}
+          <div className="mt-1 pt-2 px-2.5 pb-1 border-t border-surface-container flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-on-surface-variant">
+            <Link href="/terms-of-use" role="menuitem" onClick={() => setOpen(false)} className="hover:text-primary hover:underline">
+              Terms &amp; Conditions
+            </Link>
+            <Link href="/privacy-policy" role="menuitem" onClick={() => setOpen(false)} className="hover:text-primary hover:underline">
+              Privacy Policy
+            </Link>
+          </div>
         </div>
       )}
     </div>

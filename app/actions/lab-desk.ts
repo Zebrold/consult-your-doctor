@@ -6,7 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { ageFrom, istDateKey } from '@/components/patient/format'
 import { DIAGNOSTIC_PLATFORM_FEE, matchBookedTests, sumPrices } from '@/lib/pricing'
 import { REPORT_BUCKET, reportPath } from '@/lib/lab-reports'
-import { renderClinicalPdf } from '@/lib/pdf/clinical'
+import { renderLabReportPdf } from '@/lib/pdf/lab-report'
 import { issuePatientToken, readPatientToken } from '@/lib/desk-token'
 import { ensurePatientProfile, indianMobile, issuePatientCredentials, sendPatientOtp, verifyPatientOtp } from '@/lib/patient-onboarding'
 import { migrationHint, recordDeskPayment, upiQr, validUpiReference, type DeskMethod } from '@/lib/desk-payments'
@@ -155,6 +155,7 @@ async function labPayment(admin: Admin, center: Center, bookingId: string): Prom
     what: tests.map((t) => t.name).join(', '),
     patient: { name: found.patient?.full_name || 'Patient', phone: found.patient?.phone_number ?? null, email },
     amounts: { desk: amount, online: amount + DIAGNOSTIC_PLATFORM_FEE, platformFee: DIAGNOSTIC_PLATFORM_FEE },
+    items: tests.map((t) => ({ label: t.name, amount: t.price })),
     upi: await upiQr(amount, code, `Lab tests ${code}`),
     payuKey: process.env.PAYU_MERCHANT_KEY ?? null,
   }
@@ -216,7 +217,7 @@ const FLAGS = ['', 'Low', 'High', 'Abnormal', 'Critical']
  * Generates the PDF report from the results the lab entered, puts it in the patient's account and sends it on
  * WhatsApp and by email. Generating it again replaces the previous report.
  */
-export async function createLabReport(input: { bookingId: string; rows: ResultRow[]; remarks: string; authorisedBy: string }): Promise<DeskResult> {
+export async function createLabReport(input: { bookingId: string; rows: ResultRow[]; remarks: string; authorisedBy: string; referredBy?: string; sample?: string }): Promise<DeskResult> {
   const ctx = await labContext()
   if (!ctx) return fail(NOT_SIGNED_IN)
   const found = await bookingAt(ctx.admin, ctx.center.id, input.bookingId)
@@ -238,35 +239,26 @@ export async function createLabReport(input: { bookingId: string; rows: ResultRo
   const age = ageFrom(facts?.date_of_birth ?? null, Date.now())
   const code = input.bookingId.slice(0, 8).toUpperCase()
   const now = new Date()
-  const dateText = (d: Date) => d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric' })
+  const { data: contact } = await ctx.admin.from('diagnostic_centers').select('contact_email').eq('id', ctx.center.id).maybeSingle()
+  const labEmail = contact?.contact_email && !String(contact.contact_email).endsWith('.internal') ? String(contact.contact_email) : null
 
-  const pdf = await renderClinicalPdf({
-    title: 'DIAGNOSTIC REPORT',
-    reference: `#${code}`,
-    issuedAt: now,
-    organisation: { name: ctx.center.name, lines: [ctx.center.address, ctx.center.city] },
-    panels: [
-      {
-        title: 'Patient',
-        rows: [
-          ['Name', found.patient?.full_name ?? 'Patient'],
-          ['Patient ID', extra?.patient_code ?? `CYD-${found.row.patient_id.slice(0, 8).toUpperCase()}`],
-          ['Age / Sex', [age != null ? `${age} years` : null, facts?.gender].filter(Boolean).join(' / ') || null],
-          ['Phone', found.patient?.phone_number],
-        ],
-      },
-      {
-        title: 'Sample',
-        rows: [
-          ['Tests', found.row.test_name],
-          ['Booked for', found.row.preferred_date ? dateText(new Date(`${found.row.preferred_date}T12:00:00+05:30`)) : null],
-          ['Reported', `${dateText(now)}, ${now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true })}`],
-        ],
-      },
-    ],
-    table: { title: 'Results', columns: ['Test', 'Result', 'Unit', 'Reference range', 'Flag'], widths: [34, 14, 12, 26, 10], flagColumn: 4, rows: rows.map((r) => [r.test, r.value, r.unit, r.range, r.flag]) },
-    sections: [{ heading: 'Remarks', body: remarks }],
-    signature: { name: authorisedBy, lines: [ctx.center.name, 'Authorised signatory'] },
+  const pdf = await renderLabReportPdf({
+    code,
+    reportedAt: now,
+    lab: { name: ctx.center.name, lines: [ctx.center.address, ctx.center.city], email: labEmail },
+    patient: {
+      name: found.patient?.full_name ?? 'Patient',
+      id: extra?.patient_code ?? `CYD-${found.row.patient_id.slice(0, 8).toUpperCase()}`,
+      ageSex: [age != null ? `${age} Y` : null, facts?.gender ? facts.gender.charAt(0).toUpperCase() : null].filter(Boolean).join(' / ') || null,
+      phone: found.patient?.phone_number ?? null,
+    },
+    referredBy: clip(input.referredBy, 80) || null,
+    sample: clip(input.sample, 30) || null,
+    collectedOn: found.row.preferred_date ?? null,
+    tests: found.row.test_name || rows.map((r) => r.test).join(', '),
+    rows,
+    remarks: remarks || null,
+    authorisedBy,
     note: `Generated through Consult Your Doctor for booking #${code}. Results must be interpreted by a doctor together with your symptoms and history.`,
   })
 

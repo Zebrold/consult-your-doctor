@@ -4,6 +4,7 @@ import { useState, useTransition, type FormEvent, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { CircleCheck, LoaderCircle, Pencil, Plus, X } from 'lucide-react'
 import { createHospitalDoctor, updateHospitalDoctor } from '@/app/actions/hospital'
+import { WelcomeLetterButton } from '@/components/portal/WelcomeLetterButton'
 
 const input =
   'w-full rounded-lg bg-surface-container-low px-3.5 py-2.5 text-[15px] text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-vibrant-blue/30'
@@ -56,23 +57,28 @@ export function AddDoctorButton({ departments, className, label = 'Add Doctor' }
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [created, setCreated] = useState<string | null>(null)
+  // Kept only while the confirmation shows, so the welcome letter can print it.
+  const [password, setPassword] = useState('')
   const [pending, start] = useTransition()
 
   const close = () => {
     setOpen(false)
     setError(null)
     setCreated(null)
+    setPassword('')
   }
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const form = new FormData(e.currentTarget)
-    if (String(form.get('password') || '').length < 8) return setError('Use a password of at least 8 characters.')
+    const chosen = String(form.get('password') || '')
+    if (chosen.length < 8) return setError('Use a password of at least 8 characters.')
     start(async () => {
       const res = await createHospitalDoctor(form)
       if ('error' in res && res.error) return setError(res.error)
       setError(null)
       setCreated((res as { doctorId?: string }).doctorId ?? '')
+      setPassword(chosen)
       router.refresh()
     })
   }
@@ -96,6 +102,13 @@ export function AddDoctorButton({ departments, className, label = 'Add Doctor' }
                 </div>
               </div>
               <p className="text-xs text-indigo-gray-600">Publish their consultation slots from the Roster so patients can book them.</p>
+              {created && password && (
+                <WelcomeLetterButton
+                  username={created}
+                  password={password}
+                  className="w-full py-2.5 rounded-full bg-primary-fixed/60 hover:bg-primary-fixed text-primary text-sm font-bold inline-flex items-center justify-center gap-2 disabled:opacity-60"
+                />
+              )}
               <div className="flex justify-end">
                 <button type="button" onClick={close} className="px-5 py-2.5 rounded-full bg-vibrant-blue text-on-primary text-sm font-bold">
                   Done

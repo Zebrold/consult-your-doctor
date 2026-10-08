@@ -6,6 +6,7 @@ import { one } from '@/components/patient/data'
 import type { Tone } from '@/components/portal/ui'
 import { parseVitals, type Vitals } from '@/lib/vitals'
 import { signRecordFiles } from '@/lib/records'
+import { parseEducation, type EducationEntry } from '@/lib/education'
 
 export { loadPatientFacts, type PatientFacts } from '@/lib/patient-facts'
 export type { Tone }
@@ -26,6 +27,12 @@ export type DoctorInfo = {
   address: string | null
   image: string | null
   hospital: { id: string; name: string; city: string | null; address: string | null } | null
+  registrationNumber: string | null
+  registrationCouncil: string | null
+  education: EducationEntry[]
+  insurance: string[]
+  /** False until the 20261009 migration adds registration, education and insurance. */
+  profileReady: boolean
 }
 
 /** The signed-in doctor, loaded once per request (the layout and page both ask for it). */
@@ -35,20 +42,27 @@ export const requireDoctor = cache(async () => {
   if (!user) redirect('/login/doctor')
 
   const admin = createAdminClient()
-  const { data } = await admin
-    .from('doctors')
-    .select(`
-      id, specialty, experience_years, consultation_fee, bio, qualifications, address, image_url,
-      profiles!doctors_profile_id_fkey ( full_name, phone_number, email ),
-      hospitals ( id, name, city, address )
-    `)
-    .eq('profile_id', user.id)
-    .maybeSingle()
+  // Registration, education and insurance arrive with the 20261009 migration; older databases load without them.
+  const select = (withProfile: boolean) =>
+    admin
+      .from('doctors')
+      .select(`
+        id, specialty, experience_years, consultation_fee, bio, qualifications, address, image_url,
+        ${withProfile ? 'registration_number, registration_council, education, insurance_accepted,' : ''}
+        profiles!doctors_profile_id_fkey ( full_name, phone_number, email ),
+        hospitals ( id, name, city, address )
+      `)
+      .eq('profile_id', user.id)
+      .maybeSingle()
+  const full = await select(true)
+  const profileReady = !full.error
+  const data = profileReady ? full.data : (await select(false)).data
   if (!data) redirect('/auth/signout?next=/login/doctor')
 
   type Row = {
     id: string; specialty: string | null; experience_years: number | null; consultation_fee: number | null
     bio: string | null; qualifications: string | null; address: string | null; image_url: string | null
+    registration_number?: string | null; registration_council?: string | null; education?: unknown; insurance_accepted?: string[] | null
     profiles: Joined<{ full_name: string | null; phone_number: string | null; email: string | null }>
     hospitals: Joined<NonNullable<DoctorInfo['hospital']>>
   }
@@ -67,6 +81,11 @@ export const requireDoctor = cache(async () => {
     address: row.address,
     image: row.image_url,
     hospital: one(row.hospitals),
+    registrationNumber: row.registration_number ?? null,
+    registrationCouncil: row.registration_council ?? null,
+    education: parseEducation(row.education),
+    insurance: row.insurance_accepted ?? [],
+    profileReady,
   }
   return { user, admin, doctor }
 })

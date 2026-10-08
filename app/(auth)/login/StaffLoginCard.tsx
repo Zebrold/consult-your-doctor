@@ -123,6 +123,18 @@ export function StaffLoginCard({
                   </>
                 )}
               </button>
+
+              <p className="text-center text-[11px] text-on-surface-variant/80 leading-normal">
+                By signing in, you agree to our{' '}
+                <Link className="text-primary hover:underline font-medium" href="/terms-of-use">
+                  Terms &amp; Conditions
+                </Link>{' '}
+                and{' '}
+                <Link className="text-primary hover:underline font-medium" href="/privacy-policy">
+                  Privacy Policy
+                </Link>
+                .
+              </p>
             </form>
           </>
         )}

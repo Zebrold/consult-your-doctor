@@ -2,15 +2,22 @@ import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import {
-  Building2, CalendarCheck, CalendarDays, ClipboardCheck, ExternalLink, FileText, Globe, History, House, IndianRupee, LogOut,
-  MapPin, ShieldCheck, Stethoscope, Users, type LucideIcon,
+  Building2, CalendarCheck, CalendarDays, ClipboardCheck, ExternalLink, FileText, Globe, GraduationCap, History, House, IndianRupee, LogOut,
+  MapPin, ShieldCheck, Star, Stethoscope, Users, type LucideIcon,
 } from 'lucide-react'
 import { currentTime } from '@/components/patient/data'
 import { doctorName, formatINR, formatShortDate, formatTime, istDateKey } from '@/components/patient/format'
 import { CONSULTATION_PLATFORM_FEE } from '@/lib/pricing'
 import { loadSlots, loadVisits, requireDoctor } from '../_lib/doctor'
 import { Avatar, Card, EmptyState } from '@/components/portal/ui'
-import { ProfileEditor } from '../_components/ProfileEditor'
+import { ProfileEditor, type EditableProfile } from '../_components/ProfileEditor'
+import { Inpatients } from '../_components/Inpatients'
+import { loadDoctorInpatients } from '@/lib/beds'
+import { loadDoctorReviews } from '@/lib/reviews'
+import { Stars } from '@/components/Stars'
+import { RECORD_BUCKET } from '@/lib/records'
+import { signaturePath } from '@/lib/prescriptions'
+import { PrescriptionTemplate } from '../_components/PrescriptionTemplate'
 
 export const metadata: Metadata = { title: 'Profile | Doctor Portal' }
 export const dynamic = 'force-dynamic'
@@ -28,14 +35,20 @@ export default async function DoctorProfilePage() {
   const { admin, doctor } = await requireDoctor()
   const now = currentTime()
 
-  const [visits, slots, application] = await Promise.all([
+  const [visits, slots, application, inpatients, reviews, signature] = await Promise.all([
     loadVisits(admin, doctor.id),
     loadSlots(admin, doctor.id, new Date(now).toISOString(), new Date(now + 14 * DAY).toISOString()),
     doctor.email
       ? admin.from('doctor_signup_requests').select('qualifications').eq('email', doctor.email).eq('status', 'approved').maybeSingle()
       : Promise.resolve({ data: null }),
+    loadDoctorInpatients(admin, doctor.id),
+    loadDoctorReviews(admin, doctor.id, 4),
+    // The signature is private: show it through a short-lived link.
+    admin.storage.from(RECORD_BUCKET).createSignedUrl(signaturePath(doctor.id), 60 * 10),
   ])
-  const license = parseRegistration((application.data as { qualifications: string | null } | null)?.qualifications)
+  // The registration the doctor saved on their profile, else the one from their approved application.
+  const applied = parseRegistration((application.data as { qualifications: string | null } | null)?.qualifications)
+  const license = { registration: doctor.registrationNumber || applied.registration, council: doctor.registrationCouncil || applied.council }
 
   const completed = visits.filter((v) => v.status === 'completed')
   const patientsSeen = new Set(completed.map((v) => v.patient?.id).filter(Boolean)).size
@@ -67,7 +80,7 @@ export default async function DoctorProfilePage() {
     weekdays.size === 7 ? 'Daily' : weekdays.size === 0 ? 'No slots yet' : [1, 2, 3, 4, 5, 6, 0].filter((d) => weekdays.has(d)).map((d) => WEEKDAYS[d]).join(' • ')
   const maxPerDay = Math.max(0, ...perDay.values())
 
-  const editable = {
+  const editable: EditableProfile = {
     name: doctor.name,
     phone: doctor.phone,
     specialty: doctor.specialty,
@@ -76,7 +89,11 @@ export default async function DoctorProfilePage() {
     fee: doctor.fee,
     bio: doctor.bio,
     address: doctor.address,
+    ...(doctor.profileReady
+      ? { registrationNumber: license.registration, registrationCouncil: license.council, education: doctor.education, insurance: doctor.insurance }
+      : {}),
   }
+  const linkButton = 'font-label-sm text-[12px] md:text-label-sm text-primary hover:underline flex items-center gap-1 shrink-0'
 
   return (
     <>
@@ -221,6 +238,74 @@ export default async function DoctorProfilePage() {
             )}
           </Card>
 
+          {/* Education & training */}
+          <Card>
+            <div className="flex items-start justify-between gap-3">
+              <SectionTitle icon={GraduationCap} eyebrow="Credentials" title="Education & Training" />
+              {doctor.profileReady && <ProfileEditor profile={editable} tab="education" label="Add / Edit" className={linkButton} />}
+            </div>
+            {license.registration && (
+              <p className="mb-3 p-3 rounded-xl bg-secondary-container/30 text-[13px] text-on-surface flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-secondary shrink-0" />
+                <span>
+                  Registration <span className="font-bold">{license.registration}</span>
+                  {license.council ? ` • ${license.council}` : ''}
+                </span>
+              </p>
+            )}
+            {!doctor.profileReady ? (
+              <EmptyState icon={GraduationCap}>Education entries open up after the database update (20261009 migration).</EmptyState>
+            ) : doctor.education.length === 0 ? (
+              <EmptyState icon={GraduationCap}>Add your degrees, residencies and fellowships so patients can see your training.</EmptyState>
+            ) : (
+              <ol className="relative flex flex-col gap-3 pl-5 border-l-2 border-primary-fixed ml-2">
+                {doctor.education.map((e, i) => (
+                  <li key={`${e.title}-${i}`} className="relative">
+                    <span aria-hidden className="absolute -left-[27px] top-1 w-3.5 h-3.5 rounded-full bg-vibrant-blue ring-4 ring-surface-container-lowest" />
+                    <span className="font-label-sm text-[11px] text-secondary font-semibold uppercase tracking-wider">
+                      {e.kind}
+                      {e.year ? ` • ${e.year}` : ''}
+                    </span>
+                    <p className="font-title-md text-[15px] font-bold text-on-surface">{e.title}</p>
+                    {e.institution && <p className="text-[13px] text-on-surface-variant">{e.institution}</p>}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </Card>
+
+          {/* Patient reviews */}
+          <Card>
+            <SectionTitle icon={Star} eyebrow="What Patients Say" title="Patient Reviews" />
+            {reviews.summary.count === 0 ? (
+              <EmptyState icon={Star}>No reviews yet. Patients can rate their visit once it’s completed, and reviews show here and on your public profile.</EmptyState>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-4 p-3 rounded-xl bg-surface-container-low">
+                  <span className="font-headline-lg text-[34px] font-extrabold text-on-surface leading-none">{reviews.summary.average?.toFixed(1)}</span>
+                  <span className="flex flex-col gap-1">
+                    <Stars value={reviews.summary.average ?? 0} />
+                    <span className="text-[12px] text-on-surface-variant">
+                      {reviews.summary.count} {reviews.summary.count === 1 ? 'review' : 'reviews'}
+                    </span>
+                  </span>
+                </div>
+                <ul className="flex flex-col gap-2">
+                  {reviews.reviews.map((r) => (
+                    <li key={r.id} className="p-3 rounded-xl bg-surface-container-low">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-semibold text-[13px] text-on-surface">{r.patientName}</span>
+                        <Stars value={r.rating} className="w-3.5 h-3.5" />
+                      </div>
+                      {r.comment && <p className="text-[13px] text-on-surface-variant">{r.comment}</p>}
+                      <p className="text-[11px] text-outline mt-1">{formatShortDate(r.createdAt)}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </Card>
+
           {/* Recent consultations */}
           <Card>
             <SectionTitle icon={Stethoscope} eyebrow="Your Practice" title="Recent Consultations" />
@@ -259,6 +344,36 @@ export default async function DoctorProfilePage() {
         </div>
 
         <div className="xl:col-span-4 flex flex-col gap-4 md:gap-stack-lg">
+          <PrescriptionTemplate signatureUrl={signature.data?.signedUrl ?? null} registration={license.registration} />
+
+          {/* Patients admitted under this doctor, live from the hospital's bed allocation */}
+          <Inpatients admissions={inpatients} now={now} />
+
+          {/* Insurance accepted */}
+          <Card>
+            <div className="flex items-center justify-between mb-stack-sm gap-2">
+              <div className="flex items-center gap-2 text-fresh-teal">
+                <ShieldCheck className="w-5 h-5" />
+                <h2 className="font-title-md text-[16px] md:text-title-md text-on-surface font-semibold">Insurance Accepted</h2>
+              </div>
+              {doctor.profileReady && <ProfileEditor profile={editable} tab="insurance" label="Edit" className={linkButton} />}
+            </div>
+            {!doctor.profileReady ? (
+              <EmptyState icon={ShieldCheck}>Opens up after the database update (20261009 migration).</EmptyState>
+            ) : doctor.insurance.length === 0 ? (
+              <EmptyState icon={ShieldCheck}>Add the insurers and schemes you accept. Patients see them on your profile.</EmptyState>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {doctor.insurance.map((i) => (
+                  <li key={i} className="p-2.5 rounded-lg bg-surface-container-low flex items-center gap-2.5 text-[13px] font-semibold text-on-surface">
+                    <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11px] font-bold shrink-0">{i[0]?.toUpperCase()}</span>
+                    {i}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+
           {/* Fee */}
           <Card>
             <div className="flex items-center justify-between mb-stack-sm">
@@ -321,6 +436,37 @@ export default async function DoctorProfilePage() {
                 </p>
               </div>
             )}
+          </Card>
+
+          {/* Platform Policies & Legal Terms */}
+          <Card>
+            <div className="flex items-center gap-2 text-fresh-teal mb-stack-sm">
+              <ShieldCheck className="w-5 h-5" />
+              <h2 className="font-title-md text-[16px] md:text-title-md text-on-surface font-semibold">Legal &amp; Compliance</h2>
+            </div>
+            <p className="text-label-sm text-on-surface-variant mb-3">
+              Platform terms, telemedicine standards, prescription validity, and DPDP Act compliance.
+            </p>
+            <div className="flex flex-col gap-2 pt-1 border-t border-surface-container-high/70">
+              <Link
+                href="/terms-of-use"
+                className="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors text-xs font-semibold text-on-surface"
+              >
+                <span className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-vibrant-blue" /> Terms &amp; Conditions
+                </span>
+                <span className="text-vibrant-blue font-bold">View →</span>
+              </Link>
+              <Link
+                href="/privacy-policy"
+                className="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors text-xs font-semibold text-on-surface"
+              >
+                <span className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-fresh-teal" /> Privacy Policy
+                </span>
+                <span className="text-vibrant-blue font-bold">View →</span>
+              </Link>
+            </div>
           </Card>
 
           <form action="/auth/signout" method="post">

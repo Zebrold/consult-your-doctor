@@ -5,6 +5,14 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     '/**': ['./public/fonts/NotoSans-*.ttf', './public/logo-icon.png'],
   },
+  // Other addresses people try for the legal pages.
+  async redirects() {
+    return [
+      { source: '/terms', destination: '/terms-of-use', permanent: true },
+      { source: '/terms-and-conditions', destination: '/terms-of-use', permanent: true },
+      { source: '/privacy', destination: '/privacy-policy', permanent: true },
+    ]
+  },
   images: {
     remotePatterns: [
       {

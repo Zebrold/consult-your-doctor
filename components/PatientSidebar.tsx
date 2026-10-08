@@ -218,6 +218,15 @@ export function PatientSidebar({ user, profile, patientDetails, activeAppointmen
           </a>
         </div>
       </div>
+
+      <p className="px-2 flex flex-wrap gap-x-4 gap-y-1 font-label-sm text-label-sm text-on-surface-variant">
+        <Link href="/terms-of-use" className="hover:text-vibrant-blue hover:underline">
+          Terms &amp; Conditions
+        </Link>
+        <Link href="/privacy-policy" className="hover:text-vibrant-blue hover:underline">
+          Privacy Policy
+        </Link>
+      </p>
     </div>
   )
 }

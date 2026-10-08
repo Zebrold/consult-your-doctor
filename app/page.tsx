@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, CircleCheck, FlaskConical, Hospital, ShieldCheck, Stethoscope } from "lucide-react";
+import { ArrowRight, CircleCheck } from "lucide-react";
 import { HomeHeroActions } from "@/components/HomeHeroActions";
 import { HomeHeroArt } from "@/components/HomeHeroArt";
 import QuickSearch from '@/components/QuickSearch';
@@ -22,6 +22,13 @@ const conditionGroups = [
   { title: "Acute & General", items: ["Cough, Cold & Flu", "Urinary Tract Infections", "Food Poisoning & GI", "Sinusitis & Rhinitis", "Ear Infections (Otitis)", "Fever Management"] },
   { title: "Skin & Allergies", items: ["Rash, Eczema & Psoriasis", "Severe Acne & Rosacea", "Bug Bites & Cellulitis", "Hives & Contact Allergies", "Cold Sores & Shingles", "Fungal Skin Infections"] },
   { title: "Chronic & Wellness", items: ["Asthma & Inhaler Refills", "Acid Reflux & GERD", "Hypertension Follow-Up", "Lab Orders & Blood Tests", "Men's & Women's Health", "Mental Health & Sleep"] },
+];
+
+const heroTrustAvatars = [
+  { src: "/images/avatars/doctor-1.webp", alt: "Verified Doctor" },
+  { src: "/images/avatars/doctor-2.webp", alt: "Verified Doctor" },
+  { src: "/images/avatars/doctor-3.webp", alt: "Verified Doctor" },
+  { src: "/images/avatars/doctor-4.webp", alt: "Verified Doctor" },
 ];
 
 export default async function Home(props: {
@@ -151,6 +158,7 @@ export default async function Home(props: {
         specialties={specialties}
         facilities={facilities}
         cities={cities}
+        reviews={<TrustedByPatients />}
       />
     );
   }
@@ -172,16 +180,27 @@ export default async function Home(props: {
               AI-powered technology that connects you with the right doctors, makes booking a visit quick, and simplifies diagnostics.
             </p>
             <HomeHeroActions initial={heroBooking} />
-            <div className="flex items-center gap-4 pt-1">
-              <div className="flex -space-x-3 shrink-0" aria-hidden>
-                {[Stethoscope, Hospital, FlaskConical, ShieldCheck].map((Icon, i) => (
-                  <span key={i} className="w-11 h-11 rounded-full bg-primary-fixed text-primary ring-[3px] ring-[#FAFBFD] flex items-center justify-center">
-                    <Icon className="w-5 h-5" />
-                  </span>
+            <div className="flex items-center gap-3.5 pt-1">
+              <div className="flex -space-x-2.5 shrink-0" aria-hidden>
+                {heroTrustAvatars.map((avatar, i) => (
+                  <div
+                    key={i}
+                    className="relative w-10 h-10 md:w-11 md:h-11 rounded-full ring-[2.5px] ring-[#FAFBFD] shadow-sm overflow-hidden bg-slate-100 shrink-0"
+                  >
+                    <Image
+                      src={avatar.src}
+                      alt={avatar.alt}
+                      width={88}
+                      height={88}
+                      className="w-full h-full object-cover"
+                      priority
+                    />
+                  </div>
                 ))}
               </div>
-              <p className="text-sm md:text-base text-slate-600 leading-snug">
-                <span className="font-bold text-vibrant-blue">Verified doctors</span>, partner hospitals and labs, booked in minutes
+              <p className="text-sm md:text-base text-slate-600 font-medium leading-snug">
+                <span className="font-bold text-vibrant-blue mr-1.5">26M+</span>
+                People trust Consult Your Doctor for their healthcare needs
               </p>
             </div>
           </div>

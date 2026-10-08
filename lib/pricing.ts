@@ -39,3 +39,16 @@ export function matchBookedTests(testName: string, prices: PriceList): BookedTes
 }
 
 export const sumPrices = (tests: BookedTest[]) => tests.reduce((sum, t) => sum + t.price, 0)
+
+/**
+ * A price list in its own order: `order` (available_tests) gives the order, `prices` (test_prices) the amounts.
+ * Tests without a valid amount come back with price null.
+ */
+export function testList(order: string[] | null | undefined, prices: PriceList): { name: string; price: number | null }[] {
+  const amounts: Record<string, number> = {}
+  for (const [name, price] of Object.entries(prices ?? {})) {
+    const n = Number(price)
+    if (Number.isFinite(n)) amounts[name] = n
+  }
+  return Array.from(new Set([...(order ?? []), ...Object.keys(amounts)])).map((name) => ({ name, price: name in amounts ? amounts[name] : null }))
+}

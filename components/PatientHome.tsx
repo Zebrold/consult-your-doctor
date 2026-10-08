@@ -46,12 +46,14 @@ interface PatientHomeProps {
   specialties: { name: string; count: number }[];
   facilities: HomeFacility[];
   cities: string[];
+  /** Patient reviews (a server component), shown after the care network. */
+  reviews?: ReactNode;
 }
 
 const facilityHref = (f: HomeFacility) => (f.kind === "lab" ? `/book/diagnostic/${f.id}` : `/hospitals/${f.id}`);
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, specialties, facilities, cities }: PatientHomeProps) {
+export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, specialties, facilities, cities, reviews }: PatientHomeProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [city, setCity] = useState("");
@@ -397,6 +399,31 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
             </div>
           </section>
         )}
+
+        {reviews}
+
+        {/* Patient Portal Footer */}
+        <footer className="w-full mt-16 pt-8 pb-12 border-t border-outline-variant/30 text-on-surface-variant font-body-md text-xs">
+          <div className="max-w-[1440px] mx-auto px-margin-x-mobile lg:px-margin-x-desktop flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-6 gap-y-2">
+              <Link href="/terms-of-use" className="hover:text-vibrant-blue hover:underline">
+                Terms &amp; Conditions
+              </Link>
+              <Link href="/privacy-policy" className="hover:text-vibrant-blue hover:underline">
+                Privacy Policy
+              </Link>
+              <Link href="/patient/support" className="hover:text-vibrant-blue hover:underline">
+                Help &amp; FAQs
+              </Link>
+              <a href="tel:112" className="text-soft-coral font-bold hover:underline">
+                Emergency: Call 112
+              </a>
+            </div>
+            <p className="text-center md:text-right text-[11px] text-on-surface-variant/70">
+              © 2026 Zebrold International Holdings Pvt Ltd. All rights reserved.
+            </p>
+          </div>
+        </footer>
       </main>
 
       <PatientDock activeTab="home" isSignedIn={isSignedIn} name={name} />

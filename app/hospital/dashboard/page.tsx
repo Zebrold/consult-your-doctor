@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import {
-  BadgeCheck, Building2, CalendarCheck, CalendarClock, CalendarPlus, CircleCheck, IndianRupee, ListFilter, Phone, PhoneCall, ShieldCheck,
+  BadgeCheck, BedDouble, Building2, CalendarCheck, CalendarClock, CalendarPlus, CircleCheck, IndianRupee, ListFilter, Phone, PhoneCall, ShieldCheck,
   Siren, Stethoscope, TrendingDown, TrendingUp, UserRoundX, Users, Wallet, type LucideIcon,
 } from 'lucide-react'
 import { currentTime } from '@/components/patient/data'
@@ -14,6 +14,8 @@ import {
   type HospitalVisit, type Slot,
 } from '../_lib/hospital'
 import { AddDoctorButton } from '../_components/DoctorDialogs'
+import { LiveRefresh } from '@/components/portal/LiveRefresh'
+import { loadHospitalBeds, summarizeBeds, wardSummaries } from '@/lib/beds'
 
 export const metadata: Metadata = { title: 'Dashboard | Hospital Portal' }
 export const dynamic = 'force-dynamic'
@@ -42,10 +44,13 @@ export default async function HospitalDashboardPage() {
 
   const doctors = await loadHospitalDoctors(admin, hospital.id)
   const ids = doctors.map((d) => d.id)
-  const [visits, slots] = await Promise.all([
+  const [visits, slots, beds] = await Promise.all([
     loadHospitalVisits(admin, hospital.id, ids),
     loadHospitalSlots(admin, ids, dayStartIso(today), new Date(Date.parse(dayStartIso(today)) + 7 * DAY).toISOString()),
+    loadHospitalBeds(admin, hospital.id),
   ])
+  const bedSummary = summarizeBeds(beds.data)
+  const bedWards = wardSummaries(beds.data)
   const doctorById = new Map(doctors.map((d) => [d.id, d]))
   const departmentNames = Array.from(new Set(doctors.map((d) => d.department))).sort()
   const live = hospital.status === 'active'
@@ -336,6 +341,63 @@ export default async function HospitalDashboardPage() {
         </div>
 
         <div className="lg:col-span-5 min-w-0 flex flex-col gap-4 md:gap-8">
+          {/* Inpatient beds */}
+          <div className={card}>
+            <div className="flex items-center justify-between gap-3 mb-4 md:mb-5">
+              <div>
+                <h2 className="font-title-md text-[18px] md:text-title-md font-bold text-on-surface flex items-center gap-2">
+                  <BedDouble className="w-5 h-5 text-vibrant-blue" /> Inpatient Beds
+                </h2>
+                <p className="font-body-md text-[13px] md:text-body-md text-indigo-gray-600">Occupancy right now, by ward</p>
+              </div>
+              <LiveRefresh />
+            </div>
+            {!beds.ready || bedSummary.total === 0 ? (
+              <Placeholder
+                icon={BedDouble}
+                title={beds.ready ? 'No beds set up yet' : 'Beds need a database update'}
+                sub={beds.ready ? 'Add your wards and beds to start allocating them' : 'Run the 20261009 migration to turn on bed allocation'}
+                aside={
+                  <Link href="/hospital/beds" className="px-3 py-1.5 rounded-full bg-vibrant-blue text-on-primary font-label-sm text-[12px] font-semibold whitespace-nowrap">
+                    Set Up Beds
+                  </Link>
+                }
+              />
+            ) : (
+              <>
+                <div className="grid grid-cols-3 gap-2.5 mb-4">
+                  {[
+                    { label: 'Occupied', value: bedSummary.occupied, tone: 'text-vibrant-blue' },
+                    { label: 'Available', value: bedSummary.available, tone: 'text-secondary' },
+                    { label: 'Total', value: bedSummary.total, tone: 'text-on-surface' },
+                  ].map((s) => (
+                    <div key={s.label} className="p-3 rounded-xl bg-surface text-center">
+                      <div className={`font-headline-lg text-[22px] font-extrabold ${s.tone}`}>{s.value}</div>
+                      <div className="font-label-sm text-[11px] text-indigo-gray-600 font-semibold uppercase tracking-wider">{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="w-full bg-surface-container rounded-full h-2.5 overflow-hidden mb-1.5" role="img" aria-label={`${bedSummary.occupancy}% of beds occupied`}>
+                  <div className="bg-vibrant-blue h-full rounded-full" style={{ width: `${bedSummary.occupancy}%` }} />
+                </div>
+                <p className="font-label-sm text-label-sm text-indigo-gray-600 mb-4">{bedSummary.occupancy}% occupancy{bedSummary.unavailable ? ` • ${bedSummary.unavailable} being cleaned or repaired` : ''}</p>
+                <ul className="flex flex-col gap-2 mb-4">
+                  {bedWards.slice(0, 5).map((w) => (
+                    <li key={w.ward} className="flex items-center justify-between gap-2 text-[14px]">
+                      <span className="font-semibold text-on-surface truncate">{w.ward}</span>
+                      <span className="text-indigo-gray-600 shrink-0">
+                        {w.occupied}/{w.total} occupied
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/hospital/beds" className="block text-center w-full px-4 py-2.5 rounded-full bg-primary-fixed/50 text-primary font-label-sm text-label-sm font-bold hover:bg-primary-fixed transition-colors">
+                  Open Bed Allocation
+                </Link>
+              </>
+            )}
+          </div>
+
           {/* Department occupancy */}
           <div className={card}>
             <div className="flex items-center justify-between gap-3 mb-4 md:mb-6">
@@ -409,9 +471,10 @@ export default async function HospitalDashboardPage() {
           {/* Quick actions */}
           <div className={card}>
             <h2 className="font-title-md text-[18px] md:text-title-md font-bold text-on-surface mb-4">Quick Actions</h2>
-            <div className="grid grid-cols-3 gap-2.5 md:gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-2.5 md:gap-3">
               <QuickAction href="/hospital/doctors" icon={CalendarPlus} tint="bg-primary-fixed text-primary" title="Publish Slots" sub="Duty roster" />
               <QuickAction href="/hospital/patients?view=today" icon={Users} tint="bg-soft-coral/15 text-soft-coral" title="Today's List" sub="Check-ins & visits" />
+              <QuickAction href="/hospital/beds" icon={BedDouble} tint="bg-vibrant-blue/10 text-vibrant-blue" title="Beds" sub="Admit & discharge" />
               <QuickAction href="/hospital/revenue" icon={IndianRupee} tint="bg-fresh-teal/15 text-secondary" title="Finance" sub="Fees & payments" />
             </div>
           </div>

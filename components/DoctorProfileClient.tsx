@@ -33,8 +33,6 @@ import {
   GraduationCap,
   Building,
   MessageSquare,
-  MessagesSquare,
-  Heart,
   CreditCard,
   Mail,
   UserCog,
@@ -44,6 +42,9 @@ import {
   ExternalLink,
   Edit3
 } from "lucide-react";
+import type { EducationEntry } from "@/lib/education";
+import type { Review, ReviewSummary } from "@/lib/reviews";
+import { Stars } from "@/components/Stars";
 
 
 export interface ProfileDoctorData {
@@ -79,6 +80,12 @@ export interface ProfileDoctorData {
     end_time: string;
     is_booked: boolean;
   }>;
+  registration_number?: string | null;
+  registration_council?: string | null;
+  education?: EducationEntry[];
+  insurance_accepted?: string[] | null;
+  /** Patients' reviews of this doctor (loaded on the server). */
+  reviews?: { summary: ReviewSummary; reviews: Review[] };
 }
 
 export interface DoctorProfileClientProps {
@@ -160,7 +167,14 @@ export function DoctorProfileClient({
   const hospital = doctor.hospitals;
 
   const qualifications = doctor.qualifications || "MD, MS - " + specialty;
-  const licenseNumber = doctor.profiles?.staff_id || `MCI-${doctor.id.slice(0, 6).toUpperCase()}`;
+  // The medical council registration the doctor saved on their profile; otherwise their platform ID.
+  const licenseNumber = doctor.registration_number || doctor.profiles?.staff_id || `CYD-${doctor.id.slice(0, 6).toUpperCase()}`;
+  const education = doctor.education ?? [];
+  const insurance = doctor.insurance_accepted ?? [];
+  const reviewSummary = doctor.reviews?.summary ?? null;
+  const reviewList = doctor.reviews?.reviews ?? [];
+  const reviewCount = reviewSummary?.count ?? 0;
+  const reviewAverage = reviewSummary?.average ?? null;
 
   // Dynamic schedules grouped and split by Morning & Afternoon from DB
   const scheduleData = useMemo(() => {
@@ -528,16 +542,18 @@ export function DoctorProfileClient({
                         </span>
                         <div className="mt-2 flex items-baseline gap-1">
                           <span className="font-headline-lg text-headline-lg font-bold text-primary">
-                            4.9
+                            {reviewAverage != null ? reviewAverage.toFixed(1) : "New"}
                           </span>
-                          <span className="font-label-sm text-label-sm text-on-surface-variant">
-                            / 5.0
-                          </span>
+                          {reviewAverage != null && (
+                            <span className="font-label-sm text-label-sm text-on-surface-variant">
+                              / 5.0
+                            </span>
+                          )}
                         </div>
-                        <span className="font-label-sm text-[11px] text-secondary mt-1 flex items-center gap-1 font-medium">
+                        <a href="#reviews" className="font-label-sm text-[11px] text-secondary mt-1 flex items-center gap-1 font-medium hover:underline">
                           <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500 inline" />{" "}
-                          482 Verified Reviews
-                        </span>
+                          {reviewCount ? `${reviewCount} Verified ${reviewCount === 1 ? "Review" : "Reviews"}` : "No reviews yet"}
+                        </a>
                       </div>
                     </div>
                   </div>
@@ -849,180 +865,126 @@ export function DoctorProfileClient({
                         <GraduationCap className="w-5 h-5 text-primary inline" />{" "}
                         Medical Education &amp; Training
                       </h3>
+                      {/* The doctor's own entries (Profile → Education & Training); otherwise their listed qualifications. */}
                       <div className="flex flex-col gap-3">
-                        <div className="p-3.5 rounded-xl bg-surface-container-low flex items-start gap-3 border border-surface-container">
-                          <div className="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center flex-shrink-0 text-primary">
-                            <Award className="w-5 h-5 inline" />
+                        {education.length > 0 ? (
+                          education.map((e, i) => {
+                            const Icon = e.kind === "Fellowship" || e.kind === "Certification" ? Award : e.kind === "Residency" || e.kind === "Training" || e.kind === "Teaching" ? Building : GraduationCap;
+                            return (
+                              <div key={`${e.title}-${i}`} className="p-3.5 rounded-xl bg-surface-container-low flex items-start gap-3 border border-surface-container">
+                                <div className="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center flex-shrink-0 text-primary">
+                                  <Icon className="w-5 h-5 inline" />
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="font-label-sm text-[11px] text-secondary font-semibold uppercase">
+                                    {e.kind}
+                                    {e.year ? ` • ${e.year}` : ""}
+                                  </span>
+                                  <h4 className="font-title-md text-label-sm font-bold text-on-surface">{e.title}</h4>
+                                  {e.institution && <p className="font-body-md text-[13px] text-on-surface-variant">{e.institution}</p>}
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="p-3.5 rounded-xl bg-surface-container-low flex items-start gap-3 border border-surface-container">
+                            <div className="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center flex-shrink-0 text-primary">
+                              <GraduationCap className="w-5 h-5 inline" />
+                            </div>
+                            <div>
+                              <span className="font-label-sm text-[11px] text-secondary font-semibold uppercase">Qualifications</span>
+                              <h4 className="font-title-md text-label-sm font-bold text-on-surface">{doctor.qualifications || "Not listed yet"}</h4>
+                              <p className="font-body-md text-[13px] text-on-surface-variant">{specialty}</p>
+                            </div>
                           </div>
-                          <div>
-                            <span className="font-label-sm text-[11px] text-secondary font-semibold uppercase">
-                              Clinical Fellowship
-                            </span>
-                            <h4 className="font-title-md text-label-sm font-bold text-on-surface">
-                              Advanced {specialty} Interventional Training
-                            </h4>
-                            <p className="font-body-md text-[13px] text-on-surface-variant">
-                              Specialized Minimally Invasive Diagnostics &amp; Clinical Case Management
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="p-3.5 rounded-xl bg-surface-container-low flex items-start gap-3 border border-surface-container">
-                          <div className="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center flex-shrink-0 text-primary">
-                            <Building className="w-5 h-5 inline" />
-                          </div>
-                          <div>
-                            <span className="font-label-sm text-[11px] text-secondary font-semibold uppercase">
-                              Specialist Residency
-                            </span>
-                            <h4 className="font-title-md text-label-sm font-bold text-on-surface">
-                              Government Medical College &amp; Research Institute
-                            </h4>
-                            <p className="font-body-md text-[13px] text-on-surface-variant">
-                              {specialty} &amp; Inpatient Care Specialization ({doctor.qualifications || "MD / MS"})
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="p-3.5 rounded-xl bg-surface-container-low flex items-start gap-3 border border-surface-container">
-                          <div className="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center flex-shrink-0 text-primary">
-                            <GraduationCap className="w-5 h-5 inline" />
-                          </div>
-                          <div>
-                            <span className="font-label-sm text-[11px] text-secondary font-semibold uppercase">
-                              Undergraduate Medicine
-                            </span>
-                            <h4 className="font-title-md text-label-sm font-bold text-on-surface">
-                              Premier University of Health Sciences
-                            </h4>
-                            <p className="font-body-md text-[13px] text-on-surface-variant">
-                              Bachelor of Medicine, Bachelor of Surgery (MBBS), Registered Practitioner
-                            </p>
-                          </div>
-                        </div>
+                        )}
+                        {doctor.registration_number && (
+                          <p className="px-1 text-[12px] text-on-surface-variant flex items-center gap-1.5">
+                            <ShieldCheck className="w-4 h-4 text-secondary" /> Reg. No. {doctor.registration_number}
+                            {doctor.registration_council ? `, ${doctor.registration_council}` : ""}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
                 </section>
 
-                {/* 3. Patient Reviews & Clinical Metrics */}
-                <section className="bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_2px_12px_rgba(0,80,203,0.04)] border border-surface-container">
+                {/* 3. Patient Reviews: written by patients after their visits */}
+                <section id="reviews" className="scroll-mt-24 bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_2px_12px_rgba(0,80,203,0.04)] border border-surface-container">
                   <div className="flex flex-wrap items-center justify-between gap-stack-sm mb-stack-md">
                     <div>
                       <div className="flex items-center gap-2 text-fresh-teal">
                         <MessageSquare className="w-5 h-5 inline" />
                         <span className="font-label-sm text-label-sm uppercase tracking-wider font-semibold">
-                          Quality &amp; Governance
+                          Verified Visits
                         </span>
                       </div>
                       <h2 className="font-headline-lg text-headline-lg text-on-surface font-bold mt-1">
-                        Patient Reviews &amp; Clinical Metrics
+                        Patient Reviews
                       </h2>
                     </div>
-                    <div className="flex items-center gap-stack-sm">
-                      <span className="font-label-sm text-label-sm text-on-surface-variant">
-                        Verified by Independent Post-Consultation Audits
-                      </span>
-                    </div>
+                    <span className="font-label-sm text-label-sm text-on-surface-variant">
+                      Written by patients after their consultation
+                    </span>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-stack-sm mb-stack-md">
-                    <div className="p-4 rounded-xl bg-surface-container-low flex items-center justify-between border border-surface-container">
-                      <div>
-                        <span className="font-label-sm text-label-sm text-on-surface-variant">
-                          Communication Clarity
-                        </span>
-                        <div className="font-headline-lg text-headline-lg font-bold text-on-surface mt-1">
-                          5.0 <span className="text-label-sm font-normal text-on-surface-variant">/ 5.0</span>
-                        </div>
-                      </div>
-                      <div className="w-12 h-12 rounded-full bg-fresh-teal/15 text-fresh-teal flex items-center justify-center">
-                        <MessagesSquare className="w-6 h-6 text-fresh-teal inline" />
-                      </div>
-                    </div>
-
-                    <div className="p-4 rounded-xl bg-surface-container-low flex items-center justify-between border border-surface-container">
-                      <div>
-                        <span className="font-label-sm text-label-sm text-on-surface-variant">
-                          Bedside Manner &amp; Empathy
-                        </span>
-                        <div className="font-headline-lg text-headline-lg font-bold text-on-surface mt-1">
-                          4.9 <span className="text-label-sm font-normal text-on-surface-variant">/ 5.0</span>
-                        </div>
-                      </div>
-                      <div className="w-12 h-12 rounded-full bg-primary-fixed text-primary flex items-center justify-center">
-                        <Heart className="w-6 h-6 text-primary inline" />
-                      </div>
-                    </div>
-
-                    <div className="p-4 rounded-xl bg-surface-container-low flex items-center justify-between border border-surface-container">
-                      <div>
-                        <span className="font-label-sm text-label-sm text-on-surface-variant">
-                          Schedule Adherence / Wait
-                        </span>
-                        <div className="font-headline-lg text-headline-lg font-bold text-on-surface mt-1">
-                          4.8 <span className="text-label-sm font-normal text-on-surface-variant">/ 5.0</span>
-                        </div>
-                      </div>
-                      <div className="w-12 h-12 rounded-full bg-secondary-container text-secondary flex items-center justify-center">
-                        <Clock className="w-6 h-6 text-secondary inline" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-stack-sm">
-                    <div className="p-4 rounded-xl bg-surface-container-low border border-surface-container">
-                      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-title-md text-label-sm font-bold text-on-surface">
-                            Rajesh K., 52 (South Delhi)
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-[11px] font-semibold">
-                            Verified Treatment
-                          </span>
-                        </div>
-                        <div className="flex items-center text-amber-500">
-                          <Star className="w-4 h-4 text-amber-500 fill-amber-500 inline" />
-                          <Star className="w-4 h-4 text-amber-500 fill-amber-500 inline" />
-                          <Star className="w-4 h-4 text-amber-500 fill-amber-500 inline" />
-                          <Star className="w-4 h-4 text-amber-500 fill-amber-500 inline" />
-                          <Star className="w-4 h-4 text-amber-500 fill-amber-500 inline" />
-                          <span className="font-label-sm text-[12px] text-on-surface-variant ml-1.5">
-                            2 weeks ago
-                          </span>
-                        </div>
-                      </div>
-                      <p className="font-body-md text-label-sm text-on-surface-variant leading-relaxed">
-                        &quot;Dr. {rawName} was exceptionally thorough during our consultation. Having suffered chronic discomfort, the clinical diagnosis was accurate and the prescribed protocol had me back on my feet quickly. Highly recommend this specialist.&quot;
+                  {reviewCount === 0 || !reviewSummary ? (
+                    <div className="p-5 rounded-xl bg-surface-container-low border border-surface-container text-center">
+                      <p className="font-title-md text-[16px] font-bold text-on-surface">No reviews yet</p>
+                      <p className="font-body-md text-label-sm text-on-surface-variant mt-1">
+                        Patients can rate Dr. {rawName} from their Appointments page after a consultation.
                       </p>
                     </div>
-
-                    <div className="p-4 rounded-xl bg-surface-container-low border border-surface-container">
-                      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-title-md text-label-sm font-bold text-on-surface">
-                            Sunita M., 44 (Noida)
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-sm text-[11px] font-semibold">
-                            Telehealth Consultation
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-stack-sm mb-stack-md">
+                        <div className="p-4 rounded-xl bg-surface-container-low flex flex-col items-center justify-center text-center border border-surface-container">
+                          <div className="font-headline-lg text-[40px] leading-none font-extrabold text-on-surface">{reviewAverage?.toFixed(1)}</div>
+                          <Stars value={reviewAverage ?? 0} className="w-5 h-5" />
+                          <span className="font-label-sm text-label-sm text-on-surface-variant mt-1">
+                            {reviewCount} {reviewCount === 1 ? "review" : "reviews"}
                           </span>
                         </div>
-                        <div className="flex items-center text-amber-500">
-                          <Star className="w-4 h-4 text-amber-500 fill-amber-500 inline" />
-                          <Star className="w-4 h-4 text-amber-500 fill-amber-500 inline" />
-                          <Star className="w-4 h-4 text-amber-500 fill-amber-500 inline" />
-                          <Star className="w-4 h-4 text-amber-500 fill-amber-500 inline" />
-                          <Star className="w-4 h-4 text-amber-500 fill-amber-500 inline" />
-                          <span className="font-label-sm text-[12px] text-on-surface-variant ml-1.5">
-                            1 month ago
-                          </span>
+                        <div className="md:col-span-2 p-4 rounded-xl bg-surface-container-low border border-surface-container flex flex-col gap-1.5 justify-center">
+                          {([5, 4, 3, 2, 1] as const).map((n) => {
+                            const count = reviewSummary.distribution[n];
+                            const pct = reviewCount ? Math.round((count / reviewCount) * 100) : 0;
+                            return (
+                              <div key={n} className="flex items-center gap-2 text-[12px]">
+                                <span className="w-8 shrink-0 font-semibold text-on-surface">{n} ★</span>
+                                <div className="flex-1 h-2 rounded-full bg-surface-container overflow-hidden">
+                                  <div className="h-full rounded-full bg-amber-500" style={{ width: `${pct}%` }} />
+                                </div>
+                                <span className="w-8 shrink-0 text-right text-on-surface-variant">{count}</span>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
-                      <p className="font-body-md text-label-sm text-on-surface-variant leading-relaxed">
-                        &quot;Consulted Dr. {rawName} online before travelling. Very patient, explained the imaging diagnostics in clear terms, and provided a comprehensive second opinion. Thorough and deeply caring.&quot;
-                      </p>
-                    </div>
-                  </div>
+
+                      <div className="flex flex-col gap-stack-sm">
+                        {reviewList.map((r) => (
+                          <div key={r.id} className="p-4 rounded-xl bg-surface-container-low border border-surface-container">
+                            <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="font-title-md text-label-sm font-bold text-on-surface">{r.patientName}</span>
+                                <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-[11px] font-semibold">
+                                  Verified Visit
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <Stars value={r.rating} />
+                                <span className="font-label-sm text-[12px] text-on-surface-variant">
+                                  {new Date(r.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                                </span>
+                              </div>
+                            </div>
+                            {r.comment && <p className="font-body-md text-label-sm text-on-surface-variant leading-relaxed">{r.comment}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </section>
               </div>
 
@@ -1218,93 +1180,47 @@ export function DoctorProfileClient({
                   </div>
                 </section>
 
-                {/* 3. Accepted Insurances */}
+                {/* 3. Accepted Insurances: what the doctor lists on their profile */}
                 <section className="bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_2px_12px_rgba(0,80,203,0.04)] border border-surface-container">
                   <div className="flex items-center justify-between mb-stack-sm">
                     <div className="flex items-center gap-2 text-fresh-teal">
                       <Shield className="w-5 h-5 inline" />
                       <h2 className="font-title-md text-title-md text-on-surface font-bold">
-                        Accepted Insurances
+                        Insurance Accepted
                       </h2>
                     </div>
-                    <span className="font-label-sm text-[12px] text-secondary font-semibold">
-                      5 Active Carriers
-                    </span>
+                    {insurance.length > 0 && (
+                      <span className="font-label-sm text-[12px] text-secondary font-semibold">
+                        {insurance.length} {insurance.length === 1 ? "Insurer" : "Insurers"}
+                      </span>
+                    )}
                   </div>
-                  <p className="font-body-md text-label-sm text-on-surface-variant mb-4">
-                    Direct billing &amp; cashless claim support maintained through {hospital?.name || "hospital desk"}.
-                  </p>
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-surface-container">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[11px]">
-                          S
-                        </div>
-                        <span className="font-label-sm text-label-sm font-semibold text-on-surface">
-                          Star Health &amp; Allied Insurance
-                        </span>
+                  {insurance.length > 0 ? (
+                    <>
+                      <p className="font-body-md text-label-sm text-on-surface-variant mb-4">
+                        Cashless or reimbursement claims through {hospital?.name || "the hospital desk"}. Check your policy covers the visit.
+                      </p>
+                      <div className="flex flex-col gap-2">
+                        {insurance.map((name) => (
+                          <div key={name} className="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-surface-container">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[11px] shrink-0">
+                                {name[0]?.toUpperCase()}
+                              </div>
+                              <span className="font-label-sm text-label-sm font-semibold text-on-surface truncate">{name}</span>
+                            </div>
+                            <span className="px-2 py-0.5 rounded bg-secondary-container text-on-secondary-container font-label-sm text-[10px] font-bold uppercase shrink-0">
+                              Accepted
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                      <span className="px-2 py-0.5 rounded bg-secondary-container text-on-secondary-container font-label-sm text-[10px] font-bold uppercase">
-                        Direct Settle
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-surface-container">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[11px]">
-                          H
-                        </div>
-                        <span className="font-label-sm text-label-sm font-semibold text-on-surface">
-                          HDFC ERGO Health Care
-                        </span>
-                      </div>
-                      <span className="px-2 py-0.5 rounded bg-secondary-container text-on-secondary-container font-label-sm text-[10px] font-bold uppercase">
-                        Cashless
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-surface-container">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[11px]">
-                          I
-                        </div>
-                        <span className="font-label-sm text-label-sm font-semibold text-on-surface">
-                          ICICI Lombard Complete Health
-                        </span>
-                      </div>
-                      <span className="px-2 py-0.5 rounded bg-secondary-container text-on-secondary-container font-label-sm text-[10px] font-bold uppercase">
-                        Pre-Auth OK
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-surface-container">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[11px]">
-                          B
-                        </div>
-                        <span className="font-label-sm text-label-sm font-semibold text-on-surface">
-                          Bupa Global &amp; Max Bupa
-                        </span>
-                      </div>
-                      <span className="px-2 py-0.5 rounded bg-secondary-container text-on-secondary-container font-label-sm text-[10px] font-bold uppercase">
-                        Direct Settle
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-surface-container">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[11px]">
-                          A
-                        </div>
-                        <span className="font-label-sm text-label-sm font-semibold text-on-surface">
-                          Ayushman Bharat PM-JAY
-                        </span>
-                      </div>
-                      <span className="px-2 py-0.5 rounded bg-surface-container-highest text-on-surface-variant font-label-sm text-[10px] font-bold uppercase">
-                        Verified
-                      </span>
-                    </div>
-                  </div>
+                    </>
+                  ) : (
+                    <p className="font-body-md text-label-sm text-on-surface-variant">
+                      This doctor hasn’t listed insurers yet. Ask {hospital?.name || "the hospital desk"} about cashless or reimbursement options.
+                    </p>
+                  )}
                 </section>
 
                 {/* 4. Secretariat Contact */}

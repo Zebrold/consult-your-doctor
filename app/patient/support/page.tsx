@@ -164,6 +164,24 @@ export default async function PatientSupport() {
                     ))}
                   </div>
                 </section>
+
+                <div className="bg-surface-container-lowest rounded-xl p-5 shadow-sm border border-outline-variant/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="font-title-md text-[16px] font-bold text-on-surface">Platform Legal Terms &amp; Privacy</h3>
+                    <p className="font-body-md text-label-sm text-on-surface-variant mt-0.5">
+                      Consultation terms, refund criteria, health record confidentiality, and grievance contacts.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <Link href="/terms-of-use" className="font-label-sm text-xs font-bold text-vibrant-blue hover:underline">
+                      Terms &amp; Conditions
+                    </Link>
+                    <span className="text-outline-variant">•</span>
+                    <Link href="/privacy-policy" className="font-label-sm text-xs font-bold text-vibrant-blue hover:underline">
+                      Privacy Policy
+                    </Link>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

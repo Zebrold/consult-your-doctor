@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { one } from '@/components/patient/data'
 import { istDateKey } from '@/components/patient/format'
 import type { Tone } from '@/components/portal/ui'
-import { CONSULTATION_PLATFORM_FEE } from '@/lib/pricing'
+import { CONSULTATION_PLATFORM_FEE, testList } from '@/lib/pricing'
 
 type Admin = ReturnType<typeof createAdminClient>
 type Joined<T> = T | T[] | null
@@ -22,6 +22,62 @@ export type HospitalInfo = {
   phone: string | null
   email: string | null
   status: string | null
+  emergencyPhone: string | null
+  website: string | null
+  about: string | null
+  establishedYear: number | null
+  facilities: string[]
+  accreditations: string[]
+  insurance: string[]
+  /** The hospital's test charges, in its own order (amount before any fees). */
+  tests: { name: string; price: number | null }[]
+  /** False until the 20261009 migration adds the profile columns. */
+  profileReady: boolean
+}
+
+type HospitalRow = {
+  id: string
+  name: string | null
+  city: string | null
+  address: string | null
+  image_url: string | null
+  contact_email: string | null
+  status: string | null
+  phone?: string | null
+  emergency_phone?: string | null
+  website?: string | null
+  about?: string | null
+  established_year?: number | null
+  facilities?: string[] | null
+  accreditations?: string[] | null
+  insurance_accepted?: string[] | null
+  available_tests?: string[] | null
+  test_prices?: Record<string, number | string> | null
+}
+
+const BASE_COLUMNS = 'id, name, city, address, image_url, contact_email, status'
+const PROFILE_COLUMNS = `${BASE_COLUMNS}, phone, emergency_phone, website, about, established_year, facilities, accreditations, insurance_accepted, available_tests, test_prices`
+
+function toHospital(h: HospitalRow, profileReady: boolean): HospitalInfo {
+  return {
+    id: h.id,
+    name: h.name || 'Hospital',
+    city: h.city,
+    address: h.address,
+    image: h.image_url,
+    phone: h.phone ?? null,
+    email: realEmail(h.contact_email),
+    status: h.status,
+    emergencyPhone: h.emergency_phone ?? null,
+    website: h.website ?? null,
+    about: h.about ?? null,
+    establishedYear: h.established_year ?? null,
+    facilities: h.facilities ?? [],
+    accreditations: h.accreditations ?? [],
+    insurance: h.insurance_accepted ?? [],
+    tests: testList(h.available_tests, h.test_prices),
+    profileReady,
+  }
 }
 
 /** The signed-in hospital admin and their hospital. Everything in the portal is scoped to this hospital. */
@@ -34,23 +90,13 @@ export const requireHospital = cache(async () => {
   const { data: profile } = await admin.from('profiles').select('full_name, email, role, hospital_id').eq('id', user.id).maybeSingle()
   if (profile?.role !== 'hospital_admin' || !profile.hospital_id) redirect('/auth/signout?next=/login/hospital')
 
-  const { data: h } = await admin
-    .from('hospitals')
-    .select('id, name, city, address, image_url, contact_email, status')
-    .eq('id', profile.hospital_id)
-    .maybeSingle()
+  // The profile columns arrive with the 20261009 migration; until then the portal works with the basic details.
+  const full = await admin.from('hospitals').select(PROFILE_COLUMNS).eq('id', profile.hospital_id).maybeSingle()
+  const profileReady = !full.error
+  const h = (profileReady ? full.data : (await admin.from('hospitals').select(BASE_COLUMNS).eq('id', profile.hospital_id).maybeSingle()).data) as HospitalRow | null
   if (!h) redirect('/auth/signout?next=/login/hospital')
 
-  const hospital: HospitalInfo = {
-    id: h.id,
-    name: h.name || 'Hospital',
-    city: h.city,
-    address: h.address,
-    image: h.image_url,
-    phone: null,
-    email: realEmail(h.contact_email),
-    status: h.status,
-  }
+  const hospital = toHospital(h, profileReady)
   return { user, admin, staff: { id: user.id, name: profile.full_name || 'Hospital admin' }, hospital }
 })
 
@@ -200,7 +246,7 @@ async function loadPayments(admin: Admin, ids: string[]): Promise<Map<string, Pa
 /** What the hospital keeps from a payment: online payments include the platform fee, desk payments don't. */
 export const hospitalShare = (p: Payment) => (p.gateway === 'payu' ? Math.max(0, p.amount - CONSULTATION_PLATFORM_FEE) : p.amount)
 
-export const PAYMENT_METHOD: Record<string, string> = { payu: 'Online (PayU)', cash: 'Cash at desk' }
+export const PAYMENT_METHOD: Record<string, string> = { payu: 'Online (PayU)', upi_qr: 'UPI scanner', cash: 'Cash at desk' }
 
 export type Slot = { id: string; doctorId: string; start: string; end: string | null; booked: boolean }
 

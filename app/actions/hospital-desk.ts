@@ -163,6 +163,7 @@ async function paymentFor(admin: Admin, hospitalId: string, appointmentId: strin
     what: `Consultation${visit.doctor ? ` with ${one(visit.doctor.profiles)?.full_name ?? 'the doctor'}` : ''}`,
     patient: { name: visit.patient?.full_name || 'Patient', phone: visit.patient?.phone_number ?? null, email },
     amounts: { desk: visit.fee, online: visit.fee + CONSULTATION_PLATFORM_FEE, platformFee: CONSULTATION_PLATFORM_FEE },
+    items: [{ label: 'Consultation fee', amount: visit.fee }],
     upi: await upiQr(visit.fee, code, `Consultation ${code}`),
     payuKey: process.env.PAYU_MERCHANT_KEY ?? null,
   }

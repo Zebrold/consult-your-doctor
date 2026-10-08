@@ -33,7 +33,7 @@ const stores = [
 ];
 
 /**
- * The header's "Get the App" badge. The mobile app isn't out yet, so it opens a "coming soon" card: on hover or
+ * The header's "Download our APP" badge. The mobile app isn't out yet, so it opens a "coming soon" card: on hover or
  * keyboard focus on desktop, and on tap on touch screens.
  */
 export function AppComingSoon({ compact = false }: { compact?: boolean }) {
@@ -61,9 +61,9 @@ export function AppComingSoon({ compact = false }: { compact?: boolean }) {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls={cardId}
-        aria-label="Consult Your Doctor app, coming soon"
+        aria-label="Download our APP, coming soon"
         className={`relative flex items-center gap-2.5 rounded-full transition-colors ${
-          compact ? "p-1" : "pl-1.5 pr-1.5 xl:pr-4 py-1.5 border border-outline-variant/50 hover:border-vibrant-blue/40 hover:bg-surface-container-low"
+          compact ? "p-1" : "pl-1.5 pr-4 py-1.5 border border-outline-variant/50 hover:border-vibrant-blue/40 hover:bg-surface-container-low"
         }`}
       >
         <Logo className={compact ? "w-9 h-9" : "w-8 h-8"} />
@@ -72,8 +72,8 @@ export function AppComingSoon({ compact = false }: { compact?: boolean }) {
             Soon
           </span>
         ) : (
-          <span className="hidden xl:flex flex-col items-start leading-none">
-            <span className="text-[13px] font-bold text-on-surface">Get the App</span>
+          <span className="flex flex-col items-start leading-none">
+            <span className="text-[13px] font-bold text-on-surface whitespace-nowrap">Download our APP</span>
             <span className="mt-1 text-[10px] font-bold uppercase tracking-wider text-vibrant-blue">Coming soon</span>
           </span>
         )}

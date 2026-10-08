@@ -99,7 +99,7 @@ export default async function RootLayout({
         >
           {children}
         </ConditionalLayout>
-        <Support role={user ? userRole ?? "patient" : null} />
+        <Support role={user ? userRole ?? "patient" : null} viewer={user?.id ?? null} />
       </body>
     </html>
   );

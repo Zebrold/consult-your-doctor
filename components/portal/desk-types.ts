@@ -14,6 +14,8 @@ export type DeskPayment = {
   patient: { name: string; phone: string | null; email: string | null }
   /** desk: paid by scanner or cash. online: paid by PayU, which includes the platform fee. */
   amounts: { desk: number; online: number; platformFee: number }
+  /** What the desk amount is made of: each test with its amount, or the consultation fee. */
+  items: { label: string; amount: number }[]
   /** The UPI scanner code, when a UPI ID is configured. */
   upi: { vpa: string; uri: string; image: string } | null
   /** The PayU merchant key (public: it is posted to PayU's checkout), when PayU is configured. */

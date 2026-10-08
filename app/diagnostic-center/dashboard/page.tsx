@@ -26,6 +26,7 @@ import {
 import { OVERDUE_DAYS } from '../_lib/constants'
 import { CallLink, CheckInButton, ReportLink, UploadReportButton } from '../_components/BookingActions'
 import { NewBookingButton } from '../_components/NewBooking'
+import { TestWiseAmount, testWiseAmounts } from '../_components/TestWiseAmount'
 
 export const metadata: Metadata = { title: 'Dashboard | Diagnostic Center' }
 export const dynamic = 'force-dynamic'
@@ -360,6 +361,9 @@ export default async function LabDashboardPage() {
               </span>
             </div>
           </Card>
+
+          {/* Test-wise amount */}
+          <TestWiseAmount rows={testWiseAmounts(lab.tests, paid, month)} className="order-4 lg:order-none" />
         </div>
       </section>
     </>

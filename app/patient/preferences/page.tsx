@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Home, Search, Calendar as CalendarIcon, User, Bell, Smartphone, Mail, Moon, Globe } from 'lucide-react'
+import { Home, Search, Calendar as CalendarIcon, User, Bell, Smartphone, Mail, Moon, Globe, ChevronRight, FileText, ShieldCheck } from 'lucide-react'
 import { PatientSidebar } from '@/components/PatientSidebar'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
 
@@ -127,6 +127,55 @@ export default async function PatientPreferences() {
                           <div className="w-4 h-4 rounded-full bg-outline shadow-sm"></div>
                         </div>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Legal & Platform Policies */}
+                  <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant/30">
+                    <h3 className="font-title-md text-title-md font-bold text-on-surface mb-6 flex items-center gap-2">
+                      <ShieldCheck className="w-5 h-5 text-vibrant-blue" /> Legal &amp; Platform Policies
+                    </h3>
+
+                    <div className="flex flex-col gap-4">
+                      <Link
+                        href="/terms-of-use"
+                        className="group flex items-center justify-between p-4 rounded-xl border border-surface-variant hover:border-vibrant-blue/50 hover:bg-surface-container-low transition-all"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-vibrant-blue group-hover:scale-105 transition-transform">
+                            <FileText className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="font-title-md text-label-sm font-bold text-on-surface group-hover:text-vibrant-blue transition-colors">
+                              Terms &amp; Conditions
+                            </h4>
+                            <p className="font-label-sm text-label-sm text-on-surface-variant">
+                              Consultation fees, booking rules, refunds, prescription validity, and platform standards.
+                            </p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-on-surface-variant group-hover:text-vibrant-blue group-hover:translate-x-0.5 transition-all" />
+                      </Link>
+
+                      <Link
+                        href="/privacy-policy"
+                        className="group flex items-center justify-between p-4 rounded-xl border border-surface-variant hover:border-vibrant-blue/50 hover:bg-surface-container-low transition-all"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-full bg-fresh-teal/10 flex items-center justify-center text-fresh-teal group-hover:scale-105 transition-transform">
+                            <ShieldCheck className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="font-title-md text-label-sm font-bold text-on-surface group-hover:text-vibrant-blue transition-colors">
+                              Privacy Policy
+                            </h4>
+                            <p className="font-label-sm text-label-sm text-on-surface-variant">
+                              How your health information is encrypted and protected under India’s DPDP Act, 2023.
+                            </p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-on-surface-variant group-hover:text-vibrant-blue group-hover:translate-x-0.5 transition-all" />
+                      </Link>
                     </div>
                   </div>
 

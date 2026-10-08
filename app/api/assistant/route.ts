@@ -21,7 +21,9 @@ const Body = z.object({
     .min(1)
     .max(60),
   path: z.string().max(300).optional(),
-  mode: z.enum(['support', 'assistant']).optional(),
+  mode: z.enum(['support', 'assistant', 'translate']).optional(),
+  /** The reply language picked in the chat ('auto' answers in the language they write in). */
+  lang: z.string().max(8).optional(),
 })
 
 // OpenAI-style chat messages, as Cloudflare's /ai/v1/chat/completions endpoint takes them.
@@ -66,6 +68,13 @@ function friendly(err: unknown) {
   return 'Something went wrong. Please try again.'
 }
 
+// The chat's language picker (components/assistant/chat.tsx LANGUAGES), by code.
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: 'English', hi: 'Hindi', bn: 'Bengali', te: 'Telugu', mr: 'Marathi', ta: 'Tamil', gu: 'Gujarati', kn: 'Kannada',
+  ml: 'Malayalam', pa: 'Punjabi', or: 'Odia', ur: 'Urdu', de: 'German',
+}
+const languageName = (code: string | undefined) => (code ? (LANGUAGE_NAMES[code] ?? null) : null)
+
 /** Some models wrap private reasoning in <think> tags; never show it. */
 const clean = (text: string | null | undefined) => (text ?? '').replace(/<think>[\s\S]*?(<\/think>|$)/g, '').trim()
 
@@ -78,8 +87,9 @@ async function complete(messages: ChatMessage[], tools: AssistantTool[], signal:
     body: JSON.stringify({
       model: MODEL,
       messages,
-      tools: tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters } })),
-      tool_choice: 'auto',
+      ...(tools.length
+        ? { tools: tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters } })), tool_choice: 'auto' }
+        : {}),
       max_completion_tokens: 2500,
       temperature: 0.3,
       // Site help doesn't need long private reasoning; skipping it keeps answers fast and within the free allowance.
@@ -113,6 +123,32 @@ export async function POST(request: Request) {
 
   const parsed = Body.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return Response.json({ error: 'bad_request' }, { status: 400 })
+  const language = languageName(parsed.data.lang)
+
+  // "Translate" under an answer: one answer in, its translation out (no tools, no account data).
+  if (parsed.data.mode === 'translate') {
+    const text = parsed.data.messages[parsed.data.messages.length - 1]?.content
+    if (!language || !text) return Response.json({ error: 'bad_request' }, { status: 400 })
+    try {
+      const message = await complete(
+        [
+          {
+            role: 'system',
+            content: `Translate the user's text into ${language}. Keep the meaning, tone and formatting (paragraphs, lists, **bold**). In markdown links like [text](/path) translate only the text and keep the path exactly. Keep names of people, doctors, hospitals, labs and tests, amounts in ₹, dates, times and numbers as they are. Reply with the translation only.`,
+          },
+          { role: 'user', content: text },
+        ],
+        [],
+        request.signal,
+      )
+      const translated = clean(message.content)
+      return translated ? Response.json({ text: translated }) : Response.json({ error: 'failed' }, { status: 502 })
+    } catch (err) {
+      console.error('assistant translate:', err)
+      return Response.json({ error: 'failed' }, { status: 502 })
+    }
+  }
+  const mode = parsed.data.mode === 'assistant' ? 'assistant' : 'support'
 
   // The conversation must start and end with the visitor's message; keep only the recent turns.
   const turns = parsed.data.messages.slice(-MAX_TURNS)
@@ -138,7 +174,7 @@ export async function POST(request: Request) {
       const tools = assistantTools({ admin, patientId: user && role === 'patient' ? user.id : null, onPdf: (pdf) => send({ type: 'pdf', pdf }) })
       const byName = new Map(tools.map((t) => [t.name, t]))
       const messages: ChatMessage[] = [
-        { role: 'system', content: `${ASSISTANT_SYSTEM}\n\n${contextNote({ role, firstName, path: parsed.data.path ?? '/', mode: parsed.data.mode ?? 'support', now: Date.now() })}` },
+        { role: 'system', content: `${ASSISTANT_SYSTEM}\n\n${contextNote({ role, firstName, path: parsed.data.path ?? '/', mode, language, now: Date.now() })}` },
         ...turns.map((m) => ({ role: m.role, content: m.content })),
       ]
 

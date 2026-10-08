@@ -25,7 +25,7 @@ import {
   UserRoundCheck,
   Wallet,
 } from 'lucide-react'
-import { ChatThread, Composer, PdfCard, useChat } from './chat'
+import { ChatThread, Composer, LanguagePicker, PdfCard, chatKey, useChat, useLanguage } from './chat'
 
 type Prompt = { text: string; icon: LucideIcon }
 
@@ -95,10 +95,14 @@ const SECTION: Record<string, string> = {
   super_admin: 'Platform assistant',
 }
 
-/** A section's Zebrold AI tab: the assistant as a full page, with what it can do alongside. */
-export function AssistantPage({ role }: { role: string | null }) {
+/**
+ * A section's Zebrold AI tab: the assistant as a full page, with what it can do alongside. The conversation belongs
+ * to this section and `viewer` (the signed-in user's id), so searches in one panel never appear in another.
+ */
+export function AssistantPage({ role, viewer }: { role: string | null; viewer: string | null }) {
   const key = role ?? 'visitor'
-  const chat = useChat('zebrold-ai-chat', 'assistant')
+  const [language, setLanguage] = useLanguage()
+  const chat = useChat(chatKey('ai', key, viewer), 'assistant', language)
   const prompts = PROMPTS[key] ?? PROMPTS.visitor
   const pdfs = chat.messages.flatMap((m) => (m.pdf ? [m.pdf] : []))
   const isPatient = key === 'patient' || key === 'visitor'
@@ -110,7 +114,7 @@ export function AssistantPage({ role }: { role: string | null }) {
     isPatient
       ? { icon: CalendarCheck, title: 'Your bookings', text: key === 'patient' ? 'Reads your own appointments and lab tests, and nobody else’s.' : 'Sign in and it can read your own appointments and lab tests.' }
       : { icon: ListChecks, title: 'Step-by-step help', text: 'How each part of your portal works, from first click to done.' },
-    { icon: Languages, title: 'Your language', text: 'Ask in English, Hindi, German and more.' },
+    { icon: Languages, title: 'Your language', text: 'Choose Hindi, Telugu, Tamil, Bengali and more at the top, or translate any answer.' },
   ]
 
   return (
@@ -132,15 +136,18 @@ export function AssistantPage({ role }: { role: string | null }) {
               </p>
             </div>
           </div>
-          {chat.messages.length > 0 && (
-            <button
-              type="button"
-              onClick={chat.reset}
-              className="px-3 py-1.5 rounded-full bg-surface-container hover:bg-surface-container-high text-[12px] font-semibold text-on-surface flex items-center gap-1.5 shrink-0 transition-colors"
-            >
-              <RotateCcw className="w-3.5 h-3.5" /> New chat
-            </button>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            <LanguagePicker value={language} onChange={setLanguage} />
+            {chat.messages.length > 0 && (
+              <button
+                type="button"
+                onClick={chat.reset}
+                className="px-3 py-1.5 rounded-full bg-surface-container hover:bg-surface-container-high text-[12px] font-semibold text-on-surface flex items-center gap-1.5 shrink-0 transition-colors"
+              >
+                <RotateCcw className="w-3.5 h-3.5" /> <span className="hidden sm:inline">New chat</span>
+              </button>
+            )}
+          </div>
         </header>
 
         <ChatThread

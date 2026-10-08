@@ -4,6 +4,15 @@ import { ROLE_COOKIE, ROLE_COOKIE_OPTIONS, readRoleCookie, roleCookieValue } fro
 
 const AUTH_PAGES = ['/login', '/signup', '/signup/doctor', '/login/patient', '/login/doctor', '/login/hospital', '/login/executive', '/login/diagnostic', '/admin']
 
+/** Pages every account can open after signing in, whatever portal it belongs to. */
+const SHARED_PAGES = [
+  '/terms-of-use',
+  '/terms-and-conditions',
+  '/terms',
+  '/privacy-policy',
+  '/privacy',
+]
+
 /** Where each role lands after signing in, and the part of the site staff are confined to. */
 function homeFor(role: string) {
   if (role === 'doctor') return { dashboardPath: '/doctor/dashboard', allowedPrefix: '/doctor' }
@@ -99,9 +108,17 @@ export async function middleware(request: NextRequest) {
     // Always redirect logged-in users away from auth pages
     if (AUTH_PAGES.includes(path)) {
       target = dashboardPath
-    // STRICT CONFINEMENT: If they are not a patient, they can ONLY visit their allowedPrefix
-    // (plus the site-wide chat assistant, which every portal shows and which checks the session itself).
-    } else if (role !== 'patient' && !path.startsWith(allowedPrefix) && !path.startsWith('/auth/signout') && path !== '/api/assistant') {
+    // STRICT CONFINEMENT: If they are not a patient, they can ONLY visit their allowedPrefix. API routes are left to
+    // check the session themselves: portals call them (the chat assistant, and /api/payu/hash when a hospital or lab
+    // desk takes a PayU payment), and redirecting those calls to a dashboard page broke them. The Terms & Conditions
+    // and Privacy Policy stay open to everyone.
+    } else if (
+      role !== 'patient' &&
+      !path.startsWith(allowedPrefix) &&
+      !path.startsWith('/auth/signout') &&
+      !path.startsWith('/api/') &&
+      !SHARED_PAGES.includes(path)
+    ) {
       target = dashboardPath
     // Role-based protection for patients trying to access staff routes
     } else if (role === 'patient') {

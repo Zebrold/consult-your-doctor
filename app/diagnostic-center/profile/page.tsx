@@ -370,6 +370,32 @@ export default async function LabProfilePage() {
             </Card>
           )}
 
+          <Card className="md:!rounded-2xl md:!p-7 flex flex-col gap-3">
+            <div className="flex items-center gap-2 text-fresh-teal">
+              <ShieldCheck className="w-5 h-5" />
+              <h2 className="font-title-md text-[16px] md:text-title-md text-on-surface font-semibold">Partner Terms &amp; Compliance</h2>
+            </div>
+            <p className="text-label-sm text-on-surface-variant text-[12.5px]">
+              Review diagnostic partner agreements, test report authorization standards, and DPDP Act patient confidentiality.
+            </p>
+            <div className="flex flex-col gap-2 pt-1 border-t border-surface-container-high/70">
+              <Link
+                href="/terms-of-use"
+                className="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors text-xs font-semibold text-on-surface"
+              >
+                <span>Terms &amp; Conditions</span>
+                <span className="text-vibrant-blue font-bold">View →</span>
+              </Link>
+              <Link
+                href="/privacy-policy"
+                className="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors text-xs font-semibold text-on-surface"
+              >
+                <span>Privacy Policy</span>
+                <span className="text-vibrant-blue font-bold">View →</span>
+              </Link>
+            </div>
+          </Card>
+
           <form action="/auth/signout" method="post">
             <button type="submit" className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-error/10 hover:bg-error-container text-error font-label-sm text-label-sm font-bold transition-colors">
               <LogOut className="w-[18px] h-[18px]" /> Sign Out

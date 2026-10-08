@@ -100,6 +100,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               Sign Out
             </button>
           </form>
+          <p className="mt-2 px-4 flex gap-3 text-xs text-gray-500">
+            <Link href="/terms-of-use" className="hover:text-gray-900 hover:underline">Terms</Link>
+            <Link href="/privacy-policy" className="hover:text-gray-900 hover:underline">Privacy</Link>
+          </p>
         </div>
       </aside>
 

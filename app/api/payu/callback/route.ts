@@ -105,10 +105,10 @@ export async function POST(request: Request) {
 
     if (status === 'success' && (isConsultation || isDiagnostic)) {
       // Record payment success against the right booking table.
-      // payments.appointment_id is a FK to appointments, so diagnostic bookings use their own column.
+      // payments.appointment_id is a FK to appointments, so diagnostic bookings use their own column. Only the column
+      // in use is sent, so consultation payments still save on a database without diagnostic_booking_id.
       const { error: paymentError } = await supabase.from('payments').insert({
-        appointment_id: isConsultation ? txnid : null,
-        diagnostic_booking_id: isDiagnostic ? txnid : null,
+        ...(isConsultation ? { appointment_id: txnid } : { appointment_id: null, diagnostic_booking_id: txnid }),
         transaction_id: mihpayid || txnid,
         amount: Number(amount),
         gateway: 'payu',
@@ -117,7 +117,8 @@ export async function POST(request: Request) {
 
       // 23505 = PayU retried a callback we've already recorded; the booking is already confirmed.
       if (paymentError && paymentError.code !== '23505') {
-        console.error('Error inserting payment:', paymentError);
+        // An "invalid input value for enum payment_gateway" here means supabase/migrations/20261008 hasn't been run.
+        console.error('Error inserting payment (run the latest supabase/migrations if the gateway or column is missing):', paymentError);
       }
 
       // Only move bookings that are still waiting for payment, so a replayed callback can't

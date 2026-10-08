@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createStaffAccount } from '@/app/actions/admin'
 import { Plus, X, Loader2 } from 'lucide-react'
+import { WelcomeLetterButton } from '@/components/portal/WelcomeLetterButton'
 
 export function CreateStaffModal({ hospitals }: { hospitals: { id: string, name: string }[] }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -79,8 +80,12 @@ export function CreateStaffModal({ hospitals }: { hospitals: { id: string, name:
                     </div>
                   </div>
                 </div>
-                
-                <button 
+
+                {createdInfo.password && (role === 'doctor' || role === 'hospital_admin' || role === 'diagnostic_admin') && (
+                  <WelcomeLetterButton username={createdInfo.adminId} password={createdInfo.password} />
+                )}
+
+                <button
                   onClick={() => { setIsOpen(false); setCreatedInfo(null); }}
                   className="w-full py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition-colors"
                 >

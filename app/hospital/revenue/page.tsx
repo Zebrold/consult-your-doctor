@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
-import { CircleDollarSign, Clock, CreditCard, IndianRupee, Wallet } from 'lucide-react'
+import Link from 'next/link'
+import { CircleDollarSign, Clock, CreditCard, FlaskConical, IndianRupee, Wallet } from 'lucide-react'
 import { currentTime } from '@/components/patient/data'
 import { doctorName, formatINR, istDateKey } from '@/components/patient/format'
 import { Avatar, Card, CardHeader, Chip, EmptyState, StatCard } from '@/components/portal/ui'
@@ -22,6 +23,7 @@ export default async function HospitalFinancePage() {
   const doctors = await loadHospitalDoctors(admin, hospital.id)
   const visits = await loadHospitalVisits(admin, hospital.id, doctors.map((d) => d.id))
   const doctorById = new Map(doctors.map((d) => [d.id, d]))
+  const testCharges = hospital.tests.filter((t): t is { name: string; price: number } => !!t.price)
 
   // A row per payment, plus seen patients with no payment recorded (e.g. walk-ins added by a doctor)
   const ledger: LedgerRow[] = visits
@@ -205,6 +207,31 @@ export default async function HospitalFinancePage() {
               </ul>
             )}
             <p className="text-[11px] text-indigo-gray-600 mt-3">Change a fee from the doctor’s card on the Roster.</p>
+          </Card>
+
+          {/* Test-wise amount: the hospital's own test charges */}
+          <Card>
+            <CardHeader
+              title="Test Charges"
+              subtitle="Amount for each test at your hospital"
+              action={
+                <Link href="/hospital/profile#tests" className="font-label-sm text-label-sm text-primary font-semibold hover:underline shrink-0">
+                  Edit
+                </Link>
+              }
+            />
+            {testCharges.length === 0 ? (
+              <EmptyState icon={FlaskConical}>No test charges yet. Add them on your hospital profile.</EmptyState>
+            ) : (
+              <ul className="flex flex-col gap-1.5">
+                {testCharges.map((t) => (
+                  <li key={t.name} className="flex items-center justify-between gap-3 py-2 px-2.5 rounded-lg hover:bg-surface-container-low">
+                    <span className="text-[14px] font-semibold text-indigo-gray-900 min-w-0 truncate">{t.name}</span>
+                    <span className="font-title-md text-[14px] font-bold text-vibrant-blue shrink-0">{formatINR(t.price)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Card>
         </div>
       </section>

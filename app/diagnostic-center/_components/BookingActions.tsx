@@ -124,7 +124,14 @@ export function UploadReportButton({
     e.preventDefault()
     const form = new FormData(e.currentTarget)
     start(async () => {
-      const res = await createLabReport({ bookingId: booking.id, rows, remarks: String(form.get('remarks') || ''), authorisedBy: String(form.get('authorisedBy') || '') })
+      const res = await createLabReport({
+        bookingId: booking.id,
+        rows,
+        remarks: String(form.get('remarks') || ''),
+        authorisedBy: String(form.get('authorisedBy') || ''),
+        referredBy: String(form.get('referredBy') || ''),
+        sample: String(form.get('sample') || ''),
+      })
       if (!res.ok) return setError(res.error)
       close()
       router.refresh()
@@ -185,6 +192,20 @@ export function UploadReportButton({
 
             {mode === 'create' ? (
               <form onSubmit={create} className="flex flex-col gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <label className="flex flex-col gap-1">
+                    <span className="font-label-sm text-[11px] text-indigo-gray-600 font-semibold uppercase tracking-wider">Referred by (optional)</span>
+                    <input name="referredBy" maxLength={80} placeholder="Dr. A. Rao or Self" className={cell} />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="font-label-sm text-[11px] text-indigo-gray-600 font-semibold uppercase tracking-wider">Sample</span>
+                    <select name="sample" defaultValue="Blood" className={cell}>
+                      {['Blood', 'Serum', 'Plasma', 'Urine', 'Stool', 'Swab', 'Sputum', 'Imaging', 'Other'].map((s) => (
+                        <option key={s}>{s}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
                 <div className="hidden sm:grid grid-cols-[2fr_1fr_1fr_1.4fr_0.9fr_auto] gap-2 px-1 text-[11px] font-semibold text-indigo-gray-600 uppercase tracking-wider">
                   <span>Test / parameter</span>
                   <span>Result</span>

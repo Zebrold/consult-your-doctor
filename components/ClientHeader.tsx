@@ -3,12 +3,11 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { CalendarPlus, Menu, X, LogOut, LayoutDashboard } from "lucide-react";
+import { Menu, X, LogOut, LayoutDashboard } from "lucide-react";
 import { useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { AppComingSoon } from "./AppComingSoon";
-import { BookingDialog } from "./BookingDialog";
 
 const navLinks = [
   { name: "How it works", href: "/how-it-works" },
@@ -20,7 +19,6 @@ const navLinks = [
 export function ClientHeader({ user }: { user: User | null }) {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [booking, setBooking] = useState(false);
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -32,12 +30,15 @@ export function ClientHeader({ user }: { user: User | null }) {
 
   const isLinkActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
-  const dashboardHref =
-    user?.user_metadata?.role === "doctor"
-      ? "/doctor/dashboard"
-      : user?.user_metadata?.role === "diagnostic_center"
-        ? "/diagnostic/dashboard"
-        : "/patient/profile";
+  // Each account's own portal (staff can open the public legal pages, so the header links them back home).
+  const PORTAL_HOME: Record<string, string> = {
+    doctor: "/doctor/dashboard",
+    hospital_admin: "/hospital/dashboard",
+    diagnostic_admin: "/diagnostic-center/dashboard",
+    executive: "/executive/dashboard",
+    super_admin: "/admin/dashboard",
+  };
+  const dashboardHref = PORTAL_HOME[String(user?.user_metadata?.role ?? "")] ?? "/patient/profile";
 
   return (
     <header className="fixed top-0 left-0 w-full z-50 bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline-variant/30 shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
@@ -76,9 +77,8 @@ export function ClientHeader({ user }: { user: User | null }) {
           })}
         </nav>
 
-        {/* Desktop Auth / User Action */}
+        {/* Desktop: Sign In (the dashboard once signed in) and the app download badge, nothing else */}
         <div className="hidden lg:flex items-center gap-3">
-          <AppComingSoon />
           {user ? (
             <>
               <Link href={dashboardHref} className="flex items-center gap-1.5 px-2 text-on-surface font-semibold hover:text-vibrant-blue text-[14px] transition-colors">
@@ -90,17 +90,14 @@ export function ClientHeader({ user }: { user: User | null }) {
               </button>
             </>
           ) : (
-            <Link href="/login" className="px-2 text-[14px] font-semibold text-on-surface-variant hover:text-vibrant-blue transition-colors">
-              Sign in
+            <Link
+              href="/login"
+              className="inline-flex items-center px-6 py-2.5 rounded-full bg-vibrant-blue text-on-primary text-[15px] font-bold shadow-[0_6px_16px_rgba(0,102,255,0.28)] hover:bg-primary hover:shadow-[0_8px_20px_rgba(0,102,255,0.34)] active:scale-[0.98] transition-all"
+            >
+              Sign In
             </Link>
           )}
-          <button
-            type="button"
-            onClick={() => setBooking(true)}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-vibrant-blue text-on-primary text-[15px] font-bold shadow-[0_6px_16px_rgba(0,102,255,0.28)] hover:bg-primary hover:shadow-[0_8px_20px_rgba(0,102,255,0.34)] active:scale-[0.98] transition-all"
-          >
-            <CalendarPlus className="w-4 h-4" /> Book Now
-          </button>
+          <AppComingSoon />
         </div>
 
         {/* Mobile: app badge and menu toggle */}
@@ -162,23 +159,16 @@ export function ClientHeader({ user }: { user: User | null }) {
               </button>
             </div>
           ) : (
-            <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="text-center text-[15px] font-semibold text-on-surface-variant hover:text-vibrant-blue">
-              Sign in
+            <Link
+              href="/login"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="inline-flex items-center justify-center rounded-full bg-vibrant-blue text-white px-5 py-3 font-bold text-[17px] shadow-sm"
+            >
+              Sign In
             </Link>
           )}
-          <button
-            type="button"
-            onClick={() => {
-              setIsMobileMenuOpen(false);
-              setBooking(true);
-            }}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-vibrant-blue text-white px-5 py-3 font-bold text-[17px] shadow-sm"
-          >
-            <CalendarPlus className="w-5 h-5" /> Book Now
-          </button>
         </div>
       )}
-      {booking && <BookingDialog kind="consultation" onClose={() => setBooking(false)} />}
     </header>
   );
 }

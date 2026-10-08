@@ -357,10 +357,23 @@ export function DoctorSignupForm({ hospitals }: { hospitals: { id: string; name:
               </fieldset>
 
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-                <p className="flex items-center gap-2 text-indigo-gray-600 text-xs">
-                  <ShieldCheck className="w-[18px] h-[18px] text-fresh-teal shrink-0" />
-                  Every application is reviewed by our credentialing team before activation.
-                </p>
+                <div className="flex flex-col gap-1.5">
+                  <p className="flex items-center gap-2 text-indigo-gray-600 text-xs">
+                    <ShieldCheck className="w-[18px] h-[18px] text-fresh-teal shrink-0" />
+                    Every application is reviewed by our credentialing team before activation.
+                  </p>
+                  <p className="text-indigo-gray-600 text-xs">
+                    By submitting, you agree to our{' '}
+                    <Link className="text-primary hover:underline font-medium" href="/terms-of-use">
+                      Terms &amp; Conditions
+                    </Link>{' '}
+                    (including the section for doctors and partners) and{' '}
+                    <Link className="text-primary hover:underline font-medium" href="/privacy-policy">
+                      Privacy Policy
+                    </Link>
+                    .
+                  </p>
+                </div>
                 <button
                   type="submit"
                   disabled={isPending}

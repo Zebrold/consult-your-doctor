@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { UserCircle, Ticket, Droplet, Pill, Download, X, FileText, ChevronRight } from 'lucide-react'
+import { ReviewButton, type ExistingReview } from './patient/ReviewButton'
 
 const getStatusColor = (status: string) => {
   const s = (status || '').toLowerCase();
@@ -12,7 +13,8 @@ const getStatusColor = (status: string) => {
   return 'text-outline';
 }
 
-export function ConsultationsList({ appointments }: { appointments: any[] }) {
+/** `reviews` holds the patient's own reviews by appointment id, so finished visits show "Rate your visit" or their rating. */
+export function ConsultationsList({ appointments, reviews = {} }: { appointments: any[]; reviews?: Record<string, ExistingReview> }) {
   const [displayCount, setDisplayCount] = useState(3)
   const [selectedApt, setSelectedApt] = useState<any | null>(null)
 
@@ -70,6 +72,9 @@ export function ConsultationsList({ appointments }: { appointments: any[] }) {
                   <a href={`/patient/checkout/${apt.id}`} className="px-4 py-1.5 rounded-full bg-[#E31E24] text-white font-label-sm text-label-sm font-semibold hover:bg-red-700 transition-colors">
                     Complete Payment
                   </a>
+                )}
+                {(apt.status === 'completed' || apt.status === 'visited') && (
+                  <ReviewButton appointmentId={apt.id} doctorName={`Dr. ${doctor?.profiles?.full_name ?? ''}`.trim()} existing={reviews[apt.id] ?? null} />
                 )}
                 <button 
                   onClick={() => setSelectedApt(apt)}

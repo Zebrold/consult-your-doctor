@@ -4,19 +4,76 @@ import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { LucideIcon } from 'lucide-react'
-import { ArrowUp, FileDown, FileText, LoaderCircle, Square } from 'lucide-react'
+import { ArrowUp, FileDown, FileText, Languages, LoaderCircle, Square } from 'lucide-react'
 import type { PdfDoc } from '@/lib/assistant/pdf-doc'
 
 // The chat both Zebrold AI surfaces share: the Support button on every page (Support.tsx) and each section's
 // full-page Zebrold AI tab (AssistantPage.tsx). Replies stream from app/api/assistant as newline-delimited JSON.
 
 /** `local` replies (errors, "not set up") are shown but never sent back to the model. */
-export type Msg = { role: 'user' | 'assistant'; content: string; local?: boolean; pdf?: PdfDoc }
+export type Msg = { role: 'user' | 'assistant'; content: string; local?: boolean; pdf?: PdfDoc; translations?: Record<string, string> }
 /** Support answers problems with the site; assistant is the open-ended Zebrold AI page. */
 export type ChatMode = 'support' | 'assistant'
 
 const HISTORY = 20
 const NONE: Msg[] = []
+
+/** Languages Zebrold AI can answer in. `auto` answers in whatever language the person writes in. */
+export const LANGUAGES: { code: string; label: string; english: string }[] = [
+  { code: 'auto', label: 'Auto', english: 'Same as my message' },
+  { code: 'en', label: 'English', english: 'English' },
+  { code: 'hi', label: 'हिन्दी', english: 'Hindi' },
+  { code: 'bn', label: 'বাংলা', english: 'Bengali' },
+  { code: 'te', label: 'తెలుగు', english: 'Telugu' },
+  { code: 'mr', label: 'मराठी', english: 'Marathi' },
+  { code: 'ta', label: 'தமிழ்', english: 'Tamil' },
+  { code: 'gu', label: 'ગુજરાતી', english: 'Gujarati' },
+  { code: 'kn', label: 'ಕನ್ನಡ', english: 'Kannada' },
+  { code: 'ml', label: 'മലയാളം', english: 'Malayalam' },
+  { code: 'pa', label: 'ਪੰਜਾਬੀ', english: 'Punjabi' },
+  { code: 'or', label: 'ଓଡ଼ିଆ', english: 'Odia' },
+  { code: 'ur', label: 'اردو', english: 'Urdu' },
+  { code: 'de', label: 'Deutsch', english: 'German' },
+]
+
+const LANGUAGE_KEY = 'zebrold-ai-language'
+const languageListeners = new Set<() => void>()
+const readLanguage = () => {
+  try {
+    const saved = localStorage.getItem(LANGUAGE_KEY)
+    return saved && LANGUAGES.some((l) => l.code === saved) ? saved : 'auto'
+  } catch {
+    return 'auto'
+  }
+}
+
+/** The reply language, remembered in this browser and shared by every Zebrold AI chat on the page. */
+export function useLanguage() {
+  const language = useSyncExternalStore(
+    (onChange) => {
+      languageListeners.add(onChange)
+      return () => languageListeners.delete(onChange)
+    },
+    readLanguage,
+    () => 'auto',
+  )
+  const setLanguage = (code: string) => {
+    try {
+      localStorage.setItem(LANGUAGE_KEY, code)
+    } catch {
+      // Storage can be blocked (private mode); the choice then lasts until the page reloads.
+    }
+    languageListeners.forEach((l) => l())
+  }
+  return [language, setLanguage] as const
+}
+
+/**
+ * Where a conversation is kept. Each part of the site (patient, doctor, lab, hospital, front desk) and each signed-in
+ * person gets their own, so a search in one panel never shows up in another.
+ */
+export const chatKey = (surface: 'support' | 'ai', section: string, viewer: string | null | undefined) =>
+  `zebrold-${surface}-chat:${section}:${viewer ? viewer.slice(0, 12) : 'guest'}`
 
 const NOT_CONFIGURED =
   'Zebrold AI isn’t switched on yet. Meanwhile you can [search for doctors](/search), [book a lab test](/diagnostics) or [contact us](/contact).'
@@ -31,14 +88,35 @@ function loadChat(key: string): Msg[] {
   }
 }
 
+// Conversations from before chats were kept per panel were shared by every panel; drop them so they can't leak.
+if (typeof window !== 'undefined') {
+  try {
+    sessionStorage.removeItem('zebrold-ai-chat')
+    sessionStorage.removeItem('zebrold-support-chat')
+  } catch {
+    // Storage blocked: nothing was saved there either.
+  }
+}
+
 const subscribe = () => () => {}
 
-/** One conversation, kept in sessionStorage under `storeKey` so it survives moving between pages. */
-export function useChat(storeKey: string, mode: ChatMode) {
+/**
+ * One conversation, kept in sessionStorage under `storeKey` (see chatKey) so it survives moving between pages.
+ * `language` is the reply language from useLanguage.
+ */
+export function useChat(storeKey: string, mode: ChatMode, language = 'auto') {
   const pathname = usePathname() ?? '/'
   const [messages, setMessages] = useState<Msg[]>(() => loadChat(storeKey))
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
+  // A different panel or person means a different conversation: load theirs instead of carrying this one over.
+  const [loadedKey, setLoadedKey] = useState(storeKey)
+  if (loadedKey !== storeKey) {
+    setLoadedKey(storeKey)
+    setMessages(loadChat(storeKey))
+    setBusy(false)
+    setStatus(null)
+  }
   // The saved chat only exists in the browser, so it's shown once hydration is over.
   const hydrated = useSyncExternalStore(
     subscribe,
@@ -49,13 +127,23 @@ export function useChat(storeKey: string, mode: ChatMode) {
   // Bumped by reset(), so a reply still arriving for the old conversation is dropped.
   const runRef = useRef(0)
 
+  // A reply still streaming when the conversation changes belongs to the old one: stop it.
+  useEffect(
+    () => () => {
+      runRef.current++
+      abortRef.current?.abort()
+    },
+    [storeKey],
+  )
+
   useEffect(() => {
+    if (loadedKey !== storeKey) return
     try {
       sessionStorage.setItem(storeKey, JSON.stringify(messages.slice(-40)))
     } catch {
       // Storage can be blocked (private mode); the chat still works for this page.
     }
-  }, [storeKey, messages])
+  }, [storeKey, loadedKey, messages])
 
   const send = async (text: string) => {
     const content = text.trim()
@@ -81,6 +169,7 @@ export function useChat(storeKey: string, mode: ChatMode) {
           messages: history.filter((m) => !m.local && m.content.trim()).slice(-HISTORY).map(({ role, content }) => ({ role, content })),
           path: pathname,
           mode,
+          lang: language,
         }),
         signal: controller.signal,
       })
@@ -159,7 +248,27 @@ export function useChat(storeKey: string, mode: ChatMode) {
     setStatus(null)
   }
 
-  return { messages: hydrated ? messages : NONE, busy, status, send, stop, reset }
+  /** Translates one answer into `target` and keeps the translation with the message. Returns an error, if any. */
+  const translate = async (index: number, target: string): Promise<string | null> => {
+    const message = messages[index]
+    if (!message || message.role !== 'assistant' || !message.content.trim()) return null
+    if (message.translations?.[target]) return null
+    try {
+      const res = await fetch('/api/assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: [{ role: 'user', content: message.content.slice(0, 4000) }], path: pathname, mode: 'translate', lang: target }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { text?: string; error?: string }
+      if (!res.ok || !data.text) return data.error === 'rate_limited' ? 'Too many requests. Please wait a few minutes.' : 'Couldn’t translate this answer. Please try again.'
+      setMessages((all) => all.map((m, i) => (i === index ? { ...m, translations: { ...m.translations, [target]: data.text! } } : m)))
+      return null
+    } catch {
+      return 'Couldn’t reach Zebrold AI. Check your connection and try again.'
+    }
+  }
+
+  return { messages: hydrated ? messages : NONE, busy, status, send, stop, reset, translate, language }
 }
 
 export type Chat = ReturnType<typeof useChat>
@@ -206,15 +315,9 @@ export function ChatThread({
           m.role === 'assistant' && !m.content && !m.pdf ? null : (
             <Bubble key={i} role={m.role} icon={icon}>
               {m.role === 'assistant' ? (
-                <>
-                  {m.content && <Rich text={m.content} onNavigate={onNavigate} />}
-                  {m.pdf && <PdfCard doc={m.pdf} className="mt-2.5" />}
-                  {!m.local && m.content && !(busy && i === messages.length - 1) && (
-                    <SaveAnswer question={messages[i - 1]?.role === 'user' ? messages[i - 1].content : null} answer={m.content} />
-                  )}
-                </>
+                <Answer chat={chat} index={i} message={m} done={!(busy && i === messages.length - 1)} question={messages[i - 1]?.role === 'user' ? messages[i - 1].content : null} onNavigate={onNavigate} />
               ) : (
-                <p className="whitespace-pre-wrap">{m.content}</p>
+                <p dir="auto" className="whitespace-pre-wrap">{m.content}</p>
               )}
             </Bubble>
           ),
@@ -236,6 +339,75 @@ export function ChatThread({
         )}
       </div>
     </div>
+  )
+}
+
+/** An answer, with Save as PDF and, when a reply language is chosen, a translation into it. */
+function Answer({ chat, index, message: m, done, question, onNavigate }: { chat: Chat; index: number; message: Msg; done: boolean; question: string | null; onNavigate?: () => void }) {
+  const [showOriginal, setShowOriginal] = useState(false)
+  const [working, setWorking] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const target = chat.language !== 'auto' ? chat.language : null
+  const targetLabel = LANGUAGES.find((l) => l.code === target)?.label
+  const translated = target ? m.translations?.[target] : undefined
+  const shown = translated && !showOriginal ? translated : m.content
+
+  const translate = async () => {
+    if (!target) return
+    setWorking(true)
+    setError(await chat.translate(index, target))
+    setShowOriginal(false)
+    setWorking(false)
+  }
+
+  return (
+    <>
+      {shown && <Rich text={shown} onNavigate={onNavigate} />}
+      {m.pdf && <PdfCard doc={m.pdf} className="mt-2.5" />}
+      {!m.local && m.content && done && (
+        <div className="mt-2 -mb-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <SaveAnswer question={question} answer={shown} />
+          {target && targetLabel && (
+            <button
+              type="button"
+              onClick={() => (translated ? setShowOriginal((v) => !v) : void translate())}
+              disabled={working}
+              className="flex items-center gap-1 text-[11px] font-semibold text-on-surface-variant hover:text-vibrant-blue disabled:opacity-60"
+            >
+              {working ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" /> : <Languages className="w-3.5 h-3.5" />}
+              {translated ? (showOriginal ? `Show in ${targetLabel}` : 'Show original') : `Translate to ${targetLabel}`}
+            </button>
+          )}
+        </div>
+      )}
+      {error && <p className="mt-1 text-[11px] text-error">{error}</p>}
+    </>
+  )
+}
+
+/** Picks the language Zebrold AI answers in. `tone` matches a light or a coloured header. */
+export function LanguagePicker({ value, onChange, tone = 'light', className = '' }: { value: string; onChange: (code: string) => void; tone?: 'light' | 'onPrimary'; className?: string }) {
+  return (
+    <label
+      className={`relative inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-1.5 h-8 text-[12px] font-semibold shrink-0 ${
+        tone === 'onPrimary' ? 'bg-on-primary/15 hover:bg-on-primary/25 text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface'
+      } ${className}`}
+      title="Language for answers"
+    >
+      <Languages className="w-4 h-4 shrink-0" aria-hidden />
+      <span className="sr-only">Language for answers</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`appearance-none bg-transparent pr-1 focus:outline-none cursor-pointer max-w-[92px] truncate ${tone === 'onPrimary' ? '[&>option]:text-on-surface' : ''}`}
+      >
+        {LANGUAGES.map((l) => (
+          <option key={l.code} value={l.code}>
+            {l.code === 'auto' ? 'Auto language' : `${l.label}${l.label !== l.english ? ` · ${l.english}` : ''}`}
+          </option>
+        ))}
+      </select>
+    </label>
   )
 }
 
@@ -357,7 +529,11 @@ function Rich({ text, onNavigate }: { text: string; onNavigate?: () => void }) {
   }
   flushPara()
   flushList()
-  return <div className="flex flex-col gap-2">{blocks}</div>
+  return (
+    <div dir="auto" className="flex flex-col gap-2">
+      {blocks}
+    </div>
+  )
 }
 
 function inline(text: string, onNavigate?: () => void): ReactNode[] {
@@ -456,7 +632,7 @@ function SaveAnswer({ question, answer }: { question: string | null; answer: str
       type="button"
       onClick={() => void save()}
       disabled={working}
-      className="mt-2 -mb-0.5 flex items-center gap-1 text-[11px] font-semibold text-on-surface-variant hover:text-vibrant-blue disabled:opacity-60"
+      className="flex items-center gap-1 text-[11px] font-semibold text-on-surface-variant hover:text-vibrant-blue disabled:opacity-60"
     >
       {working ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
       Save as PDF

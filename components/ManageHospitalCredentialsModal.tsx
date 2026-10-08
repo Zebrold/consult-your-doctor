@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { X, Key, ShieldCheck, Loader2 } from 'lucide-react'
+import { WelcomeLetterButton } from '@/components/portal/WelcomeLetterButton'
 import { createHospitalCredentials } from '@/app/actions/admin'
 
 interface ManageHospitalCredentialsModalProps {
@@ -120,8 +121,10 @@ export function ManageHospitalCredentialsModal({ hospitalId, hospitalName, isOpe
                     </div>
                   </div>
                 </div>
-                
-                <button 
+
+                <WelcomeLetterButton username={generatedId} password={password} />
+
+                <button
                   onClick={handleClose}
                   className="w-full py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition-colors"
                 >

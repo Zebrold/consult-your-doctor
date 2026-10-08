@@ -7,6 +7,11 @@ import { removeLabTest, saveLabTest } from '@/app/actions/diagnostic-center'
 import { DIAGNOSTIC_PLATFORM_FEE } from '@/lib/pricing'
 
 type Test = { name: string; price: number | null }
+type Result = { success: true } | { success: false; error: string }
+/** Saves and removes tests. The lab's own actions by default; the hospital passes its own for its test charges. */
+export type TestActions = { save: (name: string, price: number) => Promise<Result>; remove: (name: string) => Promise<Result> }
+
+const LAB_ACTIONS: TestActions = { save: saveLabTest, remove: removeLabTest }
 
 const short = (name: string) => {
   const words = name.replace(/\(.*?\)/g, '').trim().split(/\s+/).filter(Boolean)
@@ -15,7 +20,7 @@ const short = (name: string) => {
 
 const BADGES = ['bg-vibrant-blue/10 text-vibrant-blue', 'bg-primary/10 text-primary', 'bg-fresh-teal/10 text-fresh-teal', 'bg-secondary/10 text-secondary', 'bg-primary-fixed text-primary']
 
-function TestRow({ test, index, booked }: { test: Test; index: number; booked: number }) {
+function TestRow({ test, index, booked, actions, bookable }: { test: Test; index: number; booked: number; actions: TestActions; bookable: boolean }) {
   const router = useRouter()
   const [price, setPrice] = useState(test.price != null ? String(test.price) : '')
   const [error, setError] = useState<string | null>(null)
@@ -25,14 +30,14 @@ function TestRow({ test, index, booked }: { test: Test; index: number; booked: n
 
   const save = () =>
     start(async () => {
-      const res = await saveLabTest(test.name, Number(price))
+      const res = await actions.save(test.name, Number(price))
       setError(res.success ? null : res.error)
       if (res.success) router.refresh()
     })
   const remove = () => {
-    if (!confirm(`Remove “${test.name}” from your test menu? Patients will no longer be able to book it.`)) return
+    if (!confirm(`Remove “${test.name}” from your test menu? Patients will no longer see it.`)) return
     start(async () => {
-      const res = await removeLabTest(test.name)
+      const res = await actions.remove(test.name)
       if (!res.success) setError(res.error)
       else router.refresh()
     })
@@ -53,10 +58,10 @@ function TestRow({ test, index, booked }: { test: Test; index: number; booked: n
             {priced ? (
               <>
                 {booked > 0 && <span className="md:hidden">Booked {booked} {booked === 1 ? 'time' : 'times'} • </span>}
-                Bookable online
+                {bookable ? 'Bookable online' : 'Amount shown to patients'}
               </>
             ) : (
-              'No price set: patients can’t book this test'
+              bookable ? 'No price set: patients can’t book this test' : 'No amount set yet'
             )}
           </span>
           {error && <p role="alert" className="text-[12px] text-error mt-0.5">{error}</p>}
@@ -94,8 +99,24 @@ function TestRow({ test, index, booked }: { test: Test; index: number; booked: n
   )
 }
 
-/** The lab's test menu: what patients can book, at what price. */
-export function TestMenu({ tests, booked = {} }: { tests: Test[]; booked?: Record<string, number> }) {
+/**
+ * A test menu with the amount for each test. For a lab it is what patients can book online; the hospital passes its
+ * own `actions` and `note` for its test charges.
+ */
+export function TestMenu({
+  tests,
+  booked = {},
+  actions = LAB_ACTIONS,
+  bookable = true,
+  note = `Patients pay these prices plus a ₹${DIAGNOSTIC_PLATFORM_FEE} platform fee when they book online. Changes show on the booking page straight away.`,
+}: {
+  tests: Test[]
+  booked?: Record<string, number>
+  actions?: TestActions
+  note?: string
+  /** Lab tests can be booked online; a hospital's test charges are a price list. */
+  bookable?: boolean
+}) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -107,7 +128,7 @@ export function TestMenu({ tests, booked = {} }: { tests: Test[]; booked?: Recor
     const formEl = e.currentTarget
     const form = new FormData(formEl)
     start(async () => {
-      const res = await saveLabTest(String(form.get('name') || ''), Number(form.get('price')))
+      const res = await actions.save(String(form.get('name') || ''), Number(form.get('price')))
       if (!res.success) return setError(res.error)
       setError(null)
       formEl.reset()
@@ -164,14 +185,12 @@ export function TestMenu({ tests, booked = {} }: { tests: Test[]; booked?: Recor
       ) : (
         <ul className={`${open ? 'flex' : 'hidden md:flex'} flex-col gap-2 md:gap-0 md:divide-y md:divide-surface-container`}>
           {shown.map((t, i) => (
-            <TestRow key={`${t.name}-${t.price}`} test={t} index={i} booked={booked[t.name] ?? 0} />
+            <TestRow key={`${t.name}-${t.price}`} test={t} index={i} booked={booked[t.name] ?? 0} actions={actions} bookable={bookable} />
           ))}
           {shown.length === 0 && <li className="py-3 text-sm text-indigo-gray-600">No test matches “{query}”.</li>}
         </ul>
       )}
-      <p className="text-[11px] text-indigo-gray-600">
-        Patients pay these prices plus a ₹{DIAGNOSTIC_PLATFORM_FEE} platform fee when they book online. Changes show on the booking page straight away.
-      </p>
+      <p className="text-[11px] text-indigo-gray-600">{note}</p>
     </div>
   )
 }

@@ -72,6 +72,12 @@ export default async function PatientAppointments() {
   const appointments = fetchedAppointments ?? []
   const diagnosticBookings = fetchedDiagnosticBookings ?? []
 
+  // The patient's own reviews, so finished visits show their rating instead of "Rate your visit".
+  const { data: myReviews } = await supabase.from('doctor_reviews').select('appointment_id, rating, comment').eq('patient_id', user.id)
+  const reviews = Object.fromEntries(
+    ((myReviews ?? []) as { appointment_id: string; rating: number; comment: string | null }[]).map((r) => [r.appointment_id, { rating: r.rating, comment: r.comment }]),
+  )
+
   // Extract prescriptions from medical_records
   const fetchedPrescriptions = fetchedAppointments?.flatMap(apt =>
     (apt.medical_records || []).map(record => ({
@@ -115,7 +121,7 @@ export default async function PatientAppointments() {
                   {/* Consultations List */}
                   <section className="bg-surface-container-lowest rounded-xl p-6 shadow-sm">
                     <h3 className="font-title-md text-title-md font-bold text-on-surface mb-6">Recent Consultations</h3>
-                    <ConsultationsList appointments={appointments || []} />
+                    <ConsultationsList appointments={appointments || []} reviews={reviews} />
                   </section>
 
                   {/* Diagnostic Bookings List */}

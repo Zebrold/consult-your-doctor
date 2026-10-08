@@ -8,6 +8,9 @@ import {
 import { PatientNavHeader } from "@/components/PatientNavHeader";
 import { TopBar } from "@/components/portal/TopBar";
 import { doctorName } from "@/components/patient/format";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { parseEducation } from "@/lib/education";
+import { loadDoctorReviews } from "@/lib/reviews";
 
 export const revalidate = 0;
 
@@ -60,31 +63,38 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
     ? await supabase.from("profiles").select("full_name, email, role").eq("id", user.id).maybeSingle()
     : { data: null };
 
-  // Fetch full doctor data from DB
-  const { data: doctor, error: doctorError } = await supabase
-    .from("doctors")
-    .select(`
-      id,
-      specialty,
-      experience_years,
-      consultation_fee,
-      image_url,
-      bio,
-      qualifications,
-      hospital_id,
-      department_id,
-      profiles!doctors_profile_id_fkey(full_name),
-      hospitals(id, name, city, address, image_url, contact_email),
-      departments(id, name)
-    `)
-    .eq("id", id)
-    .maybeSingle();
+  // Fetch full doctor data from DB. Registration, education and insurance arrive with the 20261009 migration.
+  const selectDoctor = (withProfile: boolean) =>
+    supabase
+      .from("doctors")
+      .select(`
+        id,
+        specialty,
+        experience_years,
+        consultation_fee,
+        image_url,
+        bio,
+        qualifications,
+        hospital_id,
+        department_id,
+        ${withProfile ? "registration_number, registration_council, education, insurance_accepted," : ""}
+        profiles!doctors_profile_id_fkey(full_name),
+        hospitals(id, name, city, address, image_url, contact_email),
+        departments(id, name)
+      `)
+      .eq("id", id)
+      .maybeSingle();
+  let { data: doctor, error: doctorError } = await selectDoctor(true);
+  if (doctorError) ({ data: doctor, error: doctorError } = await selectDoctor(false));
 
   if (!doctor || doctorError) {
     notFound();
   }
 
   const doctorData: ProfileDoctorData = doctor as unknown as ProfileDoctorData;
+  doctorData.education = parseEducation((doctor as { education?: unknown }).education);
+  // Reviews patients wrote after their visits (read on the server; only first names are shown).
+  doctorData.reviews = await loadDoctorReviews(createAdminClient(), id, 6);
 
   // Fetch upcoming live schedules from today onwards (Asia/Kolkata timezone aware)
   const now = new Date();

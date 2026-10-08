@@ -3,8 +3,8 @@ import type { ReactNode } from 'react'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
-  Building2, CalendarDays, CircleAlert, CircleCheck, Download, FileText, FlaskConical, HeartPulse, IdCard, MapPin, Microscope,
-  Pill, Receipt, Siren, SquarePen, type LucideIcon,
+  BedDouble, Building2, CalendarDays, CircleAlert, CircleCheck, Download, FileText, FlaskConical, HeartPulse, IdCard, MapPin, Microscope,
+  Pill, Receipt, Siren, SquarePen, Stethoscope, type LucideIcon,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -18,6 +18,8 @@ import { matchBookedTests } from '@/lib/pricing'
 import { signReportLinks } from '@/lib/lab-reports'
 import { signRecordFiles } from '@/lib/records'
 import { parseVitals, vitalsList, withoutVitals } from '@/lib/vitals'
+import { loadPatientAdmissions, stayDays } from '@/lib/beds'
+import { LiveRefresh } from '@/components/portal/LiveRefresh'
 
 export const metadata: Metadata = { title: 'My Profile | Consult Your Doctor' }
 
@@ -120,13 +122,15 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
   const visitIds = visits.map((v) => v.id)
   const labIds = labBookings.map((b) => b.id)
   const admin = createAdminClient()
-  const [visitPayments, labPayments] = await Promise.all([
+  const [visitPayments, labPayments, admissions] = await Promise.all([
     visitIds.length > 0
       ? admin.from('payments').select('*').in('appointment_id', visitIds).eq('status', 'success')
       : Promise.resolve({ data: [] as PaymentRow[] }),
     labIds.length > 0
       ? admin.from('payments').select('*').in('diagnostic_booking_id', labIds).eq('status', 'success')
       : Promise.resolve({ data: [] as PaymentRow[] }),
+    // The patient's own hospital stays: the bed the hospital has given them now, and earlier ones.
+    loadPatientAdmissions(admin, user.id),
   ])
   const payments: Payment[] = [...((visitPayments.data ?? []) as PaymentRow[]), ...((labPayments.data ?? []) as PaymentRow[])]
     .map((p) => ({ ...p, booking_id: (p.appointment_id ?? p.diagnostic_booking_id) as string }))
@@ -234,6 +238,68 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
                   <Stat href="#labs" label="Lab reports" value={reportsSent} icon={Microscope} tint="text-fresh-teal" />
                   <Stat href="#records" label="Prescriptions" value={records} icon={FileText} tint="text-on-surface-variant" />
                 </div>
+
+                {(admissions.current || admissions.past.length > 0) && (
+                  <Section
+                    id="admission"
+                    icon={BedDouble}
+                    title={admissions.current ? 'Current Hospital Admission' : 'Hospital Stays'}
+                    subtitle={admissions.current ? 'Your bed and care team, updated by the hospital' : 'Your earlier admissions'}
+                    action={<LiveRefresh />}
+                  >
+                    {admissions.current && (
+                      <div className="p-4 rounded-xl bg-primary-fixed/40 border border-vibrant-blue/20 flex flex-col gap-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="flex items-center gap-3 min-w-0">
+                            <span className="w-11 h-11 rounded-full bg-vibrant-blue text-on-primary flex items-center justify-center shrink-0">
+                              <BedDouble className="w-5 h-5" />
+                            </span>
+                            <span className="min-w-0">
+                              <span className="block font-title-md text-[16px] font-bold text-on-surface truncate">
+                                {admissions.current.ward} • {admissions.current.bed}
+                              </span>
+                              <span className="block text-sm text-on-surface-variant truncate">
+                                {admissions.current.bedType} bed at {admissions.current.hospital}
+                              </span>
+                            </span>
+                          </span>
+                          <span className="px-2.5 py-1 rounded-full bg-vibrant-blue text-on-primary font-label-sm text-xs font-bold shrink-0">
+                            Day {stayDays(admissions.current.admittedAt, now)}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          <Tile label="Admitted" value={formatShortDate(admissions.current.admittedAt)} small />
+                          <Tile label="Attending doctor" value={admissions.current.doctor?.name ?? null} small />
+                          <Tile label="Expected discharge" value={admissions.current.expectedDischarge ? formatShortDate(admissions.current.expectedDischarge) : null} small />
+                        </div>
+                        {admissions.current.reason && (
+                          <p className="flex items-start gap-2 text-sm text-on-surface-variant">
+                            <Stethoscope className="w-[18px] h-[18px] text-primary shrink-0" /> {admissions.current.reason}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    {admissions.past.length > 0 && (
+                      <ul className="flex flex-col gap-2">
+                        {admissions.past.slice(0, 4).map((a) => (
+                          <li key={a.id} className="p-3 rounded-xl bg-surface-container-low flex items-center justify-between gap-3 text-sm">
+                            <span className="min-w-0">
+                              <span className="block font-semibold text-on-surface truncate">{a.hospital}</span>
+                              <span className="block text-xs text-on-surface-variant truncate">
+                                {a.ward} • {a.bed}
+                                {a.doctor ? ` • ${a.doctor.name}` : ''}
+                              </span>
+                            </span>
+                            <span className="text-right text-xs text-on-surface-variant shrink-0">
+                              {formatShortDate(a.admittedAt)} – {formatShortDate(a.dischargedAt!)}
+                              <span className="block font-semibold text-on-surface">{stayDays(a.admittedAt, a.dischargedAt!)} days</span>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Section>
+                )}
 
                 <Section
                   id="personal"

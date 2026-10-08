@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server'
 
-const rawClientId =
-  process.env.GOOGLE_CLIENT_ID ||
-  process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
-  ''
-const GOOGLE_CLIENT_ID = rawClientId.replace(/^https?:\/\//i, '').trim()
+import { getGoogleClientId } from '@/lib/google-auth'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const next = searchParams.get('next') || '/'
-  const redirectUri = `${origin}/api/auth/google/callback`
+  const callbackPath = searchParams.get('callback') || '/auth/callback'
+  const redirectUri = `${origin}${callbackPath}`
+  const GOOGLE_CLIENT_ID = getGoogleClientId()
 
   const params = new URLSearchParams({
     client_id: GOOGLE_CLIENT_ID,

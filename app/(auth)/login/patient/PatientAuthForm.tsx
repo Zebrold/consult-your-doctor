@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, ChevronDown, IdCard, KeyRound, Loader2, LogIn, M
 import { patientIdLogin, sendOTP, verifyOTP } from '@/app/actions/auth'
 import { COUNTRY_CODES } from '@/lib/countryCodes'
 import { createClient } from '@/lib/supabase/client'
+import { getGoogleClientId } from '@/lib/google-auth'
 
 declare global {
   interface Window {
@@ -102,8 +103,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
   useEffect(() => {
     if (!googleEnabled) return
 
-    const rawClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''
-    const clientId = rawClientId.replace(/^https?:\/\//i, '').trim()
+    const clientId = getGoogleClientId()
     if (!clientId) return
 
     function initGoogle() {
@@ -173,25 +173,8 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
       return
     }
 
-    // 2. Try Supabase native OAuth first
-    try {
-      const supabase = createClient()
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: `${window.location.origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ''}` },
-      })
-      if (error) {
-        // Fallback to direct Google OAuth route
-        if (/provider is not enabled|unsupported provider/i.test(error.message)) {
-          window.location.href = `/api/auth/google/login?next=${encodeURIComponent(next || '/')}`
-          return
-        }
-        setGoogleError(error.message)
-        setIsGoogleLoading(false)
-      }
-    } catch {
-      window.location.href = `/api/auth/google/login?next=${encodeURIComponent(next || '/')}`
-    }
+    // 2. Redirect directly to our dedicated Google OAuth route
+    window.location.href = `/api/auth/google/login?next=${encodeURIComponent(next || '/')}`
   }
 
   const handleResend = () => {

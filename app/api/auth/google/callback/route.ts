@@ -3,14 +3,10 @@ import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { ROLE_COOKIE, ROLE_COOKIE_OPTIONS, roleCookieValue } from '@/lib/role-cookie'
+import { getGoogleClientId, getGoogleClientSecret } from '@/lib/google-auth'
 
-const rawClientId =
-  process.env.GOOGLE_CLIENT_ID ||
-  process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
-  ''
-const GOOGLE_CLIENT_ID = rawClientId.replace(/^https?:\/\//i, '').trim()
-
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || ''
+const GOOGLE_CLIENT_ID = getGoogleClientId()
+const GOOGLE_CLIENT_SECRET = getGoogleClientSecret()
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)

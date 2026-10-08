@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { withSignedFiles } from '@/lib/records'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Home, Search, Calendar as CalendarIcon, User } from 'lucide-react'
@@ -80,7 +82,8 @@ export default async function PatientAppointments() {
     }))
   ) || []
 
-  const prescriptions = fetchedPrescriptions
+  // Record files are private; the list gets short-lived signed links.
+  const prescriptions = await withSignedFiles(createAdminClient(), fetchedPrescriptions)
 
   const upcomingAppointments = appointments?.filter(a => a.status === 'scheduled' || a.status === 'confirmed') || []
 

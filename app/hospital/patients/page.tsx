@@ -5,6 +5,7 @@ import { doctorName, istDateKey } from '@/components/patient/format'
 import { ageSex, loadPatientFacts } from '@/lib/patient-facts'
 import { dayOf, hospitalShare, isPaidVisit, loadHospitalDoctors, loadHospitalVisits, PAYMENT_METHOD, requireHospital } from '../_lib/hospital'
 import { PatientsBoard, type BoardRow, type BoardView } from '../_components/PatientsBoard'
+import { AddPatientButton } from '../_components/PatientDesk'
 
 export const metadata: Metadata = { title: 'Patients | Hospital Portal' }
 export const dynamic = 'force-dynamic'
@@ -26,7 +27,7 @@ function Counter({ icon: Icon, label, value, tone }: { icon: LucideIcon; label: 
   )
 }
 
-export default async function HospitalPatientsPage(props: { searchParams?: Promise<{ view?: string }> }) {
+export default async function HospitalPatientsPage(props: { searchParams?: Promise<{ view?: string; payment?: string }> }) {
   const params = (await props.searchParams) ?? {}
   const { admin, hospital } = await requireHospital()
   const now = currentTime()
@@ -76,7 +77,15 @@ export default async function HospitalPatientsPage(props: { searchParams?: Promi
           <h1 className="font-headline-lg text-[24px] md:text-headline-lg text-indigo-gray-900 font-bold tracking-tight mt-1.5">Patients &amp; Appointments</h1>
           <p className="text-sm md:text-body-md text-indigo-gray-600">Everyone booked with your doctors: today’s queue, upcoming visits and history.</p>
         </div>
+        <AddPatientButton doctors={doctors.map((d) => ({ id: d.id, name: doctorName(d.name), department: d.department, fee: d.fee }))} />
       </section>
+
+      {params.payment === 'success' && (
+        <p role="status" className="p-3.5 rounded-xl bg-secondary-container/50 text-on-secondary-container text-sm font-semibold">PayU payment received. The booking is confirmed and the patient has been notified.</p>
+      )}
+      {params.payment === 'failed' && (
+        <p role="alert" className="p-3.5 rounded-xl bg-error-container/60 text-on-error-container text-sm font-semibold">The PayU payment didn’t go through. The booking is still unpaid; try again or use the scanner or cash.</p>
+      )}
 
       <section className="flex md:grid md:grid-cols-5 gap-2.5 md:gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
         <Counter icon={Users} label="Patients" value={counters.patients} tone="text-indigo-gray-900" />

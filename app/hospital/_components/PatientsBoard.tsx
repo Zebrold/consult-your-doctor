@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { Download, Phone, Search, Users } from 'lucide-react'
 import { Avatar, Chip, EmptyState, type Tone } from '@/components/portal/ui'
 import { formatDayLabel, formatINR, formatTime } from '@/components/patient/format'
+import { HealthRecordButton, TakePaymentButton } from './PatientDesk'
 
 export type BoardRow = {
   id: string
@@ -56,6 +57,12 @@ function exportCsv(rows: BoardRow[]) {
   a.download = 'hospital-appointments.csv'
   a.click()
   URL.revokeObjectURL(url)
+}
+
+/** What the desk can do for a visit: take an unpaid booking's payment, or add health data to a paid one. */
+function RowActions({ row }: { row: BoardRow }) {
+  if (row.status === 'pending_payment') return <TakePaymentButton appointmentId={row.id} />
+  return <HealthRecordButton appointmentId={row.id} patientName={row.patientName} />
 }
 
 export function PatientsBoard({ rows, today, now, initialView, departments }: { rows: BoardRow[]; today: string; now: number; initialView: BoardView; departments: string[] }) {
@@ -148,7 +155,8 @@ export function PatientsBoard({ rows, today, now, initialView, departments }: { 
                     <th className="py-3 px-4">Doctor &amp; Department</th>
                     <th className="py-3 px-4">Payment</th>
                     <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-5 text-right">Contact</th>
+                    <th className="py-3 px-4">Contact</th>
+                    <th className="py-3 px-5 text-right">Desk</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-container-low">
@@ -184,7 +192,7 @@ export function PatientsBoard({ rows, today, now, initialView, departments }: { 
                           )}
                         </td>
                         <td className="py-3.5 px-4 whitespace-nowrap">{status && <Chip tone={status.tone}>{status.label}</Chip>}</td>
-                        <td className="py-3.5 px-5 text-right whitespace-nowrap">
+                        <td className="py-3.5 px-4 whitespace-nowrap">
                           {r.phone ? (
                             <a href={`tel:${r.phone.replace(/[^\d+]/g, '')}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container text-[12px] font-semibold text-indigo-gray-900">
                               <Phone className="w-3.5 h-3.5 text-vibrant-blue" /> {r.phone}
@@ -192,6 +200,9 @@ export function PatientsBoard({ rows, today, now, initialView, departments }: { 
                           ) : (
                             <span className="text-[12px] text-indigo-gray-600">No phone</span>
                           )}
+                        </td>
+                        <td className="py-3.5 px-5 text-right whitespace-nowrap">
+                          <RowActions row={r} />
                         </td>
                       </tr>
                     )
@@ -229,11 +240,14 @@ export function PatientsBoard({ rows, today, now, initialView, departments }: { 
                       <span className="text-indigo-gray-600">
                         {r.payment ? `${r.payment.amount != null ? formatINR(r.payment.amount) : ''} • ${r.payment.label}` : r.status === 'pending_payment' ? 'Not paid yet' : 'Payment not recorded'}
                       </span>
-                      {r.phone && (
-                        <a href={`tel:${r.phone.replace(/[^\d+]/g, '')}`} aria-label={`Call ${r.patientName}`} className="p-2 rounded-full bg-surface-container-lowest text-vibrant-blue">
-                          <Phone className="w-4 h-4" />
-                        </a>
-                      )}
+                      <span className="flex items-center gap-1.5">
+                        <RowActions row={r} />
+                        {r.phone && (
+                          <a href={`tel:${r.phone.replace(/[^\d+]/g, '')}`} aria-label={`Call ${r.patientName}`} className="p-2 rounded-full bg-surface-container-lowest text-vibrant-blue">
+                            <Phone className="w-4 h-4" />
+                          </a>
+                        )}
+                      </span>
                     </div>
                   </li>
                 )

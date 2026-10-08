@@ -3,8 +3,8 @@ import type { ReactNode } from 'react'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
-  Building2, CalendarDays, CircleAlert, CircleCheck, FileText, FlaskConical, HeartPulse, IdCard, MapPin, Microscope,
-  Receipt, Siren, SquarePen, type LucideIcon,
+  Building2, CalendarDays, CircleAlert, CircleCheck, Download, FileText, FlaskConical, HeartPulse, IdCard, MapPin, Microscope,
+  Pill, Receipt, Siren, SquarePen, type LucideIcon,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -16,6 +16,8 @@ import { currentTime, one } from '@/components/patient/data'
 import { ageFrom, doctorName, formatINR, formatShortDate, initials } from '@/components/patient/format'
 import { matchBookedTests } from '@/lib/pricing'
 import { signReportLinks } from '@/lib/lab-reports'
+import { signRecordFiles } from '@/lib/records'
+import { parseVitals, vitalsList, withoutVitals } from '@/lib/vitals'
 
 export const metadata: Metadata = { title: 'My Profile | Consult Your Doctor' }
 
@@ -98,7 +100,7 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
       at: one(a.schedules)?.start_time ?? null,
       doctor: doctor ? { id: doctor.id, name: one(doctor.profiles)?.full_name ?? null, specialty: doctor.specialty } : null,
       hospital: one(a.hospitals),
-      records: (a.medical_records ?? []).filter((r) => r.file_url && r.file_url !== 'none'),
+      records: a.medical_records ?? [],
     }
   })
   const labBookings = ((labs ?? []) as LabRow[]).map((b) => {
@@ -130,6 +132,25 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
     .map((p) => ({ ...p, booking_id: (p.appointment_id ?? p.diagnostic_booking_id) as string }))
     .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
 
+  // Prescriptions, health records and lab reports are private: hand out short-lived signed links.
+  const recordLinks = await signRecordFiles(admin, visits.flatMap((v) => v.records.map((r) => r.file_url)))
+  const history = visits
+    .flatMap((v) =>
+      v.records.map((r) => ({
+        id: r.id,
+        kind: r.document_type === 'health_record' ? ('health' as const) : ('prescription' as const),
+        at: v.at,
+        visitId: v.id,
+        doctor: v.doctor,
+        hospital: v.hospital?.name ?? null,
+        vitals: parseVitals(r.notes),
+        notes: withoutVitals(r.notes),
+        file: (r.file_url && recordLinks[r.file_url]) || null,
+      })),
+    )
+    .sort((a, b) => (b.at ?? '').localeCompare(a.at ?? ''))
+  const latestVitals = history.find((h) => h.vitals)
+
   // Private, short-lived links to the reports labs have uploaded for this patient's own bookings.
   const reportLinks = await signReportLinks(
     createAdminClient(),
@@ -140,7 +161,7 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
     .filter((v) => (v.status === 'confirmed' || v.status === 'pending_payment') && v.at && Date.parse(v.at) > now)
     .sort((a, b) => (a.at ?? '').localeCompare(b.at ?? ''))
   const reportsSent = labBookings.filter((b) => b.status === 'report_sent').length
-  const records = visits.reduce((n, v) => n + v.records.length, 0)
+  const records = history.filter((h) => h.kind === 'prescription' && h.file).length
   const awaitingPayment = [
     ...visits.filter((v) => v.status === 'pending_payment' && (!v.at || Date.parse(v.at) > now)).map((v) => ({ id: v.id, href: `/patient/checkout/${v.id}`, label: v.doctor ? doctorName(v.doctor.name) : 'Consultation' })),
     ...labBookings.filter((b) => b.status === 'pending_payment').map((b) => ({ id: b.id, href: `/patient/checkout/diagnostic/${b.id}`, label: b.tests })),
@@ -211,7 +232,7 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
                 <div className="grid grid-cols-3 gap-3 md:gap-4">
                   <Stat href="/patient/appointments" label="Upcoming visits" value={upcoming.length} icon={CalendarDays} tint="text-primary" />
                   <Stat href="#labs" label="Lab reports" value={reportsSent} icon={Microscope} tint="text-fresh-teal" />
-                  <Stat href="/patient/appointments" label="Prescriptions" value={records} icon={FileText} tint="text-on-surface-variant" />
+                  <Stat href="#records" label="Prescriptions" value={records} icon={FileText} tint="text-on-surface-variant" />
                 </div>
 
                 <Section
@@ -245,10 +266,70 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
                       {details?.emergency_contact_name ? 'Update' : 'Add'}
                     </ProfileEditButton>
                   </div>
+                  {latestVitals?.vitals && (
+                    <div className="flex flex-col gap-2">
+                      <span className="font-label-sm text-[11px] text-on-surface-variant uppercase px-1">
+                        Latest vitals{latestVitals.at ? ` • ${formatShortDate(latestVitals.at)}` : ''}
+                      </span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {vitalsList(latestVitals.vitals).map((v) => (
+                          <Tile key={v.label} label={v.label} value={v.value} small accent={v.label === 'BMI' ? 'text-primary' : undefined} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {details?.address && (
                     <p className="flex items-start gap-2 px-1 text-sm text-on-surface-variant">
                       <MapPin className="w-[18px] h-[18px] text-outline shrink-0" /> {details.address}
                     </p>
+                  )}
+                </Section>
+
+                <Section id="records" icon={Pill} title="Prescriptions & Health Records" subtitle="Prescription PDFs from your doctors and health details recorded at the hospital">
+                  {history.length === 0 ? (
+                    <Empty>
+                      Nothing here yet. Prescriptions appear after your consultation, and health details when the hospital records them.
+                    </Empty>
+                  ) : (
+                    <ul className="flex flex-col gap-3">
+                      {history.slice(0, 8).map((h) => {
+                        const health = h.kind === 'health'
+                        return (
+                          <li key={h.id} className="p-3.5 rounded-xl bg-surface-container-low flex flex-col gap-2.5">
+                            <div className="flex items-start justify-between gap-3">
+                              <span className="flex items-center gap-3 min-w-0">
+                                <span className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${health ? 'bg-soft-coral/10 text-soft-coral' : 'bg-primary/10 text-primary'}`}>
+                                  {health ? <HeartPulse className="w-5 h-5" /> : <Pill className="w-5 h-5" />}
+                                </span>
+                                <span className="min-w-0">
+                                  <span className="block font-title-md text-[15px] text-on-surface truncate">
+                                    {health ? `Health record${h.hospital ? ` • ${h.hospital}` : ''}` : `Prescription${h.doctor ? ` • ${doctorName(h.doctor.name)}` : ''}`}
+                                  </span>
+                                  <span className="block text-xs text-on-surface-variant truncate">
+                                    {[h.at ? formatShortDate(h.at) : null, health ? null : h.doctor?.specialty, `ID ${bookingId(h.visitId)}`].filter(Boolean).join(' • ')}
+                                  </span>
+                                </span>
+                              </span>
+                              {h.file && (
+                                <a href={h.file} target="_blank" rel="noreferrer" className="px-3.5 py-1.5 rounded-full bg-primary/10 text-primary font-label-sm text-xs hover:bg-primary/15 shrink-0 flex items-center gap-1">
+                                  <Download className="w-3.5 h-3.5" /> {health ? 'Document' : 'PDF'}
+                                </a>
+                              )}
+                            </div>
+                            {h.vitals && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {vitalsList(h.vitals).map((v) => (
+                                  <span key={v.label} className="px-2.5 py-1 rounded-full bg-surface-container-lowest text-[12px] text-on-surface">
+                                    <span className="text-on-surface-variant">{v.label}:</span> <span className="font-semibold">{v.value}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {h.notes && <p className="text-sm text-on-surface-variant line-clamp-3">{h.notes}</p>}
+                          </li>
+                        )
+                      })}
+                    </ul>
                   )}
                 </Section>
 

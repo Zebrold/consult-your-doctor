@@ -301,8 +301,12 @@ export function RecordsAndMedicationsList({ prescriptions }: { prescriptions: an
               className="p-3 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors cursor-pointer border border-transparent hover:border-outline-variant/30 group relative"
             >
               <div className="pr-16">
-                <h4 className="font-label-sm text-body-md text-indigo-gray-900 font-semibold truncate group-hover:text-primary transition-colors">{record.prescription ? record.prescription.split('\n')[0] : (record.diagnosis || 'Medical Record')}</h4>
-                <p className="font-label-sm text-[12px] text-indigo-gray-600 mt-0.5">Prescribed by Dr. {record.doctor_name}</p>
+                <h4 className="font-label-sm text-body-md text-indigo-gray-900 font-semibold truncate group-hover:text-primary transition-colors">
+                  {record.document_type === 'health_record' ? 'Health record' : record.notes?.split(/(?<=\.)\s/)[0] || 'Prescription'}
+                </h4>
+                <p className="font-label-sm text-[12px] text-indigo-gray-600 mt-0.5">
+                  {record.document_type === 'health_record' ? `Recorded at ${record.hospital_name ?? 'the hospital'}` : `Prescribed by ${/^dr\.?\s/i.test(record.doctor_name ?? '') ? record.doctor_name : `Dr. ${record.doctor_name ?? ''}`}`}
+                </p>
                 <p className="font-label-sm text-[11px] text-outline mt-1">{new Date(record.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
               </div>
 
@@ -324,7 +328,7 @@ export function RecordsAndMedicationsList({ prescriptions }: { prescriptions: an
 
       {prescriptions.length > 3 && (
         <div className="pt-2">
-          <a className="font-label-sm text-label-sm text-primary hover:underline font-semibold flex items-center gap-1" data-path="prescriptions" href="/patient/prescriptions">
+          <a className="font-label-sm text-label-sm text-primary hover:underline font-semibold flex items-center gap-1" href="/patient/profile#records">
             View all records <ChevronRight className="w-[16px] h-[16px]" />
           </a>
         </div>

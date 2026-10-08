@@ -3,10 +3,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowRight, Menu, X, LogOut, LayoutDashboard, Stethoscope } from "lucide-react";
+import { CalendarPlus, Menu, X, LogOut, LayoutDashboard } from "lucide-react";
 import { useState } from "react";
+import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { AppComingSoon } from "./AppComingSoon";
+import { BookingDialog } from "./BookingDialog";
 
 const navLinks = [
   { name: "How it works", href: "/how-it-works" },
@@ -15,9 +17,10 @@ const navLinks = [
   { name: "Prices", href: "/prices" },
 ];
 
-export function ClientHeader({ user }: { user: any }) {
+export function ClientHeader({ user }: { user: User | null }) {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [booking, setBooking] = useState(false);
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -74,33 +77,30 @@ export function ClientHeader({ user }: { user: any }) {
         </nav>
 
         {/* Desktop Auth / User Action */}
-        <div className="hidden lg:flex items-center gap-4">
+        <div className="hidden lg:flex items-center gap-3">
           <AppComingSoon />
           {user ? (
             <>
-              <Link
-                href={dashboardHref}
-                className="flex items-center gap-2 text-on-surface font-bold hover:text-vibrant-blue text-[15px] transition-colors"
-              >
-                <LayoutDashboard className="w-5 h-5 text-vibrant-blue" />
+              <Link href={dashboardHref} className="flex items-center gap-1.5 px-2 text-on-surface font-semibold hover:text-vibrant-blue text-[14px] transition-colors">
+                <LayoutDashboard className="w-4 h-4 text-vibrant-blue" />
                 Dashboard
               </Link>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 rounded-full border border-surface-variant bg-surface-container-lowest text-on-surface px-5 py-2 font-bold text-[14px] hover:bg-surface-variant transition-all shadow-sm"
-              >
-                <LogOut className="w-4 h-4 text-outline" />
-                Logout
+              <button onClick={handleLogout} aria-label="Log out" title="Log out" className="w-9 h-9 rounded-full flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container transition-colors">
+                <LogOut className="w-4 h-4" />
               </button>
             </>
           ) : (
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-full bg-vibrant-blue text-on-primary font-label-sm text-label-sm shadow-[0_4px_12px_rgba(0,102,255,0.2)] hover:bg-primary transition-all"
-            >
-              Login / Register <ArrowRight className="w-4 h-4" />
+            <Link href="/login" className="px-2 text-[14px] font-semibold text-on-surface-variant hover:text-vibrant-blue transition-colors">
+              Sign in
             </Link>
           )}
+          <button
+            type="button"
+            onClick={() => setBooking(true)}
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-vibrant-blue text-on-primary text-[15px] font-bold shadow-[0_6px_16px_rgba(0,102,255,0.28)] hover:bg-primary hover:shadow-[0_8px_20px_rgba(0,102,255,0.34)] active:scale-[0.98] transition-all"
+          >
+            <CalendarPlus className="w-4 h-4" /> Book Now
+          </button>
         </div>
 
         {/* Mobile: app badge and menu toggle */}
@@ -162,16 +162,23 @@ export function ClientHeader({ user }: { user: any }) {
               </button>
             </div>
           ) : (
-            <Link
-              href="/login"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-vibrant-blue text-white px-5 py-3 font-bold text-lg shadow-sm"
-            >
-              Login / Register <ArrowRight className="w-5 h-5" />
+            <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="text-center text-[15px] font-semibold text-on-surface-variant hover:text-vibrant-blue">
+              Sign in
             </Link>
           )}
+          <button
+            type="button"
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              setBooking(true);
+            }}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-vibrant-blue text-white px-5 py-3 font-bold text-[17px] shadow-sm"
+          >
+            <CalendarPlus className="w-5 h-5" /> Book Now
+          </button>
         </div>
       )}
+      {booking && <BookingDialog kind="consultation" onClose={() => setBooking(false)} />}
     </header>
   );
 }

@@ -359,3 +359,29 @@ export async function verifyOTPAndUpdatePassword(email: string, token: string, n
 
   return { success: true }
 }
+
+/**
+ * Sign-in with the Patient ID and password a diagnostic centre issued at registration (see
+ * lib/patient-onboarding.ts). The ID leads to the account, which signs in with its email or mobile number.
+ */
+export async function patientIdLogin(prevState: { error?: string } | null, formData: FormData) {
+  const patientCode = String(formData.get('patientId') || '').trim().toUpperCase()
+  const password = String(formData.get('password') || '')
+  if (!/^PT\d{6}$/.test(patientCode) || !password) return { error: 'Enter your Patient ID (like PT482193) and password.' }
+
+  const { createAdminClient } = await import('@/lib/supabase/admin')
+  const admin = createAdminClient()
+  const { data: profile } = await admin.from('profiles').select('id, role').eq('patient_code', patientCode).maybeSingle()
+  const { data: auth } = profile ? await admin.auth.admin.getUserById(profile.id) : { data: { user: null } }
+  const identity = auth.user?.email ? { email: auth.user.email } : auth.user?.phone ? { phone: `+${auth.user.phone.replace(/^\+/, '')}` } : null
+  if (!profile || profile.role !== 'patient' || !identity) return { error: 'That Patient ID or password is incorrect.' }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.auth.signInWithPassword({ ...identity, password })
+  if (error || !data.user) return { error: 'That Patient ID or password is incorrect.' }
+
+  const cookieStore = await cookies()
+  cookieStore.set(ROLE_COOKIE, roleCookieValue(data.user.id, 'patient'), ROLE_COOKIE_OPTIONS)
+  const next = String(formData.get('next') || '')
+  redirect(next.startsWith('/') && !next.startsWith('//') ? next : '/patient/profile')
+}

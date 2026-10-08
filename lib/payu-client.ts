@@ -1,8 +1,8 @@
 // Browser-only: hands a pending booking over to the PayU hosted checkout.
 // PayU calls /api/payu/callback afterwards, which confirms the booking.
 
-// PayU test endpoint. For production, change this to 'https://secure.payu.in/_payment'
-const PAYU_URL = 'https://test.payu.in/_payment'
+// PayU's test checkout unless NEXT_PUBLIC_PAYU_URL says otherwise (https://secure.payu.in/_payment for live payments).
+const PAYU_URL = process.env.NEXT_PUBLIC_PAYU_URL || 'https://test.payu.in/_payment'
 
 type PayuRequest = {
   txnid: string
@@ -41,6 +41,7 @@ export async function startPayuPayment(req: PayuRequest): Promise<string | null>
     surl: callback,
     furl: callback,
     hash: data.hash,
+    ...(data.udf1 ? { udf1: data.udf1 } : {}),
   }
 
   const form = document.createElement('form')

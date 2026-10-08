@@ -30,7 +30,7 @@ export default async function DoctorPatientsPage(props: { searchParams?: Promise
     const checkedIn = list.find((v) => v.status === 'visited')
     const active = checkedIn ?? upcoming[0] ?? list.filter((v) => v.status === 'confirmed').pop() ?? null
     const records = list
-      .flatMap((v) => v.records.map((r) => ({ id: r.id, notes: r.notes, fileUrl: r.fileUrl, date: r.createdAt ?? v.start })))
+      .flatMap((v) => v.records.map((r) => ({ id: r.id, type: r.type, notes: r.notes, fileUrl: r.fileUrl, date: r.createdAt ?? v.start })))
       .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
     return {
       id,

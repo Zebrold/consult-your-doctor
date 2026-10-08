@@ -81,6 +81,16 @@ export default async function DoctorDashboard() {
   const todaySlots = slots.filter((s) => istDateKey(s.start) === todayKey)
   const restOfDay = todaySlots.filter((s) => Date.parse(s.end ?? s.start) > now)
   const visitBySlot = new Map(live.filter((v) => v.scheduleId).map((v) => [v.scheduleId!, v]))
+  // Booked visits each get a row; a run of free slots between them is one "open" row, so a day of 10-minute
+  // slots doesn't fill the column with dozens of identical lines.
+  type DayRow = { kind: 'visit'; slot: (typeof restOfDay)[number] } | { kind: 'open'; first: (typeof restOfDay)[number]; last: (typeof restOfDay)[number]; count: number }
+  const dayRows: DayRow[] = []
+  for (const slot of restOfDay) {
+    const prev = dayRows[dayRows.length - 1]
+    if (visitBySlot.has(slot.id) || slot.booked) dayRows.push({ kind: 'visit', slot })
+    else if (prev?.kind === 'open') dayRows[dayRows.length - 1] = { ...prev, last: slot, count: prev.count + 1 }
+    else dayRows.push({ kind: 'open', first: slot, last: slot, count: 1 })
+  }
   const inClinicToday = todays.filter((v) => PAID.includes(v.status)).length
 
   const factIds = Array.from(new Set([next, ...waiting, ...checkedIn].map((v) => v?.patient?.id).filter(Boolean) as string[]))
@@ -338,8 +348,31 @@ export default async function DoctorDashboard() {
             ) : restOfDay.length === 0 ? (
               <EmptyState icon={CalendarCheck}>That&apos;s the last slot done for today.</EmptyState>
             ) : (
-              <ul className="flex flex-col gap-2 md:gap-3">
-                {restOfDay.map((s) => {
+              <ul className="flex flex-col gap-2 md:gap-2.5">
+                {dayRows.map((row) => {
+                  if (row.kind === 'open') {
+                    const current = Date.parse(row.first.start) <= now
+                    const until = formatTime(row.last.end ?? row.last.start)
+                    return (
+                      <li key={row.first.id} className={`p-2.5 md:p-3 rounded-xl md:rounded-lg flex items-center gap-2.5 md:gap-stack-sm ${current ? 'bg-primary/5 ring-1 ring-vibrant-blue/30' : 'bg-surface-container-low/40'}`}>
+                        <div className="text-right w-12 md:w-14 shrink-0">
+                          <span className="font-title-md text-[13px] md:text-[14px] font-bold text-indigo-gray-900 block leading-tight">{formatTime(row.first.start).replace(/ (AM|PM)$/, '')}</span>
+                          <span className={`block text-[10px] md:text-[11px] ${current ? 'text-primary font-semibold' : 'text-indigo-gray-600'}`}>{current ? 'Now' : formatTime(row.first.start).slice(-2)}</span>
+                        </div>
+                        <div className="w-1 self-stretch rounded-full bg-outline-variant/50" />
+                        <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                          <span className="min-w-0">
+                            <span className="block font-label-sm text-[13px] md:text-label-sm font-bold text-indigo-gray-900">
+                              {row.count} open {row.count === 1 ? 'slot' : 'slots'}
+                            </span>
+                            <span className="block text-[11px] md:text-xs text-indigo-gray-600 truncate">Until {until} • patients can book these</span>
+                          </span>
+                          <span className="px-1.5 md:px-2 py-0.5 rounded bg-surface-container text-indigo-gray-600 font-label-sm text-[10px] md:text-[11px] shrink-0">Available</span>
+                        </div>
+                      </li>
+                    )
+                  }
+                  const s = row.slot
                   const v = visitBySlot.get(s.id)
                   const current = Date.parse(s.start) <= now
                   const bar = !v ? 'bg-outline-variant' : v.status === 'completed' ? 'bg-fresh-teal' : v.status === 'visited' ? 'bg-secondary' : v.status === 'pending_payment' ? 'bg-tertiary-container' : 'bg-vibrant-blue'

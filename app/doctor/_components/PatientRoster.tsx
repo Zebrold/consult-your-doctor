@@ -3,10 +3,10 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import {
   Activity, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Download, Droplet, FileText, FolderOpen, HeartPulse,
-  Mail, NotebookPen, Phone, Pill, Printer, Search, Siren, Users, Wind, type LucideIcon,
+  Gauge, Mail, NotebookPen, Phone, Pill, Printer, Scale, Search, Siren, Thermometer, Users, Wind, type LucideIcon,
 } from 'lucide-react'
 import { formatShortDate, formatSlot } from '@/components/patient/format'
-import { showHR, showSpO2 } from '@/lib/vitals'
+import { showBMI, showHR, showSpO2, showTemp, showWeight, type Vitals } from '@/lib/vitals'
 import { Avatar, Chip, MetricCard, ProgressBar } from '@/components/portal/ui'
 import { CallLink, PrescriptionButton, type VisitRef } from './VisitControls'
 import { WalkInButton } from './WalkInModal'
@@ -28,8 +28,9 @@ export type RosterPatient = {
   nextVisit: string | null
   active: { id: string; status: string } | null
   group: 'checked-in' | 'upcoming' | 'past'
-  records: { id: string; notes: string | null; fileUrl: string | null; date: string | null }[]
-  vitals: { bp: string | null; spo2: string | null; hr: string | null; date: string | null } | null
+  /** type is the record kind: 'prescription', or 'health_record' for details the hospital desk recorded. */
+  records: { id: string; type: string | null; notes: string | null; fileUrl: string | null; date: string | null }[]
+  vitals: (Vitals & { date: string | null }) | null
 }
 
 type Stats = {
@@ -489,6 +490,14 @@ function VitalsStrip({ vitals, compact }: { vitals: NonNullable<RosterPatient['v
     { icon: Wind, label: 'SpO2', value: vitals.spo2 ? showSpO2(vitals.spo2) : null },
     { icon: Activity, label: 'Heart Rate', value: vitals.hr ? showHR(vitals.hr) : null },
   ]
+  // Weight, BMI and temperature, when someone measured them (the hospital desk or the prescription form).
+  if (vitals.weight || vitals.bmi || vitals.temp) {
+    cells.push(
+      { icon: Thermometer, label: 'Temp.', value: vitals.temp ? showTemp(vitals.temp) : null },
+      { icon: Scale, label: 'Weight', value: vitals.weight ? showWeight(vitals.weight) : null },
+      { icon: Gauge, label: 'BMI', value: vitals.bmi ? showBMI(vitals.bmi) : null },
+    )
+  }
   return (
     <div className={`grid grid-cols-3 gap-2 text-center ${compact ? 'bg-surface-container-low p-2 rounded-lg' : 'pt-1'}`}>
       {cells.map((c) => (
@@ -684,15 +693,25 @@ function PatientDetails({ patient: p, now }: { patient: RosterPatient; now: numb
           <p className="p-2.5 rounded-lg bg-surface-container-low text-[12px] text-indigo-gray-600">No notes yet.</p>
         ) : (
           <ul className="flex flex-col gap-1.5">
-            {p.records.slice(0, 3).map((r) => (
-              <li key={r.id} className="p-2.5 rounded-lg bg-surface-container-low flex items-start gap-2">
-                <Pill className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] text-indigo-gray-900 line-clamp-2">{noteText(r.notes) || 'Document only'}</p>
-                  <span className="text-[11px] text-indigo-gray-600">{r.date ? formatSlot(r.date, now) : ''}</span>
-                </div>
-              </li>
-            ))}
+            {p.records.slice(0, 4).map((r) => {
+              const fromHospital = r.type === 'health_record'
+              const Icon = fromHospital ? HeartPulse : Pill
+              return (
+                <li key={r.id} className="p-2.5 rounded-lg bg-surface-container-low flex items-start gap-2">
+                  <Icon className={`w-4 h-4 shrink-0 mt-0.5 ${fromHospital ? 'text-soft-coral' : 'text-primary'}`} />
+                  <div className="min-w-0 flex-1">
+                    {fromHospital && <span className="block text-[10px] font-bold uppercase tracking-wider text-soft-coral">Hospital health record</span>}
+                    <p className="text-[13px] text-indigo-gray-900 line-clamp-2">{noteText(r.notes) || (fromHospital ? 'Vitals recorded at the desk' : 'Document only')}</p>
+                    <span className="text-[11px] text-indigo-gray-600">{r.date ? formatSlot(r.date, now) : ''}</span>
+                  </div>
+                  {r.fileUrl && (
+                    <a href={r.fileUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 text-[11px] font-bold text-primary hover:underline">
+                      Open
+                    </a>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         )}
       </div>

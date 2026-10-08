@@ -4,20 +4,24 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { vitalsSentence } from '@/lib/vitals'
+import { RECORD_MAX_BYTES, RECORD_TYPES, storeRecordFile } from '@/lib/records'
+import { issuePrescription } from '@/lib/prescriptions'
 
 const IMAGE_TYPES: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
-const DOCUMENT_TYPES: Record<string, string> = { ...IMAGE_TYPES, 'application/pdf': 'pdf' }
 
 export async function addPrescription(formData: FormData) {
-  const appointmentId = formData.get('appointmentId') as string
-  const vitals = vitalsSentence({ bp: formData.get('bp'), spo2: formData.get('spo2'), hr: formData.get('hr') })
-  const notes = [String(formData.get('notes') || '').trim(), vitals].filter(Boolean).join(' ')
+  const appointmentId = String(formData.get('appointmentId') || '')
+  const field = (name: string) => String(formData.get(name) || '').trim()
+  // `notes` is the form's older single box; it still counts as the diagnosis.
+  const diagnosis = field('diagnosis') || field('notes')
+  const medicines = field('medicines')
+  const advice = field('advice')
   const file = formData.get('file') as File | null
 
-  if (!appointmentId || !notes) return { error: 'Missing required fields' }
+  if (!appointmentId || !(diagnosis || medicines)) return { error: 'Enter the diagnosis or the medicines.' }
 
   const supabase = await createClient()
-  
+
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Unauthorized' }
 
@@ -33,55 +37,43 @@ export async function addPrescription(formData: FormData) {
     return { error: 'Prescriptions can only be added to paid, active appointments.' }
   }
 
-  let fileUrl = 'none'
-
+  let attachment: { ext: string } | null = null
   if (file && file.size > 0) {
-    // Basic validation
-    if (file.size > 5242880) return { error: 'File size must be under 5MB' }
-    const fileExt = DOCUMENT_TYPES[file.type]
-    if (!fileExt) return { error: 'Upload the prescription as a PDF, JPG, PNG or WebP file.' }
-
-    // Generate unique filename
-    const fileName = `${appointmentId}-${Date.now()}.${fileExt}`
-    
-    // Upload to supabase storage using admin client to bypass Storage RLS
-    const adminClient = createAdminClient()
-    const { data: uploadData, error: uploadError } = await adminClient.storage
-      .from('medical_records')
-      .upload(fileName, file, { upsert: true, contentType: file.type })
-
-    if (uploadError) {
-      console.error('Storage upload error:', uploadError)
-      return { error: 'Failed to upload document' }
-    }
-    
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from('medical_records')
-      .getPublicUrl(uploadData.path)
-      
-    fileUrl = publicUrl
+    if (file.size > RECORD_MAX_BYTES) return { error: 'File size must be under 5MB' }
+    const ext = RECORD_TYPES[file.type]
+    if (!ext) return { error: 'Upload the attachment as a PDF, JPG, PNG or WebP file.' }
+    attachment = { ext }
   }
 
-  // Insert medical record
-  const { error: insertError } = await supabase.from('medical_records').insert({
-    appointment_id: appointmentId,
-    document_type: 'prescription',
-    notes: notes,
-    file_url: fileUrl
+  // The prescription PDF goes into the patient's records and to the patient on WhatsApp and email.
+  const adminClient = createAdminClient()
+  const issued = await issuePrescription(adminClient, {
+    appointmentId,
+    diagnosis,
+    medicines,
+    advice,
+    vitals: { bp: field('bp'), spo2: field('spo2'), hr: field('hr'), temp: field('temp'), weight: field('weight'), height: field('height') },
   })
+  if (!issued.ok) return { error: issued.error }
 
-  if (insertError) {
-    console.error(insertError)
-    return { error: 'Failed to add prescription' }
+  // A document the doctor attached (a scan, a referral letter) is kept on the visit alongside the PDF.
+  if (file && attachment) {
+    try {
+      const path = await storeRecordFile(adminClient, `prescriptions/${appointmentId}/attachment-${Date.now()}.${attachment.ext}`, file, file.type)
+      await adminClient.from('medical_records').insert({ appointment_id: appointmentId, document_type: 'prescription', notes: 'Attachment from the doctor.', file_url: path })
+    } catch (err) {
+      console.error('addPrescription attachment:', err)
+      return { error: 'The prescription was saved, but the attachment could not be uploaded. Attach it again with a new prescription.' }
+    }
   }
 
   // Writing the prescription completes the visit
   if (appointment.status !== 'completed') {
-    await supabase.from('appointments').update({ status: 'completed' }).eq('id', appointmentId)
+    await adminClient.from('appointments').update({ status: 'completed' }).eq('id', appointmentId)
   }
 
   revalidateDoctorPages()
+  revalidatePath('/patient/profile')
   return { success: true }
 }
 
@@ -313,19 +305,14 @@ export async function addNewPatient(formData: FormData) {
       status: 'confirmed'
     }).select('id').single()
 
-    const notes = [
-      diagnosis,
-      vitalsSentence({ bp: field('bp'), spo2: field('spo2'), hr: field('hr') }),
-      allergy && `Allergy: ${allergy}.`,
-      medications && `Rx: ${medications}`,
-    ].filter(Boolean).join(' ')
-    if (newApt && notes) {
-      await adminClient.from('medical_records').insert({
-        appointment_id: newApt.id,
-        document_type: 'prescription',
-        notes,
-        file_url: 'none'
-      })
+    const vitals = { bp: field('bp'), spo2: field('spo2'), hr: field('hr') }
+    if (newApt && (diagnosis || medications)) {
+      // A diagnosis or medicines make a prescription: a PDF in the patient's records, sent to the patient.
+      const issued = await issuePrescription(adminClient, { appointmentId: newApt.id, diagnosis, medicines: medications, advice: '', allergy, vitals })
+      if (!issued.ok) return { success: false, error: `The patient was added, but ${issued.error.charAt(0).toLowerCase()}${issued.error.slice(1)}` }
+    } else if (newApt) {
+      const notes = [vitalsSentence(vitals), allergy && `Allergy: ${allergy}.`].filter(Boolean).join(' ')
+      if (notes) await adminClient.from('medical_records').insert({ appointment_id: newApt.id, document_type: 'prescription', notes, file_url: 'none' })
     }
   }
 

@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { one } from '@/components/patient/data'
 import type { Tone } from '@/components/portal/ui'
 import { parseVitals, type Vitals } from '@/lib/vitals'
+import { signRecordFiles } from '@/lib/records'
 
 export { loadPatientFacts, type PatientFacts } from '@/lib/patient-facts'
 export type { Tone }
@@ -101,7 +102,10 @@ export async function loadVisits(admin: Admin, doctorId: string): Promise<Visit[
     schedules: Joined<{ start_time: string; end_time: string | null }>
     medical_records: { id: string; notes: string | null; document_type: string | null; file_url: string | null }[] | null
   }
-  return ((data ?? []) as unknown as Row[])
+  const rows = (data ?? []) as unknown as Row[]
+  // Files are private: hand the doctor signed links (valid for an hour).
+  const links = await signRecordFiles(admin, rows.flatMap((r) => (r.medical_records ?? []).map((m) => m.file_url)))
+  return rows
     .map((r) => {
       const patient = one(r.patient)
       const slot = one(r.schedules)
@@ -115,7 +119,7 @@ export async function loadVisits(admin: Admin, doctorId: string): Promise<Visit[
         patient: patient ? { id: patient.id, name: patient.full_name || 'Patient', phone: patient.phone_number, email: patient.email } : null,
         records: (r.medical_records ?? [])
           // medical_records has no timestamp column; a record dates from its visit.
-          .map((m) => ({ id: m.id, type: m.document_type, notes: m.notes, fileUrl: m.file_url && m.file_url !== 'none' ? m.file_url : null, createdAt: null })),
+          .map((m) => ({ id: m.id, type: m.document_type, notes: m.notes, fileUrl: (m.file_url && links[m.file_url]) || null, createdAt: null })),
       }
     })
     .sort((a, b) => (a.start ?? a.createdAt).localeCompare(b.start ?? b.createdAt))

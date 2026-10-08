@@ -71,8 +71,8 @@ export function PayUCheckoutForm({
     }
   }
 
-  // PayU Test URL. For production, change this to 'https://secure.payu.in/_payment'
-  const payuUrl = 'https://test.payu.in/_payment'
+  // PayU's test checkout unless NEXT_PUBLIC_PAYU_URL says otherwise (https://secure.payu.in/_payment for live payments).
+  const payuUrl = process.env.NEXT_PUBLIC_PAYU_URL || 'https://test.payu.in/_payment'
 
   return (
     <>

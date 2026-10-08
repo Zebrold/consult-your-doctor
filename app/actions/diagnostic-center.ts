@@ -3,9 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { istDateKey } from '@/components/patient/format'
-import { matchBookedTests } from '@/lib/pricing'
 import { REPORT_BUCKET, REPORT_MAX_BYTES, REPORT_TYPES, reportPath } from '@/lib/lab-reports'
+import { notifyReportReady } from '@/lib/notify/patient'
 
 type Result = { success: true } | { success: false; error: string }
 
@@ -118,7 +117,7 @@ export async function uploadLabReport(formData: FormData): Promise<Result> {
 
   const { data: booking } = await ctx.admin
     .from('diagnostic_bookings')
-    .select('id, status')
+    .select('id, status, patient_id, diagnostic_centers ( name )')
     .eq('id', bookingId)
     .eq('center_id', ctx.centerId)
     .maybeSingle()
@@ -140,79 +139,21 @@ export async function uploadLabReport(formData: FormData): Promise<Result> {
     console.error('uploadLabReport status:', error)
     return fail('The report was uploaded but the booking could not be updated. Please try again.')
   }
+
+  // Send the report to the patient on WhatsApp, and by email when they gave an address.
+  const center = (Array.isArray(booking.diagnostic_centers) ? booking.diagnostic_centers[0] : booking.diagnostic_centers) as { name: string } | null
+  const ext = { 'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[file.type] ?? 'pdf'
+  notifyReportReady({
+    patientId: booking.patient_id,
+    what: 'lab report',
+    from: center?.name ?? 'your diagnostic centre',
+    path: reportPath(ctx.centerId, bookingId),
+    filename: `Lab-Report-${bookingId.slice(0, 8).toUpperCase()}.${ext}`,
+    contentType: file.type,
+    file: new Uint8Array(await file.arrayBuffer()),
+  })
   revalidateLabPages()
   revalidatePath('/patient/profile')
-  return { success: true }
-}
-
-/** "98204 77210" / "+91 98204 77210" → "+919820477210" (numbers without a country code are taken as Indian). */
-function toE164(raw: string) {
-  const cleaned = raw.replace(/[^\d+]/g, '')
-  if (cleaned.startsWith('+')) return cleaned
-  return cleaned.length === 10 ? `+91${cleaned}` : `+${cleaned}`
-}
-
-/**
- * Books tests for a patient at the desk (or over the phone). The patient is found by mobile number, or given an
- * account on that number so they can sign in later with an OTP and see the booking and report. Paid at the center.
- */
-export async function createLabBooking(formData: FormData): Promise<Result> {
-  const ctx = await labContext()
-  if (!ctx) return fail('Please sign in with your diagnostic center account.')
-
-  const name = String(formData.get('name') || '').trim()
-  const phone = toE164(String(formData.get('phone') || ''))
-  const date = String(formData.get('date') || '')
-  const selected = Array.from(new Set(formData.getAll('tests').map(String).filter(Boolean)))
-
-  if (name.length < 2) return fail('Enter the patient’s full name.')
-  if (!/^\+\d{10,15}$/.test(phone)) return fail('Enter a valid mobile number.')
-  const today = istDateKey(Date.now())
-  const latest = istDateKey(Date.now() + 90 * 86_400_000)
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < today || date > latest) return fail('Choose a date between today and 90 days from now.')
-  if (selected.length === 0) return fail('Select at least one test.')
-
-  const { tests, prices } = await loadTestList(ctx.admin, ctx.centerId)
-  const offered = new Map(tests.map((t) => [t.toLowerCase(), t]))
-  const names = selected.map((t) => offered.get(t.toLowerCase()))
-  if (names.some((t) => !t)) return fail('Some of these tests are no longer on your menu. Refresh and try again.')
-  const testName = (names as string[]).join(', ')
-  if (!matchBookedTests(testName, prices)) return fail('Every selected test needs a price on your test menu.')
-
-  let patientId: string | null = null
-  const { data: existing } = await ctx.admin.from('profiles').select('id').eq('phone_number', phone).limit(1).maybeSingle()
-  if (existing) {
-    patientId = existing.id
-  } else {
-    const { data: created, error: createError } = await ctx.admin.auth.admin.createUser({
-      phone,
-      phone_confirm: true,
-      user_metadata: { full_name: name, role: 'patient' },
-    })
-    if (!created?.user) {
-      console.error('createLabBooking createUser:', createError)
-      return fail('This number is already registered but has no patient profile. Ask the patient to sign in once, then book again.')
-    }
-    patientId = created.user.id
-    const { error: profileError } = await ctx.admin.from('profiles').upsert({ id: patientId, full_name: name, phone_number: phone, role: 'patient' })
-    if (profileError) {
-      console.error('createLabBooking profile:', profileError)
-      return fail('Could not create the patient’s profile. Please try again.')
-    }
-  }
-
-  const { error } = await ctx.admin.from('diagnostic_bookings').insert({
-    patient_id: patientId,
-    center_id: ctx.centerId,
-    test_name: testName,
-    preferred_date: date,
-    status: 'confirmed',
-  })
-  if (error) {
-    console.error('createLabBooking insert:', error)
-    return fail('Could not create the booking. Please try again.')
-  }
-  revalidateLabPages()
   return { success: true }
 }
 

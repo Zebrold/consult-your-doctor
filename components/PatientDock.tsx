@@ -24,7 +24,8 @@ export function PatientDock({ activeTab = "home", isSignedIn = true, name }: Pat
       tabs={[
         { href: `/${suffix}`, label: "Home", icon: House, active: activeTab === "home" },
         { href: `/find${suffix}`, label: "Find", icon: Search, active: activeTab === "find" },
-        { href: `/find${suffix}`, label: "Book", icon: CalendarDays, active: activeTab === "book" },
+        // The patient's own visits and lab bookings (visitors who aren't signed in find care to book instead).
+        { href: isSignedIn ? `/patient/appointments${suffix}` : `/find${suffix}`, label: "Bookings", icon: CalendarDays, active: activeTab === "book" },
         { href: "/ai", label: "Zebrold AI", icon: BrainCircuit, ai: true, active: activeTab === "ai" },
         isSignedIn
           ? { href: `/patient/profile${suffix}`, label: "Profile", icon: UserRound, profile: true, avatar: { name }, active: activeTab === "profile" }

@@ -35,12 +35,37 @@ const norm = (s: string | null | undefined) => (s ?? '').toLowerCase().replace(/
 // Words that say nothing about which test or doctor is meant.
 const FILLER = new Set(['test', 'tests', 'check', 'checkup', 'doctor', 'doctors', 'specialist', 'a', 'an', 'the', 'for', 'in', 'near', 'me', 'blood'])
 const words = (q: string) => norm(q).split(/[^a-z0-9]+/).filter((w) => w.length > 1 && !FILLER.has(w))
+// "Cardiologist", "cardiology" and "cardiac" share a stem, as do "pediatrician" and "pediatrics".
+const stem = (w: string) => (w.length > 4 ? w.replace(/(ologists?|ologies|ology|icians?|ists?|ics?|ies|y|s)$/, '') : w)
+// Everyday words people use for a specialty, as that specialty's stem.
+const ALIASES: Record<string, string> = {
+  heart: 'cardi', skin: 'dermat', hair: 'dermat', bone: 'orthoped', bones: 'orthoped', joint: 'orthoped', joints: 'orthoped',
+  child: 'pediatr', children: 'pediatr', kids: 'pediatr', baby: 'pediatr', eye: 'ophthalm', eyes: 'ophthalm',
+  physician: 'medicin', women: 'gynec', pregnancy: 'gynec', dental: 'dent', teeth: 'dent', brain: 'neur', nerves: 'neur',
+}
+function editDistance(a: string, b: string) {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j)
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i]
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1))
+    prev = cur
+  }
+  return prev[b.length]
+}
+/** Stems that agree, one extending the other, or differ by a typo (as in "Cadiology"). */
+const close = (a: string, b: string) => {
+  const n = Math.min(a.length, b.length)
+  if (n >= 3 && (a.startsWith(b) || b.startsWith(a))) return true
+  return n >= 4 && editDistance(a, b) <= (n >= 8 ? 2 : 1)
+}
 const matches = (hay: string, q: string) => {
   const h = norm(hay)
   const n = norm(q)
   if (!n || h.includes(n)) return true
   const w = words(q)
-  return w.length > 0 && w.every((x) => h.includes(x))
+  if (!w.length) return false
+  const hayStems = h.split(/[^a-z0-9]+/).filter(Boolean).map(stem)
+  return w.every((x) => h.includes(x) || hayStems.some((s) => close(s, ALIASES[x] ?? stem(x))))
 }
 
 /**

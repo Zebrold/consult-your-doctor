@@ -30,6 +30,7 @@ const TABS: Record<Portal, Tab[]> = {
     { href: '/hospital/revenue', label: 'Finance', icon: Wallet, wide: 'Finance & Revenue' },
     { href: '/hospital/staff', label: 'Staff', icon: IdCard, wide: 'Staff Directory' },
     { href: '/hospital/ai', label: 'Zebrold AI', icon: BrainCircuit, ai: true },
+    { href: '/hospital/profile', label: 'Profile', icon: CircleUserRound, profile: true },
   ],
 }
 

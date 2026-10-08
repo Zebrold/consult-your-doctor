@@ -3,8 +3,8 @@
 import { startTransition, useActionState, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { ArrowLeft, ArrowRight, ChevronDown, Loader2, LogIn, MessageSquare, Stethoscope, User, UserPlus } from 'lucide-react'
-import { sendOTP, verifyOTP } from '@/app/actions/auth'
+import { ArrowLeft, ArrowRight, ChevronDown, IdCard, KeyRound, Loader2, LogIn, MessageSquare, Stethoscope, User, UserPlus } from 'lucide-react'
+import { patientIdLogin, sendOTP, verifyOTP } from '@/app/actions/auth'
 import { createClient } from '@/lib/supabase/client'
 import { COUNTRY_CODES } from '@/lib/countryCodes'
 
@@ -23,6 +23,8 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
   const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : ''
   const [mode, setMode] = useState<Mode>(searchParams.get('mode') === 'register' ? 'register' : 'signin')
   const [step, setStep] = useState<1 | 2>(1)
+  // Patients a diagnostic centre registered can sign in with the Patient ID and password they were given.
+  const [withPatientId, setWithPatientId] = useState(false)
 
   const [fullName, setFullName] = useState('')
   // Codes can only be texted to Indian numbers (see sendOTP), so India comes first.
@@ -133,7 +135,9 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
           </p>
         </div>
 
-        {step === 1 ? (
+        {withPatientId ? (
+          <PatientIdSignIn next={next} onBack={() => setWithPatientId(false)} />
+        ) : step === 1 ? (
           <>
             {/* Segmented tab switcher */}
             <div className="bg-surface-container-low p-1 rounded-full flex mb-7" role="tablist" aria-label="Account">
@@ -284,6 +288,12 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
                 )}
               </button>
 
+              {!isRegister && (
+                <button type="button" onClick={() => setWithPatientId(true)} className="w-full inline-flex items-center justify-center gap-1.5 text-[13px] font-semibold text-vibrant-blue hover:text-primary">
+                  <IdCard className="w-4 h-4" /> Sign in with a Patient ID from your lab
+                </button>
+              )}
+
               <p className="text-center text-[11px] text-on-surface-variant/80 pt-1 leading-normal">
                 By continuing, you agree to our{' '}
                 <Link className="text-primary hover:underline font-medium" href="/terms-of-use">Terms of Service</Link> &amp;{' '}
@@ -398,5 +408,44 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
         </p>
       </div>
     </div>
+  )
+}
+
+function PatientIdSignIn({ next, onBack }: { next: string; onBack: () => void }) {
+  const [state, action, pending] = useActionState(patientIdLogin, null)
+  return (
+    <form action={action} className="space-y-4">
+      <input type="hidden" name="next" value={next} />
+      <p className="text-[14px] text-on-surface-variant text-center">Use the Patient ID and password your diagnostic centre gave you.</p>
+      {state?.error && (
+        <div role="alert" className="p-3 bg-error-container/60 text-on-error-container text-[13px] rounded-xl font-semibold">
+          {state.error}
+        </div>
+      )}
+      <label className="block">
+        <span className="block text-[13px] font-semibold text-on-surface mb-1.5">Patient ID</span>
+        <span className="relative block">
+          <IdCard className="w-[18px] h-[18px] text-outline absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input name="patientId" required autoComplete="username" placeholder="PT482193" className={`${inputClass} pl-11 pr-4 uppercase font-mono`} />
+        </span>
+      </label>
+      <label className="block">
+        <span className="block text-[13px] font-semibold text-on-surface mb-1.5">Password</span>
+        <span className="relative block">
+          <KeyRound className="w-[18px] h-[18px] text-outline absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input name="password" type="password" required autoComplete="current-password" className={`${inputClass} pl-11 pr-4`} />
+        </span>
+      </label>
+      <button
+        type="submit"
+        disabled={pending}
+        className="w-full py-3.5 px-6 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary font-title-md text-[15px] font-semibold transition-all duration-200 shadow-[0_4px_14px_rgba(0,102,255,0.3)] flex items-center justify-center gap-2 disabled:opacity-60"
+      >
+        {pending ? <Loader2 className="w-[18px] h-[18px] animate-spin" /> : <LogIn className="w-[18px] h-[18px]" />} Sign In
+      </button>
+      <button type="button" onClick={onBack} className="w-full inline-flex items-center justify-center gap-1 text-[13px] font-semibold text-vibrant-blue hover:text-primary">
+        <ArrowLeft className="w-3.5 h-3.5" /> Use my mobile number instead
+      </button>
+    </form>
   )
 }

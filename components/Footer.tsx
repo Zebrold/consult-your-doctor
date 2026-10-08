@@ -257,7 +257,7 @@ export function Footer() {
 
         {/* Copyright */}
         <p className="mt-6 pt-5 border-t border-white/15 text-center text-[12px] sm:text-[12.5px] text-white/75">
-          &copy; {new Date().getFullYear()} Zebrold International Pvt Ltd. All rights reserved.
+          &copy; {new Date().getFullYear()} Zebrold International Holdings Pvt Ltd. All rights reserved.
         </p>
       </div>
     </footer>

@@ -83,7 +83,7 @@ const clinicLines = (h: { address: string | null; city: string | null } | null) 
  * Writes the prescription for a visit: a PDF in the patient's records (which their profile shows), the notes on the
  * visit, and the PDF sent to the patient on WhatsApp and by email.
  */
-export async function issuePrescription(admin: Admin, input: PrescriptionInput): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function issuePrescription(admin: Admin, input: PrescriptionInput): Promise<{ ok: true; prescriptionNo: string } | { ok: false; error: string }> {
   // The doctor's registration (20261009) is a newer column; fall back to a select without it on older databases.
   const select = (withRegistration: boolean) =>
     admin
@@ -165,7 +165,7 @@ export async function issuePrescription(admin: Admin, input: PrescriptionInput):
     contentType: 'application/pdf',
     file: pdf,
   })
-  return { ok: true }
+  return { ok: true, prescriptionNo: number }
 }
 
 /**

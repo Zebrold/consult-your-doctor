@@ -10,7 +10,7 @@ const field = 'w-full rounded-lg bg-surface-container-low px-3.5 py-2.5 text-[15
 /** The "Raise Ticket" button and its form. */
 export function SupportTicketButton({ bookings }: { bookings: { id: string; label: string }[] }) {
   const [open, setOpen] = useState(false)
-  const [done, setDone] = useState<'sent' | 'mail' | null>(null)
+  const [done, setDone] = useState<{ kind: 'sent' | 'mail'; code?: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
@@ -27,9 +27,9 @@ export function SupportTicketButton({ bookings }: { bookings: { id: string; labe
       const res = await raiseSupportTicket({ topic: String(f.get('topic')), bookingId: String(f.get('bookingId') || ''), message: String(f.get('message')) })
       if (!res.ok) return setError(res.error)
       setError(null)
-      if (res.sent) return setDone('sent')
+      if (res.sent || res.ticketCode) return setDone({ kind: 'sent', code: res.ticketCode })
       window.location.href = res.mailto
-      setDone('mail')
+      setDone({ kind: 'mail', code: res.ticketCode })
     })
   }
 
@@ -56,10 +56,23 @@ export function SupportTicketButton({ bookings }: { bookings: { id: string; labe
 
             {done ? (
               <div className="flex flex-col gap-4">
-                <p role="status" className="p-4 rounded-xl bg-fresh-teal/10 text-on-surface text-sm flex items-start gap-2">
-                  <CircleCheck className="w-5 h-5 text-secondary shrink-0" />
-                  {done === 'sent' ? 'Your ticket has been sent. The support team will get back to you soon.' : 'Your email app should now be open with the ticket ready to send.'}
-                </p>
+                <div className="p-4 rounded-xl bg-fresh-teal/10 text-on-surface text-sm flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <CircleCheck className="w-5 h-5 text-secondary shrink-0" />
+                    <span className="font-bold">Support Ticket Created Successfully</span>
+                  </div>
+                  {done.code && (
+                    <div className="p-2.5 rounded-lg bg-surface-container-lowest border border-outline-variant/30 flex items-center justify-between text-xs font-mono">
+                      <span>Ticket Reference:</span>
+                      <strong className="text-primary font-bold">{done.code}</strong>
+                    </div>
+                  )}
+                  <p className="text-xs text-on-surface-variant">
+                    {done.kind === 'sent'
+                      ? 'Your ticket is routed to our Executive Support Inbox. Our executive team will reply to you shortly.'
+                      : 'Your email application has been opened with your pre-filled ticket details.'}
+                  </p>
+                </div>
                 <div className="flex justify-end">
                   <button type="button" onClick={close} className="px-5 py-2.5 rounded-full bg-vibrant-blue text-on-primary text-sm font-bold">
                     Done

@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { randomInt } from 'node:crypto'
+import { sendDoctorRegistrationReceivedEmail, sendDoctorActivationEmail } from '@/lib/notify/email'
 
 export async function getHospitals() {
   const supabase = await createClient()
@@ -86,6 +87,13 @@ export async function submitDoctorSignup(prevState: any, formData: FormData) {
     }
     return { error: error.message || 'An error occurred while submitting your application.', success: false }
   }
+
+  // Trigger confirmation email notification
+  await sendDoctorRegistrationReceivedEmail({
+    to: email,
+    doctorName: fullName,
+    specialty,
+  }).catch((err) => console.error('Failed to dispatch doctor registration email:', err))
 
   return { success: true, message: 'Your application has been submitted and is pending verification by the Super Admin.' }
 }
@@ -219,12 +227,41 @@ export async function approveDoctor(requestId: string) {
   // Mark request as approved
   await adminClient.from('doctor_signup_requests').update({ status: 'approved' }).eq('id', requestId)
 
+  // Generate secure activation / password-setup link
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000').replace(/\/$/, '')
+  let activationLink = `${siteUrl}/login/doctor`
+
+  try {
+    const { data: linkData } = await adminClient.auth.admin.generateLink({
+      type: 'recovery',
+      email: request.email,
+      options: { redirectTo: `${siteUrl}/update-password` }
+    })
+    if (linkData?.properties?.action_link) {
+      activationLink = linkData.properties.action_link
+    }
+  } catch (err) {
+    console.warn('generateLink fallback:', err)
+  }
+
+  // Fetch hospital name for email
+  const { data: hospital } = await adminClient.from('hospitals').select('name').eq('id', request.hospital_id).maybeSingle()
+
+  // Dispatch activation email
+  await sendDoctorActivationEmail({
+    to: request.email,
+    doctorName: request.full_name,
+    activationLink,
+    hospitalName: hospital?.name,
+  }).catch((err) => console.error('Failed to send doctor activation email:', err))
+
   return { 
     success: true, 
     credentials: {
       email: request.email,
       password: password,
-      staffId: generatedStaffId
+      staffId: generatedStaffId,
+      activationLink,
     }
   }
 }

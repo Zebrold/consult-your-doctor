@@ -105,8 +105,6 @@ export async function POST(request: Request) {
 
     if (status === 'success' && (isConsultation || isDiagnostic)) {
       // Record payment success against the right booking table.
-      // payments.appointment_id is a FK to appointments, so diagnostic bookings use their own column. Only the column
-      // in use is sent, so consultation payments still save on a database without diagnostic_booking_id.
       const { error: paymentError } = await supabase.from('payments').insert({
         ...(isConsultation ? { appointment_id: txnid } : { appointment_id: null, diagnostic_booking_id: txnid }),
         transaction_id: mihpayid || txnid,
@@ -115,10 +113,8 @@ export async function POST(request: Request) {
         status: 'success'
       });
 
-      // 23505 = PayU retried a callback we've already recorded; the booking is already confirmed.
       if (paymentError && paymentError.code !== '23505') {
-        // An "invalid input value for enum payment_gateway" here means supabase/migrations/20261008 hasn't been run.
-        console.error('Error inserting payment (run the latest supabase/migrations if the gateway or column is missing):', paymentError);
+        console.error('Error inserting payment:', paymentError);
       }
 
       // Only move bookings that are still waiting for payment, so a replayed callback can't
@@ -131,15 +127,32 @@ export async function POST(request: Request) {
         .eq('status', 'pending_payment')
         .select('id');
       if (updateError) console.error(`Error confirming ${table} ${txnid}:`, updateError);
-      // Tell the patient once, when this callback is the one that confirmed the booking.
+
       if (confirmed?.length) await notifyPaidBooking(isConsultation, txnid, Number(amount));
 
-      // Desk payments return to the hospital or centre portal; patients go to their profile.
-      return NextResponse.redirect(`${baseUrl}${returnPath(udf[0], isConsultation)}?payment=success`, 303);
+      // Desk payments return to the hospital or centre portal; patients go to dedicated confirmation page.
+      if (udf[0] === 'desk') {
+        return NextResponse.redirect(`${baseUrl}${returnPath(udf[0], isConsultation)}?payment=success`, 303);
+      }
+      return NextResponse.redirect(`${baseUrl}/book/confirmation/${txnid}?payment=success`, 303);
     }
 
-    // Payment Failed (or unknown product). The booking stays pending so it can be paid again.
-    return NextResponse.redirect(`${baseUrl}${returnPath(udf[0], isConsultation)}?payment=failed`, 303);
+    // Payment Failed or Pending
+    const failureReason = field(data, 'error_Message') || field(data, 'unmappedstatus') || 'Transaction was not completed by provider';
+    try {
+      await supabase.from('payments').insert({
+        ...(isConsultation ? { appointment_id: txnid } : { appointment_id: null, diagnostic_booking_id: txnid }),
+        transaction_id: mihpayid || txnid,
+        amount: Number(amount) || 0,
+        gateway: 'payu',
+        status: status === 'pending' ? 'pending' : 'failed',
+      });
+    } catch {}
+
+    if (udf[0] === 'desk') {
+      return NextResponse.redirect(`${baseUrl}${returnPath(udf[0], isConsultation)}?payment=failed`, 303);
+    }
+    return NextResponse.redirect(`${baseUrl}/book/confirmation/${txnid}?payment=failed&reason=${encodeURIComponent(failureReason)}`, 303);
 
   } catch (error: any) {
     console.error('PayU Callback Error:', error);

@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { RECORD_BUCKET } from '@/lib/records'
 import { sendEmail } from './email'
 import { sendWhatsApp } from './whatsapp'
+import { sendBookingConfirmationSms } from './sms'
 
 // What patients hear about, on WhatsApp and (when they gave an email address) by email. Everything runs after the
 // staff member's request has been answered, so a slow or failing provider never holds up the desk.
@@ -75,6 +76,14 @@ export function notifyBookingConfirmed(args: { patientId: string; what: string; 
     const contact = await patientContact(admin, args.patientId)
     if (!contact) return
     await sendWhatsApp(contact.phone, { name: 'cyd_booking_confirmed', params: [firstName(contact.name), args.what, args.where, args.bookingId, args.amount] })
+    if (contact.phone) {
+      await sendBookingConfirmationSms(contact.phone, {
+        bookingId: args.bookingId,
+        doctorOrLab: args.what,
+        hospital: args.where,
+        date: 'Scheduled Visit',
+      })
+    }
     if (contact.email) {
       await sendEmail({
         to: contact.email,

@@ -57,6 +57,9 @@ export function AddDoctorButton({ departments, className, label = 'Add Doctor' }
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [created, setCreated] = useState<string | null>(null)
+  const [activationLink, setActivationLink] = useState<string | null>(null)
+  const [inviteEmail, setInviteEmail] = useState<string | null>(null)
+  const [copiedLink, setCopiedLink] = useState(false)
   // Kept only while the confirmation shows, so the welcome letter can print it.
   const [password, setPassword] = useState('')
   const [pending, start] = useTransition()
@@ -65,22 +68,39 @@ export function AddDoctorButton({ departments, className, label = 'Add Doctor' }
     setOpen(false)
     setError(null)
     setCreated(null)
+    setActivationLink(null)
+    setInviteEmail(null)
     setPassword('')
+    setCopiedLink(false)
   }
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const form = new FormData(e.currentTarget)
-    const chosen = String(form.get('password') || '')
-    if (chosen.length < 8) return setError('Use a password of at least 8 characters.')
+    const chosen = String(form.get('password') || '').trim()
+    const email = String(form.get('email') || '').trim()
+    if (!email && (!chosen || chosen.length < 8)) {
+      return setError('Provide the doctor’s email for an account invitation, or set a password of at least 8 characters.')
+    }
     start(async () => {
       const res = await createHospitalDoctor(form)
       if ('error' in res && res.error) return setError(res.error)
       setError(null)
-      setCreated((res as { doctorId?: string }).doctorId ?? '')
+      const r = res as { doctorId?: string; activationLink?: string | null; email?: string | null }
+      setCreated(r.doctorId ?? '')
+      setActivationLink(r.activationLink ?? null)
+      setInviteEmail(r.email ?? null)
       setPassword(chosen)
       router.refresh()
     })
+  }
+
+  const copyLink = async () => {
+    if (activationLink) {
+      await navigator.clipboard.writeText(activationLink)
+      setCopiedLink(true)
+      setTimeout(() => setCopiedLink(false), 2000)
+    }
   }
 
   return (
@@ -89,18 +109,37 @@ export function AddDoctorButton({ departments, className, label = 'Add Doctor' }
         <Plus className="w-[18px] h-[18px]" /> {label}
       </button>
       {open && (
-        <Dialog title="Add Doctor" subtitle="Creates the doctor’s listing and their staff login." onClose={close}>
+        <Dialog title="Add Doctor" subtitle="Creates the doctor’s listing, staff ID and email invitation." onClose={close}>
           {created !== null ? (
             <div className="flex flex-col gap-4">
               <div className="p-4 rounded-xl bg-secondary-container/50 text-on-secondary-container flex items-start gap-3">
-                <CircleCheck className="w-5 h-5 shrink-0 mt-0.5" />
+                <CircleCheck className="w-5 h-5 shrink-0 mt-0.5 text-fresh-teal" />
                 <div className="text-sm">
-                  <p className="font-bold">Doctor added.</p>
+                  <p className="font-bold">Doctor profile &amp; credentials created.</p>
                   <p>
-                    Their login ID is <span className="font-mono font-bold">{created}</span>. They sign in on the doctor login page with this ID and the password you set.
+                    Login ID: <span className="font-mono font-bold text-primary">{created}</span>
                   </p>
+                  {inviteEmail && (
+                    <p className="mt-1 text-xs text-on-secondary-variant">
+                      An activation email has been dispatched to <span className="font-semibold">{inviteEmail}</span>.
+                    </p>
+                  )}
                 </div>
               </div>
+
+              {activationLink && (
+                <div className="p-3.5 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col gap-2">
+                  <span className="font-label-sm text-[12px] font-bold text-indigo-gray-700">Personalized Activation Link:</span>
+                  <div className="flex items-center gap-2">
+                    <input readOnly value={activationLink} className="flex-1 text-xs bg-surface-container-lowest px-2.5 py-1.5 rounded-lg border border-outline-variant/30 font-mono text-outline truncate" />
+                    <button type="button" onClick={copyLink} className="px-3 py-1.5 rounded-lg bg-vibrant-blue text-white text-xs font-bold hover:bg-primary transition-colors">
+                      {copiedLink ? 'Copied!' : 'Copy Link'}
+                    </button>
+                  </div>
+                  <span className="text-[11px] text-indigo-gray-500">The clinician can click this link to verify their email and set their password.</span>
+                </div>
+              )}
+
               <p className="text-xs text-indigo-gray-600">Publish their consultation slots from the Roster so patients can book them.</p>
               {created && password && (
                 <WelcomeLetterButton
@@ -121,6 +160,9 @@ export function AddDoctorButton({ departments, className, label = 'Add Doctor' }
                 <Field label="Full name" className="sm:col-span-2">
                   <input name="fullName" required minLength={2} placeholder="Dr. Ananya Rao" className={input} />
                 </Field>
+                <Field label="Doctor's Email (Account Invitation)" hint="Sends secure activation link; doctor sets password." className="sm:col-span-2">
+                  <input name="email" type="email" placeholder="doctor@example.com" className={input} />
+                </Field>
                 <Field label="Specialty / department">
                   <input name="specialty" required list="hospital-departments" placeholder="Cardiology" className={input} />
                   <datalist id="hospital-departments">
@@ -135,12 +177,12 @@ export function AddDoctorButton({ departments, className, label = 'Add Doctor' }
                 <Field label="Consultation fee (₹)" hint="Patients also pay a platform fee online.">
                   <input name="consultationFee" type="number" min={1} required className={input} />
                 </Field>
-                <Field label="Login password" hint="At least 8 characters. Share it with the doctor.">
-                  <input name="password" type="password" required minLength={8} autoComplete="new-password" className={input} />
+                <Field label="Manual password (optional)" hint="If not setting by invitation link (min 8 chars).">
+                  <input name="password" type="password" minLength={8} autoComplete="new-password" placeholder="Leave empty for email invite" className={input} />
                 </Field>
               </div>
               {error && <p role="alert" className="p-3 rounded-lg bg-error-container text-on-error-container text-sm">{error}</p>}
-              {actions(pending, 'Add Doctor', close)}
+              {actions(pending, 'Add Doctor & Send Invite', close)}
             </form>
           )}
         </Dialog>

@@ -81,6 +81,20 @@ export async function addPrescription(formData: FormData) {
 
   // The prescription PDF goes into the patient's records and to the patient on WhatsApp and email.
   const adminClient = createAdminClient()
+
+  const isAmendment = appointment.status === 'completed'
+  let previousRxNo: string | null = null
+  if (isAmendment) {
+    const { data: prevRec } = await adminClient
+      .from('medical_records')
+      .select('prescription_no')
+      .eq('appointment_id', appointmentId)
+      .eq('document_type', 'prescription')
+      .limit(1)
+      .maybeSingle()
+    previousRxNo = prevRec?.prescription_no ?? null
+  }
+
   const issued = await issuePrescription(adminClient, {
     appointmentId,
     diagnosis: rx.diagnosis,
@@ -95,6 +109,24 @@ export async function addPrescription(formData: FormData) {
     vitals: rx.vitals,
   })
   if (!issued.ok) return { error: issued.error }
+
+  // Record traceable amendment if this modifies an already issued prescription
+  if (isAmendment && issued.prescriptionNo) {
+    const amendmentReason = (formData.get('amendmentReason') as string)?.trim() || 'Prescription amended during follow-up / clinical review.'
+    const { data: profile } = await adminClient.from('profiles').select('full_name').eq('id', user.id).maybeSingle()
+    try {
+      await adminClient.from('prescription_amendments').insert({
+        prescription_no: issued.prescriptionNo,
+        appointment_id: appointmentId,
+        amended_by: user.id,
+        amended_by_name: profile?.full_name || 'Attending Doctor',
+        reason: amendmentReason,
+        changes_summary: `Amended previously issued prescription${previousRxNo ? ` (${previousRxNo})` : ''}. Diagnosis: ${rx.diagnosis || 'Updated'}.`,
+      })
+    } catch (e) {
+      console.warn('Could not record prescription amendment (table may not be migrated yet):', e)
+    }
+  }
 
   // A document the doctor attached (a scan, a referral letter) is kept on the visit alongside the PDF.
   if (file && attachment) {

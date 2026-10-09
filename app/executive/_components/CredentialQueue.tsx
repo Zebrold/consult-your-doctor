@@ -7,7 +7,7 @@ import { approveDoctor, rejectDoctor } from '@/app/actions/doctorAuth'
 import type { Application } from '../_lib/ops'
 import { Chip, EmptyState } from './ui'
 
-type Credentials = { name: string; staffId: string; email: string; password: string }
+type Credentials = { name: string; staffId: string; email: string; password: string; activationLink?: string | null }
 
 export function CredentialQueue({ applications, submittedLabels }: { applications: Application[]; submittedLabels: Record<string, string> }) {
   const router = useRouter()
@@ -162,6 +162,7 @@ export function CredentialQueue({ applications, submittedLabels }: { application
                 ['Staff ID', credentials.staffId],
                 ['Email', credentials.email],
                 ['Password', credentials.password],
+                ...(credentials.activationLink ? [['Activation Link', credentials.activationLink] as const] : []),
               ] as const).map(([label, value]) => (
                 <div key={label} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-surface-container-low">
                   <div className="min-w-0">

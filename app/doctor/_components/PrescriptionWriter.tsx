@@ -114,6 +114,9 @@ export function PrescriptionWriter({ visit, onClose }: { visit: WriterVisit; onC
     setError(null)
   }
 
+  const completing = visit.status !== 'completed'
+  const [amendmentReason, setAmendmentReason] = useState('Prescription modified during follow-up / clinical review.')
+
   const submit = () => {
     if (file && file.size > 5 * 1024 * 1024) return setError('The attachment must be under 5 MB.')
     if (!draft.diagnosis.trim() && meds.length === 0) return setError('Enter the diagnosis or at least one medicine.')
@@ -123,6 +126,9 @@ export function PrescriptionWriter({ visit, onClose }: { visit: WriterVisit; onC
     const form = new FormData()
     form.append('appointmentId', visit.id)
     form.append('payload', JSON.stringify(payload))
+    if (!completing && amendmentReason.trim()) {
+      form.append('amendmentReason', amendmentReason.trim())
+    }
     if (file) form.append('file', file)
     start(async () => {
       const res = await addPrescription(form)
@@ -139,8 +145,6 @@ export function PrescriptionWriter({ visit, onClose }: { visit: WriterVisit; onC
       router.refresh()
     })
   }
-
-  const completing = visit.status !== 'completed'
 
   return (
     <div className="fixed inset-0 z-[90] bg-background flex flex-col" role="dialog" aria-modal="true" aria-label={`Prescription for ${visit.patientName}`}>
@@ -203,6 +207,27 @@ export function PrescriptionWriter({ visit, onClose }: { visit: WriterVisit; onC
         {/* Writer */}
         <div className={`${tab === 'write' ? 'block' : 'hidden'} xl:block min-h-0 overflow-y-auto`}>
           <div className="max-w-4xl mx-auto px-3 md:px-6 py-4 md:py-6 flex flex-col gap-4">
+            {!completing && (
+              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-amber-500 font-semibold text-[13px]">
+                  <RotateCcw className="w-4 h-4 shrink-0" />
+                  <span>Prescription Amendment (Traceable Audit History)</span>
+                </div>
+                <p className="text-[12px] text-indigo-gray-600">
+                  This visit already has an issued prescription. Changes will be safely logged with a permanent traceable amendment record.
+                </p>
+                <label className="flex flex-col gap-1 text-[12px]">
+                  <span className="font-semibold text-indigo-gray-700">Reason for Amendment:</span>
+                  <input
+                    type="text"
+                    value={amendmentReason}
+                    onChange={(e) => setAmendmentReason(e.target.value)}
+                    placeholder="e.g. Dose adjusted after patient report review"
+                    className={field}
+                  />
+                </label>
+              </div>
+            )}
             <Block icon={HeartPulse} title="Vitals" hint="Measured at this visit">
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
                 {(

@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
+import { sendDoctorActivationEmail } from '@/lib/notify/email'
 
 export async function generateDoctorSlots(formData: FormData) {
   const supabase = await createClient()
@@ -188,13 +189,14 @@ export async function createHospitalDoctor(formData: FormData) {
   if (profile?.role !== 'hospital_admin' || !profile.hospital_id) return { error: 'Forbidden. Hospital Admin only.' }
 
   const password = formData.get('password') as string
-  const fullName = formData.get('fullName') as string
-  const specialty = formData.get('specialty') as string
+  const fullName = String(formData.get('fullName') || '').trim()
+  const doctorEmail = String(formData.get('email') || '').trim().toLowerCase()
+  const specialty = String(formData.get('specialty') || '').trim()
   const experienceYears = parseInt(formData.get('experienceYears') as string || '0', 10)
   const consultationFee = parseFloat(formData.get('consultationFee') as string || '0')
 
-  if (!password || !fullName || !specialty) {
-    return { error: 'All required fields must be filled.' }
+  if (!fullName || !specialty) {
+    return { error: 'Doctor name and specialty are required.' }
   }
 
   // 2. Initialize Supabase Admin Client
@@ -212,19 +214,29 @@ export async function createHospitalDoctor(formData: FormData) {
 
   while (!isUnique) {
     adminId = `CYD${initials}${Math.floor(1000 + Math.random() * 9000)}`
-    emailForAuth = `${adminId.toLowerCase()}@cyd.internal`
+    emailForAuth = doctorEmail || `${adminId.toLowerCase()}@cyd.internal`
     
-    // Check if exists (listUsers() is paginated and would miss users beyond the first page)
+    // Check if exists
     const { data: taken } = await adminAuthClient.from('profiles').select('id').eq('staff_id', adminId).maybeSingle()
     if (!taken) {
       isUnique = true
     }
   }
 
+  // Check if real email already taken
+  if (doctorEmail) {
+    const { data: existingByEmail } = await adminAuthClient.from('profiles').select('id').eq('email', doctorEmail).maybeSingle()
+    if (existingByEmail) {
+      return { error: 'An account with this email address already exists.' }
+    }
+  }
+
+  const effectivePassword = password && password.length >= 8 ? password : `CydDoc!${Math.random().toString(36).slice(-8)}`
+
   // 3. Create Auth User
   const { data: newAuthUser, error: authError } = await adminAuthClient.auth.admin.createUser({
     email: emailForAuth,
-    password,
+    password: effectivePassword,
     email_confirm: true,
     user_metadata: { role: 'doctor', full_name: fullName }
   })
@@ -239,13 +251,14 @@ export async function createHospitalDoctor(formData: FormData) {
     id: newAuthUser.user.id,
     role: 'doctor',
     full_name: fullName,
+    email: doctorEmail || null,
     hospital_id: profile.hospital_id,
     staff_id: adminId
-
   })
 
   if (profileError) {
     console.error('Failed to update profile:', profileError)
+    await adminAuthClient.auth.admin.deleteUser(newAuthUser.user.id)
     return { error: 'User created, but failed to assign profile.' }
   }
 
@@ -273,22 +286,112 @@ export async function createHospitalDoctor(formData: FormData) {
   }
 
   // 6. Insert Doctor Record
-  const { error: doctorError } = await adminAuthClient.from('doctors').insert({
+  const { data: newDoctor, error: doctorError } = await adminAuthClient.from('doctors').insert({
     profile_id: newAuthUser.user.id,
     hospital_id: profile.hospital_id,
     department_id: departmentId,
     specialty,
     experience_years: experienceYears,
     consultation_fee: consultationFee
-  })
+  }).select('id').single()
 
   if (doctorError) {
     console.error('Failed to create doctor record:', doctorError)
     return { error: 'Failed to finalize doctor registration.' }
   }
 
+  // 7. If email provided, send invitation link
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000').replace(/\/$/, '')
+  let activationLink = `${siteUrl}/login/doctor`
+  let invitationSent = false
+
+  if (doctorEmail) {
+    try {
+      const { data: linkData } = await adminAuthClient.auth.admin.generateLink({
+        type: 'recovery',
+        email: doctorEmail,
+        options: { redirectTo: `${siteUrl}/update-password` }
+      })
+      if (linkData?.properties?.action_link) {
+        activationLink = linkData.properties.action_link
+      }
+    } catch (err) {
+      console.warn('generateLink fallback:', err)
+    }
+
+    const { data: hospital } = await adminAuthClient.from('hospitals').select('name').eq('id', profile.hospital_id).maybeSingle()
+
+    invitationSent = await sendDoctorActivationEmail({
+      to: doctorEmail,
+      doctorName: fullName,
+      activationLink,
+      hospitalName: hospital?.name,
+    })
+
+    // Record invitation in doctor_invitations if table exists
+    try {
+      await adminAuthClient.from('doctor_invitations').insert({
+        hospital_id: profile.hospital_id,
+        doctor_id: newDoctor?.id || null,
+        email: doctorEmail,
+        full_name: fullName,
+        specialty,
+        status: 'invitation_pending',
+        invited_by: user.id
+      })
+    } catch {}
+  }
+
   for (const path of ['/hospital/dashboard', '/hospital/doctors', '/hospital/staff']) revalidatePath(path)
-  return { success: true, doctorId: adminId }
+  return { 
+    success: true, 
+    doctorId: adminId, 
+    email: doctorEmail || null, 
+    activationLink: doctorEmail ? activationLink : null,
+    invitationSent 
+  }
+}
+
+/** Resends an invitation activation link to a hospital's doctor */
+export async function resendDoctorInvitation(doctorId: string, email: string): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Unauthorized' }
+
+  const { data: adminProfile } = await supabase.from('profiles').select('role, hospital_id').eq('id', user.id).single()
+  if (adminProfile?.role !== 'hospital_admin' || !adminProfile.hospital_id) return { success: false, error: 'Forbidden' }
+
+  const adminAuthClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000').replace(/\/$/, '')
+  let activationLink = `${siteUrl}/login/doctor`
+
+  try {
+    const { data: linkData } = await adminAuthClient.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+      options: { redirectTo: `${siteUrl}/update-password` }
+    })
+    if (linkData?.properties?.action_link) activationLink = linkData.properties.action_link
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to generate invitation link' }
+  }
+
+  const { data: hospital } = await adminAuthClient.from('hospitals').select('name').eq('id', adminProfile.hospital_id).maybeSingle()
+  const { data: doc } = await adminAuthClient.from('doctors').select('profiles!doctors_profile_id_fkey(full_name)').eq('id', doctorId).maybeSingle()
+  const docName = (doc?.profiles as any)?.full_name || 'Doctor'
+
+  const sent = await sendDoctorActivationEmail({
+    to: email,
+    doctorName: docName,
+    activationLink,
+    hospitalName: hospital?.name,
+  })
+
+  return { success: true }
 }
 
 /** Edits one of this hospital's doctors (the details patients see when booking). */

@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { ROLE_COOKIE, ROLE_COOKIE_OPTIONS, roleCookieValue } from '@/lib/role-cookie'
+import { getOrAssignHospitalCode, getOrAssignDiagnosticCenterCode } from '@/lib/organization-ids'
 
 export async function createStaffAccount(formData: FormData) {
   const supabase = await createClient()
@@ -143,17 +144,37 @@ export async function createHospital(formData: FormData) {
   // Generate a dummy email since the DB column is NOT NULL
   const generatedEmail = `info@${name.toLowerCase().replace(/[^a-z0-9]/g, '')}.internal`
 
-  const { data: newHospital, error } = await supabase.from('hospitals').insert({
+  // Generate unique Hospital ID code
+  const { count: hospCount } = await supabase.from('hospitals').select('*', { count: 'exact', head: true })
+  const hospitalCode = `CYD-HOSP-${String(1000 + (hospCount ?? 0) + 1)}`
+
+  let newHospital: any = null
+  const { data: hospData, error } = await supabase.from('hospitals').insert({
     name,
     city,
     address,
     contact_email: generatedEmail,
-    status: 'active'
+    status: 'active',
+    hospital_code: hospitalCode
   }).select().single()
 
   if (error) {
-    console.error(error)
-    return { error: 'Failed to create hospital' }
+    // Fall back to insert without hospital_code if column isn't migrated yet
+    const { data: fallbackHosp, error: fallbackError } = await supabase.from('hospitals').insert({
+      name,
+      city,
+      address,
+      contact_email: generatedEmail,
+      status: 'active'
+    }).select().single()
+
+    if (fallbackError) {
+      console.error(fallbackError)
+      return { error: 'Failed to create hospital' }
+    }
+    newHospital = fallbackHosp
+  } else {
+    newHospital = hospData
   }
 
   // Create default departments for this hospital
@@ -200,19 +221,40 @@ export async function createDiagnosticCenter(formData: FormData) {
   // Generate a dummy email
   const generatedEmail = `info@${name.toLowerCase().replace(/[^a-z0-9]/g, '')}.internal`
 
-  const { data: newCenter, error } = await supabase.from('diagnostic_centers').insert({
+  // Generate unique Diagnostic Centre ID code
+  const { count: centerCount } = await supabase.from('diagnostic_centers').select('*', { count: 'exact', head: true })
+  const centerCode = `CYD-DIAG-${String(1000 + (centerCount ?? 0) + 1)}`
+
+  let newCenter: any = null
+  const { data: centerData, error } = await supabase.from('diagnostic_centers').insert({
     name,
     city,
     address,
     available_tests,
     test_prices,
     contact_email: generatedEmail,
-    status: 'active'
+    status: 'active',
+    center_code: centerCode
   }).select().single()
 
   if (error) {
-    console.error(error)
-    return { error: 'Failed to create diagnostic center' }
+    const { data: fallbackCenter, error: fallbackError } = await supabase.from('diagnostic_centers').insert({
+      name,
+      city,
+      address,
+      available_tests,
+      test_prices,
+      contact_email: generatedEmail,
+      status: 'active'
+    }).select().single()
+
+    if (fallbackError) {
+      console.error(fallbackError)
+      return { error: 'Failed to create diagnostic center' }
+    }
+    newCenter = fallbackCenter
+  } else {
+    newCenter = centerData
   }
 
   revalidatePath('/admin/diagnostics')

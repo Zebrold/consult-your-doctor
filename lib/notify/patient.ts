@@ -3,7 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { RECORD_BUCKET } from '@/lib/records'
 import { sendEmail } from './email'
 import { sendWhatsApp } from './whatsapp'
-import { sendBookingConfirmationSms } from './sms'
+import { sendBookingConfirmationSms, sendReportReadySms, sendAccountCreatedSms } from './sms'
 
 // What patients hear about, on WhatsApp and (when they gave an email address) by email. Everything runs after the
 // staff member's request has been answered, so a slow or failing provider never holds up the desk.
@@ -48,6 +48,14 @@ export function notifyReportReady(args: { patientId: string; what: string; from:
         params: [firstName(contact.name), args.what, args.from],
         document: { link: signed.signedUrl, filename: args.filename },
       })
+    }
+
+    if (contact.phone) {
+      await sendReportReadySms(contact.phone, {
+        patientName: firstName(contact.name),
+        what: args.what,
+        from: args.from,
+      }).catch(() => null)
     }
 
     if (contact.email) {
@@ -125,6 +133,13 @@ export function notifyAccountCreated(args: { patientId: string; patientCode: str
     if (!contact) return
     const signIn = `${SITE_URL}/login/patient`
     await sendWhatsApp(contact.phone, { name: 'cyd_account_created', params: [firstName(contact.name), args.patientCode, args.password, signIn] })
+    if (contact.phone) {
+      await sendAccountCreatedSms(contact.phone, {
+        patientName: firstName(contact.name),
+        patientCode: args.patientCode,
+        password: args.password,
+      }).catch(() => null)
+    }
     if (contact.email) {
       await sendEmail({
         to: contact.email,
@@ -138,3 +153,15 @@ export function notifyAccountCreated(args: { patientId: string; patientCode: str
     }
   })
 }
+
+/** Sends a support ticket update to the user over WhatsApp */
+export function notifyTicketWhatsApp(args: { phone: string | null | undefined; name: string; ticketCode: string; status: string }) {
+  if (!args.phone) return
+  later('ticket', async () => {
+    await sendWhatsApp(args.phone, {
+      name: 'cyd_ticket_update',
+      params: [firstName(args.name), args.ticketCode, args.status],
+    })
+  })
+}
+

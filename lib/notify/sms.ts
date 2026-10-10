@@ -64,14 +64,44 @@ export async function sendSms(payload: SmsPayload): Promise<boolean> {
   }
 }
 
-/** Sends OTP SMS to user for mobile verification */
+/** Sends OTP SMS to user for mobile verification using Fast2SMS Quick OTP route */
 export async function sendOtpSms(phone: string, otp: string): Promise<boolean> {
+  const apiKey = process.env.FAST2SMS_API_KEY || process.env.SMS_API_KEY
+  if (!apiKey) return false
+
+  const number = formatIndianSmsNumber(phone)
+  if (number.length !== 10) return false
+
+  // 1. Try Fast2SMS dedicated OTP route first
+  try {
+    const res = await fetch('https://www.fast2sms.com/dev/bulkV2', {
+      method: 'POST',
+      headers: {
+        authorization: apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        route: 'otp',
+        variables_values: otp,
+        numbers: number,
+      }),
+    })
+    const data = await res.json().catch(() => null)
+    if (res.ok && data?.return !== false) {
+      return true
+    }
+  } catch (err) {
+    console.warn('sendOtpSms route otp failed, attempting transactional fallback:', err)
+  }
+
+  // 2. Fallback to Quick transactional route
   return sendSms({
     phone,
     otp,
     message: `Your Consult Your Doctor verification code is ${otp}. Valid for 10 minutes. Please do not share this code.`,
   })
 }
+
 
 /** Sends appointment booking confirmation SMS */
 export async function sendBookingConfirmationSms(
@@ -92,3 +122,26 @@ export async function sendTicketUpdateSms(phone: string, ticketCode: string, sta
     message: `Consult Your Doctor: Your support ticket ${ticketCode} status has been updated to ${status.toUpperCase().replace(/_/g, ' ')}. View details in your portal.`,
   })
 }
+
+/** Sends SMS notification that a prescription or lab report is ready */
+export async function sendReportReadySms(
+  phone: string,
+  details: { patientName: string; what: string; from: string }
+): Promise<boolean> {
+  return sendSms({
+    phone,
+    message: `Consult Your Doctor: Hello ${details.patientName}, your ${details.what} from ${details.from} is ready. View it in your account portal.`,
+  })
+}
+
+/** Sends account credentials SMS to new patient registered at the desk */
+export async function sendAccountCreatedSms(
+  phone: string,
+  details: { patientName: string; patientCode: string; password: string }
+): Promise<boolean> {
+  return sendSms({
+    phone,
+    message: `Consult Your Doctor: Hello ${details.patientName}, your account is ready. Patient ID: ${details.patientCode}, Password: ${details.password}. Keep these details private.`,
+  })
+}
+

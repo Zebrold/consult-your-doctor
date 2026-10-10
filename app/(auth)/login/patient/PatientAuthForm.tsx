@@ -429,6 +429,15 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
               </div>
             )}
 
+            {(sendState as any)?.gatewayNotice && (
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-[12.5px] rounded-xl text-left leading-relaxed shadow-sm">
+                <p className="font-semibold mb-0.5 flex items-center gap-1.5 text-amber-800 dark:text-amber-300">
+                  <span>ℹ️</span> SMS Gateway Notice
+                </p>
+                <p className="text-[12px] opacity-90">{(sendState as any).gatewayNotice}</p>
+              </div>
+            )}
+
             <div className="flex justify-center gap-2 sm:gap-3" role="group" aria-label="One-time password">
               {otp.map((digit, index) => (
                 <input

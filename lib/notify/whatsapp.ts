@@ -1,65 +1,266 @@
-// WhatsApp messages to patients through the Meta WhatsApp Cloud API. Configure WHATSAPP_TOKEN (a permanent system-user
-// token) and WHATSAPP_PHONE_NUMBER_ID; WHATSAPP_TEMPLATE_LANGUAGE defaults to "en". Without them nothing is sent.
-//
-// Meta only delivers business-initiated messages that use a template approved in WhatsApp Manager, so each message
-// below is a template. Create them (category Utility) with exactly these names and placeholders:
-//
-//   cyd_report_ready      Header: Document.
-//                         Body: Hello {{1}}, your {{2}} from {{3}} is ready. It's attached here and saved in your
-//                         Consult Your Doctor account.
-//   cyd_booking_confirmed Body: Hello {{1}}, your {{2}} at {{3}} is confirmed. Booking ID: {{4}}. Amount paid: {{5}}.
-//   cyd_health_update     Body: Hello {{1}}, {{2}} added your health details from today's visit to your Consult Your
-//                         Doctor account. Your doctor can see them too.
-//   cyd_account_created   Body: Hello {{1}}, your Consult Your Doctor account is ready. Patient ID: {{2}}. Password:
-//                         {{3}}. Sign in at {{4}} and keep these details private.
+/**
+ * WhatsApp service module for Consult Your Doctor platform.
+ * Supports sending PDF medical records, prescriptions, lab reports, booking confirmations,
+ * account credentials, health updates, and OTPs via Fast2SMS WhatsApp Business API and Meta Cloud API.
+ */
 
-const API = `https://graph.facebook.com/${process.env.WHATSAPP_API_VERSION || 'v21.0'}`
+const FAST2SMS_BASE = 'https://www.fast2sms.com'
+const META_BASE = `https://graph.facebook.com/${process.env.WHATSAPP_API_VERSION || 'v21.0'}`
 
-export const whatsappConfigured = () => Boolean(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID)
+const getApiKey = () => process.env.FAST2SMS_API_KEY || process.env.WHATSAPP_API_KEY || ''
+const getPhoneNumberId = () => process.env.WHATSAPP_PHONE_NUMBER_ID || '1327040000500501'
+const getMetaToken = () => process.env.WHATSAPP_TOKEN || ''
+
+export const whatsappConfigured = () => Boolean(getApiKey() || (getMetaToken() && getPhoneNumberId()))
 
 export type WhatsAppTemplate =
   | { name: 'cyd_report_ready'; params: [name: string, what: string, from: string]; document: { link: string; filename: string } }
   | { name: 'cyd_booking_confirmed'; params: [name: string, what: string, where: string, bookingId: string, amount: string] }
   | { name: 'cyd_health_update'; params: [name: string, hospital: string] }
   | { name: 'cyd_account_created'; params: [name: string, patientId: string, password: string, signInUrl: string] }
+  | { name: 'cyd_ticket_update'; params: [name: string, ticketCode: string, status: string] }
+  | { name: 'cyd_otp'; params: [otp: string] }
 
-/** "+91 98204 77210" → "919820477210" (WhatsApp wants the number with country code and no "+"). */
-const waNumber = (phone: string) => {
+/** "+91 98204 77210" → "919820477210" (WhatsApp requires country code without leading "+"). */
+export const waNumber = (phone: string): string => {
   const digits = phone.replace(/\D/g, '')
-  return digits.length === 10 ? `91${digits}` : digits
+  if (digits.length === 10) return `91${digits}`
+  return digits
 }
 
-// Template parameters can't contain new lines, tabs or more than four spaces in a row.
 const param = (text: string) => ({ type: 'text', text: text.replace(/\s+/g, ' ').trim().slice(0, 900) || '-' })
 
-/** Sends a template message if WhatsApp is configured. Returns whether Meta accepted it; failures are logged, never thrown. */
+/** Formats friendly plain-text messages corresponding to the standard CYD templates. */
+function formatTemplateText(template: WhatsAppTemplate): { text: string; caption?: string } {
+  switch (template.name) {
+    case 'cyd_report_ready': {
+      const [name, what, from] = template.params
+      const text = `Hello ${name}, your ${what} from ${from} is ready. It is attached here and securely saved in your Consult Your Doctor account.`
+      return { text, caption: text }
+    }
+    case 'cyd_booking_confirmed': {
+      const [name, what, where, bookingId, amount] = template.params
+      const text = `Hello ${name},\n\nYour booking for ${what} at ${where} is confirmed!\n\n📋 Booking ID: ${bookingId}\n💳 Amount Paid: ${amount}\n\nView details: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.consultyourdoctor.de'}/patient/appointments\n\nThank you for choosing Consult Your Doctor.`
+      return { text }
+    }
+    case 'cyd_health_update': {
+      const [name, hospital] = template.params
+      const text = `Hello ${name},\n\n${hospital} added your health details from today's visit to your Consult Your Doctor account. Your doctor can see them too.\n\nView your records: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.consultyourdoctor.de'}/patient/profile`
+      return { text }
+    }
+    case 'cyd_account_created': {
+      const [name, patientId, password, signInUrl] = template.params
+      const text = `Hello ${name},\n\nYour Consult Your Doctor account is ready!\n\n🆔 Patient ID: ${patientId}\n🔑 Password: ${password}\n🌐 Sign In: ${signInUrl}\n\nPlease sign in and keep these credentials private.`
+      return { text }
+    }
+    case 'cyd_ticket_update': {
+      const [name, ticketCode, status] = template.params
+      const text = `Hello ${name},\n\nYour support ticket ${ticketCode} status has been updated to ${status.toUpperCase().replace(/_/g, ' ')}.\n\nView tickets: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.consultyourdoctor.de'}/patient/support`
+      return { text }
+    }
+    case 'cyd_otp': {
+      const [otp] = template.params
+      const text = `Your Consult Your Doctor verification code is ${otp}. Valid for 10 minutes. Please do not share this code.`
+      return { text }
+    }
+    default:
+      return { text: 'Notification from Consult Your Doctor' }
+  }
+}
+
+/** Sends a direct text message on WhatsApp via Fast2SMS Session API. */
+export async function sendWhatsAppText(phone: string | null | undefined, text: string): Promise<boolean> {
+  if (!phone || !whatsappConfigured()) return false
+  const to = waNumber(phone)
+  if (to.length < 11) return false
+
+  const apiKey = getApiKey()
+  const phoneId = getPhoneNumberId()
+
+  if (apiKey) {
+    try {
+      const url = `${FAST2SMS_BASE}/dev/whatsapp-session?phone_number_id=${encodeURIComponent(phoneId)}&to=${encodeURIComponent(to)}`
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          authorization: apiKey,
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'text',
+          text,
+        }),
+      })
+
+      const data = await res.json().catch(() => null)
+      if (res.ok && data?.return !== false) {
+        return true
+      }
+      console.warn('sendWhatsAppText session error:', res.status, data)
+    } catch (err) {
+      console.error('sendWhatsAppText exception:', err)
+    }
+  }
+
+  return false
+}
+
+/** Sends a document (e.g. PDF prescription or lab report) on WhatsApp via Fast2SMS. */
+export async function sendWhatsAppDocument(
+  phone: string | null | undefined,
+  doc: { url: string; filename: string; caption?: string }
+): Promise<boolean> {
+  if (!phone || !whatsappConfigured()) return false
+  const to = waNumber(phone)
+  if (to.length < 11) return false
+
+  const apiKey = getApiKey()
+  const phoneId = getPhoneNumberId()
+
+  if (apiKey) {
+    try {
+      const url = `${FAST2SMS_BASE}/dev/whatsapp-session?phone_number_id=${encodeURIComponent(phoneId)}&to=${encodeURIComponent(to)}`
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          authorization: apiKey,
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'document',
+          url: doc.url,
+          document_filename: doc.filename,
+          caption: doc.caption || doc.filename,
+        }),
+      })
+
+      const data = await res.json().catch(() => null)
+      if (res.ok && data?.return !== false) {
+        return true
+      }
+      console.warn('sendWhatsAppDocument session error:', res.status, data)
+    } catch (err) {
+      console.error('sendWhatsAppDocument exception:', err)
+    }
+  }
+
+  return false
+}
+
+/** Sends a verification OTP code via WhatsApp */
+export async function sendWhatsAppOtp(phone: string | null | undefined, otp: string): Promise<boolean> {
+  return sendWhatsApp(phone, {
+    name: 'cyd_otp',
+    params: [otp],
+  })
+}
+
+/**
+ * Sends a WhatsApp message (PDF document or structured text).
+ * Tries Fast2SMS Session API first (delivers direct document/text without template delay),
+ * then falls back to Meta format / Cloud API template endpoints. Failures are logged and never throw.
+ */
 export async function sendWhatsApp(phone: string | null | undefined, template: WhatsAppTemplate): Promise<boolean> {
   if (!whatsappConfigured() || !phone) return false
   const to = waNumber(phone)
   if (to.length < 11) return false
 
-  const components: Record<string, unknown>[] = []
-  if ('document' in template) components.push({ type: 'header', parameters: [{ type: 'document', document: template.document }] })
-  components.push({ type: 'body', parameters: template.params.map(param) })
+  const apiKey = getApiKey()
+  const phoneId = getPhoneNumberId()
+  const metaToken = getMetaToken()
+  const { text, caption } = formatTemplateText(template)
 
-  try {
-    const res = await fetch(`${API}/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to,
-        type: 'template',
-        template: { name: template.name, language: { code: process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en' }, components },
-      }),
-    })
-    if (!res.ok) {
-      console.error(`sendWhatsApp ${template.name}:`, res.status, (await res.text()).slice(0, 500))
-      return false
+  // 1. Fast2SMS Session API (Primary: works for direct PDF documents and texts)
+  if (apiKey) {
+    try {
+      if ('document' in template && template.document) {
+        const sent = await sendWhatsAppDocument(phone, {
+          url: template.document.link,
+          filename: template.document.filename,
+          caption: caption || text,
+        })
+        if (sent) return true
+      } else {
+        const sent = await sendWhatsAppText(phone, text)
+        if (sent) return true
+      }
+    } catch (err) {
+      console.warn('Fast2SMS WhatsApp session dispatch error, attempting template fallback:', err)
     }
-    return true
-  } catch (err) {
-    console.error(`sendWhatsApp ${template.name}:`, err)
-    return false
+
+    // 2. Fast2SMS Meta format proxy for approved templates
+    try {
+      const components: Record<string, unknown>[] = []
+      if ('document' in template && template.document) {
+        components.push({ type: 'header', parameters: [{ type: 'document', document: template.document }] })
+      }
+      components.push({ type: 'body', parameters: template.params.map(param) })
+
+      const version = process.env.WHATSAPP_API_VERSION || 'v21.0'
+      const res = await fetch(`${FAST2SMS_BASE}/dev/whatsapp/${version}/${phoneId}/messages`, {
+        method: 'POST',
+        headers: {
+          authorization: apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to,
+          type: 'template',
+          template: {
+            name: template.name,
+            language: { code: process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en' },
+            components,
+          },
+        }),
+      })
+
+      if (res.ok) {
+        return true
+      }
+      const errText = await res.text().catch(() => '')
+      console.warn(`Fast2SMS template ${template.name}:`, res.status, errText.slice(0, 300))
+    } catch (err) {
+      console.warn(`Fast2SMS template error:`, err)
+    }
   }
+
+  // 3. Direct Meta WhatsApp Cloud API (if WHATSAPP_TOKEN is configured)
+  if (metaToken && phoneId) {
+    try {
+      const components: Record<string, unknown>[] = []
+      if ('document' in template && template.document) {
+        components.push({ type: 'header', parameters: [{ type: 'document', document: template.document }] })
+      }
+      components.push({ type: 'body', parameters: template.params.map(param) })
+
+      const res = await fetch(`${META_BASE}/${phoneId}/messages`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${metaToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to,
+          type: 'template',
+          template: {
+            name: template.name,
+            language: { code: process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en' },
+            components,
+          },
+        }),
+      })
+
+      if (res.ok) return true
+      console.error(`Meta sendWhatsApp ${template.name}:`, res.status, (await res.text()).slice(0, 500))
+    } catch (err) {
+      console.error(`Meta sendWhatsApp ${template.name}:`, err)
+    }
+  }
+
+  return false
 }
+

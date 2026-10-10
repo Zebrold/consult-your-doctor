@@ -475,10 +475,11 @@ function Bubble({ role, icon: Icon, children }: { role: 'user' | 'assistant'; ic
     return <div className="self-end max-w-[85%] bg-primary text-on-primary rounded-2xl rounded-tr-sm px-3.5 py-2.5 text-[14px] leading-relaxed shadow-sm">{children}</div>
   }
   return (
-    <div className="flex items-start gap-2 max-w-[92%]">
-      <span className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-vibrant-blue text-on-primary flex items-center justify-center shrink-0 mt-0.5">
-        <Icon className="w-3.5 h-3.5" />
-      </span>
+    <div className="flex items-start gap-2.5 max-w-[92%]">
+      <div className="w-7 h-7 rounded-full bg-white ring-1 ring-primary/20 overflow-hidden flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/images/ai-doctor.png" alt="AI Doctor" className="w-full h-full object-cover object-top scale-110" />
+      </div>
       <div className="min-w-0 bg-surface-container-lowest border border-outline-variant/30 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[14px] leading-relaxed text-on-surface shadow-[0_2px_8px_rgba(0,80,203,0.04)] break-words">
         {children}
       </div>

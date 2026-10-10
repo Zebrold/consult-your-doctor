@@ -125,9 +125,15 @@ export function AssistantPage({ role, viewer }: { role: string | null; viewer: s
       >
         <header className="shrink-0 flex items-center justify-between gap-3 px-4 md:px-6 py-3 md:py-3.5 border-b border-outline-variant/30 bg-gradient-to-r from-primary-fixed/30 to-transparent">
           <div className="flex items-center gap-3 min-w-0">
-            <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-vibrant-blue text-on-primary flex items-center justify-center shadow-sm shrink-0">
-              <BrainCircuit className="w-5 h-5" />
-            </span>
+            <div className="relative w-10 h-10 rounded-xl bg-white/20 ring-1 ring-primary/20 overflow-hidden flex items-center justify-center shadow-sm shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/images/ai-doctor.png"
+                alt="AI Doctor"
+                className="w-full h-full object-cover object-top scale-110"
+              />
+              <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-white" />
+            </div>
             <div className="min-w-0">
               <h2 className="font-title-md text-[17px] font-bold text-on-surface leading-tight">Zebrold AI</h2>
               <p className="text-[12px] text-on-surface-variant truncate flex items-center gap-1.5">

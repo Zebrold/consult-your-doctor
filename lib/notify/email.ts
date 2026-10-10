@@ -1,22 +1,68 @@
 import nodemailer, { type Transporter } from 'nodemailer'
 
-// Email to patients and staff, sent from no-reply@zebrold.de over SMTP.
+// Email to patients and staff.
 // Configure SMTP_HOST, SMTP_PORT, SMTP_USER and SMTP_PASS; MAIL_FROM overrides sender.
-const FROM = process.env.MAIL_FROM || 'Consult Your Doctor <no-reply@zebrold.de>'
+export function getFromAddress(): string {
+  if (process.env.MAIL_FROM?.trim()) return process.env.MAIL_FROM.trim()
+  if (process.env.RESEND_API_KEY?.trim()) {
+    return 'Consult Your Doctor <no-reply@consultyourdoctor.de>'
+  }
+  if (process.env.SMTP_USER?.trim() && process.env.SMTP_USER.includes('@')) {
+    return `Consult Your Doctor <${process.env.SMTP_USER.trim()}>`
+  }
+  return 'Consult Your Doctor <no-reply@consultyourdoctor.de>'
+}
 
-export const emailConfigured = () => Boolean(process.env.SMTP_HOST)
+export const emailConfigured = () =>
+  Boolean(process.env.RESEND_API_KEY?.trim() || process.env.SMTP_HOST?.trim())
 
 let transport: Transporter | null = null
-function mailer() {
+export function mailer() {
   if (transport) return transport
+
+  const resendKey = process.env.RESEND_API_KEY?.trim()
+  if (resendKey) {
+    // Resend provides a direct SMTP relay for nodemailer via smtp.resend.com
+    transport = nodemailer.createTransport({
+      host: 'smtp.resend.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: 'resend',
+        pass: resendKey,
+      },
+    })
+    return transport
+  }
+
   const port = Number(process.env.SMTP_PORT || 587)
+  const user = process.env.SMTP_USER?.trim()
+  const pass = process.env.SMTP_PASS?.trim()
+
   transport = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
+    host: process.env.SMTP_HOST?.trim(),
     port,
     secure: port === 465,
-    auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
+    auth: user && pass ? { user, pass } : undefined,
+    tls: {
+      rejectUnauthorized: process.env.NODE_ENV === 'production',
+    },
   })
   return transport
+}
+
+/** Verifies whether current SMTP credentials and connection are valid */
+export async function verifySmtp(): Promise<{ ok: boolean; error?: string }> {
+  if (!emailConfigured()) {
+    return { ok: false, error: 'Neither RESEND_API_KEY nor SMTP_HOST is set in .env.local' }
+  }
+  try {
+    await mailer().verify()
+    return { ok: true }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, error: message }
+  }
 }
 
 export type Email = {
@@ -62,18 +108,24 @@ export async function sendEmail(email: Email): Promise<boolean> {
     return false
   }
   try {
+    const from = getFromAddress()
     await mailer().sendMail({
-      from: FROM,
+      from,
       to: email.to,
       subject: email.subject,
       text: email.paragraphs.join('\n\n') + (email.button ? `\n\n${email.button.text}: ${email.button.url}` : ''),
       html: html(email.paragraphs, email.button),
       attachments: email.attachments?.map((a) => ({ filename: a.filename, content: Buffer.from(a.content), contentType: a.contentType })),
     })
-    console.info(`[Email Sent] To: ${email.to} | Subject: ${email.subject}`)
+    console.info(`[Email Sent] To: ${email.to} | From: ${from} | Subject: ${email.subject}`)
     return true
-  } catch (err) {
-    console.error('sendEmail failed:', err)
+  } catch (err: unknown) {
+    const error = err as Record<string, unknown> | Error
+    console.error('[Email Send Failed]:', error)
+    if (typeof error === 'object' && error !== null) {
+      if ('code' in error) console.error('[SMTP Error Code]:', (error as { code: unknown }).code)
+      if ('response' in error) console.error('[SMTP Server Response]:', (error as { response: unknown }).response)
+    }
     return false
   }
 }

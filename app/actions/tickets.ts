@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendTicketConfirmationEmail, sendTicketReplyEmail, sendEmail, emailConfigured } from '@/lib/notify/email'
 import { sendTicketUpdateSms } from '@/lib/notify/sms'
+import { notifyTicketWhatsApp } from '@/lib/notify/patient'
 import { revalidatePath } from 'next/cache'
 
 export type TicketPriority = 'low' | 'medium' | 'high' | 'urgent'
@@ -147,10 +148,12 @@ export async function createSupportTicket(input: {
     }).catch((e) => console.error('Ticket confirmation email error:', e))
   }
 
-  // Notify requester via SMS if phone available
+  // Notify requester via SMS & WhatsApp if phone available
   if (requesterPhone) {
     await sendTicketUpdateSms(requesterPhone, ticketCode, 'open').catch(() => null)
+    notifyTicketWhatsApp({ phone: requesterPhone, name: requesterName, ticketCode, status: 'open' })
   }
+
 
   revalidatePath('/executive/support')
   revalidatePath('/patient/support')
@@ -296,10 +299,12 @@ export async function updateTicketStatus(
     }).catch(() => null)
   }
 
-  // Notify requester via SMS
+  // Notify requester via SMS & WhatsApp
   if (ticket.requester_phone) {
     await sendTicketUpdateSms(ticket.requester_phone, ticket.ticket_code, status).catch(() => null)
+    notifyTicketWhatsApp({ phone: ticket.requester_phone, name: ticket.requester_name, ticketCode: ticket.ticket_code, status })
   }
+
 
   revalidatePath('/executive/support')
   revalidatePath('/patient/support')

@@ -1,5 +1,3 @@
-import fs from 'fs'
-import path from 'path'
 import type { Bed, Admission } from '@/lib/beds'
 
 export type StoredDischarge = Admission & { bed: string }
@@ -9,7 +7,11 @@ type HospitalBedsStore = {
   discharges: Record<string, StoredDischarge[]>
 }
 
-const STORE_PATH = path.resolve(process.cwd(), 'supabase', '.temp', 'beds-data.json')
+// In-memory universal store (zero node.js fs dependencies, works seamlessly on Vercel, Node, and browser runtimes)
+const globalStore: HospitalBedsStore = {
+  beds: {},
+  discharges: {},
+}
 
 function defaultBedsFor(hospitalId: string): Bed[] {
   const now = Date.now()
@@ -136,55 +138,25 @@ function defaultDischargesFor(hospitalId: string): StoredDischarge[] {
   ]
 }
 
-function readStore(): HospitalBedsStore {
-  try {
-    if (fs.existsSync(STORE_PATH)) {
-      const data = JSON.parse(fs.readFileSync(STORE_PATH, 'utf-8'))
-      return { beds: data.beds || {}, discharges: data.discharges || {} }
-    }
-  } catch (err) {
-    console.warn('[readStore error]:', err)
-  }
-  return { beds: {}, discharges: {} }
-}
-
-function writeStore(store: HospitalBedsStore): void {
-  try {
-    const dir = path.dirname(STORE_PATH)
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-    fs.writeFileSync(STORE_PATH, JSON.stringify(store, null, 2), 'utf-8')
-  } catch (err) {
-    console.warn('[writeStore error]:', err)
-  }
-}
-
 export function getStoredBeds(hospitalId: string): Bed[] {
-  const store = readStore()
-  if (!store.beds[hospitalId] || !store.beds[hospitalId].length) {
-    store.beds[hospitalId] = defaultBedsFor(hospitalId)
-    writeStore(store)
+  if (!globalStore.beds[hospitalId] || !globalStore.beds[hospitalId].length) {
+    globalStore.beds[hospitalId] = defaultBedsFor(hospitalId)
   }
-  return store.beds[hospitalId]
+  return globalStore.beds[hospitalId]
 }
 
 export function saveStoredBeds(hospitalId: string, beds: Bed[]): void {
-  const store = readStore()
-  store.beds[hospitalId] = beds
-  writeStore(store)
+  globalStore.beds[hospitalId] = beds
 }
 
 export function getStoredDischarges(hospitalId: string): StoredDischarge[] {
-  const store = readStore()
-  if (!store.discharges[hospitalId]) {
-    store.discharges[hospitalId] = defaultDischargesFor(hospitalId)
-    writeStore(store)
+  if (!globalStore.discharges[hospitalId]) {
+    globalStore.discharges[hospitalId] = defaultDischargesFor(hospitalId)
   }
-  return store.discharges[hospitalId]
+  return globalStore.discharges[hospitalId]
 }
 
 export function addStoredDischarge(hospitalId: string, discharge: StoredDischarge): void {
-  const store = readStore()
-  const list = store.discharges[hospitalId] || []
-  store.discharges[hospitalId] = [discharge, ...list].slice(0, 50)
-  writeStore(store)
+  const list = globalStore.discharges[hospitalId] || []
+  globalStore.discharges[hospitalId] = [discharge, ...list].slice(0, 50)
 }

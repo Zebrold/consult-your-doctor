@@ -84,44 +84,35 @@ export function Support({ role, viewer }: { role: string | null; viewer: string 
     <>
       {!open && (
         <div
-          className={`fixed z-[70] right-4 md:right-6 ${
-            lifted ? 'bottom-[calc(92px+env(safe-area-inset-bottom))] md:bottom-[100px]' : 'bottom-5 md:bottom-6'
-          } flex items-center gap-2.5 print:hidden group select-none`}
+          className={`fixed z-[70] right-3 sm:right-6 ${
+            lifted ? 'bottom-[calc(80px+env(safe-area-inset-bottom))] md:bottom-[90px]' : 'bottom-3 sm:bottom-4'
+          } flex items-end gap-2 print:hidden group select-none`}
         >
-          {/* Small thinking text bubble */}
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => setOpen(true)}
-            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setOpen(true)}
-            className="cursor-pointer relative bg-white/95 dark:bg-surface-container-highest/95 backdrop-blur-md text-on-surface px-3 py-1.5 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.12)] border border-outline-variant/50 text-[12px] sm:text-[13px] font-medium leading-tight flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-all duration-200"
-          >
-            <span className="text-[13px]">💭</span>
-            <span className="text-on-surface font-semibold tracking-tight">What can I help you?</span>
-            {/* Thought bubble pointer towards avatar */}
-            <span className="absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-2 bg-white dark:bg-surface-container-highest border-t border-r border-outline-variant/50 rotate-45" />
-          </div>
-
-          {/* Only image avatar button */}
+          {/* Friendly chat callout bubble */}
           <button
             type="button"
             onClick={() => setOpen(true)}
-            aria-label="Doctor Assistant - What can I help you?"
-            className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full p-0.5 bg-gradient-to-tr from-primary via-vibrant-blue to-sky-400 shadow-[0_8px_24px_rgba(0,102,255,0.4)] hover:scale-110 active:scale-95 transition-all duration-200 flex items-center justify-center cursor-pointer ring-4 ring-white/90 dark:ring-surface"
+            aria-label="How can I help you?"
+            className="cursor-pointer relative bg-white/95 dark:bg-surface-container-highest/95 backdrop-blur-md text-slate-800 dark:text-slate-100 px-3.5 py-2 rounded-2xl shadow-[0_4px_18px_rgba(0,0,0,0.12)] border border-slate-200/80 dark:border-outline-variant/50 text-[13px] sm:text-[13.5px] font-semibold leading-tight flex items-center hover:scale-105 active:scale-95 transition-all duration-200 mb-2.5 focus-visible:outline-none"
           >
-            <div className="relative w-full h-full rounded-full overflow-hidden bg-white">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/images/ai-doctor.png"
-                alt="Doctor Assistant"
-                className="w-full h-full object-cover object-top scale-110 group-hover:scale-125 transition-transform duration-300"
-              />
-            </div>
-            {/* Online green indicator dot */}
-            <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-emerald-400 ring-2 ring-white shadow-sm" />
-            {chat.messages.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-fresh-teal ring-2 ring-white animate-pulse" />
-            )}
+            <span>How can I help you?</span>
+            {/* Pointer arrow directed towards the bot */}
+            <span className="absolute -right-1.5 bottom-3 w-3 h-3 bg-white dark:bg-surface-container-highest border-t border-r border-slate-200/80 dark:border-outline-variant/50 rotate-45" />
+          </button>
+
+          {/* Standalone bot image */}
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label="Doctor Assistant"
+            className="p-0 bg-transparent border-0 outline-none cursor-pointer select-none transition-transform duration-200 hover:scale-105 active:scale-95 group focus-visible:outline-none shrink-0"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/ai-doctor.png"
+              alt="Doctor Assistant"
+              className="w-16 sm:w-20 md:w-22 h-auto object-contain drop-shadow-[0_8px_20px_rgba(0,0,0,0.18)] group-hover:drop-shadow-[0_12px_24px_rgba(0,102,255,0.3)] transition-all duration-200"
+            />
           </button>
         </div>
       )}
@@ -134,27 +125,25 @@ export function Support({ role, viewer }: { role: string | null; viewer: string 
         >
           <header className="bg-gradient-to-r from-primary via-[#0052cc] to-vibrant-blue text-on-primary px-4 py-3 flex items-center justify-between gap-3 shrink-0 shadow-sm">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="relative w-10 h-10 rounded-full bg-white/20 ring-2 ring-white/50 overflow-hidden flex items-center justify-center shrink-0 shadow-inner">
+              <div className="relative w-11 h-11 flex items-center justify-center shrink-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/images/ai-doctor.png"
                   alt="Doctor Assistant"
-                  className="w-full h-full object-cover object-top scale-110"
+                  className="w-full h-full object-contain drop-shadow-sm"
                 />
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-primary" />
               </div>
               <div className="min-w-0">
-                <p className="font-title-md text-[15px] font-bold leading-tight flex items-center gap-1.5">
+                <p className="font-title-md text-[15px] font-bold leading-tight">
                   Doctor Assistant
-                  <span className="text-[9.5px] font-bold uppercase tracking-wider bg-white/25 px-1.5 py-0.5 rounded-full text-white">Online</span>
                 </p>
-                <p className="text-[11px] text-on-primary/80 truncate">What can I help you? • Zebrold AI</p>
+                <p className="text-[11.5px] text-on-primary/80 truncate">How can I help you today?</p>
               </div>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               <LanguagePicker value={language} onChange={setLanguage} tone="onPrimary" />
               {aiHref && (
-                <Link href={aiHref} onClick={close} title="Open Zebrold AI" aria-label="Open Zebrold AI" className="w-8 h-8 rounded-full bg-on-primary/15 hover:bg-on-primary/25 flex items-center justify-center">
+                <Link href={aiHref} onClick={close} title="Open Help Center" aria-label="Open Help Center" className="w-8 h-8 rounded-full bg-on-primary/15 hover:bg-on-primary/25 flex items-center justify-center">
                   <BrainCircuit className="w-4 h-4" />
                 </Link>
               )}
@@ -175,9 +164,9 @@ export function Support({ role, viewer }: { role: string | null; viewer: string 
             onNavigate={closeOnPhone}
             intro={
               <>
-                <p className="font-semibold text-primary text-[15px]">Hello! I’m your AI Doctor Assistant.</p>
-                <p className="mt-1.5">Tell me what you need help with, such as finding a specialist, booking an appointment, checking lab tests, or getting guidance on your portal.</p>
-                <p className="mt-1.5 text-on-surface-variant text-[12.5px]">Select your language at the top. Answers come from Zebrold AI. In a medical emergency, call 112.</p>
+                <p className="font-semibold text-primary text-[15px]">Hello! How can I help you today?</p>
+                <p className="mt-1.5">Ask questions about finding doctors, booking appointments, lab tests, or managing your health records.</p>
+                <p className="mt-1.5 text-on-surface-variant text-[12px]">For medical emergencies, please call 112 immediately.</p>
               </>
             }
             empty={
@@ -205,8 +194,8 @@ export function Support({ role, viewer }: { role: string | null; viewer: string 
                           <BrainCircuit className="w-4 h-4" />
                         </span>
                         <span className="min-w-0">
-                          <span className="block text-[13px] font-bold text-on-surface">Open Zebrold AI</span>
-                          <span className="block text-[11.5px] text-on-surface-variant">The full-page assistant, for searching and PDFs</span>
+                          <span className="block text-[13px] font-bold text-on-surface">Health Knowledge Base</span>
+                          <span className="block text-[11.5px] text-on-surface-variant">Browse health guides, diagnostic info, and FAQs</span>
                         </span>
                       </Link>
                     )}

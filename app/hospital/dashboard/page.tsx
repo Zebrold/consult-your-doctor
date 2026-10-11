@@ -352,11 +352,11 @@ export default async function HospitalDashboardPage() {
               </div>
               <LiveRefresh />
             </div>
-            {!beds.ready || bedSummary.total === 0 ? (
+            {bedSummary.total === 0 ? (
               <Placeholder
                 icon={BedDouble}
-                title={beds.ready ? 'No beds set up yet' : 'Beds need a database update'}
-                sub={beds.ready ? 'Add your wards and beds to start allocating them' : 'Run the 20261009 migration to turn on bed allocation'}
+                title="No beds set up yet"
+                sub="Add your wards and beds to start allocating them"
                 aside={
                   <Link href="/hospital/beds" className="px-3 py-1.5 rounded-full bg-vibrant-blue text-on-primary font-label-sm text-[12px] font-semibold whitespace-nowrap">
                     Set Up Beds

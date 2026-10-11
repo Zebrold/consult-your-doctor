@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { Header } from '@/components/Header'
-import { MapPin, Mail, Phone, Building2, UserCircle, CheckCircle2, Award, FlaskConical, ShieldCheck, Siren } from 'lucide-react'
+import { Footer } from '@/components/Footer'
+import { MapPin, Mail, Phone, Building2, UserCircle, CheckCircle2, Award, FlaskConical, ShieldCheck, Siren, ArrowRight } from 'lucide-react'
 import { testList } from '@/lib/pricing'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -62,7 +63,7 @@ export default async function HospitalProfilePage(
   const tests = testList(list(hospital.available_tests), hospital.test_prices).filter((t): t is { name: string; price: number } => !!t.price)
 
   // Fetch affiliated doctors
-  const { data: doctors, error: doctorsError } = await supabase
+  const { data: doctors } = await supabase
     .from('doctors')
     .select(`
       *,
@@ -90,96 +91,112 @@ export default async function HospitalProfilePage(
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#FAFBFD] flex flex-col font-sans">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
       />
       <Header />
       
-      <main className="flex-1 py-12">
-        <div className="max-w-[1440px] mx-auto px-4 md:px-8">
+      <main className="flex-1 py-8 md:py-12">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 md:px-8">
           
+          {/* Breadcrumbs */}
+          <nav aria-label="Breadcrumb" className="mb-6 flex items-center gap-2 text-sm text-slate-500 font-medium">
+            <Link href="/" className="hover:text-vibrant-blue transition-colors">Home</Link>
+            <span>/</span>
+            <Link href="/search?type=hospital" className="hover:text-vibrant-blue transition-colors">Hospitals</Link>
+            <span>/</span>
+            <span className="text-slate-800 font-semibold truncate">{hospital.name}</span>
+          </nav>
+
           {/* Hospital Header Profile */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-12">
-            <div className="h-48 bg-gradient-to-r from-red-600 to-red-800 relative">
-              {/* Optional: Add a cover photo if available in the future */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden mb-10">
+            <div className="h-44 md:h-52 bg-gradient-to-r from-primary via-[#0052cc] to-vibrant-blue relative overflow-hidden">
+              <div aria-hidden className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-white/10 blur-2xl pointer-events-none" />
+              <div aria-hidden className="absolute bottom-0 left-1/3 w-96 h-96 rounded-full bg-sky-400/10 blur-3xl pointer-events-none" />
             </div>
             
-            <div className="px-8 pb-8 relative">
-              <div className="flex flex-col md:flex-row gap-8 items-start">
+            <div className="px-6 md:px-8 pb-8 relative">
+              <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start">
                 {/* Avatar / Logo */}
-                <div className="-mt-16 relative">
-                  <div className="w-32 h-32 bg-white rounded-2xl shadow-lg border-4 border-white flex items-center justify-center overflow-hidden shrink-0">
+                <div className="-mt-16 md:-mt-20 relative">
+                  <div className="w-28 h-28 md:w-36 md:h-36 bg-white rounded-2xl shadow-md border-4 border-white flex items-center justify-center overflow-hidden shrink-0">
                     {hospital.image_url ? (
                       <Image src={hospital.image_url} alt={hospital.name} fill className="object-cover" />
                     ) : (
-                      <Building2 className="w-16 h-16 text-gray-300" />
+                      <Building2 className="w-14 h-14 md:w-16 md:h-16 text-vibrant-blue/50" />
                     )}
                   </div>
                 </div>
 
                 {/* Details */}
-                <div className="pt-4 flex-1">
-                  <h1 className="text-3xl font-black text-gray-900 mb-2">{hospital.name}</h1>
-                  <div className="flex items-center gap-2 text-gray-600 mb-6 font-medium">
-                    <MapPin className="w-5 h-5 text-[#E31E24]" />
+                <div className="pt-2 md:pt-4 flex-1">
+                  <div className="flex flex-wrap items-center gap-2.5 mb-2">
+                    <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">{hospital.name}</h1>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-100">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Verified Facility
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-600 mb-6 font-medium text-sm md:text-base">
+                    <MapPin className="w-4 h-4 text-vibrant-blue shrink-0" />
                     <span>{[hospital.address, hospital.city, hospital.state, hospital.zip_code].filter(Boolean).join(', ')}</span>
                   </div>
 
-                  <div className="grid sm:grid-cols-2 gap-4 max-w-2xl">
-                    <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                      <Phone className="w-5 h-5 text-gray-500" />
-                      <span className="text-gray-900 font-medium">{hospital.phone || hospital.contact_phone || 'N/A'}</span>
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-3xl">
+                    <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200/70">
+                      <Phone className="w-4 h-4 text-vibrant-blue shrink-0" />
+                      <span className="text-slate-800 text-sm font-semibold truncate">{hospital.phone || hospital.contact_phone || 'N/A'}</span>
                     </div>
                     {hospital.emergency_phone && (
-                      <div className="flex items-center gap-3 bg-red-50 p-3 rounded-xl border border-red-100">
-                        <Siren className="w-5 h-5 text-[#E31E24]" />
-                        <span className="text-gray-900 font-medium">Emergency: {hospital.emergency_phone}</span>
+                      <div className="flex items-center gap-3 bg-rose-50 p-3 rounded-xl border border-rose-200/70">
+                        <Siren className="w-4 h-4 text-rose-600 shrink-0" />
+                        <span className="text-rose-900 text-sm font-semibold truncate">Emergency: {hospital.emergency_phone}</span>
                       </div>
                     )}
-                    <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                      <Mail className="w-5 h-5 text-gray-500" />
-                      <span className="text-gray-900 font-medium">{hospital.contact_email || 'N/A'}</span>
+                    <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200/70 sm:col-span-2 lg:col-span-1">
+                      <Mail className="w-4 h-4 text-vibrant-blue shrink-0" />
+                      <span className="text-slate-800 text-sm font-semibold truncate">{hospital.contact_email || 'N/A'}</span>
                     </div>
                   </div>
                 </div>
                 
                 {/* Actions */}
-                <div className="pt-4 w-full md:w-auto flex shrink-0">
+                <div className="pt-2 md:pt-4 w-full md:w-auto flex shrink-0">
                   <Link 
                     href={`/?hospital_id=${hospital.id}&city=${encodeURIComponent(hospital.city)}#book-consultation-form`} 
-                    className="w-full md:w-auto px-8 py-3 bg-[#E31E24] text-white font-bold rounded-xl hover:bg-red-700 transition-colors text-center"
+                    className="w-full md:w-auto px-7 py-3.5 bg-vibrant-blue hover:bg-primary text-white font-bold rounded-xl shadow-[0_4px_16px_rgba(0,102,255,0.25)] hover:shadow-[0_6px_20px_rgba(0,102,255,0.35)] transition-all text-center flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    Book Consultation
+                    <span>Book Consultation</span>
+                    <ArrowRight className="w-4 h-4" />
                   </Link>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* About, facilities, insurance and test charges, from the hospital's own profile */}
+          {/* About, facilities, insurance and test charges */}
           {(hospital.about || facilities.length > 0 || insurance.length > 0 || tests.length > 0) && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
               <div className="lg:col-span-2 flex flex-col gap-6">
                 {hospital.about && (
-                  <section className="bg-white rounded-2xl border border-gray-100 p-6">
-                    <h2 className="text-xl font-bold text-gray-900 mb-3">About {hospital.name}</h2>
-                    <p className="text-gray-700 leading-relaxed whitespace-pre-line">{hospital.about}</p>
-                    {hospital.established_year && <p className="mt-3 text-sm text-gray-500">Serving patients since {hospital.established_year}</p>}
+                  <section className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs">
+                    <h2 className="text-xl font-bold text-slate-900 mb-3 tracking-tight">About {hospital.name}</h2>
+                    <p className="text-slate-600 leading-relaxed whitespace-pre-line text-[15px]">{hospital.about}</p>
+                    {hospital.established_year && <p className="mt-3 text-sm text-slate-500 font-medium">Serving patients since {hospital.established_year}</p>}
                   </section>
                 )}
                 {tests.length > 0 && (
-                  <section className="bg-white rounded-2xl border border-gray-100 p-6">
-                    <h2 className="text-xl font-bold text-gray-900 mb-1 flex items-center gap-2">
-                      <FlaskConical className="w-5 h-5 text-[#E31E24]" /> Test Charges
+                  <section className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs">
+                    <h2 className="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2 tracking-tight">
+                      <FlaskConical className="w-5 h-5 text-vibrant-blue" /> Diagnostic Test Charges
                     </h2>
-                    <p className="text-sm text-gray-500 mb-4">Amount for each test at the hospital</p>
-                    <ul className="divide-y divide-gray-100">
+                    <p className="text-sm text-slate-500 mb-4">Official transparent pricing for diagnostic procedures</p>
+                    <ul className="divide-y divide-slate-100">
                       {tests.map((t) => (
-                        <li key={t.name} className="py-2.5 flex items-center justify-between gap-4">
-                          <span className="text-gray-800 font-medium">{t.name}</span>
-                          <span className="font-bold text-gray-900 shrink-0">₹{t.price.toLocaleString('en-IN')}</span>
+                        <li key={t.name} className="py-3 flex items-center justify-between gap-4">
+                          <span className="text-slate-800 font-medium text-sm">{t.name}</span>
+                          <span className="font-bold text-vibrant-blue text-sm bg-blue-50 px-3 py-1 rounded-full shrink-0">₹{t.price.toLocaleString('en-IN')}</span>
                         </li>
                       ))}
                     </ul>
@@ -188,31 +205,31 @@ export default async function HospitalProfilePage(
               </div>
               <div className="flex flex-col gap-6">
                 {(facilities.length > 0 || accreditations.length > 0) && (
-                  <section className="bg-white rounded-2xl border border-gray-100 p-6">
-                    <h2 className="text-lg font-bold text-gray-900 mb-3">Facilities</h2>
+                  <section className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs">
+                    <h2 className="text-lg font-bold text-slate-900 mb-3 tracking-tight">Facilities &amp; Accreditations</h2>
                     <div className="flex flex-wrap gap-2">
                       {accreditations.map((a) => (
-                        <span key={a} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-sm font-bold">
+                        <span key={a} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 text-vibrant-blue text-xs font-bold border border-blue-100">
                           <Award className="w-3.5 h-3.5" /> {a}
                         </span>
                       ))}
                       {facilities.map((f) => (
-                        <span key={f} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-100 text-gray-800 text-sm font-medium">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> {f}
+                        <span key={f} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> {f}
                         </span>
                       ))}
                     </div>
                   </section>
                 )}
                 {insurance.length > 0 && (
-                  <section className="bg-white rounded-2xl border border-gray-100 p-6">
-                    <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                      <ShieldCheck className="w-5 h-5 text-green-600" /> Insurance Accepted
+                  <section className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs">
+                    <h2 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2 tracking-tight">
+                      <ShieldCheck className="w-5 h-5 text-emerald-600" /> Insurance Accepted
                     </h2>
-                    <ul className="flex flex-col gap-2">
+                    <ul className="flex flex-col gap-2.5">
                       {insurance.map((i) => (
-                        <li key={i} className="flex items-center gap-2 text-gray-800 text-sm font-medium">
-                          <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" /> {i}
+                        <li key={i} className="flex items-center gap-2 text-slate-700 text-sm font-medium">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> {i}
                         </li>
                       ))}
                     </ul>
@@ -224,59 +241,77 @@ export default async function HospitalProfilePage(
 
           {/* Affiliated Doctors Section */}
           <div className="mb-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 border-b border-gray-200 pb-4">
-              Specialists at {hospital.name}
-            </h2>
+            <div className="flex items-center justify-between mb-6 pb-3 border-b border-slate-200">
+              <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                Specialists at {hospital.name}
+              </h2>
+              {doctors && doctors.length > 0 && (
+                <span className="text-sm font-semibold text-slate-500">{doctors.length} Doctors Available</span>
+              )}
+            </div>
             
             {doctors && doctors.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {doctors.map((item: any) => (
-                  <div key={item.id} className="bg-white border border-gray-200 rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
-                    <div className="flex gap-4 mb-4">
-                      <div className="w-20 h-20 bg-gray-100 rounded-lg shrink-0 flex items-center justify-center relative overflow-hidden">
-                        {item.image_url ? (
-                          <Image src={item.image_url} alt={item.profiles?.full_name} fill className="object-cover" />
-                        ) : (
-                          <UserCircle className="w-10 h-10 text-gray-300" />
-                        )}
+                {doctors.map((item: any) => {
+                  const name = item.profiles?.full_name || 'Specialist Doctor'
+                  const initials = name.replace(/^Dr\.\s*/i, '').slice(0, 2).toUpperCase()
+                  const spec = item.departments?.name || item.specialty || 'General Physician'
+                  return (
+                    <div key={item.id} className="bg-white border border-slate-200/80 rounded-2xl p-5 flex flex-col hover:border-vibrant-blue/50 hover:shadow-md transition-all">
+                      <div className="flex gap-3.5 mb-4 items-start">
+                        <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100/80 shrink-0 flex items-center justify-center relative overflow-hidden text-vibrant-blue font-bold text-lg">
+                          {item.image_url ? (
+                            <Image src={item.image_url} alt={name} fill className="object-cover" />
+                          ) : (
+                            <span>{initials}</span>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-bold text-slate-900 text-base mb-0.5 truncate">{name}</h3>
+                          <p className="text-xs text-vibrant-blue font-semibold mb-1 truncate">{spec}</p>
+                          <p className="text-xs text-slate-500 font-medium">{item.experience_years ? `${item.experience_years} Years Exp.` : 'Verified Specialist'}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-bold text-gray-900 text-lg mb-1">{item.profiles?.full_name}</h3>
-                        <p className="text-sm text-[#E31E24] font-medium mb-1">{item.departments?.name || item.specialty}</p>
-                        <p className="text-xs text-gray-600">{item.experience_years} Years Experience</p>
+                      
+                      <div className="space-y-2 mb-4 pt-3.5 border-t border-slate-100 text-xs text-slate-600">
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-sm font-extrabold text-slate-900">₹{item.consultation_fee ?? 500} <span className="text-xs font-normal text-slate-500">Fee</span></span>
+                          <span className="text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Available
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-auto pt-2 grid grid-cols-2 gap-2">
+                        <Link 
+                          href={`/doctors/${item.id}`} 
+                          className="w-full py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl text-center transition-colors"
+                        >
+                          View Profile
+                        </Link>
+                        <Link 
+                          href={`/book/${item.id}`} 
+                          className="w-full py-2 bg-vibrant-blue hover:bg-primary text-white text-xs font-bold rounded-xl text-center shadow-xs transition-colors"
+                        >
+                          Book Now
+                        </Link>
                       </div>
                     </div>
-                    
-                    <div className="space-y-2 mb-4 pt-4 border-t border-gray-100">
-                      <div className="flex items-start gap-2 text-sm text-gray-600">
-                        <Building2 className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-                        <span className="leading-tight">{item.hospitals?.name}</span>
-                      </div>
-                      <div className="flex items-start gap-2 text-sm text-gray-600">
-                        <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-                        <span>{item.hospitals?.city}</span>
-                      </div>
-                      <div className="flex justify-between items-center pt-2">
-                        <span className="text-sm font-bold text-gray-900">₹{item.consultation_fee} Fee</span>
-                        <span className="text-xs text-green-600 font-medium flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Available</span>
-                      </div>
-                    </div>
-                    
-                    <Link href={`/doctors/${item.id}`} className="mt-auto w-full py-2.5 bg-white border-2 border-gray-200 text-gray-700 text-sm font-bold hover:border-[#E31E24] hover:text-[#E31E24] transition-colors rounded-full text-center">
-                      View Profile
-                    </Link>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             ) : (
-              <div className="p-8 text-center bg-white border border-gray-200 rounded-xl">
-                <p className="text-gray-500 font-medium">No doctors are currently listed for this hospital.</p>
+              <div className="p-10 text-center bg-white border border-slate-200/80 rounded-2xl shadow-xs">
+                <Building2 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-600 font-medium">No doctors are currently listed for this hospital.</p>
               </div>
             )}
           </div>
 
         </div>
       </main>
+
+      <Footer />
     </div>
   )
 }

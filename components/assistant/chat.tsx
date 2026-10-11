@@ -385,25 +385,46 @@ function Answer({ chat, index, message: m, done, question, onNavigate }: { chat:
   )
 }
 
-/** Picks the language Zebrold AI answers in. `tone` matches a light or a coloured header. */
-export function LanguagePicker({ value, onChange, tone = 'light', className = '' }: { value: string; onChange: (code: string) => void; tone?: 'light' | 'onPrimary'; className?: string }) {
+/** Picks the language Zebrold AI answers in. Sleek, professional icon button without cluttered 'Auto language' text. */
+export function LanguagePicker({
+  value,
+  onChange,
+  tone = 'light',
+  className = '',
+}: {
+  value: string
+  onChange: (code: string) => void
+  tone?: 'light' | 'onPrimary'
+  className?: string
+}) {
+  const currentLang = LANGUAGES.find((l) => l.code === value)
+  const isAuto = value === 'auto'
+
   return (
     <label
-      className={`relative inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-1.5 h-8 text-[12px] font-semibold shrink-0 ${
-        tone === 'onPrimary' ? 'bg-on-primary/15 hover:bg-on-primary/25 text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface'
+      className={`relative inline-flex items-center justify-center rounded-full transition-all cursor-pointer shrink-0 ${
+        isAuto ? 'w-8 h-8' : 'px-2.5 h-8 gap-1.5 text-[12px] font-semibold'
+      } ${
+        tone === 'onPrimary'
+          ? 'bg-on-primary/15 hover:bg-on-primary/25 text-on-primary'
+          : 'bg-surface-container hover:bg-surface-container-high text-on-surface'
       } ${className}`}
-      title="Language for answers"
+      title={isAuto ? 'Language: Auto detect' : `Language: ${currentLang?.label || value}`}
     >
       <Languages className="w-4 h-4 shrink-0" aria-hidden />
-      <span className="sr-only">Language for answers</span>
+      {!isAuto && (
+        <span className="truncate max-w-[64px] font-semibold">{currentLang?.label || value}</span>
+      )}
+      <span className="sr-only">Select language</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`appearance-none bg-transparent pr-1 focus:outline-none cursor-pointer max-w-[92px] truncate ${tone === 'onPrimary' ? '[&>option]:text-on-surface' : ''}`}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+        aria-label="Select language for responses"
       >
         {LANGUAGES.map((l) => (
-          <option key={l.code} value={l.code}>
-            {l.code === 'auto' ? 'Auto language' : `${l.label}${l.label !== l.english ? ` · ${l.english}` : ''}`}
+          <option key={l.code} value={l.code} className="text-slate-900 bg-white">
+            {l.code === 'auto' ? 'Auto detect language' : `${l.label}${l.label !== l.english ? ` · ${l.english}` : ''}`}
           </option>
         ))}
       </select>
@@ -464,7 +485,7 @@ export function Composer({ chat, placeholder, wide = false, autoFocus = false }:
             </button>
           )}
         </div>
-        <p className="text-[10.5px] text-on-surface-variant text-center mt-1.5">Zebrold AI can make mistakes and isn’t a doctor. Don’t share OTPs or card details.</p>
+        <p className="text-[10.5px] text-on-surface-variant text-center mt-1.5">For general healthcare guidance. In an emergency, call 112. Do not share passwords or payment OTPs.</p>
       </div>
     </form>
   )
@@ -476,9 +497,9 @@ function Bubble({ role, icon: Icon, children }: { role: 'user' | 'assistant'; ic
   }
   return (
     <div className="flex items-start gap-2.5 max-w-[92%]">
-      <div className="w-7 h-7 rounded-full bg-white ring-1 ring-primary/20 overflow-hidden flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+      <div className="w-8 h-8 flex items-center justify-center shrink-0 mt-0.5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/images/ai-doctor.png" alt="AI Doctor" className="w-full h-full object-cover object-top scale-110" />
+        <img src="/images/ai-doctor.png" alt="Doctor Assistant" className="w-full h-full object-contain drop-shadow-xs" />
       </div>
       <div className="min-w-0 bg-surface-container-lowest border border-outline-variant/30 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[14px] leading-relaxed text-on-surface shadow-[0_2px_8px_rgba(0,80,203,0.04)] break-words">
         {children}

@@ -60,7 +60,7 @@ function formatTemplateText(template: WhatsAppTemplate): { text: string; caption
     }
     case 'cyd_otp': {
       const [otp] = template.params
-      const text = `Your Consult Your Doctor verification code is ${otp}. Valid for 10 minutes. Please do not share this code.`
+      const text = `*Consult Your Doctor* 🏥\n\nYour sign-in verification code is: *${otp}*\n\nValid for 10 minutes. Please do not share this code with anyone for your security.`
       return { text }
     }
     default:

@@ -77,7 +77,7 @@ export function InlineAuthModal({ isOpen, onClose, onSuccess }: InlineAuthModalP
           <p className="text-sm text-vibrant-blue mb-6">
             {step === 'phone' 
               ? 'Please login or register to confirm your booking.' 
-              : `We've sent a 6-digit code to ${phone}.`}
+              : `We've sent a 6-digit verification code to your WhatsApp at ${phone}.`}
           </p>
 
           {step === 'phone' ? (
@@ -124,7 +124,7 @@ export function InlineAuthModal({ isOpen, onClose, onSuccess }: InlineAuthModalP
               )}
 
               <div className="pt-2">
-                <SubmitButton pendingText="Sending OTP">Send OTP</SubmitButton>
+                <SubmitButton pendingText="Sending WhatsApp OTP">Get WhatsApp OTP</SubmitButton>
               </div>
             </form>
           ) : (

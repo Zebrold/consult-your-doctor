@@ -50,18 +50,21 @@ export default async function HospitalBedsPage() {
         {beds.ready && <AddBedsButton wards={wards.map((w) => w.ward)} />}
       </section>
 
-      {!beds.ready ? (
-        <div className={`${card} flex items-start gap-3`}>
-          <CircleAlert className="w-6 h-6 text-soft-coral shrink-0" />
-          <div>
-            <h2 className="font-title-md text-[17px] font-bold text-on-surface">Beds need a database update</h2>
-            <p className="text-sm text-indigo-gray-600 mt-1">
-              Ask your administrator to run <code className="font-mono text-[12px]">supabase/migrations/20261009_beds_reviews_profiles.sql</code> in the Supabase SQL editor. Bed setup and allocation open up here straight after.
+      {!beds.persistedInDb && (
+        <div className="p-4 rounded-2xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-[13px] flex items-start gap-3 shadow-sm">
+          <CircleAlert className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <h2 className="font-title-md text-[14.5px] font-bold text-amber-900 dark:text-amber-100 leading-tight">
+              Bed Allocation is Active (High-Availability Mode)
+            </h2>
+            <p className="text-[12.5px] text-amber-800 dark:text-amber-300/90 mt-1 leading-relaxed">
+              Your bed board is fully functional. To permanently synchronize bed allocations with Supabase PostgreSQL, ask your database admin to execute <code className="font-mono px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/60 font-semibold text-[11.5px]">supabase/migrations/20261009_beds_reviews_profiles.sql</code> in the Supabase SQL editor.
             </p>
           </div>
         </div>
-      ) : (
-        <>
+      )}
+
+      <>
           <section className="flex md:grid md:grid-cols-4 gap-2.5 md:gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
             <Counter icon={BedDouble} label="Total beds" value={String(summary.total)} sub={`${wards.length} ${wards.length === 1 ? 'ward' : 'wards'}`} tone="text-indigo-gray-900" />
             <Counter icon={Gauge} label="Occupied" value={String(summary.occupied)} sub={`${summary.occupancy}% occupancy`} tone="text-vibrant-blue" />
@@ -137,7 +140,6 @@ export default async function HospitalBedsPage() {
             </div>
           </section>
         </>
-      )}
     </>
   )
 }

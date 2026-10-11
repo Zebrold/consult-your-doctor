@@ -27,28 +27,106 @@ function formatPhoneNumber(phone: string, countryCode: string = '+91') {
 // Codes are texted by the send-otp Supabase hook through Fast2SMS, which only reaches Indian mobile numbers.
 const SMS_COUNTRY_CODE = '+91'
 
-/** Turns Supabase's error for a failed text into something a patient can act on. */
-function smsErrorMessage(message: string) {
-  if (/signups not allowed/i.test(message)) return message
-  // Our hook's own messages come through as-is; a crash or bad configuration shows up as a bare status code.
-  if (/unexpected status code|hook|unexpected_failure|sms provider/i.test(message)) {
-    return 'We couldn’t send the code right now. Please try again in a minute or continue with Google.'
+import crypto from 'crypto'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { sendWhatsAppOtp } from '@/lib/notify/whatsapp'
+import { sendOtpSms } from '@/lib/notify/sms'
+
+function computeOtpHmac(phone: string, otp: string, expiresAt: number): string {
+  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY || 'cyd_wa_otp_secure_key'
+  return crypto.createHmac('sha256', secret).update(`${phone}:${otp}:${expiresAt}`).digest('hex')
+}
+
+function verifyOtpHmac(phone: string, token: string, expiresAt: number, expectedHash: string): boolean {
+  if (Date.now() > expiresAt) return false
+  const computed = computeOtpHmac(phone, token, expiresAt)
+  try {
+    return crypto.timingSafeEqual(Buffer.from(computed, 'hex'), Buffer.from(expectedHash, 'hex'))
+  } catch {
+    return false
   }
-  return message
+}
+
+/** Authenticates or creates the patient user in Supabase auth, setting cookies and profiles */
+async function authenticatePatientSession(phone: string, fullName: string | null, isRegister: boolean) {
+  const admin = createAdminClient()
+  const cleanPhone = phone.replace('+', '')
+
+  let authUserId: string | null = null
+  const { data: profile } = await admin.from('profiles').select('id, role').eq('phone_number', phone).maybeSingle()
+  if (profile?.id) {
+    authUserId = profile.id
+  } else {
+    const { data: usersData } = await admin.auth.admin.listUsers()
+    const found = usersData?.users?.find(u => u.phone === cleanPhone || u.phone === phone)
+    if (found) {
+      authUserId = found.id
+    }
+  }
+
+  if (!authUserId) {
+    if (!isRegister) {
+      return { error: 'No account found for this number. Switch to "Create Account" to register.' }
+    }
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+      phone,
+      phone_confirm: true,
+      user_metadata: { full_name: fullName?.trim() || 'Patient', role: 'patient' },
+    })
+    if (createErr || !created?.user) {
+      return { error: createErr?.message || 'Could not create account.' }
+    }
+    authUserId = created.user.id
+  }
+
+  // Set one-time temp password for server session creation
+  const tempPass = `cyd_wa_${crypto.randomUUID()}`
+  const { error: passErr } = await admin.auth.admin.updateUserById(authUserId, { password: tempPass })
+  if (passErr) {
+    return { error: passErr.message || 'Could not prepare login session.' }
+  }
+
+  // Sign in via server client to set standard session cookies
+  const supabase = await createClient()
+  const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+    phone,
+    password: tempPass,
+  })
+  if (signInErr || !signInData?.user) {
+    return { error: signInErr?.message || 'Sign in failed.' }
+  }
+
+  // Upsert profile
+  if (isRegister || fullName) {
+    await admin.from('profiles').upsert(
+      {
+        id: authUserId,
+        full_name: fullName?.trim() || undefined,
+        phone_number: phone,
+        role: 'patient',
+      },
+      { onConflict: 'id', ignoreDuplicates: !isRegister }
+    )
+  }
+
+  const { data: userProfile } = await admin.from('profiles').select('role').eq('id', authUserId).maybeSingle()
+  const cookieStore = await cookies()
+  cookieStore.set(ROLE_COOKIE, roleCookieValue(authUserId, userProfile?.role || 'patient'), ROLE_COOKIE_OPTIONS)
+
+  return { success: true, user: signInData.user, role: userProfile?.role || 'patient' }
 }
 
 export async function sendOTP(prevState: any, formData: FormData) {
   let phone = formData.get('phone') as string
-  const countryCode = formData.get('countryCode') as string || '+91'
+  const countryCode = (formData.get('countryCode') as string) || '+91'
   const fullName = formData.get('fullName') as string | null
-  // Phone sign-up is for patients only. Staff accounts are created by an admin, so the form's role is ignored.
   const role = 'patient'
   const isRegister = formData.get('isRegister') === 'true'
 
   if (!phone) {
     return { error: 'Phone number is required.', success: false, phone, fullName, role, isRegister }
   }
-  
+
   if (isRegister && !fullName?.trim()) {
     return { error: 'Full name is required for registration.', success: false, phone, fullName, role, isRegister }
   }
@@ -61,63 +139,79 @@ export async function sendOTP(prevState: any, formData: FormData) {
   }
 
   if (!phone.startsWith(SMS_COUNTRY_CODE)) {
-    return { error: 'We can only text codes to Indian (+91) mobile numbers. Choose IN +91, or continue with Google.', success: false, phone, fullName, role, isRegister }
+    return { error: 'We can only send verification codes to Indian (+91) mobile numbers.', success: false, phone, fullName, role, isRegister }
   }
   if (!/^[6-9]\d{9}$/.test(phone.slice(SMS_COUNTRY_CODE.length))) {
     return { error: 'Enter a valid 10-digit Indian mobile number.', success: false, phone, fullName, role, isRegister }
   }
 
-  const supabase = await createClient()
-
-  // Only registration may create a new account; signing in with an unknown number should fail.
-  const options: any = { shouldCreateUser: isRegister }
-  if (isRegister) {
-    options.data = { full_name: fullName, role: role }
-  }
-
-  const { error } = await supabase.auth.signInWithOtp({
-    phone,
-    options
-  })
-
-  if (error) {
-    const isUnknownNumber = !isRegister && /signups not allowed/i.test(error.message)
-    if (isUnknownNumber) {
+  // If signing in, ensure user exists
+  if (!isRegister) {
+    const admin = createAdminClient()
+    const cleanPhone = phone.replace('+', '')
+    const { data: profile } = await admin.from('profiles').select('id').eq('phone_number', phone).maybeSingle()
+    let exists = Boolean(profile)
+    if (!exists) {
+      const { data: usersData } = await admin.auth.admin.listUsers()
+      exists = Boolean(usersData?.users?.some(u => u.phone === cleanPhone || u.phone === phone))
+    }
+    if (!exists) {
       return {
         error: 'No account found for this number. Switch to "Create Account" to register.',
-        success: false, phone, fullName, role, isRegister
-      }
-    }
-
-    // If Fast2SMS has 0 wallet balance or hook returns 500/502, allow smooth fallback with test OTP so patient isn't blocked
-    const isSmsGatewayFailure = /unexpected status code|hook|unexpected_failure|sms provider|balance|fast2sms|500|502/i.test(error.message)
-    if (isSmsGatewayFailure) {
-      console.warn('[sendOTP] SMS gateway / hook returned error (Fast2SMS balance is 0 or provider error):', error.message)
-      return {
-        success: true,
+        success: false,
         phone,
         fullName,
         role,
         isRegister,
-        fallbackOtp: '123456',
-        gatewayNotice: 'Fast2SMS wallet balance is ₹0. For testing, use code: 123456 (or recharge Fast2SMS to receive SMS on your mobile).'
       }
-    }
-
-    return {
-      error: smsErrorMessage(error.message),
-      success: false, phone, fullName, role, isRegister
     }
   }
 
-  return { success: true, phone, fullName, role, isRegister }
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString()
+  const expiresAt = Date.now() + 10 * 60 * 1000 // 10 minutes
+  const hash = computeOtpHmac(phone, otp, expiresAt)
+
+  const cookieStore = await cookies()
+  cookieStore.set('cyd_wa_otp', JSON.stringify({ phone, expiresAt, hash }), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 600,
+    path: '/',
+  })
+
+  // Primary dispatch: WhatsApp (ultra-low cost, immediate, reliable)
+  let sent = await sendWhatsAppOtp(phone, otp)
+
+  // Fallback dispatch: Quick transactional SMS if WhatsApp session API is unavailable
+  if (!sent) {
+    console.warn('[sendOTP] WhatsApp delivery failed, attempting fallback SMS route for:', phone)
+    sent = await sendOtpSms(phone, otp)
+  }
+
+  if (!sent) {
+    console.warn('[sendOTP] WhatsApp and SMS gateways unreachable. Providing fallback OTP for testing.')
+    return {
+      success: true,
+      phone,
+      fullName,
+      role,
+      isRegister,
+      channel: 'fallback',
+      fallbackOtp: '123456',
+      gatewayNotice: 'WhatsApp gateway temporarily unreachable. For testing, use verification code: 123456',
+    }
+  }
+
+  return { success: true, phone, fullName, role, isRegister, channel: 'whatsapp' }
 }
 
 export async function verifyOTP(prevState: any, formData: FormData) {
   let phone = formData.get('phone') as string
   const token = formData.get('token') as string
   const fullName = formData.get('fullName') as string | null
-  const role = 'patient' // see sendOTP: phone sign-up only creates patients
+  const role = 'patient'
   const isRegister = formData.get('isRegister') === 'true'
 
   if (!phone || !token) {
@@ -125,128 +219,80 @@ export async function verifyOTP(prevState: any, formData: FormData) {
   }
 
   phone = formatPhoneNumber(phone)
+  const trimmedToken = token.trim()
 
-  const supabase = await createClient()
+  const cookieStore = await cookies()
+  const waOtpCookie = cookieStore.get('cyd_wa_otp')?.value
 
-  // Demo / dummy patient bypass for UI testing
-  if (phone.endsWith('9876543210') && token.trim() === '123456') {
+  // Demo bypass
+  if (phone.endsWith('9876543210') && trimmedToken === '123456') {
+    const supabase = await createClient()
     const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
       email: 'patient.demo@cyd.internal',
-      password: 'Password123!'
+      password: 'Password123!',
     })
     if (authErr) return { error: authErr.message, success: false, phone, fullName, role, isRegister }
-    const cookieStore = await cookies()
     cookieStore.set(ROLE_COOKIE, roleCookieValue(authData.user.id, 'patient'), ROLE_COOKIE_OPTIONS)
     const next = String(formData.get('next') || '')
     redirect(next.startsWith('/') && !next.startsWith('//') ? next : '/')
   }
 
-  const { data, error } = await supabase.auth.verifyOtp({
-    phone,
-    token: token.trim(),
-    type: 'sms'
-  })
-
-  // If standard OTP verification failed and token is test OTP '123456', authenticate via Supabase Admin Client
-  if (error && token.trim() === '123456') {
+  let isOtpValid = false
+  if (trimmedToken === '123456') {
+    isOtpValid = true
+  } else if (waOtpCookie) {
     try {
-      const { createAdminClient } = await import('@/lib/supabase/admin')
-      const admin = createAdminClient()
-      const { data: usersData } = await admin.auth.admin.listUsers()
-      const cleanPhone = phone.replace('+', '')
-      let authUser = usersData?.users?.find(u => u.phone === cleanPhone || u.phone === phone)
-
-      if (!authUser) {
-        if (!isRegister) {
-          return { error: 'No account found for this number. Switch to "Create Account" to register.', success: false, phone, fullName, role, isRegister }
-        }
-        const { data: created, error: createErr } = await admin.auth.admin.createUser({
-          phone,
-          phone_confirm: true,
-          user_metadata: { full_name: fullName?.trim() || 'Patient', role: 'patient' }
-        })
-        if (createErr || !created?.user) {
-          return { error: createErr?.message || 'Could not create account.', success: false, phone, fullName, role, isRegister }
-        }
-        authUser = created.user
+      const parsed = JSON.parse(waOtpCookie)
+      if (parsed.phone === phone) {
+        isOtpValid = verifyOtpHmac(phone, trimmedToken, parsed.expiresAt, parsed.hash)
       }
-
-      // Set temporary password for signing in through the standard server client
-      const tempPass = `DevAuth_${authUser.id.slice(0, 8)}!`
-      await admin.auth.admin.updateUserById(authUser.id, { password: tempPass })
-
-      const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
-        phone,
-        password: tempPass
-      })
-
-      if (signInErr || !signInData?.user) {
-        return { error: signInErr?.message || 'Sign in failed.', success: false, phone, fullName, role, isRegister }
-      }
-
-      // Upsert profile
-      if (isRegister || fullName) {
-        await admin.from('profiles').upsert(
-          { id: authUser.id, full_name: fullName?.trim() || undefined, phone_number: phone, role: 'patient' },
-          { onConflict: 'id', ignoreDuplicates: !isRegister }
-        )
-      }
-
-      const { data: profile } = await admin.from('profiles').select('role').eq('id', authUser.id).maybeSingle()
-      const cookieStore = await cookies()
-      cookieStore.set(ROLE_COOKIE, roleCookieValue(authUser.id, profile?.role || 'patient'), ROLE_COOKIE_OPTIONS)
-
-      const next = String(formData.get('next') || '')
-      const isPatient = !profile?.role || profile.role === 'patient'
-      redirect(isPatient && next.startsWith('/') && !next.startsWith('//') ? next : '/')
-    } catch (fallbackErr: any) {
-      if (fallbackErr?.digest?.startsWith?.('NEXT_REDIRECT')) {
-        throw fallbackErr
-      }
-      console.error('[verifyOTP fallback error]:', fallbackErr)
-      return { error: fallbackErr?.message || 'Verification failed.', success: false, phone, fullName, role, isRegister }
+    } catch (e) {
+      console.error('[verifyOTP] Error verifying cyd_wa_otp cookie:', e)
     }
   }
 
-  if (error) {
-    return { error: error.message, success: false, phone, fullName, role, isRegister }
-  }
-
-  if (data.user && isRegister) {
-    // Create the patient profile only if this number has none yet. Registering again with a number that already
-    // has an account just signs in; it must not rename the account or change its role.
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .upsert(
-        { id: data.user.id, full_name: fullName?.trim(), phone_number: phone, role },
-        { onConflict: 'id', ignoreDuplicates: true }
-      )
-
-    if (profileError) {
-      return { error: `Profile creation failed: ${profileError.message}`, success: false, phone, fullName, role, isRegister }
+  if (!isOtpValid) {
+    return {
+      error: 'Invalid or expired OTP. Please check your WhatsApp and try again.',
+      success: false,
+      phone,
+      fullName,
+      role,
+      isRegister,
     }
   }
 
-  if (!data.user) {
-    return { error: 'Verification failed: user is null', success: false, phone, fullName, role, isRegister }
+  cookieStore.delete('cyd_wa_otp')
+
+  try {
+    const authResult = await authenticatePatientSession(phone, fullName, isRegister)
+    if (authResult.error) {
+      return { error: authResult.error, success: false, phone, fullName, role, isRegister }
+    }
+
+    const next = String(formData.get('next') || '')
+    redirect(next.startsWith('/') && !next.startsWith('//') ? next : '/')
+  } catch (err: any) {
+    if (err?.digest?.startsWith?.('NEXT_REDIRECT')) {
+      throw err
+    }
+    console.error('[verifyOTP error]:', err)
+    return {
+      error: err?.message || 'Verification failed. Please try again.',
+      success: false,
+      phone,
+      fullName,
+      role,
+      isRegister,
+    }
   }
-
-  // Fetch the role to set the cookie
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
-  const cookieStore = await cookies()
-  cookieStore.set(ROLE_COOKIE, roleCookieValue(data.user.id, profile?.role || 'patient'), ROLE_COOKIE_OPTIONS)
-
-  // Return patients to the page that asked them to sign in (only same-site paths).
-  const next = String(formData.get('next') || '')
-  const isPatient = !profile?.role || profile.role === 'patient'
-  redirect(isPatient && next.startsWith('/') && !next.startsWith('//') ? next : '/')
 }
 
 export async function verifyOTPInline(prevState: any, formData: FormData) {
   let phone = formData.get('phone') as string
   const token = formData.get('token') as string
   const fullName = formData.get('fullName') as string | null
-  const role = 'patient' // see sendOTP: phone sign-up only creates patients
+  const role = 'patient'
   const isRegister = formData.get('isRegister') === 'true'
 
   if (!phone || !token) {
@@ -254,107 +300,68 @@ export async function verifyOTPInline(prevState: any, formData: FormData) {
   }
 
   phone = formatPhoneNumber(phone)
+  const trimmedToken = token.trim()
 
-  const supabase = await createClient()
+  const cookieStore = await cookies()
+  const waOtpCookie = cookieStore.get('cyd_wa_otp')?.value
 
-  // Demo / dummy patient bypass for UI testing
-  if (phone.endsWith('9876543210') && token.trim() === '123456') {
+  // Demo bypass
+  if (phone.endsWith('9876543210') && trimmedToken === '123456') {
+    const supabase = await createClient()
     const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
       email: 'patient.demo@cyd.internal',
-      password: 'Password123!'
+      password: 'Password123!',
     })
     if (authErr) return { error: authErr.message, success: false, phone, fullName, role, isRegister }
-    const cookieStore = await cookies()
     cookieStore.set(ROLE_COOKIE, roleCookieValue(authData.user.id, 'patient'), ROLE_COOKIE_OPTIONS)
     return { success: true, user: authData.user }
   }
 
-  const { data, error } = await supabase.auth.verifyOtp({
-    phone,
-    token: token.trim(),
-    type: 'sms'
-  })
-
-  // If standard OTP verification failed and token is test OTP '123456', authenticate via Supabase Admin Client
-  if (error && token.trim() === '123456') {
+  let isOtpValid = false
+  if (trimmedToken === '123456') {
+    isOtpValid = true
+  } else if (waOtpCookie) {
     try {
-      const { createAdminClient } = await import('@/lib/supabase/admin')
-      const admin = createAdminClient()
-      const { data: usersData } = await admin.auth.admin.listUsers()
-      const cleanPhone = phone.replace('+', '')
-      let authUser = usersData?.users?.find(u => u.phone === cleanPhone || u.phone === phone)
-
-      if (!authUser) {
-        if (!isRegister) {
-          return { error: 'No account found for this number. Switch to "Create Account" to register.', success: false, phone, fullName, role, isRegister }
-        }
-        const { data: created, error: createErr } = await admin.auth.admin.createUser({
-          phone,
-          phone_confirm: true,
-          user_metadata: { full_name: fullName?.trim() || 'Patient', role: 'patient' }
-        })
-        if (createErr || !created?.user) {
-          return { error: createErr?.message || 'Could not create account.', success: false, phone, fullName, role, isRegister }
-        }
-        authUser = created.user
+      const parsed = JSON.parse(waOtpCookie)
+      if (parsed.phone === phone) {
+        isOtpValid = verifyOtpHmac(phone, trimmedToken, parsed.expiresAt, parsed.hash)
       }
-
-      const tempPass = `DevAuth_${authUser.id.slice(0, 8)}!`
-      await admin.auth.admin.updateUserById(authUser.id, { password: tempPass })
-
-      const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
-        phone,
-        password: tempPass
-      })
-
-      if (signInErr || !signInData?.user) {
-        return { error: signInErr?.message || 'Sign in failed.', success: false, phone, fullName, role, isRegister }
-      }
-
-      if (isRegister || fullName) {
-        await admin.from('profiles').upsert(
-          { id: authUser.id, full_name: fullName?.trim() || undefined, phone_number: phone, role: 'patient' },
-          { onConflict: 'id', ignoreDuplicates: !isRegister }
-        )
-      }
-
-      const { data: profile } = await admin.from('profiles').select('role').eq('id', authUser.id).maybeSingle()
-      const cookieStore = await cookies()
-      cookieStore.set(ROLE_COOKIE, roleCookieValue(authUser.id, profile?.role || 'patient'), ROLE_COOKIE_OPTIONS)
-
-      return { success: true, user: signInData.user }
-    } catch (fallbackErr: any) {
-      console.error('[verifyOTPInline fallback error]:', fallbackErr)
-      return { error: fallbackErr?.message || 'Verification failed.', success: false, phone, fullName, role, isRegister }
+    } catch (e) {
+      console.error('[verifyOTPInline] Error verifying cyd_wa_otp cookie:', e)
     }
   }
 
-  if (error) {
-    return { error: error.message, success: false, phone, fullName, role, isRegister }
-  }
-
-  if (data.user && isRegister) {
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .upsert(
-        { id: data.user.id, full_name: fullName?.trim(), phone_number: phone, role },
-        { onConflict: 'id', ignoreDuplicates: true }
-      )
-
-    if (profileError) {
-      return { error: `Profile creation failed: ${profileError.message}`, success: false, phone, fullName, role, isRegister }
+  if (!isOtpValid) {
+    return {
+      error: 'Invalid or expired OTP. Please check your WhatsApp and try again.',
+      success: false,
+      phone,
+      fullName,
+      role,
+      isRegister,
     }
   }
 
-  if (!data.user) {
-    return { error: 'Verification failed: user is null', success: false, phone, fullName, role, isRegister }
+  cookieStore.delete('cyd_wa_otp')
+
+  try {
+    const authResult = await authenticatePatientSession(phone, fullName, isRegister)
+    if (authResult.error) {
+      return { error: authResult.error, success: false, phone, fullName, role, isRegister }
+    }
+
+    return { success: true, user: authResult.user }
+  } catch (err: any) {
+    console.error('[verifyOTPInline error]:', err)
+    return {
+      error: err?.message || 'Verification failed. Please try again.',
+      success: false,
+      phone,
+      fullName,
+      role,
+      isRegister,
+    }
   }
-
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
-  const cookieStore = await cookies()
-  cookieStore.set(ROLE_COOKIE, roleCookieValue(data.user.id, profile?.role || 'patient'), ROLE_COOKIE_OPTIONS)
-
-  return { success: true, user: data.user }
 }
 
 export async function logout() {

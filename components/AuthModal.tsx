@@ -118,9 +118,9 @@ export function AuthModal({ isOpen, onClose, initialType = 'login' }: AuthModalP
               <button 
                 type="submit"
                 disabled={isSendPending}
-                className="w-full py-2.5 bg-[#E31E24] text-white font-semibold hover:bg-red-700 transition-colors mt-4 disabled:opacity-50 rounded-full cursor-pointer"
+                className="w-full py-2.5 bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition-colors mt-4 disabled:opacity-50 rounded-full cursor-pointer flex items-center justify-center gap-2"
               >
-                {isSendPending ? 'Sending OTP...' : 'Send OTP'}
+                {isSendPending ? 'Sending WhatsApp OTP...' : 'Get WhatsApp OTP'}
               </button>
             </form>
 
@@ -147,7 +147,7 @@ export function AuthModal({ isOpen, onClose, initialType = 'login' }: AuthModalP
             <div className="text-center mb-6">
               <h1 className="text-2xl font-bold text-gray-900">Verify Mobile Number</h1>
               <p className="text-gray-500 text-sm mt-2">
-                We've sent a 6-digit OTP to <br/><span className="font-semibold text-gray-900">{phoneVal}</span>
+                We've sent a 6-digit verification code to your WhatsApp at <br/><span className="font-semibold text-gray-900">{phoneVal}</span>
               </p>
             </div>
 

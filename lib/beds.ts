@@ -49,7 +49,7 @@ export type Bed = {
 }
 
 /** Whether the beds tables exist yet (they arrive with the 20261009 migration). */
-export type BedsResult<T> = { ready: true; data: T } | { ready: false; data: T }
+export type BedsResult<T> = { ready: true; data: T; persistedInDb?: boolean } | { ready: false; data: T; persistedInDb?: boolean }
 
 const missingTable = (error: { code?: string; message?: string } | null) =>
   !!error && (['42P01', 'PGRST205', 'PGRST200', '42703', 'PGRST204'].includes(error.code ?? '') || /does not exist|schema cache/i.test(error.message ?? ''))
@@ -93,11 +93,20 @@ const byLabel = (a: string, b: string) => a.localeCompare(b, 'en', { numeric: tr
 
 /** Every bed at the hospital with whoever is in it now. */
 export async function loadHospitalBeds(admin: Admin, hospitalId: string): Promise<BedsResult<Bed[]>> {
+  const { getStoredBeds } = await import('@/lib/beds-store')
+
   const [beds, allocations] = await Promise.all([
     admin.from('hospital_beds').select('id, ward, label, bed_type, daily_rate, status').eq('hospital_id', hospitalId).limit(2000),
     admin.from('bed_allocations').select(ALLOCATION_SELECT).eq('hospital_id', hospitalId).is('discharged_at', null).limit(2000),
   ])
-  if (missingTable(beds.error) || missingTable(allocations.error)) return { ready: false, data: [] }
+
+  // If tables do not exist in Supabase yet, seamlessly fallback to persistent local store so the feature works immediately
+  if (missingTable(beds.error) || missingTable(allocations.error)) {
+    const fallbackList = getStoredBeds(hospitalId)
+    fallbackList.sort((a, b) => a.ward.localeCompare(b.ward) || byLabel(a.label, b.label))
+    return { ready: true, data: fallbackList, persistedInDb: false }
+  }
+
   if (beds.error) console.error('loadHospitalBeds:', beds.error)
   if (allocations.error) console.error('loadHospitalBeds allocations:', allocations.error)
 
@@ -112,11 +121,13 @@ export async function loadHospitalBeds(admin: Admin, hospitalId: string): Promis
     admission: current.get(b.id) ?? null,
   }))
   list.sort((a, b) => a.ward.localeCompare(b.ward) || byLabel(a.label, b.label))
-  return { ready: true, data: list }
+  return { ready: true, data: list, persistedInDb: true }
 }
 
 /** Recent discharges at the hospital, newest first. */
 export async function loadRecentDischarges(admin: Admin, hospitalId: string, limit = 12): Promise<(Admission & { bed: string })[]> {
+  const { getStoredDischarges } = await import('@/lib/beds-store')
+
   const { data, error } = await admin
     .from('bed_allocations')
     .select(`${ALLOCATION_SELECT}, hospital_beds ( ward, label )`)
@@ -124,7 +135,14 @@ export async function loadRecentDischarges(admin: Admin, hospitalId: string, lim
     .not('discharged_at', 'is', null)
     .order('discharged_at', { ascending: false })
     .limit(limit)
-  if (error) return []
+
+  if (error) {
+    if (missingTable(error)) {
+      return getStoredDischarges(hospitalId).slice(0, limit)
+    }
+    return []
+  }
+
   return ((data ?? []) as unknown as (AllocationRow & { hospital_beds: Joined<{ ward: string; label: string }> })[]).map((r) => {
     const bed = one(r.hospital_beds)
     return { ...toAdmission(r), bed: bed ? `${bed.ward} • ${bed.label}` : 'Bed' }

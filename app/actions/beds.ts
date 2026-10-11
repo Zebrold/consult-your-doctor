@@ -47,6 +47,9 @@ const AddBeds = z.object({
   dailyRate: z.number().min(0).max(10_000_000).nullable(),
 })
 
+const isMissingDbTable = (error: { code?: string; message?: string } | null | undefined) =>
+  !!error && (['42P01', 'PGRST205', 'PGRST200', '42703', 'PGRST204'].includes(error.code ?? '') || /does not exist|schema cache/i.test(error.message ?? ''))
+
 /** Adds `count` beds to a ward, labelled prefix + number ("Bed 1", "Bed 2", …). */
 export async function addBeds(input: z.input<typeof AddBeds>): Promise<DeskResult<{ added: number }>> {
   const ctx = await hospitalContext()
@@ -55,7 +58,32 @@ export async function addBeds(input: z.input<typeof AddBeds>): Promise<DeskResul
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? 'Check the bed details.')
   const { ward, type, prefix, start, count, dailyRate } = parsed.data
 
-  const { data: existing } = await ctx.admin.from('hospital_beds').select('label').eq('hospital_id', ctx.hospitalId).eq('ward', ward)
+  const { data: existing, error: existingErr } = await ctx.admin.from('hospital_beds').select('label').eq('hospital_id', ctx.hospitalId).eq('ward', ward)
+
+  if (isMissingDbTable(existingErr)) {
+    const { getStoredBeds, saveStoredBeds } = await import('@/lib/beds-store')
+    const currentBeds = getStoredBeds(ctx.hospitalId)
+    const taken = new Set(currentBeds.filter((b) => b.ward.toLowerCase() === ward.toLowerCase()).map((b) => b.label.toLowerCase()))
+    let added = 0
+    for (let n = start; added < count && n < start + count + taken.size + 1; n++) {
+      const label = `${prefix ? `${prefix} ` : ''}${n}`.trim().slice(0, 30)
+      if (taken.has(label.toLowerCase())) continue
+      currentBeds.push({
+        id: `bed-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        ward,
+        label,
+        type,
+        dailyRate: dailyRate ?? null,
+        status: 'available',
+        admission: null,
+      })
+      added++
+    }
+    saveStoredBeds(ctx.hospitalId, currentBeds)
+    revalidateBedPages()
+    return { ok: true, added }
+  }
+
   const taken = new Set(((existing ?? []) as { label: string }[]).map((b) => b.label.toLowerCase()))
   const rows: Record<string, unknown>[] = []
   for (let n = start; rows.length < count && n < start + count + taken.size + 1; n++) {
@@ -67,6 +95,24 @@ export async function addBeds(input: z.input<typeof AddBeds>): Promise<DeskResul
 
   const { error } = await ctx.admin.from('hospital_beds').insert(rows)
   if (error) {
+    if (isMissingDbTable(error)) {
+      const { getStoredBeds, saveStoredBeds } = await import('@/lib/beds-store')
+      const currentBeds = getStoredBeds(ctx.hospitalId)
+      for (const r of rows) {
+        currentBeds.push({
+          id: `bed-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          ward: r.ward as string,
+          label: r.label as string,
+          type: r.bed_type as string,
+          dailyRate: (r.daily_rate as number | null) ?? null,
+          status: 'available',
+          admission: null,
+        })
+      }
+      saveStoredBeds(ctx.hospitalId, currentBeds)
+      revalidateBedPages()
+      return { ok: true, added: rows.length }
+    }
     console.error('addBeds:', error)
     return fail(saveError(error, 'Could not add the beds. Please try again.'))
   }
@@ -98,6 +144,21 @@ export async function updateBed(input: z.input<typeof UpdateBed>): Promise<DeskR
     .eq('hospital_id', ctx.hospitalId)
     .select('id')
   if (error) {
+    if (isMissingDbTable(error)) {
+      const { getStoredBeds, saveStoredBeds } = await import('@/lib/beds-store')
+      const currentBeds = getStoredBeds(ctx.hospitalId)
+      const found = currentBeds.find((b) => b.id === bedId)
+      if (found) {
+        found.ward = ward
+        found.label = label
+        found.type = type
+        found.dailyRate = dailyRate
+        found.status = status
+        saveStoredBeds(ctx.hospitalId, currentBeds)
+        revalidateBedPages()
+        return { ok: true }
+      }
+    }
     console.error('updateBed:', error)
     return fail(saveError(error, 'Could not save the bed. Please try again.'))
   }
@@ -110,10 +171,30 @@ export async function updateBed(input: z.input<typeof UpdateBed>): Promise<DeskR
 export async function removeBed(bedId: string): Promise<DeskResult> {
   const ctx = await hospitalContext()
   if (!ctx) return fail(NOT_SIGNED_IN)
-  const { data: active } = await ctx.admin.from('bed_allocations').select('id').eq('bed_id', bedId).is('discharged_at', null).limit(1)
+  const { data: active, error: activeErr } = await ctx.admin.from('bed_allocations').select('id').eq('bed_id', bedId).is('discharged_at', null).limit(1)
+
+  if (isMissingDbTable(activeErr)) {
+    const { getStoredBeds, saveStoredBeds } = await import('@/lib/beds-store')
+    const currentBeds = getStoredBeds(ctx.hospitalId)
+    const found = currentBeds.find((b) => b.id === bedId)
+    if (found?.admission) return fail('Discharge or move the patient in this bed first.')
+    const nextBeds = currentBeds.filter((b) => b.id !== bedId)
+    saveStoredBeds(ctx.hospitalId, nextBeds)
+    revalidateBedPages()
+    return { ok: true }
+  }
+
   if (active?.length) return fail('Discharge or move the patient in this bed first.')
   const { data, error } = await ctx.admin.from('hospital_beds').delete().eq('id', bedId).eq('hospital_id', ctx.hospitalId).select('id')
   if (error) {
+    if (isMissingDbTable(error)) {
+      const { getStoredBeds, saveStoredBeds } = await import('@/lib/beds-store')
+      const currentBeds = getStoredBeds(ctx.hospitalId)
+      const nextBeds = currentBeds.filter((b) => b.id !== bedId)
+      saveStoredBeds(ctx.hospitalId, nextBeds)
+      revalidateBedPages()
+      return { ok: true }
+    }
     console.error('removeBed:', error)
     return fail(saveError(error, 'Could not remove the bed. Please try again.'))
   }
@@ -179,11 +260,41 @@ export async function admitPatient(input: z.input<typeof Admit>): Promise<DeskRe
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? 'Check the admission details.')
   const v = parsed.data
 
-  const [{ data: bed }, { data: doctor }, { data: patient }] = await Promise.all([
+  const [{ data: bed, error: bedErr }, { data: doctor }, { data: patient }] = await Promise.all([
     ctx.admin.from('hospital_beds').select('id, status').eq('id', v.bedId).eq('hospital_id', ctx.hospitalId).maybeSingle(),
-    ctx.admin.from('doctors').select('id').eq('id', v.doctorId).eq('hospital_id', ctx.hospitalId).maybeSingle(),
-    ctx.admin.from('profiles').select('id, role').eq('id', v.patientId).maybeSingle(),
+    ctx.admin.from('doctors').select('id, profiles!doctors_profile_id_fkey ( full_name )').eq('id', v.doctorId).eq('hospital_id', ctx.hospitalId).maybeSingle(),
+    ctx.admin.from('profiles').select('id, role, full_name, phone_number').eq('id', v.patientId).maybeSingle(),
   ])
+
+  if (isMissingDbTable(bedErr)) {
+    const { getStoredBeds, saveStoredBeds } = await import('@/lib/beds-store')
+    const currentBeds = getStoredBeds(ctx.hospitalId)
+    const targetBed = currentBeds.find((b) => b.id === v.bedId)
+    if (!targetBed) return fail('Bed not found.')
+    if (targetBed.status !== 'available') return fail('This bed is marked for cleaning or maintenance. Make it available first.')
+
+    let docName = 'Attending Doctor'
+    if (doctor) {
+      const prof = Array.isArray(doctor.profiles) ? doctor.profiles[0] : doctor.profiles
+      if (prof?.full_name) docName = prof.full_name
+    }
+
+    targetBed.admission = {
+      id: `adm-${Date.now()}`,
+      bedId: v.bedId,
+      patient: { id: patient?.id || v.patientId, name: patient?.full_name || 'Patient', phone: patient?.phone_number || null },
+      doctor: { id: doctor?.id || v.doctorId, name: docName },
+      reason: v.reason || null,
+      notes: v.notes || null,
+      admittedAt: new Date().toISOString(),
+      expectedDischarge: v.expectedDischarge,
+      dischargedAt: null,
+    }
+    saveStoredBeds(ctx.hospitalId, currentBeds)
+    revalidateBedPages()
+    return { ok: true }
+  }
+
   if (!bed) return fail('Bed not found.')
   if (bed.status !== 'available') return fail('This bed is marked for cleaning or maintenance. Make it available first.')
   if (!doctor) return fail('Choose one of your hospital’s doctors.')
@@ -200,6 +311,30 @@ export async function admitPatient(input: z.input<typeof Admit>): Promise<DeskRe
     created_by: ctx.userId,
   })
   if (error) {
+    if (isMissingDbTable(error)) {
+      const { getStoredBeds, saveStoredBeds } = await import('@/lib/beds-store')
+      const currentBeds = getStoredBeds(ctx.hospitalId)
+      const targetBed = currentBeds.find((b) => b.id === v.bedId)
+      if (targetBed) {
+        let docName = 'Attending Doctor'
+        const prof = Array.isArray(doctor.profiles) ? doctor.profiles[0] : doctor.profiles
+        if (prof?.full_name) docName = prof.full_name
+        targetBed.admission = {
+          id: `adm-${Date.now()}`,
+          bedId: v.bedId,
+          patient: { id: patient.id, name: patient.full_name || 'Patient', phone: patient.phone_number },
+          doctor: { id: doctor.id, name: docName },
+          reason: v.reason || null,
+          notes: v.notes || null,
+          admittedAt: new Date().toISOString(),
+          expectedDischarge: v.expectedDischarge,
+          dischargedAt: null,
+        }
+        saveStoredBeds(ctx.hospitalId, currentBeds)
+        revalidateBedPages()
+        return { ok: true }
+      }
+    }
     console.error('admitPatient:', error)
     if (error.code === '23505') return fail('That bed was just taken, or this patient already has a bed. Refresh and check the board.')
     return fail(saveError(error, 'Could not admit the patient. Please try again.'))
@@ -212,7 +347,7 @@ export async function admitPatient(input: z.input<typeof Admit>): Promise<DeskRe
 export async function transferPatient(input: { allocationId: string; bedId: string }): Promise<DeskResult> {
   const ctx = await hospitalContext()
   if (!ctx) return fail(NOT_SIGNED_IN)
-  const [{ data: current }, { data: bed }] = await Promise.all([
+  const [{ data: current, error: curErr }, { data: bed }] = await Promise.all([
     ctx.admin
       .from('bed_allocations')
       .select('id, bed_id, patient_id, doctor_id, appointment_id, reason, notes, expected_discharge')
@@ -222,6 +357,24 @@ export async function transferPatient(input: { allocationId: string; bedId: stri
       .maybeSingle(),
     ctx.admin.from('hospital_beds').select('id, status').eq('id', input.bedId).eq('hospital_id', ctx.hospitalId).maybeSingle(),
   ])
+
+  if (isMissingDbTable(curErr)) {
+    const { getStoredBeds, saveStoredBeds } = await import('@/lib/beds-store')
+    const currentBeds = getStoredBeds(ctx.hospitalId)
+    const fromBed = currentBeds.find((b) => b.admission?.id === input.allocationId)
+    const toBed = currentBeds.find((b) => b.id === input.bedId)
+    if (!fromBed?.admission) return fail('This admission has already ended.')
+    if (!toBed) return fail('Bed not found.')
+    if (toBed.id === fromBed.id) return fail('Choose a different bed.')
+    if (toBed.status !== 'available' || toBed.admission) return fail('That bed isn’t available.')
+
+    toBed.admission = { ...fromBed.admission, bedId: toBed.id }
+    fromBed.admission = null
+    saveStoredBeds(ctx.hospitalId, currentBeds)
+    revalidateBedPages()
+    return { ok: true }
+  }
+
   if (!current) return fail('This admission has already ended.')
   if (!bed) return fail('Bed not found.')
   if (bed.id === current.bed_id) return fail('Choose a different bed.')
@@ -258,13 +411,33 @@ export async function transferPatient(input: { allocationId: string; bedId: stri
 export async function dischargePatient(input: { allocationId: string; nextStatus: 'available' | 'cleaning'; notes: string }): Promise<DeskResult> {
   const ctx = await hospitalContext()
   if (!ctx) return fail(NOT_SIGNED_IN)
-  const { data: current } = await ctx.admin
+  const { data: current, error: curErr } = await ctx.admin
     .from('bed_allocations')
     .select('id, bed_id, notes')
     .eq('id', input.allocationId)
     .eq('hospital_id', ctx.hospitalId)
     .is('discharged_at', null)
     .maybeSingle()
+
+  if (isMissingDbTable(curErr)) {
+    const { getStoredBeds, saveStoredBeds, addStoredDischarge } = await import('@/lib/beds-store')
+    const currentBeds = getStoredBeds(ctx.hospitalId)
+    const targetBed = currentBeds.find((b) => b.admission?.id === input.allocationId)
+    if (!targetBed?.admission) return fail('This patient has already been discharged.')
+
+    addStoredDischarge(ctx.hospitalId, {
+      ...targetBed.admission,
+      bed: `${targetBed.ward} • ${targetBed.label}`,
+      dischargedAt: new Date().toISOString(),
+      notes: input.notes || targetBed.admission.notes,
+    })
+    targetBed.admission = null
+    targetBed.status = input.nextStatus === 'cleaning' ? 'cleaning' : 'available'
+    saveStoredBeds(ctx.hospitalId, currentBeds)
+    revalidateBedPages()
+    return { ok: true }
+  }
+
   if (!current) return fail('This patient has already been discharged.')
   const notes = [current.notes, input.notes.trim().slice(0, 1000)].filter(Boolean).join(' ').slice(0, 2000) || null
   const { error } = await ctx.admin.from('bed_allocations').update({ discharged_at: new Date().toISOString(), notes }).eq('id', current.id).is('discharged_at', null)

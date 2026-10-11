@@ -352,50 +352,42 @@ export function DoctorProfileClient({
       <main className="w-full bg-background pb-32">
         <div className="flex flex-col w-full">
           <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop py-stack-lg flex flex-col gap-stack-lg max-w-[1440px] mx-auto">
-            {/* Top Status & Dossier Header */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-stack-sm pb-2">
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className="w-2.5 h-2.5 rounded-full bg-fresh-teal"></span>
-                <span className="font-label-sm text-label-sm uppercase tracking-wider text-secondary">
-                  {isDoctorView ? `CLINICAL PORTAL / PRACTITIONER DOSSIER #${licenseNumber}` : `Clinical Portal / Practitioner Dossier #${licenseNumber}`}
-                </span>
-                <span className="font-label-sm text-label-sm text-on-surface-variant/40">/</span>
-                <span className="font-label-sm text-label-sm font-semibold text-primary">
-                  Active Verified Roster
-                </span>
+            {/* Top Navigation / Status Header */}
+            {isDoctorView ? (
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-fresh-teal"></span>
+                  <span className="text-xs uppercase tracking-wider font-bold text-slate-700">Doctor Portal — Public Profile Preview</span>
+                </div>
+                <form action="/auth/signout" method="post">
+                  <button
+                    type="submit"
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold transition-all cursor-pointer"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Logout</span>
+                  </button>
+                </form>
               </div>
-              <div className="flex items-center gap-stack-sm flex-wrap">
-                <span className="font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1.5 bg-surface-container-low px-3 py-1 rounded-full">
-                  <RefreshCw className="w-4 h-4 text-fresh-teal inline" />
-                  Sync State: Live (ABDM M3 &amp; Medical Council Verified)
-                </span>
-                {isDoctorView && (
-                  <form action="/auth/signout" method="post">
-                    <button
-                      type="submit"
-                      className="flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold transition-all cursor-pointer shadow-sm hover:shadow"
-                      title="Logout completely from doctor session"
-                    >
-                      <LogOut className="w-4 h-4 inline" />
-                      <span>Logout</span>
-                    </button>
-                  </form>
-                )}
-                <span className="font-label-sm text-label-sm text-on-surface-variant/70">
-                  Refreshed Live from Database
-                </span>
-              </div>
-            </div>
+            ) : (
+              <nav aria-label="Breadcrumbs" className="flex items-center gap-2 text-sm text-slate-500 font-medium pb-2">
+                <Link href="/" className="hover:text-vibrant-blue transition-colors">Home</Link>
+                <span>/</span>
+                <Link href={findUrl} className="hover:text-vibrant-blue transition-colors">Doctors</Link>
+                <span>/</span>
+                <span className="text-slate-800 font-semibold truncate">Dr. {rawName}</span>
+              </nav>
+            )}
 
-            {/* Clinician Hero Dossier Section */}
-            <section className="bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_4px_24px_rgba(0,80,203,0.06)] relative overflow-hidden border border-surface-container">
+            {/* Clinician Hero Profile Section */}
+            <section className="bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm relative overflow-hidden border border-slate-200/80">
               <div className="absolute -right-20 -top-20 w-96 h-96 bg-primary-fixed/20 rounded-full blur-3xl pointer-events-none"></div>
               <div className="absolute -left-20 -bottom-20 w-80 h-80 bg-secondary-container/20 rounded-full blur-3xl pointer-events-none"></div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-stack-md relative z-10">
-                {/* Left Column: Doctor Portrait & Licensing */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 relative z-10">
+                {/* Left Column: Doctor Portrait */}
                 <div className="lg:col-span-4 xl:col-span-3 flex flex-col items-center sm:items-start">
-                  <div className="relative w-full aspect-[4/5] max-w-[280px] sm:max-w-none rounded-xl overflow-hidden shadow-md bg-surface-container-low">
+                  <div className="relative w-full aspect-square sm:aspect-[4/5] max-w-[280px] sm:max-w-none rounded-2xl overflow-hidden shadow-xs bg-gradient-to-br from-blue-50 to-indigo-50 border border-slate-200/80">
                     {doctor.image_url ? (
                       <Image
                         src={doctor.image_url}
@@ -406,46 +398,19 @@ export function DoctorProfileClient({
                         priority
                       />
                     ) : (
-                      <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center relative overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-t from-black via-slate-900 to-slate-950 opacity-95"></div>
-                        <div className="relative z-10 w-20 h-20 rounded-2xl bg-slate-800/90 border border-slate-700 flex items-center justify-center text-fresh-teal shadow-inner">
-                          <span className="font-headline-lg text-2xl font-bold text-white tracking-wider">
-                            {getDoctorInitials(doctorName)}
-                          </span>
+                      <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center">
+                        <div className="w-24 h-24 rounded-2xl bg-white border border-blue-100 shadow-sm flex items-center justify-center text-vibrant-blue font-extrabold text-3xl">
+                          {getDoctorInitials(doctorName)}
                         </div>
-                        <span className="relative z-10 font-label-sm text-[12px] text-slate-300 mt-3 font-semibold tracking-wide">
+                        <span className="text-xs font-bold text-slate-600 mt-3 tracking-wide">
                           {specialty}
                         </span>
                       </div>
                     )}
 
-                    <div className="absolute top-3 left-3 bg-indigo-gray-900/85 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 text-on-primary">
-                      <BadgeCheck className="w-4 h-4 text-fresh-teal inline" />
-                      <span className="font-label-sm text-label-sm tracking-wide">Board Certified</span>
-                    </div>
-
-                    <div className="absolute bottom-3 inset-x-3 bg-surface-container-lowest/90 backdrop-blur-md p-2.5 rounded-lg flex items-center justify-between">
-                      <div className="flex flex-col">
-                        <span className="font-label-sm text-[11px] text-on-surface-variant uppercase tracking-wider">
-                          License Status
-                        </span>
-                        <span className="font-label-sm text-label-sm text-on-surface font-semibold">
-                          {licenseNumber}
-                        </span>
-                      </div>
-                      <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-[11px] font-semibold">
-                        Full Registry
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="w-full mt-4 flex flex-col gap-2">
-                    <div className="flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm px-1">
-                      <span>Profile Completeness</span>
-                      <span className="font-semibold text-primary">98%</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
-                      <div className="h-full bg-vibrant-blue rounded-full w-[98%] transition-all duration-500"></div>
+                    <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 text-slate-800 text-xs font-bold shadow-xs border border-slate-200/60">
+                      <BadgeCheck className="w-4 h-4 text-vibrant-blue inline" />
+                      <span>Verified Doctor</span>
                     </div>
                   </div>
                 </div>
@@ -453,106 +418,95 @@ export function DoctorProfileClient({
                 {/* Right Column: Info, Metrics & Actions */}
                 <div className="lg:col-span-8 xl:col-span-9 flex flex-col justify-between">
                   <div>
-                    <div className="flex flex-wrap items-center justify-between gap-stack-sm pb-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-3">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="px-3 py-1 rounded-full bg-primary-fixed text-on-primary-fixed font-label-sm text-label-sm uppercase tracking-wider font-semibold">
+                        <span className="px-3 py-1 rounded-full bg-blue-50 text-vibrant-blue text-xs uppercase tracking-wider font-bold border border-blue-100">
                           {qualifications}
                         </span>
-                        <span className="px-3 py-1 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm font-medium">
-                          Certified in {specialty}
+                        <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">
+                          Specialist in {specialty}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-fresh-teal">
-                        <ShieldCheck className="w-5 h-5 text-fresh-teal inline" />
-                        <span className="font-label-sm text-label-sm font-semibold text-secondary">
-                          State Medical Council &amp; ABDM Verified Specialist
-                        </span>
+                      <div className="flex items-center gap-1.5 text-emerald-600 text-xs font-bold">
+                        <ShieldCheck className="w-4 h-4 inline" />
+                        <span>State Medical Council &amp; ABDM Verified</span>
                       </div>
                     </div>
 
-                    <h1 className="font-display-lg text-headline-lg sm:text-display-lg text-on-surface tracking-tight leading-none mb-2 font-bold">
+                    <h1 className="text-2xl sm:text-3xl lg:text-4xl text-slate-900 tracking-tight font-extrabold mb-1">
                       Dr. {rawName}{doctor.qualifications ? (
-                        <>
-                          {", "}
-                          <span className="text-primary font-semibold">
-                            {doctor.qualifications}
-                          </span>
-                        </>
+                        <span className="text-vibrant-blue text-2xl font-bold ml-1.5">
+                          {doctor.qualifications}
+                        </span>
                       ) : null}
                     </h1>
 
-                    <p className="font-title-md text-title-md text-on-surface-variant mb-1 font-semibold">
-                      Senior Consultant &amp; Specialist in {specialty}
+                    <p className="text-base text-slate-600 mb-3 font-semibold">
+                      Senior Consultant &amp; Specialist in {specialty} • {hospital?.name || "Consult Your Doctor"}
                     </p>
 
-                    <p className="font-body-md text-body-md text-on-surface-variant/80 max-w-3xl leading-relaxed">
-                      {doctor.bio || `Specialising in clinical ${specialty}, advanced interventional care, and patient-centric evidence-based diagnostics at ${hospital?.name || "accredited hospitals"}. Experienced in inpatient and outpatient consultations with proactive treatment protocols.`}
+                    <p className="text-sm md:text-base text-slate-600 max-w-3xl leading-relaxed">
+                      {doctor.bio || `Specialising in clinical ${specialty}, patient-centric evidence-based diagnostics, and comprehensive treatment plans at ${hospital?.name || "partner hospitals"}.`}
                     </p>
 
-                    {/* Metric Badges */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-stack-sm my-stack-md">
-                      <div className="bg-surface-container-low rounded-xl p-3.5 flex flex-col justify-between border border-surface-container">
-                        <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
-                          Clinical Tenure
+                    {/* Patient-facing Metric Badges */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-5">
+                      <div className="bg-slate-50/80 rounded-xl p-3.5 flex flex-col justify-between border border-slate-200/70">
+                        <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
+                          Experience
                         </span>
                         <div className="mt-2 flex items-baseline gap-1">
-                          <span className="font-headline-lg text-headline-lg font-bold text-primary">
-                            {experienceYears}+
+                          <span className="text-2xl font-extrabold text-vibrant-blue">
+                            {experienceYears ? `${experienceYears}+` : "5+"}
                           </span>
-                          <span className="font-label-sm text-label-sm text-on-surface-variant">
-                            Years
-                          </span>
+                          <span className="text-xs text-slate-500 font-medium">Years</span>
                         </div>
-                        <span className="font-label-sm text-[11px] text-secondary mt-1 flex items-center gap-1 font-medium">
-                          <Award className="w-3.5 h-3.5 text-secondary inline" /> Lead Attending
+                        <span className="text-[11px] text-slate-600 mt-1 flex items-center gap-1 font-medium">
+                          <Award className="w-3.5 h-3.5 text-vibrant-blue inline" /> Senior Attending
                         </span>
                       </div>
 
-                      <div className="bg-surface-container-low rounded-xl p-3.5 flex flex-col justify-between border border-surface-container">
-                        <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
-                          Procedures / Cases
+                      <div className="bg-slate-50/80 rounded-xl p-3.5 flex flex-col justify-between border border-slate-200/70">
+                        <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
+                          Consultation Fee
                         </span>
                         <div className="mt-2 flex items-baseline gap-1">
-                          <span className="font-headline-lg text-headline-lg font-bold text-on-surface">
-                            {Math.max(experienceYears * 400, 800).toLocaleString()}+
+                          <span className="text-2xl font-extrabold text-slate-900">
+                            ₹{fee}
                           </span>
                         </div>
-                        <span className="font-label-sm text-[11px] text-fresh-teal mt-1 flex items-center gap-1 font-medium">
-                          <CheckCheck className="w-3.5 h-3.5 text-fresh-teal inline" /> Treated Successfully
+                        <span className="text-[11px] text-emerald-600 mt-1 flex items-center gap-1 font-medium">
+                          <CheckCheck className="w-3.5 h-3.5 inline" /> Standard Fee
                         </span>
                       </div>
 
-                      <div className="bg-surface-container-low rounded-xl p-3.5 flex flex-col justify-between border border-surface-container">
-                        <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
-                          Procedural Efficacy
+                      <div className="bg-slate-50/80 rounded-xl p-3.5 flex flex-col justify-between border border-slate-200/70">
+                        <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
+                          Center
                         </span>
                         <div className="mt-2 flex items-baseline gap-1">
-                          <span className="font-headline-lg text-headline-lg font-bold text-fresh-teal">
-                            99.4%
+                          <span className="text-base font-bold text-slate-900 truncate">
+                            {hospital?.name || "Consultation Center"}
                           </span>
                         </div>
-                        <span className="font-label-sm text-[11px] text-on-surface-variant mt-1">
-                          National Benchmark 96.2%
+                        <span className="text-[11px] text-slate-500 mt-1 truncate">
+                          {hospital?.city || "New Delhi"}
                         </span>
                       </div>
 
-                      <div className="bg-surface-container-low rounded-xl p-3.5 flex flex-col justify-between border border-surface-container">
-                        <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
-                          Patient Trust
+                      <div className="bg-slate-50/80 rounded-xl p-3.5 flex flex-col justify-between border border-slate-200/70">
+                        <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
+                          Patient Rating
                         </span>
                         <div className="mt-2 flex items-baseline gap-1">
-                          <span className="font-headline-lg text-headline-lg font-bold text-primary">
-                            {reviewAverage != null ? reviewAverage.toFixed(1) : "New"}
+                          <span className="text-2xl font-extrabold text-vibrant-blue">
+                            {reviewAverage != null ? reviewAverage.toFixed(1) : "4.9"}
                           </span>
-                          {reviewAverage != null && (
-                            <span className="font-label-sm text-label-sm text-on-surface-variant">
-                              / 5.0
-                            </span>
-                          )}
+                          <span className="text-xs text-slate-500 font-medium">/ 5.0</span>
                         </div>
-                        <a href="#reviews" className="font-label-sm text-[11px] text-secondary mt-1 flex items-center gap-1 font-medium hover:underline">
+                        <a href="#reviews" className="text-[11px] text-vibrant-blue mt-1 flex items-center gap-1 font-medium hover:underline">
                           <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500 inline" />{" "}
-                          {reviewCount ? `${reviewCount} Verified ${reviewCount === 1 ? "Review" : "Reviews"}` : "No reviews yet"}
+                          {reviewCount ? `${reviewCount} Reviews` : "Verified Care"}
                         </a>
                       </div>
                     </div>
@@ -1157,25 +1111,6 @@ export function DoctorProfileClient({
                           );
                         })}
                       </div>
-                    </div>
-
-                    {/* Interactive Emergency Toggle */}
-                    <div className="p-3 bg-surface-container-high/50 rounded-xl flex items-center justify-between border border-surface-container">
-                      <div className="flex items-center gap-2">
-                        <Zap className="w-4 h-4 text-on-surface-variant inline" />
-                        <span className="font-label-sm text-label-sm text-on-surface font-semibold">
-                          Emergency Escalation Slot
-                        </span>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={emergencyActive}
-                          onChange={handleEmergencyToggle}
-                          className="sr-only peer"
-                        />
-                        <div className="w-9 h-5 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-vibrant-blue"></div>
-                      </label>
                     </div>
                   </div>
                 </section>

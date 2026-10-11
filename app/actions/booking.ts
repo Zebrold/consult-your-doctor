@@ -115,10 +115,18 @@ function toE164(raw: string) {
  * which is what hospitals, labs and the operations team see for the booking.
  */
 async function savePatientBasics(supabase: Supabase, userId: string, formData: FormData): Promise<string | null> {
-  const fullName = String(formData.get('patient_name') || '').trim().slice(0, 120)
-  const rawPhone = String(formData.get('patient_phone') || '').trim()
+  const { data: current } = await supabase.from('profiles').select('full_name, phone_number').eq('id', userId).maybeSingle()
+  let fullName = String(formData.get('patient_name') || '').trim().slice(0, 120)
+  let rawPhone = String(formData.get('patient_phone') || '').trim()
   const dateOfBirth = String(formData.get('date_of_birth') || '')
   const gender = String(formData.get('gender') || '')
+
+  if (!fullName && current?.full_name) {
+    fullName = current.full_name
+  }
+  if (!rawPhone && current?.phone_number) {
+    rawPhone = current.phone_number
+  }
 
   if (!fullName) return "Please enter the patient's full name."
   if (rawPhone.replace(/\D/g, '').length < 10) return 'Please enter a valid mobile number so the hospital can reach you.'
@@ -127,7 +135,6 @@ async function savePatientBasics(supabase: Supabase, userId: string, formData: F
   }
 
   const phone = toE164(rawPhone)
-  const { data: current } = await supabase.from('profiles').select('full_name, phone_number').eq('id', userId).maybeSingle()
   const updates: Record<string, string> = {}
   if (current?.full_name !== fullName) updates.full_name = fullName
   if (current?.phone_number !== phone) updates.phone_number = phone

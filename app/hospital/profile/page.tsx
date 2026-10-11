@@ -76,21 +76,20 @@ export default async function HospitalProfilePage() {
       )}
 
       {/* Identity banner */}
-      <section className="relative w-full rounded-xl md:rounded-2xl bg-surface-container-lowest shadow-sm md:shadow-[0_4px_24px_rgba(0,102,255,0.06)] border border-surface-container md:border-transparent overflow-hidden">
-        <div aria-hidden className="hidden md:block absolute top-0 right-0 w-96 h-96 bg-primary-fixed/20 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
+      <section className="relative w-full rounded-xl md:rounded-2xl bg-surface-container-lowest shadow-sm md:shadow-[0_4px_24px_rgba(15,23,42,0.04)] border border-surface-container md:border-transparent overflow-hidden">
         <div className="relative p-4 sm:p-8 flex flex-col lg:flex-row justify-between gap-4 md:gap-6 items-stretch lg:items-center">
           <div className="flex items-start sm:items-center gap-3.5 sm:gap-5 min-w-0">
             <div className="relative shrink-0">
               {hospital.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={hospital.image} alt={hospital.name} className="w-16 h-16 sm:w-24 sm:h-24 rounded-xl sm:rounded-2xl object-cover shadow-[0_4px_16px_rgba(0,80,203,0.14)]" />
+                <img src={hospital.image} alt={hospital.name} className="w-16 h-16 sm:w-24 sm:h-24 rounded-xl sm:rounded-2xl object-cover shadow-[0_4px_16px_rgba(15,23,42,0.06)]" />
               ) : (
-                <span className="w-16 h-16 sm:w-24 sm:h-24 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary-fixed to-surface-container text-primary flex items-center justify-center shadow-[0_4px_16px_rgba(0,80,203,0.14)]">
+                <span className="w-16 h-16 sm:w-24 sm:h-24 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary-fixed to-surface-container text-primary flex items-center justify-center shadow-[0_4px_16px_rgba(15,23,42,0.06)]">
                   <Building2 className="w-8 h-8 sm:w-11 sm:h-11" />
                 </span>
               )}
               {live && (
-                <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-fresh-teal ring-4 ring-surface-container-lowest flex items-center justify-center shadow-sm" title="Live for booking">
+                <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-600 ring-4 ring-surface-container-lowest flex items-center justify-center shadow-sm" title="Live for booking">
                   <Check className="w-3 h-3 text-on-primary" strokeWidth={3} />
                 </span>
               )}
@@ -121,7 +120,7 @@ export default async function HospitalProfilePage() {
           <div className="flex lg:flex-col gap-2.5 w-full lg:w-auto shrink-0">
             <Link
               href={`/hospitals/${hospital.id}`}
-              className="flex-1 lg:flex-initial min-h-[44px] inline-flex items-center justify-center gap-2 px-4 md:px-5 py-2.5 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary font-label-sm text-label-sm font-semibold shadow-[0_4px_16px_rgba(0,102,255,0.25)]"
+              className="flex-1 lg:flex-initial min-h-[44px] inline-flex items-center justify-center gap-2 px-4 md:px-5 py-2.5 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary font-label-sm text-label-sm font-semibold shadow-[0_4px_16px_rgba(15,23,42,0.1)]"
             >
               <ExternalLink className="w-[18px] h-[18px]" /> <span className="truncate">View Patient Page</span>
             </Link>
@@ -338,7 +337,7 @@ function Metric({ label, icon: Icon, value, sub, href }: { label: string; icon: 
       <p className="font-label-sm text-[11px] md:text-label-sm text-outline mt-1 truncate">{sub}</p>
     </>
   )
-  const cls = 'bg-surface-container-lowest p-3.5 md:p-5 rounded-xl md:rounded-2xl shadow-sm md:shadow-[0_2px_12px_rgba(0,102,255,0.04)] border border-surface-container md:border-transparent flex flex-col min-w-0'
+  const cls = 'bg-surface-container-lowest p-3.5 md:p-5 rounded-xl md:rounded-2xl shadow-sm md:shadow-[0_2px_12px_rgba(15,23,42,0.04)] border border-surface-container md:border-transparent flex flex-col min-w-0'
   return href ? (
     <Link href={href} className={`${cls} hover:shadow-md transition-shadow`}>
       {body}

@@ -1,8 +1,17 @@
-import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound, redirect } from 'next/navigation'
 import QRCode from 'qrcode'
 import { doctorName, formatLongDate, formatTime } from '@/components/patient/format'
+import { CONSULTATION_PLATFORM_FEE, DIAGNOSTIC_PLATFORM_FEE, matchBookedTests, sumPrices } from '@/lib/pricing'
+
+// Paid booking states. Payment status always comes from the database: a ?payment=success in the URL proves nothing.
+const PAID = ['confirmed', 'visited', 'completed', 'report_sent']
+
+// The page opens from the booking link and the QR code on the slip, so anyone holding the link can see it. Only the
+// patient themself gets their full phone number; everyone else sees the last four digits.
+const maskPhone = (phone: string | null | undefined, isOwner: boolean) =>
+  !phone ? null : isOwner ? phone : `•••• ${phone.replace(/D/g, '').slice(-4)}`
 import { ConfirmationClient, type ConfirmationData } from './ConfirmationClient'
 
 interface Props {
@@ -14,6 +23,7 @@ export default async function BookingConfirmationPage(props: Props) {
   const { id } = await props.params
   const search = (await props.searchParams) ?? {}
   const admin = createAdminClient()
+  const viewer = await getCurrentUser()
 
   // 1. Check if id belongs to an appointment
   const { data: aptData } = await admin
@@ -25,14 +35,33 @@ export default async function BookingConfirmationPage(props: Props) {
         id, specialty, consultation_fee,
         profiles!doctors_profile_id_fkey ( full_name )
       ),
-      hospital:hospitals ( id, name, city, address, hospital_code ),
+      hospital:hospitals ( id, name, city, address ),
       schedule:schedules ( start_time )
     `)
     .eq('id', id)
     .maybeSingle()
 
-  if (aptData) {
-    const apt = aptData as any
+  let apt = aptData as any
+  if (!apt) {
+    const { data: rawApt } = await admin.from('appointments').select('*').eq('id', id).maybeSingle()
+    if (rawApt) {
+      const [{ data: pProf }, { data: docRow }, { data: hospRow }, { data: schedRow }] = await Promise.all([
+        admin.from('profiles').select('full_name, phone_number').eq('id', rawApt.patient_id).maybeSingle(),
+        admin.from('doctors').select('id, specialty, consultation_fee, profiles!doctors_profile_id_fkey ( full_name )').eq('id', rawApt.doctor_id).maybeSingle(),
+        admin.from('hospitals').select('id, name, city, address').eq('id', rawApt.hospital_id).maybeSingle(),
+        admin.from('schedules').select('start_time').eq('id', rawApt.schedule_id).maybeSingle(),
+      ])
+      apt = {
+        ...rawApt,
+        patient: pProf,
+        doctor: docRow,
+        hospital: hospRow,
+        schedule: schedRow,
+      }
+    }
+  }
+
+  if (apt) {
     const doc = apt.doctor
     const hosp = apt.hospital
     const schedule = apt.schedule
@@ -46,17 +75,21 @@ export default async function BookingConfirmationPage(props: Props) {
       ? `${formatLongDate(schedule.start_time)}, ${formatTime(schedule.start_time)}`
       : 'Date to be confirmed'
 
-    // Check payment status from query or payments table
-    let paymentStatus: 'success' | 'pending' | 'failed' = 'pending'
-    if (search.payment === 'success' || apt.status === 'confirmed' || apt.status === 'visited' || apt.status === 'completed') {
-      paymentStatus = 'success'
-    } else if (search.payment === 'failed') {
-      paymentStatus = 'failed'
-    } else {
-      const { data: paymentRow } = await admin.from('payments').select('status').eq('appointment_id', id).maybeSingle()
-      if (paymentRow?.status === 'success') paymentStatus = 'success'
-      else if (paymentRow?.status === 'failed') paymentStatus = 'failed'
-    }
+    // The PayU callback confirms the booking before it redirects here, so the booking's own status is the truth.
+    const paymentStatus: 'success' | 'pending' | 'failed' = PAID.includes(apt.status)
+      ? 'success'
+      : search.payment === 'failed'
+        ? 'failed'
+        : 'pending'
+    const { data: paid } = await admin
+      .from('payments')
+      .select('amount')
+      .eq('appointment_id', id)
+      .eq('status', 'success')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    const doctorFee = Number(doc?.consultation_fee) || 0
 
     const verificationUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://consultyourdoctor.de'}/book/confirmation/${id}`
     const qrDataUrl = await QRCode.toDataURL(verificationUrl, { margin: 1, width: 240 })
@@ -74,8 +107,8 @@ export default async function BookingConfirmationPage(props: Props) {
       address: hosp?.address || null,
       dateTime: dateStr,
       patientName: patient?.full_name || 'Patient',
-      patientPhone: patient?.phone_number || null,
-      fee: Number(doc?.consultation_fee) || 500,
+      patientPhone: maskPhone(patient?.phone_number, viewer?.id === apt.patient_id),
+      fee: Number(paid?.amount) || (doctorFee ? doctorFee + CONSULTATION_PLATFORM_FEE : 0),
       paymentStatus,
       appointmentStatus: apt.status || 'confirmed',
       qrDataUrl,
@@ -89,29 +122,45 @@ export default async function BookingConfirmationPage(props: Props) {
   const { data: diagData } = await admin
     .from('diagnostic_bookings')
     .select(`
-      id, status, test_name, preferred_date, created_at,
+      id, status, test_name, preferred_date, created_at, patient_id,
       patient:profiles!diagnostic_bookings_patient_id_fkey ( full_name, phone_number ),
-      center:diagnostic_centers ( id, name, city, address, center_code, test_prices )
+      center:diagnostic_centers ( id, name, city, address, test_prices )
     `)
     .eq('id', id)
     .maybeSingle()
 
-  if (diagData) {
-    const diag = diagData as any
+  let diag = diagData as any
+  if (!diag) {
+    const { data: rawDiag } = await admin.from('diagnostic_bookings').select('*').eq('id', id).maybeSingle()
+    if (rawDiag) {
+      const [{ data: pProf }, { data: cRow }] = await Promise.all([
+        admin.from('profiles').select('full_name, phone_number').eq('id', rawDiag.patient_id).maybeSingle(),
+        admin.from('diagnostic_centers').select('id, name, city, address, test_prices').eq('id', rawDiag.center_id).maybeSingle(),
+      ])
+      diag = {
+        ...rawDiag,
+        patient: pProf,
+        center: cRow,
+      }
+    }
+  }
+
+  if (diag) {
     const center = diag.center
     const patient = diag.patient
     const tokenSeq = Math.abs(id.split('-').reduce((acc: number, part: string) => acc + parseInt(part.slice(0, 4), 16) || 0, 0) % 25) + 1
     const tokenNumber = String(tokenSeq).padStart(2, '0')
 
     const dateStr = diag.preferred_date ? formatLongDate(diag.preferred_date) : 'Scheduled Date'
-    const price = (center?.test_prices && center.test_prices[diag.test_name]) || 500
+    // Priced the way checkout prices it: every booked test, plus the booking fee.
+    const tests = matchBookedTests(diag.test_name || '', center?.test_prices)
+    const price = tests ? sumPrices(tests) + DIAGNOSTIC_PLATFORM_FEE : 0
 
-    let paymentStatus: 'success' | 'pending' | 'failed' = 'pending'
-    if (search.payment === 'success' || diag.status === 'confirmed' || diag.status === 'visited') {
-      paymentStatus = 'success'
-    } else if (search.payment === 'failed') {
-      paymentStatus = 'failed'
-    }
+    const paymentStatus: 'success' | 'pending' | 'failed' = PAID.includes(diag.status)
+      ? 'success'
+      : search.payment === 'failed'
+        ? 'failed'
+        : 'pending'
 
     const verificationUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://consultyourdoctor.de'}/book/confirmation/${id}`
     const qrDataUrl = await QRCode.toDataURL(verificationUrl, { margin: 1, width: 240 })
@@ -129,7 +178,7 @@ export default async function BookingConfirmationPage(props: Props) {
       address: center?.address || null,
       dateTime: dateStr,
       patientName: patient?.full_name || 'Patient',
-      patientPhone: patient?.phone_number || null,
+      patientPhone: maskPhone(patient?.phone_number, viewer?.id === diag.patient_id),
       fee: price,
       paymentStatus,
       appointmentStatus: diag.status || 'confirmed',

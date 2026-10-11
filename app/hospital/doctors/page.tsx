@@ -95,7 +95,7 @@ export default async function HospitalRosterPage(props: { searchParams?: Promise
       <Card className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div>
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">
-            <span className="w-2 h-2 rounded-full bg-fresh-teal" /> Built from published slots
+            Built from published slots
           </span>
           <h1 className="font-headline-lg text-[24px] md:text-headline-lg text-indigo-gray-900 font-bold tracking-tight mt-2">Doctors &amp; Duty Roster</h1>
           <p className="text-sm md:text-body-md text-indigo-gray-600">Who is consulting, when, and how full their day is.</p>

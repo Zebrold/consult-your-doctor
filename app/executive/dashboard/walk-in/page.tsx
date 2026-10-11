@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, UserPlus } from 'lucide-react'
@@ -7,7 +7,7 @@ import { WalkInForm } from './WalkInForm'
 export default async function WalkInBookingPage() {
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect('/login/executive')
 
   const { data: executiveProfile } = await supabase

@@ -1,6 +1,6 @@
 import { cache } from 'react'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { one } from '@/components/patient/data'
 import type { Tone } from '@/components/portal/ui'
@@ -38,7 +38,7 @@ export type DoctorInfo = {
 /** The signed-in doctor, loaded once per request (the layout and page both ask for it). */
 export const requireDoctor = cache(async () => {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect('/login/doctor')
 
   const admin = createAdminClient()

@@ -53,18 +53,17 @@ export function TopBar({
               <ArrowLeft className="w-5 h-5" />
             </Link>
           )}
-          <Link href={homeHref} className="flex items-center gap-2.5 min-w-0 group">
+          <Link href={homeHref} className="flex items-center gap-3 min-w-0 group">
             <Image
               src="/logo-icon.png"
               alt="Consult your Doctor"
-              width={36}
-              height={36}
-              className="w-8 h-8 sm:w-9 sm:h-9 object-contain shrink-0 transition-transform group-hover:scale-105"
+              width={48}
+              height={48}
+              className="w-10 h-10 sm:w-11 sm:h-11 object-contain shrink-0 transition-transform"
               priority
             />
-            <span className="flex flex-col min-w-0">
-              <span className="font-title-md text-[15px] sm:text-lg font-bold text-on-surface tracking-tight leading-tight truncate">Consult your Doctor</span>
-              <span className="font-label-sm text-[11px] sm:text-label-sm text-indigo-gray-600 truncate">{section}</span>
+            <span className="flex items-center min-w-0">
+              <span className="font-title-md text-base sm:text-xl font-bold text-on-surface tracking-tight leading-tight truncate">Consult your Doctor</span>
             </span>
           </Link>
         </div>
@@ -104,9 +103,8 @@ function Avatar({ person, size = 'w-9 h-9' }: { person: Person; size?: string })
 
 function NameAndRole({ person }: { person: Person }) {
   return (
-    <span className="hidden sm:flex flex-col leading-tight text-left min-w-0 max-w-[180px]">
+    <span className="hidden sm:flex items-center leading-tight text-left min-w-0 max-w-[180px]">
       <span className="font-label-sm text-label-sm font-bold text-indigo-gray-900 truncate">{person.name || 'My account'}</span>
-      <span className="font-label-sm text-[11px] text-indigo-gray-600 truncate">{person.role}</span>
     </span>
   )
 }
@@ -145,12 +143,12 @@ function AccountMenu({ person, links }: { person: Person; links: TopBarLink[] })
         <ChevronDown className={`hidden sm:block w-4 h-4 text-indigo-gray-600 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-surface-container-lowest border border-outline-variant/40 shadow-[0_12px_32px_rgba(0,50,140,0.14)] p-2 z-50">
+        <div role="menu" className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-surface-container-lowest border border-outline-variant/40 shadow-[0_12px_32px_rgba(15,23,42,0.06)] p-2 z-50">
           <div className="flex items-center gap-3 px-2.5 py-2.5 mb-1 border-b border-surface-container">
             <Avatar person={person} size="w-10 h-10" />
             <span className="min-w-0">
               <span className="block text-sm font-bold text-on-surface truncate">{person.name || 'My account'}</span>
-              <span className="block text-xs text-on-surface-variant truncate">{person.detail || person.role}</span>
+              {person.detail && <span className="block text-xs text-on-surface-variant truncate">{person.detail}</span>}
             </span>
           </div>
           {links.map(({ href, label, icon }) => (

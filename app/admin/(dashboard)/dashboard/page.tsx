@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Building2, Users, IndianRupee, Calendar } from 'lucide-react'
 import { RevenueChart } from '@/components/RevenueChart'
@@ -7,7 +7,7 @@ import { BookingsChart } from '@/components/BookingsChart'
 export default async function AdminDashboard() {
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect('/admin')
 
   // Fetch Global Data
@@ -85,24 +85,24 @@ export default async function AdminDashboard() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:border-[#E31E24]/30 hover:shadow-[0_8px_30px_rgb(227,30,36,0.08)] transition-all">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-500"><IndianRupee className="w-16 h-16 text-[#E31E24]" /></div>
+          <div className="absolute top-0 right-0 p-4 opacity-10 transition-transform duration-500"><IndianRupee className="w-16 h-16 text-[#E31E24]" /></div>
           <p className="text-sm font-medium text-gray-500 mb-1">Total Platform Revenue</p>
           <p className="text-3xl font-black text-gray-900 flex items-center gap-1">
             <span className="text-lg text-gray-400">₹</span>{totalRevenue.toLocaleString('en-IN')}
           </p>
         </div>
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:border-[#E31E24]/30 hover:shadow-[0_8px_30px_rgb(227,30,36,0.08)] transition-all">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-500"><Building2 className="w-16 h-16 text-[#E31E24]" /></div>
+          <div className="absolute top-0 right-0 p-4 opacity-10 transition-transform duration-500"><Building2 className="w-16 h-16 text-[#E31E24]" /></div>
           <p className="text-sm font-medium text-gray-500 mb-1">Active Hospitals</p>
           <p className="text-3xl font-black text-gray-900">{totalHospitals}</p>
         </div>
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:border-[#E31E24]/30 hover:shadow-[0_8px_30px_rgb(227,30,36,0.08)] transition-all">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-500"><Users className="w-16 h-16 text-[#E31E24]" /></div>
+          <div className="absolute top-0 right-0 p-4 opacity-10 transition-transform duration-500"><Users className="w-16 h-16 text-[#E31E24]" /></div>
           <p className="text-sm font-medium text-gray-500 mb-1">Registered Users</p>
           <p className="text-3xl font-black text-gray-900">{totalUsers}</p>
         </div>
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:border-[#E31E24]/30 hover:shadow-[0_8px_30px_rgb(227,30,36,0.08)] transition-all">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-500"><Calendar className="w-16 h-16 text-[#E31E24]" /></div>
+          <div className="absolute top-0 right-0 p-4 opacity-10 transition-transform duration-500"><Calendar className="w-16 h-16 text-[#E31E24]" /></div>
           <p className="text-sm font-medium text-gray-500 mb-1">Total Appointments</p>
           <p className="text-3xl font-black text-gray-900">{totalAppointments}</p>
         </div>

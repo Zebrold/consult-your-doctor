@@ -75,7 +75,6 @@ export default async function HospitalFinancePage() {
       <section className="flex flex-col lg:flex-row lg:items-end justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-fresh-teal" />
             <span className="font-label-sm text-label-sm uppercase tracking-wider text-primary font-bold">Payments &amp; revenue</span>
           </div>
           <h1 className="font-headline-lg text-[24px] md:text-headline-lg text-indigo-gray-900 font-bold tracking-tight">Finance &amp; Revenue</h1>

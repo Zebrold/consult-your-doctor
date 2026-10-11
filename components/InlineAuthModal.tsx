@@ -17,7 +17,7 @@ function SubmitButton({ children, pendingText }: { children: React.ReactNode, pe
     <button
       type="submit"
       disabled={pending}
-      className="w-full py-3 bg-vibrant-blue text-white font-bold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center shadow-lg shadow-vibrant-blue/20"
+      className="w-full py-3 bg-vibrant-blue text-white font-bold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center shadow-lg shadow-slate-900/10"
     >
       {pending ? (
         <>
@@ -77,7 +77,7 @@ export function InlineAuthModal({ isOpen, onClose, onSuccess }: InlineAuthModalP
           <p className="text-sm text-vibrant-blue mb-6">
             {step === 'phone' 
               ? 'Please login or register to confirm your booking.' 
-              : `We've sent a 6-digit verification code to your WhatsApp at ${phone}.`}
+              : `We've sent a 6-digit verification code to ${phone}.`}
           </p>
 
           {step === 'phone' ? (
@@ -124,7 +124,7 @@ export function InlineAuthModal({ isOpen, onClose, onSuccess }: InlineAuthModalP
               )}
 
               <div className="pt-2">
-                <SubmitButton pendingText="Sending WhatsApp OTP">Get WhatsApp OTP</SubmitButton>
+                <SubmitButton pendingText="Sending verification code">Get Verification Code</SubmitButton>
               </div>
             </form>
           ) : (

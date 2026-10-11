@@ -443,9 +443,46 @@ export async function updateHospitalDoctor(formData: FormData): Promise<{ succes
   }
 
   const phone = text('phone')
-  const { error: phoneError } = await admin.from('profiles').update({ phone_number: phone || null }).eq('id', doctor.profile_id)
-  if (phoneError) return { success: false, error: phoneError.code === '23505' ? 'This phone number is already in use.' : 'Could not save the phone number.' }
+  const fullName = text('fullName') || text('displayName')
+  if (fullName || phone) {
+    const { error: profileError } = await admin
+      .from('profiles')
+      .update({
+        ...(phone ? { phone_number: phone } : {}),
+        ...(fullName ? { full_name: fullName } : {}),
+      })
+      .eq('id', doctor.profile_id)
+    if (profileError) {
+      if (profileError.code === '23505') return { success: false, error: 'This phone number is already in use.' }
+      console.warn('Profile update warning:', profileError)
+    }
+  }
 
   for (const path of ['/hospital/dashboard', '/hospital/doctors', '/hospital/staff', '/hospital/revenue']) revalidatePath(path)
   return { success: true }
 }
+
+export async function deleteHospitalDoctor(formData: FormData): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Unauthorized' }
+  const { data: profile } = await supabase.from('profiles').select('role, hospital_id').eq('id', user.id).single()
+  if (profile?.role !== 'hospital_admin' || !profile.hospital_id) return { success: false, error: 'Forbidden' }
+
+  const admin = createAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+
+  const doctorId = String(formData.get('doctorId') || '').trim()
+  if (!doctorId) return { success: false, error: 'Doctor ID is required.' }
+
+  const { error } = await admin.from('doctors').delete().eq('id', doctorId).eq('hospital_id', profile.hospital_id)
+  if (error) {
+    console.error('deleteHospitalDoctor error:', error)
+    return { success: false, error: 'Could not delete the doctor.' }
+  }
+
+  for (const path of ['/hospital/dashboard', '/hospital/doctors', '/hospital/staff']) revalidatePath(path)
+  return { success: true }
+}
+

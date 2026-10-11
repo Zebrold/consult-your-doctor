@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Header } from '@/components/Header'
 import { CheckCircle2, AlertCircle, IndianRupee, MapPin, Calendar, Activity, Building2 } from 'lucide-react'
@@ -11,7 +11,7 @@ export default async function DiagnosticCheckoutPage({ params }: { params: Promi
   const supabase = await createClient()
   
   // Verify User
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) {
     redirect('/login/patient')
   }
@@ -153,7 +153,7 @@ export default async function DiagnosticCheckoutPage({ params }: { params: Promi
                   firstname={user.user_metadata?.full_name || 'Patient'}
                   email={user.email || 'patient@example.com'}
                   phone={user.phone || '9999999999'}
-                  payuKey={process.env.PAYU_MERCHANT_KEY || '99eKD4'}
+                  payuKey={process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY || 'jwoG24'}
                 />
                 
                 <p className="text-center text-xs text-gray-500 flex items-center justify-center gap-1">

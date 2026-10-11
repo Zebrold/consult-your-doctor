@@ -47,7 +47,7 @@ export function BedBoard({ beds, doctors, now }: { beds: Bed[]; doctors: BoardDo
   const current = open ? beds.find((b) => b.id === open.id) ?? null : null
 
   return (
-    <section className="bg-surface-container-lowest rounded-2xl p-4 md:p-6 shadow-[0_4px_24px_rgba(0,80,203,0.04)] border border-surface-container md:border-transparent flex flex-col gap-4">
+    <section className="bg-surface-container-lowest rounded-2xl p-4 md:p-6 shadow-[0_4px_24px_rgba(15,23,42,0.04)] border border-surface-container md:border-transparent flex flex-col gap-4">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div>
           <h2 className="font-title-md text-[18px] md:text-title-md font-bold text-on-surface">Bed Allocation Board</h2>
@@ -567,7 +567,7 @@ export function AddBedsButton({ wards }: { wards: string[] }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm font-bold shadow-[0_8px_20px_rgba(0,102,255,0.28)] hover:brightness-105 active:scale-95 transition-all"
+        className="flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm font-bold shadow-[0_8px_20px_rgba(15,23,42,0.11)] hover:brightness-105 active:scale-95 transition-all"
       >
         <Plus className="w-[18px] h-[18px]" /> Add Beds
       </button>

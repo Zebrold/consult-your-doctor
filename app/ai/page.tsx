@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
 import { PatientDock } from '@/components/PatientDock'
 import { AssistantPage } from '@/components/assistant/AssistantPage'
@@ -12,9 +12,7 @@ export const metadata: Metadata = {
 // The patients' Zebrold AI tab, open to visitors too. Staff are kept to their own portal's AI page by the middleware.
 export default async function AiPage() {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
 
   let name: string | null = null
   if (user) {

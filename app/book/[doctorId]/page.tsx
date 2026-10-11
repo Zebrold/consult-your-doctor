@@ -82,7 +82,7 @@ export default async function BookDoctorPage({ params }: BookDoctorPageProps) {
       slots={slots}
       patient={patient}
       now={now}
-      payuKey={process.env.PAYU_MERCHANT_KEY || "99eKD4"}
+      payuKey={process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY || "jwoG24"}
     />
   );
 }

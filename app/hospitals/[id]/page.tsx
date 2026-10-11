@@ -113,8 +113,6 @@ export default async function HospitalProfilePage(
           {/* Hospital Header Profile */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden mb-10">
             <div className="h-44 md:h-52 bg-gradient-to-r from-primary via-[#0052cc] to-vibrant-blue relative overflow-hidden">
-              <div aria-hidden className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-white/10 blur-2xl pointer-events-none" />
-              <div aria-hidden className="absolute bottom-0 left-1/3 w-96 h-96 rounded-full bg-sky-400/10 blur-3xl pointer-events-none" />
             </div>
             
             <div className="px-6 md:px-8 pb-8 relative">
@@ -165,7 +163,7 @@ export default async function HospitalProfilePage(
                 <div className="pt-2 md:pt-4 w-full md:w-auto flex shrink-0">
                   <Link 
                     href={`/?hospital_id=${hospital.id}&city=${encodeURIComponent(hospital.city)}#book-consultation-form`} 
-                    className="w-full md:w-auto px-7 py-3.5 bg-vibrant-blue hover:bg-primary text-white font-bold rounded-xl shadow-[0_4px_16px_rgba(0,102,255,0.25)] hover:shadow-[0_6px_20px_rgba(0,102,255,0.35)] transition-all text-center flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full md:w-auto px-7 py-3.5 bg-vibrant-blue hover:bg-primary text-white font-bold rounded-xl shadow-[0_4px_16px_rgba(15,23,42,0.1)] hover:shadow-[0_6px_20px_rgba(15,23,42,0.12)] transition-all text-center flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <span>Book Consultation</span>
                     <ArrowRight className="w-4 h-4" />

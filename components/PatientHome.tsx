@@ -88,16 +88,10 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
 
       <main className="w-full pb-28 md:pb-32">
         {/* Hero, greeting & search */}
-        <section className="relative w-full overflow-hidden md:bg-gradient-to-b md:from-surface-container-low md:via-surface md:to-background px-margin-x-mobile lg:px-margin-x-desktop pt-2 md:pt-10 pb-10 md:pb-16">
-          <div aria-hidden className="hidden md:block absolute -top-24 right-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-          <div aria-hidden className="hidden md:block absolute top-1/2 -left-20 w-80 h-80 bg-secondary/10 rounded-full blur-3xl pointer-events-none" />
-
+        <section className="relative w-full overflow-hidden bg-white px-margin-x-mobile lg:px-margin-x-desktop pt-2 md:pt-10 pb-10 md:pb-16">
           <div className="relative max-w-container-max mx-auto flex flex-col gap-stack-md md:gap-8">
             {/* Desktop greeting */}
             <div className="hidden md:flex items-center gap-3">
-              <span className="w-12 h-12 rounded-full bg-surface-container-lowest shadow-sm flex items-center justify-center text-primary font-headline-lg text-xl font-bold">
-                {name ? initials(name) : <UserRound className="w-6 h-6" />}
-              </span>
               <div className="flex flex-col">
                 <span className="font-title-md text-title-md text-on-surface">{name ? `Welcome back, ${name}` : "Welcome to Consult Your Doctor"}</span>
                 <span className="font-body-md text-body-md text-indigo-gray-600">{isSignedIn ? visitLine : "Sign in to book appointments and lab tests."}</span>
@@ -111,7 +105,7 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
               </span>
               <h1 className="font-headline-lg-mobile text-headline-lg-mobile md:font-display-lg md:text-display-lg text-on-surface tracking-tight md:leading-[1.08]">
                 <span className="md:hidden">Find your specialist today</span>
-                <span className="hidden md:inline">Find Your Specialist Today &amp; Book Instant Consultations</span>
+                <span className="hidden md:inline">Find a specialist and book a visit near you</span>
               </h1>
               <p className="hidden md:block font-body-lg text-body-lg text-indigo-gray-600 max-w-2xl">
                 Search verified doctors, partner hospitals and diagnostic labs, see their real open slots, and book in a few taps.
@@ -145,7 +139,7 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
               </label>
               <div className="hidden lg:block h-8 w-px bg-surface-variant" />
               <label className="hidden md:flex w-full lg:w-72 items-center gap-3 px-4 py-2">
-                <MapPin className="w-[22px] h-[22px] text-fresh-teal shrink-0" />
+                <MapPin className="w-[22px] h-[22px] text-vibrant-blue shrink-0" />
                 <span className="sr-only">City</span>
                 <select
                   value={city}
@@ -160,7 +154,7 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
               </label>
               <button
                 type="submit"
-                className="shrink-0 px-6 md:px-8 py-3 md:py-3.5 rounded-full bg-primary md:bg-vibrant-blue text-on-primary font-label-sm md:font-title-md text-sm md:text-body-lg font-bold shadow-md hover:scale-[1.02] md:hover:scale-100 md:hover:opacity-95 transition-all flex items-center justify-center gap-2"
+                className="shrink-0 px-6 md:px-8 py-3 md:py-3.5 rounded-full bg-primary md:bg-vibrant-blue text-on-primary font-label-sm md:font-title-md text-sm md:text-body-lg font-bold shadow-md md:hover:scale-100 md:hover:opacity-95 transition-all flex items-center justify-center gap-2"
               >
                 <span className="md:hidden">Search</span>
                 <span className="hidden md:inline">Search Doctors</span>
@@ -170,7 +164,6 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
 
             <div className="hidden md:flex flex-wrap items-center gap-2 pt-1">
               <span className="font-label-sm text-label-sm text-indigo-gray-600 mr-2">Quick Filters:</span>
-              <QuickFilter href="/find?available=today" icon={Zap}>Available today</QuickFilter>
               <QuickFilter href="#care-network" icon={Microscope}>Lab tests</QuickFilter>
               <QuickFilter href="/hospitals" icon={Building2}>Hospitals</QuickFilter>
             </div>
@@ -415,8 +408,8 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
               <Link href="/patient/support" className="hover:text-vibrant-blue hover:underline">
                 Help &amp; FAQs
               </Link>
-              <a href="tel:112" className="text-soft-coral font-bold hover:underline">
-                Emergency: Call 112
+              <a href="tel:108" className="text-soft-coral font-bold hover:underline">
+                Emergency: Call 108
               </a>
             </div>
             <p className="text-center md:text-right text-[11px] text-on-surface-variant/70">
@@ -489,7 +482,7 @@ function SlotBadge({ doctor, now }: { doctor: HomeDoctor; now: number }) {
 /** Phone list chip: "Available Today" or the next day with an open slot. */
 function AvailabilityChip({ doctor, now }: { doctor: HomeDoctor; now: number }) {
   if (doctor.openToday > 0) {
-    return <span className="px-2 py-0.5 rounded-full bg-fresh-teal/10 text-fresh-teal text-label-sm">Available Today</span>;
+    return <span className="px-2 py-0.5 rounded-full bg-blue-50 text-vibrant-blue font-semibold text-label-sm">Available Today</span>;
   }
   return (
     <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant text-label-sm">

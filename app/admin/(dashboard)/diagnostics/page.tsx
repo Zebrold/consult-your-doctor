@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { Search, MapPin } from 'lucide-react'
@@ -8,7 +8,7 @@ import { DiagnosticActionMenu } from './DiagnosticActionMenu'
 export default async function AdminDiagnostics() {
   const supabase = await createClient()
   
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect('/admin')
 
   // Verify super admin

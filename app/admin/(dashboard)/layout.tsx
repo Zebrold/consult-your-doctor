@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 export const metadata: Metadata = {
   title: 'Admin Dashboard',
 }
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import Link from 'next/link'
 import Image from 'next/image'
 import { LayoutDashboard, Users, LogOut, Building2, Bell, ShieldCheck, Activity } from 'lucide-react'
@@ -14,7 +14,7 @@ import { MobileDashboardMenu } from '@/components/MobileDashboardMenu'
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect('/admin')
 
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()

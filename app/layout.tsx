@@ -50,7 +50,7 @@ export const metadata: Metadata = {
   },
 };
 
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { ROLE_COOKIE, readRoleCookie } from "@/lib/role-cookie";
 
@@ -60,10 +60,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const cookieStore = await cookies();
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const userRole = user ? readRoleCookie(cookieStore.get(ROLE_COOKIE)?.value, user.id) : null;
 
   const isPatientLoggedIn = !!user && (userRole === "patient" || !userRole);
@@ -73,21 +70,6 @@ export default async function RootLayout({
       lang="en"
       className={`${inter.variable} ${manrope.variable} h-full antialiased scroll-smooth light`}
     >
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          rel="preload"
-          href="/fonts/material-symbols-outlined.woff2"
-          as="font"
-          type="font/woff2"
-          crossOrigin="anonymous"
-        />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
-        />
-      </head>
       <body
         suppressHydrationWarning
         className="font-sans overflow-x-hidden text-on-surface bg-background"

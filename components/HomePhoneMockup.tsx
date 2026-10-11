@@ -6,7 +6,7 @@ export function HomePhoneMockup() {
     <div
       role="img"
       aria-label="Preview of the Consult your Doctor mobile app showing top doctors and specialties"
-      className="relative w-full max-w-[340px] md:max-w-[360px] lg:max-w-[380px] flex items-center justify-center transition-all duration-500 hover:scale-[1.02] filter drop-shadow-xl select-none"
+      className="relative w-full max-w-[340px] md:max-w-[360px] lg:max-w-[380px] flex items-center justify-center transition-all duration-500 filter drop-shadow-xl select-none"
     >
       <Image
         src="/mobile-app-preview.png"

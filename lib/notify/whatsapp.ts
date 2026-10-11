@@ -7,7 +7,7 @@
 const FAST2SMS_BASE = 'https://www.fast2sms.com'
 const META_BASE = `https://graph.facebook.com/${process.env.WHATSAPP_API_VERSION || 'v21.0'}`
 
-const getApiKey = () => process.env.FAST2SMS_API_KEY || process.env.WHATSAPP_API_KEY || ''
+const getApiKey = () => process.env.FAST2SMS_API_KEY || process.env.WHATSAPP_API_KEY
 const getPhoneNumberId = () => process.env.WHATSAPP_PHONE_NUMBER_ID || '1327040000500501'
 const getMetaToken = () => process.env.WHATSAPP_TOKEN || ''
 
@@ -15,7 +15,7 @@ export const whatsappConfigured = () => Boolean(getApiKey() || (getMetaToken() &
 
 export type WhatsAppTemplate =
   | { name: 'cyd_report_ready'; params: [name: string, what: string, from: string]; document: { link: string; filename: string } }
-  | { name: 'cyd_booking_confirmed'; params: [name: string, what: string, where: string, bookingId: string, amount: string] }
+  | { name: 'cyd_booking_confirmed'; params: [name: string, what: string, where: string, bookingId: string, amount: string]; document?: { link: string; filename: string } }
   | { name: 'cyd_health_update'; params: [name: string, hospital: string] }
   | { name: 'cyd_account_created'; params: [name: string, patientId: string, password: string, signInUrl: string] }
   | { name: 'cyd_ticket_update'; params: [name: string, ticketCode: string, status: string] }
@@ -40,8 +40,8 @@ function formatTemplateText(template: WhatsAppTemplate): { text: string; caption
     }
     case 'cyd_booking_confirmed': {
       const [name, what, where, bookingId, amount] = template.params
-      const text = `Hello ${name},\n\nYour booking for ${what} at ${where} is confirmed!\n\n📋 Booking ID: ${bookingId}\n💳 Amount Paid: ${amount}\n\nView details: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.consultyourdoctor.de'}/patient/appointments\n\nThank you for choosing Consult Your Doctor.`
-      return { text }
+      const text = `Hello ${name},\n\nYour booking for ${what} at ${where} is confirmed!\n\n📋 Booking ID: ${bookingId}\n💳 Amount Paid: ${amount}\n\nYour appointment confirmation slip PDF is attached.\n\nView details: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.consultyourdoctor.de'}/patient/appointments\n\nThank you for choosing Consult Your Doctor.`
+      return { text, caption: text }
     }
     case 'cyd_health_update': {
       const [name, hospital] = template.params
@@ -68,7 +68,7 @@ function formatTemplateText(template: WhatsAppTemplate): { text: string; caption
   }
 }
 
-/** Sends a direct text message on WhatsApp via Fast2SMS Session API. */
+/** Sends a direct text message on WhatsApp via Fast2SMS Session API or Meta Cloud API. */
 export async function sendWhatsAppText(phone: string | null | undefined, text: string): Promise<boolean> {
   if (!phone || !whatsappConfigured()) return false
   const to = waNumber(phone)
@@ -78,6 +78,7 @@ export async function sendWhatsAppText(phone: string | null | undefined, text: s
   const phoneId = getPhoneNumberId()
 
   if (apiKey) {
+    // 1. Try Fast2SMS WhatsApp session endpoint
     try {
       const url = `${FAST2SMS_BASE}/dev/whatsapp-session?phone_number_id=${encodeURIComponent(phoneId)}&to=${encodeURIComponent(to)}`
       const res = await fetch(url, {
@@ -94,12 +95,37 @@ export async function sendWhatsAppText(phone: string | null | undefined, text: s
       })
 
       const data = await res.json().catch(() => null)
-      if (res.ok && data?.return !== false) {
+      if (res.ok && data?.return !== false && !data?.error) {
         return true
       }
       console.warn('sendWhatsAppText session error:', res.status, data)
     } catch (err) {
-      console.error('sendWhatsAppText exception:', err)
+      console.error('sendWhatsAppText session exception:', err)
+    }
+
+    // 2. Try direct Cloud API text message endpoint
+    try {
+      const version = process.env.WHATSAPP_API_VERSION || 'v21.0'
+      const cloudRes = await fetch(`${FAST2SMS_BASE}/dev/whatsapp/${version}/${phoneId}/messages`, {
+        method: 'POST',
+        headers: {
+          authorization: apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to,
+          type: 'text',
+          text: { body: text },
+        }),
+      })
+      const cloudData = await cloudRes.json().catch(() => null)
+      if (cloudRes.ok && !cloudData?.error && cloudData?.messages?.[0]?.id) {
+        return true
+      }
+      console.warn('sendWhatsAppText cloud message error:', cloudRes.status, cloudData)
+    } catch (err) {
+      console.warn('sendWhatsAppText cloud message exception:', err)
     }
   }
 

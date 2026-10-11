@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { BrainCircuit, ChevronDown, HelpCircle, MessageCircleQuestion, PhoneCall } from 'lucide-react'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { PatientSidebar } from '@/components/PatientSidebar'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
 import { PatientDock } from '@/components/PatientDock'
@@ -60,7 +60,7 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
 
 export default async function PatientSupport() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect('/login/patient?next=/patient/support')
 
   const [{ data: patientDetails }, { data: profile }, { data: appointments }, { data: labs }] = await Promise.all([
@@ -96,9 +96,6 @@ export default async function PatientSupport() {
       <PatientNavHeader name={profile?.full_name} email={profile?.email || user.email} isSignedIn container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop" />
       <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-28 md:pb-32">
         <div className="relative w-full overflow-hidden">
-          <div aria-hidden className="absolute -top-32 -right-20 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-          <div aria-hidden className="absolute top-80 -left-20 w-80 h-80 bg-fresh-teal/5 rounded-full blur-3xl pointer-events-none" />
-
           <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start max-w-[1440px] mx-auto">
               <PatientSidebar user={user} profile={profile} patientDetails={patientDetails} activeAppointmentsCount={upcomingAppointments.length} />

@@ -29,11 +29,8 @@ export function LiveRefresh({ seconds = 20, label = 'Live' }: { seconds?: number
   }, [router, seconds])
 
   return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-secondary" title={stamp ? `Updated at ${stamp}` : `Updates every ${seconds} seconds`}>
-      <span className="relative flex h-2 w-2" aria-hidden>
-        <span className="absolute inline-flex h-full w-full rounded-full bg-fresh-teal opacity-60 animate-ping" />
-        <span className="relative inline-flex h-2 w-2 rounded-full bg-fresh-teal" />
-      </span>
+    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-indigo-gray-600" title={stamp ? `Updated at ${stamp}` : `Updates every ${seconds} seconds`}>
+      <span className="w-1.5 h-1.5 rounded-full bg-vibrant-blue shrink-0" aria-hidden />
       {label}
     </span>
   )

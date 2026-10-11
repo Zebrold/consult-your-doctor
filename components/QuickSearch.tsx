@@ -34,8 +34,8 @@ export default function QuickSearch() {
   return (
     <div className="w-full">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h2 className="font-title-md text-xl font-bold text-indigo-gray-900 flex items-center gap-2">
-          <Search className="w-5 h-5 text-vibrant-blue" /> Quick Medical Search &amp; Specialist Directory
+        <h2 className="font-title-md text-xl font-bold text-indigo-gray-900">
+          Find a doctor, hospital or lab
         </h2>
 
         {/* Tabs */}

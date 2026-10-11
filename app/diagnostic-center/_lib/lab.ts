@@ -1,6 +1,6 @@
 import { cache } from 'react'
 import { notFound, redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { one } from '@/components/patient/data'
 import type { Tone } from '@/components/portal/ui'
@@ -68,7 +68,7 @@ function toLab(c: CenterRow): LabInfo {
 /** The signed-in diagnostic center staff member and their center (null when the account isn't linked to one). */
 export const requireLab = cache(async () => {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect('/login/diagnostic')
 
   const admin = createAdminClient()

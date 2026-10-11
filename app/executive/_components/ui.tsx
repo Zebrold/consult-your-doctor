@@ -50,7 +50,6 @@ export function PageHeader({
     <section className="flex flex-col xl:flex-row xl:items-end justify-between gap-stack-md bg-gradient-to-r from-surface-container via-surface-container-low to-surface-container-lowest p-6 md:p-8 rounded-2xl shadow-sm">
       <div className="flex flex-col gap-2 max-w-3xl">
         <span className="inline-flex items-center gap-1.5 self-start px-3 py-1 rounded-full bg-vibrant-blue text-on-primary font-label-sm text-label-sm tracking-wide shadow-sm uppercase">
-          <span className="w-2 h-2 rounded-full bg-fresh-teal" />
           {eyebrow}
         </span>
         <h1 className="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-indigo-gray-900 tracking-tight">{title}</h1>

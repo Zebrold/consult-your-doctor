@@ -49,17 +49,16 @@ export function BookConsultationFormInner({ defaultType = 'consultation' }: { de
       const urlBooking = searchParams.get('booking')
       const urlCenterId = searchParams.get('center_id')
 
-      // Check auth status
-      const { data: { session } } = await supabase.auth.getSession()
+      // Auth status and both city lists don't depend on each other: fetch them together.
+      const [{ data: { session } }, { data: cityData }, { data: diagCityData }] = await Promise.all([
+        supabase.auth.getSession(),
+        supabase.from('hospitals').select('city').eq('status', 'active'),
+        supabase.from('diagnostic_centers').select('city').eq('status', 'active'),
+      ])
       setIsAuthenticated(!!session)
-
-      // Fetch base cities
-      const { data: cityData } = await supabase.from('hospitals').select('city').eq('status', 'active')
       if (cityData) {
         setCities(Array.from(new Set(cityData.map(h => h.city))))
       }
-      
-      const { data: diagCityData } = await supabase.from('diagnostic_centers').select('city').eq('status', 'active')
       if (diagCityData) {
         setDiagCities(Array.from(new Set(diagCityData.map(c => c.city))))
       }
@@ -115,14 +114,17 @@ export function BookConsultationFormInner({ defaultType = 'consultation' }: { de
           }
         }
       }
-
-      setIsLoading(false)
-      // Allow cascading effects to run on future manual changes
-      setTimeout(() => {
-        initRef.current = true
-      }, 100)
     }
+    // A failed request must not leave the form stuck behind its spinner.
     initialize()
+      .catch((err) => console.error('Booking form failed to load:', err))
+      .finally(() => {
+        setIsLoading(false)
+        // Allow cascading effects to run on future manual changes
+        setTimeout(() => {
+          initRef.current = true
+        }, 100)
+      })
   }, [searchParams])
 
   // Fetch Hospitals and Centers when City changes
@@ -294,8 +296,7 @@ export function BookConsultationFormInner({ defaultType = 'consultation' }: { de
   return (
     <div className="bg-surface-container-lowest rounded-2xl p-6 md:p-8 card-shadow border border-slate-200 w-full max-w-md lg:max-w-none mx-auto relative z-10 space-y-5">
       <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-        <h3 className="font-title-md text-lg text-primary font-bold">Book Your Visit</h3>
-        <span className="px-2.5 py-1 rounded-full bg-fresh-teal/10 text-secondary font-label-sm text-[11px] font-bold">Online Now</span>
+        <h3 className="font-title-md text-lg text-indigo-gray-900 font-bold">Book a visit</h3>
       </div>
 
       {isLoading ? (
@@ -504,7 +505,7 @@ export function BookConsultationFormInner({ defaultType = 'consultation' }: { de
             type="submit"
             formNoValidate={!isAuthenticated}
             disabled={isSubmitting}
-            className="w-full bg-vibrant-blue text-on-primary py-3.5 rounded-xl font-title-md text-sm font-bold btn-hover mt-2 shadow-lg shadow-vibrant-blue/20 flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full bg-vibrant-blue text-on-primary py-3.5 rounded-xl font-title-md text-sm font-bold btn-hover mt-2 shadow-lg shadow-slate-900/10 flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {isSubmitting ? (
               <>

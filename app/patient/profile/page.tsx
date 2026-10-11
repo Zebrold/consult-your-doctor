@@ -6,7 +6,7 @@ import {
   BedDouble, Building2, CalendarDays, CircleAlert, CircleCheck, Download, FileText, FlaskConical, HeartPulse, IdCard, MapPin, Microscope,
   Pill, Receipt, Siren, SquarePen, Stethoscope, type LucideIcon,
 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { PatientDock } from '@/components/PatientDock'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
@@ -69,7 +69,7 @@ const bookingId = (id: string) => id.slice(0, 8).toUpperCase()
 export default async function PatientProfilePage(props: { searchParams?: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const searchParams = (await props.searchParams) ?? {}
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect('/login/patient?next=/patient/profile')
 
   const now = currentTime()
@@ -213,9 +213,6 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
       <PatientNavHeader name={name} email={email} isSignedIn container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop" />
       <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-28 md:pb-32">
         <div className="relative w-full overflow-hidden">
-          <div aria-hidden className="absolute -top-32 -right-20 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-          <div aria-hidden className="absolute top-80 -left-20 w-80 h-80 bg-fresh-teal/5 rounded-full blur-3xl pointer-events-none" />
-
           <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start max-w-[1440px] mx-auto">
               <PatientSidebar user={user} profile={profile} patientDetails={details} activeAppointmentsCount={upcoming.length} />
@@ -540,7 +537,7 @@ function Stat({ href, label, value, icon: Icon, tint }: { href: string; label: s
         <span className="font-title-md text-[22px] md:text-[28px] font-bold text-on-surface leading-none">{value}</span>
         <span className="font-label-sm text-[11px] md:text-label-sm text-on-surface-variant mt-1.5 leading-tight">{label}</span>
       </span>
-      <span className={`hidden md:flex w-11 h-11 rounded-xl bg-surface-container-low ${tint} items-center justify-center group-hover:scale-105 transition-transform shrink-0`}>
+      <span className={`hidden md:flex w-11 h-11 rounded-xl bg-surface-container-low ${tint} items-center justify-center transition-transform shrink-0`}>
         <Icon className="w-[22px] h-[22px]" />
       </span>
     </Link>

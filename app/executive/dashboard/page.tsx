@@ -136,7 +136,7 @@ export default async function ExecutiveCommandPage() {
             </Link>
             <Link
               href="/executive/doctors#applications"
-              className="flex items-center gap-2 px-6 py-3 rounded-full bg-vibrant-blue text-on-primary hover:bg-primary shadow-sm hover:scale-[1.02] font-label-sm text-label-sm transition-all"
+              className="flex items-center gap-2 px-6 py-3 rounded-full bg-vibrant-blue text-on-primary hover:bg-primary shadow-sm font-label-sm text-label-sm transition-all"
             >
               <ClipboardList className="w-5 h-5" /> Review doctor applications
             </Link>

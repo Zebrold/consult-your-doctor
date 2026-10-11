@@ -21,35 +21,85 @@ type Joined<T> = T | T[] | null;
 const one = <T,>(v: Joined<T> | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;
 
 /** Sends the patient their booking confirmation on WhatsApp and email. */
-async function notifyPaidBooking(isConsultation: boolean, id: string, amount: number) {
+async function notifyPaidBooking(isConsultation: boolean, id: string, amount: number, transactionId?: string) {
   const paid = `₹${amount.toLocaleString('en-IN')}`;
   const bookingId = id.slice(0, 8).toUpperCase();
+  const tokenSeq = Math.abs(id.split('-').reduce((acc: number, part: string) => acc + parseInt(part.slice(0, 4), 16) || 0, 0) % 25) + 1;
+  const tokenNumber = String(tokenSeq).padStart(2, '0');
+
   if (isConsultation) {
     const { data } = await supabase
       .from('appointments')
-      .select('patient_id, hospitals ( name ), doctors ( profiles!doctors_profile_id_fkey ( full_name ) )')
+      .select(`
+        patient_id,
+        created_at,
+        schedules ( start_time ),
+        hospitals ( name, address, city ),
+        doctors (
+          specialty,
+          consultation_fee,
+          profiles!doctors_profile_id_fkey ( full_name )
+        )
+      `)
       .eq('id', id)
       .maybeSingle();
-    const row = data as unknown as { patient_id: string; hospitals: Joined<{ name: string }>; doctors: Joined<{ profiles: Joined<{ full_name: string | null }> }> } | null;
+
+    const row = data as any;
     if (!row) return;
-    const doctor = one(one(row.doctors)?.profiles)?.full_name;
+    const docObj = one(row.doctors);
+    const hospObj = one(row.hospitals);
+    const schedule = one(row.schedules);
+    const rawDoctor = one(docObj?.profiles)?.full_name;
+    const doctor = rawDoctor ? (/^dr\.?\s/i.test(rawDoctor) ? rawDoctor : `Dr. ${rawDoctor}`) : 'Specialist';
+    const dateStr = schedule?.start_time
+      ? new Date(schedule.start_time).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'short' })
+      : 'Scheduled Visit';
+
     notifyBookingConfirmed({
       patientId: row.patient_id,
-      what: doctor ? `consultation with ${/^dr\.?\s/i.test(doctor) ? doctor : `Dr. ${doctor}`}` : 'consultation',
-      where: one(row.hospitals)?.name ?? 'the hospital',
+      what: `consultation with ${doctor}`,
+      where: hospObj?.name ?? 'the hospital',
       bookingId,
       amount: paid,
+      numericAmount: amount,
+      dateTimeStr: dateStr,
+      tokenNumber,
+      isConsultation: true,
+      doctorName: doctor,
+      specialty: docObj?.specialty ?? 'Specialist Consultation',
+      hospitalName: hospObj?.name ?? 'Partner Hospital',
+      address: hospObj?.address ?? null,
+      city: hospObj?.city ?? null,
+      transactionId: transactionId || id,
     });
   } else {
-    const { data } = await supabase.from('diagnostic_bookings').select('patient_id, test_name, diagnostic_centers ( name )').eq('id', id).maybeSingle();
-    const row = data as unknown as { patient_id: string; test_name: string; diagnostic_centers: Joined<{ name: string }> } | null;
+    const { data } = await supabase
+      .from('diagnostic_bookings')
+      .select('patient_id, test_name, preferred_date, diagnostic_centers ( name, address, city )')
+      .eq('id', id)
+      .maybeSingle();
+
+    const row = data as any;
     if (!row) return;
+    const centerObj = one(row.diagnostic_centers);
+    const dateStr = row.preferred_date ? `Visit on ${row.preferred_date}` : 'Scheduled Visit';
+
     notifyBookingConfirmed({
       patientId: row.patient_id,
       what: `lab tests (${row.test_name})`,
-      where: one(row.diagnostic_centers)?.name ?? 'the diagnostic centre',
+      where: centerObj?.name ?? 'the diagnostic centre',
       bookingId,
       amount: paid,
+      numericAmount: amount,
+      dateTimeStr: dateStr,
+      tokenNumber,
+      isConsultation: false,
+      doctorName: row.test_name,
+      specialty: 'Diagnostic Laboratory Testing',
+      hospitalName: centerObj?.name ?? 'Diagnostic Centre',
+      address: centerObj?.address ?? null,
+      city: centerObj?.city ?? null,
+      transactionId: transactionId || id,
     });
   }
 }
@@ -76,7 +126,8 @@ export async function POST(request: Request) {
     const additionalCharges = field(data, 'additionalCharges');
     const udf = [1, 2, 3, 4, 5].map((n) => field(data, `udf${n}`));
 
-    const key = process.env.PAYU_MERCHANT_KEY;
+    const key = process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY;
+    // Anyone who knows the salt can forge a "payment succeeded" callback, so it only ever comes from the environment.
     const salt = process.env.PAYU_MERCHANT_SALT;
 
     if (!key || !salt) {
@@ -128,7 +179,7 @@ export async function POST(request: Request) {
         .select('id');
       if (updateError) console.error(`Error confirming ${table} ${txnid}:`, updateError);
 
-      if (confirmed?.length) await notifyPaidBooking(isConsultation, txnid, Number(amount));
+      if (confirmed?.length) await notifyPaidBooking(isConsultation, txnid, Number(amount), mihpayid);
 
       // Desk payments return to the hospital or centre portal; patients go to dedicated confirmation page.
       if (udf[0] === 'desk') {

@@ -11,7 +11,7 @@ import { AddBedsButton, BedBoard } from '../_components/BedBoard'
 export const metadata: Metadata = { title: 'Inpatient Beds | Hospital Portal' }
 export const dynamic = 'force-dynamic'
 
-const card = 'bg-surface-container-lowest rounded-2xl p-4 md:p-6 shadow-[0_4px_24px_rgba(0,80,203,0.04)] border border-surface-container md:border-transparent'
+const card = 'bg-surface-container-lowest rounded-2xl p-4 md:p-6 shadow-[0_4px_24px_rgba(15,23,42,0.04)] border border-surface-container md:border-transparent'
 
 function Counter({ icon: Icon, label, value, sub, tone }: { icon: LucideIcon; label: string; value: string; sub: string; tone: string }) {
   return (

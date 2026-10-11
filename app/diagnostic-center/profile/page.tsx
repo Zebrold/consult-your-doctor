@@ -73,17 +73,15 @@ export default async function LabProfilePage() {
   return (
     <>
       {/* Identity banner */}
-      <section className="relative w-full rounded-xl md:rounded-2xl bg-surface-container-lowest shadow-sm md:shadow-[0_4px_24px_rgba(0,102,255,0.06)] border border-surface-container md:border-transparent overflow-hidden">
-        <div aria-hidden className="hidden md:block absolute top-0 right-0 w-96 h-96 bg-primary-fixed/20 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
-        <div aria-hidden className="hidden md:block absolute bottom-0 left-1/3 w-80 h-80 bg-secondary-container/20 rounded-full blur-3xl pointer-events-none -mb-24" />
+      <section className="relative w-full rounded-xl md:rounded-2xl bg-surface-container-lowest shadow-sm md:shadow-[0_4px_24px_rgba(15,23,42,0.04)] border border-surface-container md:border-transparent overflow-hidden">
         <div className="relative p-4 sm:p-8 flex flex-col lg:flex-row justify-between gap-4 md:gap-6 items-stretch lg:items-center">
           <div className="flex items-start sm:items-center gap-3.5 sm:gap-5 min-w-0">
             <div className="relative shrink-0">
               {lab.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={lab.image} alt={lab.name} className="w-16 h-16 sm:w-24 sm:h-24 rounded-xl sm:rounded-2xl object-cover shadow-[0_4px_16px_rgba(0,80,203,0.14)]" />
+                <img src={lab.image} alt={lab.name} className="w-16 h-16 sm:w-24 sm:h-24 rounded-xl sm:rounded-2xl object-cover shadow-[0_4px_16px_rgba(15,23,42,0.06)]" />
               ) : (
-                <span className="w-16 h-16 sm:w-24 sm:h-24 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary-fixed to-surface-container text-primary flex items-center justify-center shadow-[0_4px_16px_rgba(0,80,203,0.14)]">
+                <span className="w-16 h-16 sm:w-24 sm:h-24 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary-fixed to-surface-container text-primary flex items-center justify-center shadow-[0_4px_16px_rgba(15,23,42,0.06)]">
                   <Building2 className="w-8 h-8 sm:w-11 sm:h-11" />
                 </span>
               )}
@@ -118,7 +116,7 @@ export default async function LabProfilePage() {
           <div className="flex lg:flex-col gap-2.5 w-full lg:w-auto shrink-0">
             <Link
               href={`/book/diagnostic/${lab.id}`}
-              className="flex-1 lg:flex-initial min-h-[44px] inline-flex items-center justify-center gap-2 px-4 md:px-5 py-2.5 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary font-label-sm text-label-sm font-semibold shadow-[0_4px_16px_rgba(0,102,255,0.25)] md:hover:scale-[1.02] transition-transform"
+              className="flex-1 lg:flex-initial min-h-[44px] inline-flex items-center justify-center gap-2 px-4 md:px-5 py-2.5 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary font-label-sm text-label-sm font-semibold shadow-[0_4px_16px_rgba(15,23,42,0.1)] transition-transform"
             >
               <ExternalLink className="w-[18px] h-[18px]" />
               <span className="truncate">View Patient Page</span>
@@ -155,8 +153,8 @@ export default async function LabProfilePage() {
       <section className="md:hidden flex flex-col gap-1.5">
         <div className="flex items-center justify-between px-1">
           <span className="font-label-sm text-label-sm uppercase tracking-wider text-indigo-gray-600 font-semibold">Listing &amp; Booking</span>
-          <span className={`font-label-sm text-[11px] font-semibold flex items-center gap-1 ${live ? 'text-fresh-teal' : 'text-soft-coral'}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${live ? 'bg-fresh-teal animate-pulse' : 'bg-soft-coral'}`} /> {live ? 'Active' : 'Not listed'}
+          <span className={`font-label-sm text-[11px] font-semibold flex items-center gap-1 ${live ? 'text-emerald-700' : 'text-soft-coral'}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${live ? 'bg-emerald-600' : 'bg-soft-coral'}`} /> {live ? 'Active' : 'Not listed'}
           </span>
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -429,7 +427,7 @@ function Metric({
   sub: string
 }) {
   return (
-    <div className="bg-surface-container-lowest p-3.5 md:p-5 rounded-xl md:rounded-2xl shadow-sm md:shadow-[0_2px_12px_rgba(0,102,255,0.04)] border border-surface-container md:border-transparent flex flex-col justify-between min-w-0">
+    <div className="bg-surface-container-lowest p-3.5 md:p-5 rounded-xl md:rounded-2xl shadow-sm md:shadow-[0_2px_12px_rgba(15,23,42,0.04)] border border-surface-container md:border-transparent flex flex-col justify-between min-w-0">
       <div className="flex items-center justify-between gap-2">
         <span className="font-label-sm text-[11px] md:text-label-sm text-on-surface-variant font-medium truncate">{label}</span>
         <span className={`hidden md:flex w-8 h-8 rounded-xl items-center justify-center shrink-0 ${tint}`}>

@@ -193,6 +193,16 @@ function SearchClientInner({
 
         {/* List Area */}
         <div className="flex-grow px-6 pb-6 pt-2 space-y-4">
+          {/* Mobile Live Map */}
+          {mapItems.length > 0 && (
+            <div className="md:hidden w-full h-64 rounded-2xl overflow-hidden shadow-sm border border-indigo-gray-200 relative mb-4">
+              <MapWithMarkers
+                items={mapItems}
+                activeId={activeDoctorId}
+                onHover={(id) => setActiveDoctorId(id)}
+              />
+            </div>
+          )}
 
           {/* === DIAGNOSTIC CENTERS === */}
           {type === 'diagnostic' ? (
@@ -212,7 +222,7 @@ function SearchClientInner({
                     onMouseEnter={() => setActiveDoctorId(center.id)}
                     onMouseLeave={() => setActiveDoctorId(null)}
                     onClick={() => router.push(`/diagnostics/${center.id}${previewParam}`)}
-                    className={`bg-white p-4 rounded-xl border transition-all cursor-pointer group flex flex-col ${isActive ? 'border-2 border-vibrant-blue shadow-[0_8px_24px_rgba(0,102,255,0.08)] bg-primary-container/5' : 'border-indigo-gray-200 shadow-[0_2px_8px_rgba(0,102,255,0.04)] hover:shadow-[0_8px_24px_rgba(0,102,255,0.08)]'}`}
+                    className={`bg-white p-4 rounded-xl border transition-all cursor-pointer group flex flex-col ${isActive ? 'border-2 border-vibrant-blue shadow-[0_8px_24px_rgba(15,23,42,0.04)] bg-primary-container/5' : 'border-indigo-gray-200 shadow-[0_2px_8px_rgba(15,23,42,0.04)] hover:shadow-[0_8px_24px_rgba(15,23,42,0.04)]'}`}
                   >
                     <div className="flex items-start gap-4 mb-3">
                       <div className={`w-14 h-14 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-colors flex items-center justify-center bg-indigo-50 ${isActive ? 'border-vibrant-blue' : 'border-surface-container-low group-hover:border-vibrant-blue'}`}>
@@ -269,7 +279,7 @@ function SearchClientInner({
                       </button>
                       <button 
                         onClick={(e) => { e.stopPropagation(); router.push(`/?booking=diagnostics&city=${center.city}&center_id=${center.id}`); }}
-                        className="flex-grow bg-vibrant-blue text-white rounded-full py-2 font-label-sm text-label-sm hover:scale-[1.02] transition-transform shadow-[0_4px_12px_rgba(0,102,255,0.2)] text-center inline-block"
+                        className="flex-grow bg-vibrant-blue text-white rounded-full py-2 font-label-sm text-label-sm transition-transform shadow-[0_4px_12px_rgba(15,23,42,0.08)] text-center inline-block"
                       >
                         Book Test
                       </button>
@@ -295,7 +305,7 @@ function SearchClientInner({
                     onMouseEnter={() => setActiveDoctorId(hospital.id)}
                     onMouseLeave={() => setActiveDoctorId(null)}
                     onClick={() => router.push(`/hospitals/${hospital.id}${previewParam}`)}
-                    className={`bg-white p-4 rounded-xl border transition-all cursor-pointer group flex flex-col ${isActive ? 'border-2 border-vibrant-blue shadow-[0_8px_24px_rgba(0,102,255,0.08)] bg-primary-container/5' : 'border-indigo-gray-200 shadow-[0_2px_8px_rgba(0,102,255,0.04)] hover:shadow-[0_8px_24px_rgba(0,102,255,0.08)]'}`}
+                    className={`bg-white p-4 rounded-xl border transition-all cursor-pointer group flex flex-col ${isActive ? 'border-2 border-vibrant-blue shadow-[0_8px_24px_rgba(15,23,42,0.04)] bg-primary-container/5' : 'border-indigo-gray-200 shadow-[0_2px_8px_rgba(15,23,42,0.04)] hover:shadow-[0_8px_24px_rgba(15,23,42,0.04)]'}`}
                   >
                     <div className="flex items-start gap-4 mb-4">
                       <div className={`w-16 h-16 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-colors flex items-center justify-center bg-indigo-gray-100 ${isActive ? 'border-vibrant-blue' : 'border-surface-container-low group-hover:border-vibrant-blue'}`}>
@@ -341,7 +351,7 @@ function SearchClientInner({
                       </button>
                       <button 
                         onClick={(e) => { e.stopPropagation(); router.push(`/?type=hospital&city=${hospital.city}&hospital_id=${hospital.id}`); }}
-                        className="flex-grow bg-vibrant-blue text-white rounded-full py-2 font-label-sm text-label-sm hover:scale-[1.02] transition-transform shadow-[0_4px_12px_rgba(0,102,255,0.2)] text-center inline-block"
+                        className="flex-grow bg-vibrant-blue text-white rounded-full py-2 font-label-sm text-label-sm transition-transform shadow-[0_4px_12px_rgba(15,23,42,0.08)] text-center inline-block"
                       >
                         Book Consultation
                       </button>
@@ -369,7 +379,7 @@ function SearchClientInner({
                     onMouseEnter={() => setActiveDoctorId(doctor.id)}
                     onMouseLeave={() => setActiveDoctorId(null)}
                     onClick={() => router.push(`/doctors/${doctor.id}${previewParam}`)}
-                    className={`bg-white p-4 rounded-xl border transition-all cursor-pointer group ${isActive ? 'border-2 border-vibrant-blue shadow-[0_8px_24px_rgba(0,102,255,0.08)] bg-primary-container/5' : 'border-indigo-gray-200 shadow-[0_2px_8px_rgba(0,102,255,0.04)] hover:shadow-[0_8px_24px_rgba(0,102,255,0.08)]'}`}
+                    className={`bg-white p-4 rounded-xl border transition-all cursor-pointer group ${isActive ? 'border-2 border-vibrant-blue shadow-[0_8px_24px_rgba(15,23,42,0.04)] bg-primary-container/5' : 'border-indigo-gray-200 shadow-[0_2px_8px_rgba(15,23,42,0.04)] hover:shadow-[0_8px_24px_rgba(15,23,42,0.04)]'}`}
                   >
                     <div className="flex items-start gap-4">
                       <div className={`w-16 h-16 rounded-full overflow-hidden border-2 flex-shrink-0 transition-colors flex items-center justify-center bg-indigo-gray-100 ${isActive ? 'border-vibrant-blue' : 'border-surface-container-low group-hover:border-vibrant-blue'}`}>
@@ -413,7 +423,7 @@ function SearchClientInner({
                       </button>
                       <button 
                         onClick={(e) => { e.stopPropagation(); router.push(`/book/${doctor.id}${previewParam}`); }}
-                        className="flex-grow bg-vibrant-blue text-white rounded-full py-2 font-label-sm text-label-sm hover:scale-[1.02] transition-transform shadow-[0_4px_12px_rgba(0,102,255,0.2)] text-center inline-block"
+                        className="flex-grow bg-vibrant-blue text-white rounded-full py-2 font-label-sm text-label-sm transition-transform shadow-[0_4px_12px_rgba(15,23,42,0.08)] text-center inline-block"
                       >
                         Book Now
                       </button>

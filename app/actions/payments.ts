@@ -322,6 +322,7 @@ export async function adjustPaymentStatus(
 
 /** Fetches audit history for a specific payment */
 export async function getPaymentAuditTrail(paymentId: string): Promise<PaymentAuditRow[]> {
+  await requireExecutiveOrAdmin()
   const admin = createAdminClient()
   const { data: audits } = await admin
     .from('payment_audits')

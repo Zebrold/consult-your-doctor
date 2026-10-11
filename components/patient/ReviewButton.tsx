@@ -74,7 +74,7 @@ export function ReviewButton({ appointmentId, doctorName, existing, className }:
                         aria-label={`${n} ${n === 1 ? 'star' : 'stars'}`}
                         onMouseEnter={() => setHover(n)}
                         onClick={() => setRating(n)}
-                        className="p-1 transition-transform hover:scale-110"
+                        className="p-1 transition-transform"
                       >
                         <Star className={`w-9 h-9 ${n <= shown ? 'text-amber-500 fill-amber-500' : 'text-outline-variant'}`} />
                       </button>

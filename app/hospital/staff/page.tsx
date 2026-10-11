@@ -52,7 +52,21 @@ export default async function HospitalStaffPage() {
       activity: d ? plural(consults(d.id), 'consultation') : role === 'executive' ? plural(handled(p.id), 'booking handled', 'bookings handled') : null,
       isYou: p.id === user.id,
       doctor: d
-        ? { id: d.id, name: doctorName(d.name), phone: d.phone, specialty: d.specialty, experience: d.experience, fee: d.fee, qualifications: d.qualifications, address: d.address, bio: d.bio }
+        ? {
+            id: d.id,
+            name: doctorName(d.name),
+            phone: d.phone,
+            specialty: d.specialty,
+            experience: d.experience,
+            fee: d.fee,
+            qualifications: d.qualifications,
+            address: d.address,
+            bio: d.bio,
+            staffId: p.staff_id || d.staffId,
+            email: realEmail(p.email) || d.email,
+            image: d.image,
+            hospitalName: hospital.name,
+          }
         : null,
     }
   })
@@ -71,7 +85,21 @@ export default async function HospitalStaffPage() {
       joined: d.joined,
       activity: plural(consults(d.id), 'consultation'),
       isYou: false,
-      doctor: { id: d.id, name: doctorName(d.name), phone: d.phone, specialty: d.specialty, experience: d.experience, fee: d.fee, qualifications: d.qualifications, address: d.address, bio: d.bio },
+      doctor: {
+        id: d.id,
+        name: doctorName(d.name),
+        phone: d.phone,
+        specialty: d.specialty,
+        experience: d.experience,
+        fee: d.fee,
+        qualifications: d.qualifications,
+        address: d.address,
+        bio: d.bio,
+        staffId: d.staffId,
+        email: d.email,
+        image: d.image,
+        hospitalName: hospital.name,
+      },
     })
   }
   const order: Record<StaffRole, number> = { hospital_admin: 0, doctor: 1, executive: 2 }

@@ -19,7 +19,7 @@ export function PatientNavHeader({ name, email, isSignedIn = false, backHref, co
   return (
     <TopBar
       homeHref="/"
-      section="Patient Portal"
+      section=""
       person={isSignedIn ? { name: name || "", role: "Patient", detail: email } : null}
       links={[
         { href: "/patient/appointments", label: "My appointments", icon: <CalendarDays /> },

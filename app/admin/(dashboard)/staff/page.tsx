@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { Search, Building2, User, MoreVertical } from 'lucide-react'
@@ -13,7 +13,7 @@ export default async function AdminStaff() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
   
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect('/admin')
 
   // Verify super admin

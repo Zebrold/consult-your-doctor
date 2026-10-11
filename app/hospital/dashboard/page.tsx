@@ -22,7 +22,7 @@ export const dynamic = 'force-dynamic'
 
 const DAY = 86_400_000
 const LATE_MS = 15 * 60_000
-const card = 'bg-surface-container-lowest rounded-2xl p-4 md:p-6 shadow-[0_4px_24px_rgba(0,80,203,0.04)] border border-surface-container md:border-transparent'
+const card = 'bg-surface-container-lowest rounded-2xl p-4 md:p-6 shadow-[0_4px_24px_rgba(15,23,42,0.04)] border border-surface-container md:border-transparent'
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
 type Alert = {
@@ -167,9 +167,9 @@ export default async function HospitalDashboardPage() {
           <div className="relative shrink-0">
             {hospital.image ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={hospital.image} alt={hospital.name} className="w-16 h-16 md:w-20 md:h-20 rounded-2xl object-cover shadow-[0_8px_20px_rgba(0,102,255,0.12)]" />
+              <img src={hospital.image} alt={hospital.name} className="w-16 h-16 md:w-20 md:h-20 rounded-2xl object-cover shadow-[0_8px_20px_rgba(15,23,42,0.05)]" />
             ) : (
-              <span className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-primary-fixed to-surface-container text-primary flex items-center justify-center shadow-[0_8px_20px_rgba(0,102,255,0.12)]">
+              <span className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-primary-fixed to-surface-container text-primary flex items-center justify-center shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
                 <Building2 className="w-8 h-8 md:w-10 md:h-10" />
               </span>
             )}
@@ -212,7 +212,7 @@ export default async function HospitalDashboardPage() {
           <AddDoctorButton
             departments={departmentNames}
             label="Add Doctor"
-            className={`${actionButton} md:px-6 bg-primary-container text-on-primary font-bold shadow-[0_8px_20px_rgba(0,102,255,0.28)] hover:brightness-105`}
+            className={`${actionButton} md:px-6 bg-primary-container text-on-primary font-bold shadow-[0_8px_20px_rgba(15,23,42,0.11)] hover:brightness-105`}
           />
         </div>
       </section>
@@ -439,7 +439,7 @@ export default async function HospitalDashboardPage() {
                 <h2 className="font-title-md text-[18px] md:text-title-md font-bold text-on-surface">Doctors On Active Duty</h2>
                 <p className="font-body-md text-[13px] md:text-body-md text-indigo-gray-600">Consultants with slots today</p>
               </div>
-              {onDuty.length > 0 && <span className="w-2.5 h-2.5 rounded-full bg-fresh-teal animate-ping shrink-0" />}
+              {onDuty.length > 0 && <span className="w-2 h-2 rounded-full bg-emerald-600 shrink-0" />}
             </div>
             {onDuty.length === 0 ? (
               <Placeholder icon={Stethoscope} title="No doctor on duty today" sub={`${plural(doctors.length, 'doctor')} on your roster`} />
@@ -486,7 +486,7 @@ export default async function HospitalDashboardPage() {
 
 function Metric({ label, icon: Icon, tint, value, unit, children }: { label: string; icon: LucideIcon; tint: string; value: string; unit: string; children: ReactNode }) {
   return (
-    <div className="bg-surface-container-lowest p-4 md:p-6 rounded-2xl shadow-[0_4px_24px_rgba(0,80,203,0.04)] border border-surface-container md:border-transparent flex flex-col justify-between hover:shadow-[0_8px_30px_rgba(0,102,255,0.08)] transition-all min-w-0">
+    <div className="bg-surface-container-lowest p-4 md:p-6 rounded-2xl shadow-[0_4px_24px_rgba(15,23,42,0.04)] border border-surface-container md:border-transparent flex flex-col justify-between hover:shadow-[0_8px_30px_rgba(15,23,42,0.04)] transition-all min-w-0">
       <div>
         <div className="flex items-center justify-between mb-3 md:mb-4">
           <span className="font-label-sm text-label-sm font-bold uppercase tracking-wider text-indigo-gray-600">{label}</span>
@@ -695,7 +695,7 @@ function Session({ doctor: d, slots, now }: { doctor: HospitalDoctor; slots: Slo
 function QuickAction({ href, icon: Icon, tint, title, sub }: { href: string; icon: LucideIcon; tint: string; title: string; sub: string }) {
   return (
     <Link href={href} className="p-3 md:p-4 rounded-xl bg-surface hover:bg-surface-container transition-all flex flex-col items-center justify-center text-center group">
-      <span className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform ${tint}`}>
+      <span className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-transform ${tint}`}>
         <Icon className="w-[22px] h-[22px]" />
       </span>
       <span className="font-label-sm text-label-sm font-bold text-on-surface">{title}</span>

@@ -159,7 +159,7 @@ export default async function LabPatientsPage(props: { searchParams?: Promise<{ 
             key="mobile-booking"
             {...bookingProps}
             label="New Patient Booking"
-            className="flex-1 h-12 rounded-full bg-vibrant-blue text-on-primary font-label-sm text-label-sm font-bold shadow-lg shadow-vibrant-blue/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            className="flex-1 h-12 rounded-full bg-vibrant-blue text-on-primary font-label-sm text-label-sm font-bold shadow-lg shadow-slate-900/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
           />
         }
         header={
@@ -199,7 +199,7 @@ function Metric({
   return (
     <div
       className={`snap-start shrink-0 min-w-[220px] md:min-w-0 rounded-xl p-3.5 md:p-6 relative overflow-hidden flex flex-col justify-between ${
-        alert ? 'bg-soft-coral/10 md:bg-surface-container-lowest shadow-[0_4px_24px_rgba(244,63,94,0.1)]' : 'bg-surface-container-lowest shadow-[0_4px_24px_rgba(0,102,255,0.06)]'
+        alert ? 'bg-soft-coral/10 md:bg-surface-container-lowest shadow-[0_4px_24px_rgba(244,63,94,0.1)]' : 'bg-surface-container-lowest shadow-[0_4px_24px_rgba(15,23,42,0.04)]'
       }`}
     >
       <div className="flex items-start justify-between gap-3">

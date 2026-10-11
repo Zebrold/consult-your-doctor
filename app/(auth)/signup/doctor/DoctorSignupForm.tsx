@@ -113,8 +113,6 @@ export function DoctorSignupForm({ hospitals }: { hospitals: { id: string; name:
     <div className="w-full max-w-container-max mx-auto flex flex-col gap-6">
       {/* Header card */}
       <div className="relative w-full rounded-2xl bg-surface-container-lowest p-6 md:p-8 shadow-sm overflow-hidden">
-        <div aria-hidden className="absolute -right-12 -top-12 w-64 h-64 rounded-full bg-primary-fixed/20 blur-3xl pointer-events-none" />
-        <div aria-hidden className="absolute right-1/4 -bottom-16 w-48 h-48 rounded-full bg-fresh-teal/10 blur-2xl pointer-events-none" />
         <div className="relative z-10 max-w-2xl">
           <h1 className="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-indigo-gray-900 tracking-tight mb-2">
             Create Your Doctor Account &amp; License Verification
@@ -377,7 +375,7 @@ export function DoctorSignupForm({ hospitals }: { hospitals: { id: string; name:
                 <button
                   type="submit"
                   disabled={isPending}
-                  className="w-full sm:w-auto shrink-0 px-8 py-3.5 rounded-full bg-vibrant-blue text-on-primary font-title-md text-sm font-bold shadow-md hover:bg-primary hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:hover:scale-100"
+                  className="w-full sm:w-auto shrink-0 px-8 py-3.5 rounded-full bg-vibrant-blue text-on-primary font-title-md text-sm font-bold shadow-md hover:bg-primary active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:hover:scale-100"
                 >
                   {isPending ? (
                     <>

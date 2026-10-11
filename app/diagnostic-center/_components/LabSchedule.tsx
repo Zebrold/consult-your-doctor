@@ -200,7 +200,7 @@ export function LabSchedule({
               maxDate={shift(today, 90)}
               defaultDate={bookingDefault}
               label="New Test Intake"
-              className="px-4 py-2 rounded-full font-label-sm text-label-sm bg-primary-container text-on-primary font-bold shadow-[0_4px_14px_rgba(0,102,255,0.25)] hover:bg-primary transition-all flex items-center gap-1.5"
+              className="px-4 py-2 rounded-full font-label-sm text-label-sm bg-primary-container text-on-primary font-bold shadow-[0_4px_14px_rgba(15,23,42,0.1)] hover:bg-primary transition-all flex items-center gap-1.5"
             />
           </div>
         </div>
@@ -390,8 +390,8 @@ export function LabSchedule({
                   )
                 })}
               </div>
-              <span className={`hidden md:flex items-center gap-1.5 text-label-sm font-semibold px-2.5 py-1 rounded-full ${lab.live ? 'text-fresh-teal bg-fresh-teal/10' : 'text-soft-coral bg-soft-coral/10'}`}>
-                <span className={`w-2 h-2 rounded-full ${lab.live ? 'bg-fresh-teal animate-pulse' : 'bg-soft-coral'}`} />
+              <span className={`hidden md:flex items-center gap-1.5 text-label-sm font-semibold px-2.5 py-1 rounded-full ${lab.live ? 'text-emerald-700 bg-emerald-50' : 'text-soft-coral bg-soft-coral/10'}`}>
+                <span className={`w-2 h-2 rounded-full ${lab.live ? 'bg-emerald-600' : 'bg-soft-coral'}`} />
                 {lab.live ? 'Live for Online Booking' : 'Not Listed for Online Booking'}
               </span>
             </div>
@@ -621,8 +621,7 @@ function Spotlight({ booking: b }: { booking: ScheduleBooking }) {
   const checkIn = b.status === 'confirmed'
   const Icon = checkIn ? UserCheck : FlaskConical
   return (
-    <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary to-vibrant-blue text-on-primary p-4 md:p-5 shadow-xl shadow-vibrant-blue/15 border border-vibrant-blue/30">
-      <div aria-hidden className="absolute -right-6 -bottom-6 w-36 h-36 bg-on-primary/10 rounded-full blur-xl pointer-events-none" />
+    <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary to-vibrant-blue text-on-primary p-4 md:p-5 shadow-xl shadow-slate-900/5 border border-vibrant-blue/30">
       <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-3 md:gap-4 min-w-0">
           <span className="w-11 h-11 md:w-12 md:h-12 rounded-xl bg-surface-container-lowest/15 backdrop-blur-md flex items-center justify-center shrink-0 ring-1 ring-surface-container-lowest/30">
@@ -672,7 +671,7 @@ function DayCard({ day, today, selected, list, onPick }: { day: string; today: s
       aria-pressed={selected}
       className={`p-3 rounded-xl text-left transition-all flex flex-col relative overflow-hidden ${
         selected
-          ? 'border-2 border-vibrant-blue bg-vibrant-blue/5 shadow-md shadow-vibrant-blue/10'
+          ? 'border-2 border-vibrant-blue bg-vibrant-blue/5 shadow-md shadow-slate-900/5'
           : `border border-outline-variant/60 hover:border-vibrant-blue/30 hover:bg-indigo-gray-50 ${past ? 'bg-indigo-gray-50 opacity-75 hover:opacity-100' : 'bg-surface-container-lowest'}`
       }`}
     >

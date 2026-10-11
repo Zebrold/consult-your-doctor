@@ -25,8 +25,8 @@ export function PatientDashboardActions() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
         <button
           onClick={() => setActiveForm(activeForm === 'consultation' ? null : 'consultation')}
-          className={`group flex items-center gap-3 p-3.5 rounded-xl transition-all duration-200 transform hover:-translate-y-0.5 shadow-sm ${activeForm === 'consultation' ? 'bg-primary text-white' : 'bg-primary-container text-on-primary-container hover:bg-primary hover:text-white'}`} type="button">
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform ${activeForm === 'consultation' ? 'bg-white/20 text-white' : 'bg-surface-container-lowest/20 text-on-primary-container group-hover:text-white'}`}>
+          className={`group flex items-center gap-3 p-3.5 rounded-xl transition-all duration-200 transform shadow-sm ${activeForm === 'consultation' ? 'bg-primary text-white' : 'bg-primary-container text-on-primary-container hover:bg-primary hover:text-white'}`} type="button">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-transform ${activeForm === 'consultation' ? 'bg-white/20 text-white' : 'bg-surface-container-lowest/20 text-on-primary-container group-hover:text-white'}`}>
             <CalendarPlus className="w-[22px] h-[22px]" />
           </div>
           <div className="text-left">
@@ -36,8 +36,8 @@ export function PatientDashboardActions() {
         </button>
         <button
           onClick={() => setActiveForm(activeForm === 'diagnostics' ? null : 'diagnostics')}
-          className={`group flex items-center gap-3 p-3.5 rounded-xl transition-all duration-200 transform hover:-translate-y-0.5 shadow-sm ${activeForm === 'diagnostics' ? 'bg-primary text-white' : 'bg-surface-container text-primary hover:bg-surface-variant'}`} type="button">
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform ${activeForm === 'diagnostics' ? 'bg-white/20 text-white' : 'bg-surface-container-lowest text-primary'}`}>
+          className={`group flex items-center gap-3 p-3.5 rounded-xl transition-all duration-200 transform shadow-sm ${activeForm === 'diagnostics' ? 'bg-primary text-white' : 'bg-surface-container text-primary hover:bg-surface-variant'}`} type="button">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-transform ${activeForm === 'diagnostics' ? 'bg-white/20 text-white' : 'bg-surface-container-lowest text-primary'}`}>
             <Microscope className="w-[22px] h-[22px]" />
           </div>
           <div className="text-left">
@@ -45,8 +45,8 @@ export function PatientDashboardActions() {
             <p className={`font-label-sm text-[11px] leading-none mt-0.5 ${activeForm === 'diagnostics' ? 'text-white/80' : 'text-indigo-gray-600'}`}>At a partner lab</p>
           </div>
         </button>
-        {/* <button className="group flex items-center gap-3 p-3.5 rounded-xl bg-surface-container-low text-indigo-gray-900 hover:bg-surface-container transition-all duration-200 transform hover:-translate-y-0.5 shadow-sm" type="button">
-          <div className="w-10 h-10 rounded-lg bg-surface-container-lowest flex items-center justify-center text-secondary group-hover:scale-105 transition-transform">
+        {/* <button className="group flex items-center gap-3 p-3.5 rounded-xl bg-surface-container-low text-indigo-gray-900 hover:bg-surface-container transition-all duration-200 transform shadow-sm" type="button">
+          <div className="w-10 h-10 rounded-lg bg-surface-container-lowest flex items-center justify-center text-secondary transition-transform">
             <ClipboardList className="w-[22px] h-[22px]" />
           </div>
           <div className="text-left">
@@ -55,8 +55,8 @@ export function PatientDashboardActions() {
           </div>
         </button> */}
         {/* No emergency care through the site: send people to the national emergency number. */}
-        <a href="tel:112" className="group flex items-center gap-3 p-3.5 rounded-xl bg-tertiary-fixed text-tertiary hover:bg-error-container transition-all duration-200 transform hover:-translate-y-0.5 shadow-sm">
-          <div className="w-10 h-10 rounded-lg bg-surface-container-lowest flex items-center justify-center text-tertiary group-hover:scale-105 transition-transform">
+        <a href="tel:112" className="group flex items-center gap-3 p-3.5 rounded-xl bg-tertiary-fixed text-tertiary hover:bg-error-container transition-all duration-200 transform shadow-sm">
+          <div className="w-10 h-10 rounded-lg bg-surface-container-lowest flex items-center justify-center text-tertiary transition-transform">
             <ShieldAlert className="w-[22px] h-[22px]" />
           </div>
           <div className="text-left">

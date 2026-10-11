@@ -55,7 +55,6 @@ function PhoneBar({ tabs, label }: { tabs: PillTab[]; label: string }) {
             ) : (
               <span className="relative">
                 <t.icon className="w-[26px] h-[26px]" strokeWidth={t.active ? 2.4 : 1.9} />
-                {t.ai && <span aria-hidden className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-fresh-teal ring-2 ring-surface-container-lowest" />}
               </span>
             )}
           </Link>
@@ -71,7 +70,7 @@ function WideBar({ tabs, label }: { tabs: PillTab[]; label: string }) {
   return (
     <nav
       aria-label={label}
-      className="hidden md:block fixed z-50 bottom-6 left-1/2 -translate-x-1/2 w-max max-w-[calc(100vw-32px)] rounded-full bg-surface-container-lowest/90 backdrop-blur-xl border border-outline-variant/40 shadow-[0_8px_30px_rgba(0,102,255,0.10)] print:hidden"
+      className="hidden md:block fixed z-50 bottom-6 left-1/2 -translate-x-1/2 w-max max-w-[calc(100vw-32px)] rounded-full bg-surface-container-lowest/90 backdrop-blur-xl border border-outline-variant/40 shadow-[0_8px_30px_rgba(15,23,42,0.04)] print:hidden"
     >
       <div className="flex items-center gap-1.5 p-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tabs.map((t) => {
@@ -98,7 +97,6 @@ function WideBar({ tabs, label }: { tabs: PillTab[]; label: string }) {
                 ) : (
                   <span className="relative shrink-0">
                     <t.icon className={`w-5 h-5 ${t.ai && !t.active ? 'text-vibrant-blue' : ''}`} strokeWidth={t.active ? 2.2 : 1.8} />
-                    {t.ai && !t.active && <span aria-hidden className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-fresh-teal ring-2 ring-surface-container-lowest" />}
                   </span>
                 )}
                 <span className={showLabel ? '' : 'sr-only lg:not-sr-only'}>

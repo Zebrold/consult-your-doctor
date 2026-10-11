@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { BrainCircuit, Headset, MessageSquareText, RotateCcw, X } from 'lucide-react'
@@ -84,34 +85,34 @@ export function Support({ role, viewer }: { role: string | null; viewer: string 
     <>
       {!open && (
         <div
-          className={`fixed z-[70] right-3 sm:right-6 ${
-            lifted ? 'bottom-[calc(80px+env(safe-area-inset-bottom))] md:bottom-[90px]' : 'bottom-3 sm:bottom-4'
-          } flex items-end gap-2 print:hidden group select-none`}
+          className={`fixed z-[70] right-3 sm:right-6 md:right-8 ${
+            lifted ? 'bottom-[calc(76px+env(safe-area-inset-bottom))] md:bottom-6' : 'bottom-4 md:bottom-6'
+          } flex items-center print:hidden select-none`}
         >
-          {/* Friendly chat callout bubble */}
+          {/* Launcher: Thought bubble on left + Doctor character on right, parallel with bottom bar */}
           <button
             type="button"
             onClick={() => setOpen(true)}
-            aria-label="How can I help you?"
-            className="cursor-pointer relative bg-white/95 dark:bg-surface-container-highest/95 backdrop-blur-md text-slate-800 dark:text-slate-100 px-3.5 py-2 rounded-2xl shadow-[0_4px_18px_rgba(0,0,0,0.12)] border border-slate-200/80 dark:border-outline-variant/50 text-[13px] sm:text-[13.5px] font-semibold leading-tight flex items-center hover:scale-105 active:scale-95 transition-all duration-200 mb-2.5 focus-visible:outline-none"
+            aria-label="Doctor Assistant - How can I help you?"
+            className="flex items-center gap-2 sm:gap-2.5 p-0 bg-transparent border-0 outline-none cursor-pointer select-none transition-transform duration-200 active:scale-95 group focus-visible:outline-none shrink-0"
           >
-            <span>How can I help you?</span>
-            {/* Pointer arrow directed towards the bot */}
-            <span className="absolute -right-1.5 bottom-3 w-3 h-3 bg-white dark:bg-surface-container-highest border-t border-r border-slate-200/80 dark:border-outline-variant/50 rotate-45" />
-          </button>
+            {/* Thinking text bubble */}
+            <div className="relative bg-white text-slate-800 text-xs sm:text-[13.5px] font-semibold px-3 py-1.5 sm:px-4 sm:py-2 rounded-2xl shadow-[0_4px_16px_rgba(15,23,42,0.05)] border border-slate-200/90 flex items-center gap-1.5 whitespace-nowrap transition-all duration-200 group-hover:shadow-[0_6px_20px_rgba(15,23,42,0.09)]">
+              <span>How can I help you?</span>
+              {/* Thought bubble indicator circles pointing to doctor on the right */}
+              <span className="absolute -right-1.5 bottom-3 w-2 h-2 rounded-full bg-white border border-slate-200 shadow-xs" />
+              <span className="absolute -right-3 bottom-2 w-1.5 h-1.5 rounded-full bg-white border border-slate-200" />
+            </div>
 
-          {/* Standalone bot image */}
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            aria-label="Doctor Assistant"
-            className="p-0 bg-transparent border-0 outline-none cursor-pointer select-none transition-transform duration-200 hover:scale-105 active:scale-95 group focus-visible:outline-none shrink-0"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            {/* Doctor avatar */}
+            {/* Optimised and resized by next/image: the source PNG is 230 KB and this shows on every page. */}
+            <Image
               src="/images/ai-doctor.png"
               alt="Doctor Assistant"
-              className="w-16 sm:w-20 md:w-22 h-auto object-contain drop-shadow-[0_8px_20px_rgba(0,0,0,0.18)] group-hover:drop-shadow-[0_12px_24px_rgba(0,102,255,0.3)] transition-all duration-200"
+              width={208}
+              height={190}
+              sizes="(min-width: 768px) 104px, (min-width: 640px) 88px, 72px"
+              className="w-[72px] sm:w-[88px] md:w-[104px] h-auto object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.16)]"
             />
           </button>
         </div>
@@ -121,17 +122,12 @@ export function Support({ role, viewer }: { role: string | null; viewer: string 
         <section
           role="dialog"
           aria-label="Doctor Assistant"
-          className="fixed z-[70] inset-0 md:inset-auto md:right-6 md:bottom-6 md:w-[400px] md:h-[min(640px,calc(100vh-48px))] bg-background md:rounded-2xl shadow-[0_16px_48px_rgba(0,50,140,0.22)] md:border md:border-outline-variant/40 flex flex-col overflow-hidden pb-[env(safe-area-inset-bottom)] print:hidden"
+          className="fixed z-[70] inset-0 md:inset-auto md:right-6 md:bottom-6 md:w-[400px] md:h-[min(640px,calc(100vh-48px))] bg-background md:rounded-2xl shadow-[0_16px_48px_rgba(15,23,42,0.09)] md:border md:border-outline-variant/40 flex flex-col overflow-hidden pb-[env(safe-area-inset-bottom)] print:hidden"
         >
           <header className="bg-gradient-to-r from-primary via-[#0052cc] to-vibrant-blue text-on-primary px-4 py-3 flex items-center justify-between gap-3 shrink-0 shadow-sm">
             <div className="flex items-center gap-3 min-w-0">
               <div className="relative w-11 h-11 flex items-center justify-center shrink-0">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/images/ai-doctor.png"
-                  alt="Doctor Assistant"
-                  className="w-full h-full object-contain drop-shadow-sm"
-                />
+                <Image src="/images/ai-doctor.png" alt="Doctor Assistant" width={88} height={80} sizes="44px" className="w-full h-full object-contain drop-shadow-sm" />
               </div>
               <div className="min-w-0">
                 <p className="font-title-md text-[15px] font-bold leading-tight">

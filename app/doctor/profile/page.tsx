@@ -99,8 +99,6 @@ export default async function DoctorProfilePage() {
     <>
       {/* Hero */}
       <Card className="relative overflow-hidden">
-        <div aria-hidden className="hidden md:block absolute -right-20 -top-20 w-96 h-96 bg-primary-fixed/20 rounded-full blur-3xl pointer-events-none" />
-        <div aria-hidden className="hidden md:block absolute -left-20 -bottom-20 w-80 h-80 bg-secondary-container/20 rounded-full blur-3xl pointer-events-none" />
         <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-stack-md">
           <div className="lg:col-span-4 xl:col-span-3 flex flex-col items-center sm:items-start">
             <div className="relative w-28 h-28 sm:w-full sm:h-auto sm:aspect-[4/5] sm:max-w-[280px] lg:max-w-none rounded-full sm:rounded-xl overflow-hidden shadow-md bg-surface-container">
@@ -164,7 +162,7 @@ export default async function DoctorProfilePage() {
               <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-stack-sm">
                 <ProfileEditor
                   profile={editable}
-                  className="flex items-center justify-center gap-2 bg-vibrant-blue hover:bg-primary text-on-primary font-label-sm text-[13px] md:text-label-sm px-5 py-2.5 rounded-xl sm:rounded-full transition-transform active:scale-95 shadow-[0_2px_12px_rgba(0,102,255,0.25)]"
+                  className="flex items-center justify-center gap-2 bg-vibrant-blue hover:bg-primary text-on-primary font-label-sm text-[13px] md:text-label-sm px-5 py-2.5 rounded-xl sm:rounded-full transition-transform active:scale-95 shadow-[0_2px_12px_rgba(15,23,42,0.1)]"
                 />
                 <Link
                   href="/doctor/schedule"
@@ -394,12 +392,12 @@ export default async function DoctorProfilePage() {
           {/* Hours */}
           <Card>
             <div className="flex items-center justify-between mb-stack-sm">
-              <div className="flex items-center gap-2 text-fresh-teal">
+              <div className="flex items-center gap-2 text-vibrant-blue">
                 <CalendarDays className="w-5 h-5" />
                 <h2 className="font-title-md text-[16px] md:text-title-md text-on-surface font-semibold">Appointment Hours</h2>
               </div>
-              <span className="flex items-center gap-1.5 text-[11px] text-on-surface-variant">
-                Next 7 days <span className="w-2.5 h-2.5 rounded-full bg-fresh-teal animate-pulse" title="Live from your schedule" />
+              <span className="flex items-center gap-1.5 text-[11px] text-on-surface-variant font-medium">
+                Next 7 days
               </span>
             </div>
             {days.length === 0 ? (

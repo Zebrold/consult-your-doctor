@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import {
@@ -46,7 +46,7 @@ export async function generateMetadata(
 
   return {
     title: `${name} - ${spec} | Consult Your Doctor`,
-    description: `View clinical profile, credentials, practice hours, and book consultations with ${name} (${spec}). ABDM M3 verified.`,
+    description: `See ${name}'s qualifications, consultation fee and open times (${spec}), and book a visit online.`,
   };
 }
 
@@ -56,7 +56,7 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
   const isPreview = sParams?.preview === "patient";
 
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const isLoggedIn = !!user;
   // For the top bar: doctors open this page from their portal ("My public profile"); everyone else is a patient or visitor.
   const { data: viewer } = user
@@ -96,34 +96,16 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
   // Reviews patients wrote after their visits (read on the server; only first names are shown).
   doctorData.reviews = await loadDoctorReviews(createAdminClient(), id, 6);
 
-  // Fetch upcoming live schedules from today onwards (Asia/Kolkata timezone aware)
-  const now = new Date();
-  const todayIST = now.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-  const todayStart = new Date(`${todayIST}T00:00:00+05:30`);
-
-  let { data: schedules } = await supabase
+  // Only times patients can still book: from now on and not taken. Past slots must never look bookable.
+  const { data: schedules } = await supabase
     .from("schedules")
     .select("id, start_time, end_time, is_booked")
     .eq("doctor_id", id)
-    .gte("start_time", todayStart.toISOString())
+    .eq("is_booked", false)
+    .gte("start_time", new Date().toISOString())
     .order("start_time", { ascending: true });
 
-  // If no upcoming schedules from today onwards, load recent generated schedules for this doctor
-  if (!schedules || schedules.length === 0) {
-    const { data: recentSchedules } = await supabase
-      .from("schedules")
-      .select("id, start_time, end_time, is_booked")
-      .eq("doctor_id", id)
-      .order("start_time", { ascending: false })
-      .limit(64);
-    if (recentSchedules && recentSchedules.length > 0) {
-      schedules = [...recentSchedules].reverse();
-    }
-  }
-
-  if (schedules) {
-    doctorData.schedules = schedules;
-  }
+  doctorData.schedules = schedules ?? [];
 
   const schema = {
     "@context": "https://schema.org",

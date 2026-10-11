@@ -3,33 +3,31 @@ import Image from "next/image";
 import { BriefcaseBusiness, ChevronRight, FlaskConical, Hospital, Stethoscope, UserRound } from "lucide-react";
 
 const ourServices = [
-  { label: "Find a Doctor Near Me", href: "/search?type=doctor" },
-  { label: "Urgent Care Near Me", href: "/search?type=hospital" },
-  { label: "Online Doctor Consultation", href: "/online-doctor" },
-  { label: "Lab Tests", href: "/search?type=diagnostic" },
-  { label: "Surgeries", href: "/search?type=hospital" },
-  { label: "What We Treat", href: "/what-we-treat" },
-  { label: "Consult Your Doctor Pro", href: "/prices" },
-  { label: "Work With Us", href: "/signup/doctor" },
+  { label: "Find a doctor", href: "/doctors" },
+  { label: "Book a doctor online", href: "/online-doctor" },
+  { label: "Hospitals", href: "/hospitals" },
+  { label: "Lab tests", href: "/diagnostics" },
+  { label: "What we treat", href: "/what-we-treat" },
+  { label: "Prices", href: "/prices" },
+  { label: "Join as a doctor", href: "/signup/doctor" },
 ];
 
 const portalLogins = [
-  { label: "Patient Login", href: "/login/patient", icon: UserRound },
-  { label: "Doctor Login", href: "/login/doctor", icon: Stethoscope },
-  { label: "Hospital Login", href: "/login/hospital", icon: Hospital },
-  { label: "Diagnostic Center Login", href: "/login/diagnostic", icon: FlaskConical },
-  { label: "Executive Login", href: "/login/executive", icon: BriefcaseBusiness },
+  { label: "Patients", href: "/login/patient", icon: UserRound },
+  { label: "Doctors", href: "/login/doctor", icon: Stethoscope },
+  { label: "Hospitals", href: "/login/hospital", icon: Hospital },
+  { label: "Diagnostic centres", href: "/login/diagnostic", icon: FlaskConical },
+  { label: "Front desk", href: "/login/executive", icon: BriefcaseBusiness },
 ];
 
 const companyLinks = [
-  { label: "About Us", href: "/about" },
-  { label: "Patient Stories", href: "/how-it-works#stories" },
-  { label: "Logins", logins: portalLogins },
-  { label: "How It Works", href: "/how-it-works" },
-  { label: "Help | FAQ", href: "/how-it-works#faq" },
-  { label: "Security & Privacy", href: "/privacy-policy" },
-  { label: "Terms & Conditions", href: "/terms-of-use" },
-  { label: "Contact Us", href: "/contact" },
+  { label: "About us", href: "/about" },
+  { label: "How it works", href: "/how-it-works" },
+  { label: "Help and FAQ", href: "/how-it-works#faq" },
+  { label: "Sign in", logins: portalLogins },
+  { label: "Privacy policy", href: "/privacy-policy" },
+  { label: "Terms of use", href: "/terms-of-use" },
+  { label: "Contact us", href: "/contact" },
 ];
 
 export function Footer() {
@@ -102,7 +100,7 @@ export function Footer() {
                   alt="Consult your Doctor logo"
                   width={42}
                   height={42}
-                  className="w-10 h-10 object-contain drop-shadow transition-transform group-hover:scale-105"
+                  className="w-10 h-10 object-contain drop-shadow transition-transform"
                   priority
                 />
                 <span className="font-bold text-2xl md:text-[27px] tracking-tight text-white drop-shadow-sm">
@@ -112,14 +110,14 @@ export function Footer() {
 
               {/* Bio paragraph */}
               <p className="mt-4 text-[13.5px] sm:text-[14px] leading-relaxed text-white/85 max-w-md font-normal">
-                Consult Your Doctor connects you with verified and licensed doctors online, anytime, anywhere, so you can quickly get trusted medical guidance and take care of your health with confidence.
+                Find doctors at partner hospitals and diagnostic labs, book and pay online, and keep your prescriptions and reports in one place.
               </p>
             </div>
 
             {/* Trust Badges */}
             <div className="flex items-center gap-4 mt-7 pt-1">
               <div
-                className="transition-transform hover:scale-105 filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
+                className="transition-transform filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
                 title="People love us on Trustpilot"
               >
                 <Image
@@ -132,7 +130,7 @@ export function Footer() {
                 />
               </div>
               <div
-                className="transition-transform hover:scale-105 filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
+                className="transition-transform filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
                 title="LegitScript Certified"
               >
                 <Image
@@ -155,14 +153,14 @@ export function Footer() {
           {/* Column 2: Our Services */}
           <div className="lg:col-span-3">
             <h3 className="font-bold text-white text-[16.5px] tracking-wide mb-4 flex items-center">
-              Our Services
+              Services
             </h3>
             <ul className="flex flex-col space-y-2 text-[13.5px]">
               {ourServices.map((service) => (
                 <li key={service.label}>
                   <Link
                     href={service.href}
-                    className="group inline-flex items-center gap-2 text-white/85 hover:text-white transition-all hover:translate-x-1 focus-visible:outline-none focus-visible:underline"
+                    className="group inline-flex items-center gap-2 text-white/85 hover:text-white transition-colors focus-visible:outline-none focus-visible:underline"
                   >
                     <ChevronRight className="w-3.5 h-3.5 text-white/60 group-hover:text-white transition-colors shrink-0" />
                     <span>{service.label}</span>
@@ -187,7 +185,7 @@ export function Footer() {
                 <li key={item.label}>
                   {item.logins ? (
                     <details className="group/logins">
-                      <summary className="group inline-flex items-center gap-2 text-white/85 hover:text-white transition-all hover:translate-x-1 cursor-pointer list-none [&::-webkit-details-marker]:hidden focus-visible:outline-none focus-visible:underline">
+                      <summary className="group inline-flex items-center gap-2 text-white/85 hover:text-white transition-colors cursor-pointer list-none [&::-webkit-details-marker]:hidden focus-visible:outline-none focus-visible:underline">
                         <ChevronRight className="w-3.5 h-3.5 text-white/60 group-hover:text-white transition-transform shrink-0 group-open/logins:rotate-90" />
                         <span>{item.label}</span>
                       </summary>
@@ -196,7 +194,7 @@ export function Footer() {
                           <li key={href}>
                             <Link
                               href={href}
-                              className="inline-flex items-center gap-2 text-white/80 hover:text-white transition-all hover:translate-x-1 focus-visible:outline-none focus-visible:underline"
+                              className="inline-flex items-center gap-2 text-white/80 hover:text-white transition-colors focus-visible:outline-none focus-visible:underline"
                             >
                               <Icon className="w-3.5 h-3.5 text-white/70 shrink-0" />
                               <span>{label}</span>
@@ -208,7 +206,7 @@ export function Footer() {
                   ) : (
                     <Link
                       href={item.href}
-                      className="group inline-flex items-center gap-2 text-white/85 hover:text-white transition-all hover:translate-x-1 focus-visible:outline-none focus-visible:underline"
+                      className="group inline-flex items-center gap-2 text-white/85 hover:text-white transition-colors focus-visible:outline-none focus-visible:underline"
                     >
                       <ChevronRight className="w-3.5 h-3.5 text-white/60 group-hover:text-white transition-colors shrink-0" />
                       <span>{item.label}</span>
@@ -225,26 +223,9 @@ export function Footer() {
 
         {/* Bottom Subfooter Section */}
         <div className="flex flex-col items-center text-center gap-4">
-          {/* Made with a steady supply line */}
-          <div className="flex flex-wrap items-center justify-center gap-2 text-[13.5px] text-white/90 font-medium">
-            <span>Made with a steady supply of</span>
-            <span className="text-white text-base leading-none" aria-label="love">🤍</span>
-            <span>together with</span>
-            <span className="inline-flex items-center gap-1.5 font-bold text-white">
-              <Image
-                src="/logo-icon-white.png"
-                alt=""
-                width={18}
-                height={18}
-                className="w-4 h-4 object-contain inline-block"
-              />
-              Consult your Doctor
-            </span>
-          </div>
-
           {/* Disclaimer text */}
           <p className="text-[11.5px] sm:text-[12px] leading-relaxed text-white/70 max-w-5xl text-center">
-            Consult Your Doctor enables patients to access telehealth services and allows them to connect with licensed medical providers. Consult Your Doctor does not provide medical advice, own or operate medical practices, or supervise clinicians. Get more information about the{" "}
+            Consult Your Doctor is a healthcare technology platform. Your care is provided by the independent doctors, hospitals and diagnostic centres you book; we provide booking, payments and your digital records. In an emergency, call 112. Read about the{" "}
             <Link
               href="/terms-of-use"
               className="text-white font-semibold underline underline-offset-2 hover:text-white/90 focus-visible:outline-none"

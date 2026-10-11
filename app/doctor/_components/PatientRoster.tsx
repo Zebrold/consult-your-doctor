@@ -113,7 +113,7 @@ export function PatientRoster({ patients, stats, now, initialPatient }: { patien
               reset()
             }}
           />
-          <WalkInButton label="Patient" className="px-3 py-2 rounded-xl bg-primary text-on-primary text-[12px] font-semibold flex items-center gap-1 shadow-[0_2px_8px_rgba(0,102,255,0.25)] shrink-0" />
+          <WalkInButton label="Patient" className="px-3 py-2 rounded-xl bg-primary text-on-primary text-[12px] font-semibold flex items-center gap-1 shadow-[0_2px_8px_rgba(15,23,42,0.1)] shrink-0" />
         </div>
         <GroupPills
           group={group}
@@ -199,7 +199,7 @@ export function PatientRoster({ patients, stats, now, initialPatient }: { patien
       </section>
 
       {/* Header & filters (tablet and up) */}
-      <section className="hidden md:flex bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_2px_12px_rgba(0,102,255,0.04)] flex-col gap-stack-md">
+      <section className="hidden md:flex bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_2px_12px_rgba(15,23,42,0.04)] flex-col gap-stack-md">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-stack-sm">
           <div className="flex items-center gap-stack-sm">
             <span className="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-primary">
@@ -219,7 +219,7 @@ export function PatientRoster({ patients, stats, now, initialPatient }: { patien
             </button>
             <WalkInButton
               label="Add New Patient"
-              className="px-stack-md py-2.5 rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm shadow-[0_4px_14px_rgba(0,102,255,0.25)] hover:bg-primary flex items-center gap-1.5"
+              className="px-stack-md py-2.5 rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm shadow-[0_4px_14px_rgba(15,23,42,0.1)] hover:bg-primary flex items-center gap-1.5"
             />
           </div>
         </div>
@@ -254,7 +254,7 @@ export function PatientRoster({ patients, stats, now, initialPatient }: { patien
           ) : (
             <>
               {/* Desktop table */}
-              <div className="hidden md:block bg-surface-container-lowest rounded-xl shadow-[0_4px_24px_rgba(0,102,255,0.04)] overflow-hidden">
+              <div className="hidden md:block bg-surface-container-lowest rounded-xl shadow-[0_4px_24px_rgba(15,23,42,0.04)] overflow-hidden">
                 <div className="px-stack-md py-stack-sm bg-surface-container-low flex items-center justify-between">
                   <span className="font-label-sm text-label-sm uppercase tracking-wider text-indigo-gray-600">
                     {group === 'all' ? 'My patients' : GROUPS.find((g) => g.id === group)?.label} (showing {pageRows.length} of {filtered.length})
@@ -389,7 +389,7 @@ export function PatientRoster({ patients, stats, now, initialPatient }: { patien
         {/* Desktop details panel */}
         <aside className="hidden md:block xl:col-span-4 xl:sticky xl:top-6">
           {selected ? (
-            <div className="bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_4px_24px_rgba(0,102,255,0.05)] flex flex-col gap-stack-md">
+            <div className="bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_4px_24px_rgba(15,23,42,0.04)] flex flex-col gap-stack-md">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-stack-sm min-w-0">
                   <span className="w-12 h-12 rounded-xl bg-primary-fixed flex items-center justify-center text-primary font-title-md text-[18px] font-bold shrink-0">
@@ -725,7 +725,7 @@ function PatientDetails({ patient: p, now }: { patient: RosterPatient; now: numb
 
       <div className="grid grid-cols-2 gap-stack-sm pt-base">
         {ref ? (
-          <PrescriptionButton visit={ref} kind="blue" label="Write Prescription" pad="px-3 py-2.5" className="w-full shadow-[0_4px_12px_rgba(0,102,255,0.2)]" />
+          <PrescriptionButton visit={ref} kind="blue" label="Write Prescription" pad="px-3 py-2.5" className="w-full shadow-[0_4px_12px_rgba(15,23,42,0.08)]" />
         ) : (
           <span className="flex items-center justify-center text-center text-[11px] text-indigo-gray-600 px-2">No open visit to prescribe for</span>
         )}

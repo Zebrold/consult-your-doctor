@@ -23,17 +23,13 @@ const quickLinks = [
 
 export default function ContactPage() {
   return (
-    <div className="w-full bg-indigo-gray-50">
+    <div className="w-full bg-white">
       {/* Hero: contact channels and message form */}
-      <section className="relative isolate w-full overflow-hidden bg-gradient-to-b from-surface-container-low/70 via-indigo-gray-50 to-indigo-gray-50 py-14 md:py-20">
-        <div aria-hidden className="pointer-events-none absolute -top-24 right-1/4 w-96 h-96 rounded-full bg-vibrant-blue/5 blur-3xl -z-10" />
-        <div aria-hidden className="pointer-events-none absolute top-1/2 -left-20 w-80 h-80 rounded-full bg-fresh-teal/10 blur-3xl -z-10" />
-
+      <section className="relative isolate w-full overflow-hidden bg-white py-14 md:py-20">
         <div className="w-full max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-start">
           <div className="lg:col-span-5 flex flex-col gap-8">
             <div className="flex flex-col gap-4">
               <span className="inline-flex items-center gap-2 self-start px-3.5 py-1.5 rounded-full bg-surface-container text-primary font-label-sm text-label-sm uppercase shadow-sm">
-                <span className="w-2 h-2 rounded-full bg-fresh-teal animate-pulse" />
                 Contact Us
               </span>
               <h1 className="font-display-lg text-[44px] leading-[1.06] md:text-[60px] font-extrabold tracking-tight text-indigo-gray-900">
@@ -89,7 +85,7 @@ export default function ContactPage() {
               href={directionsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 self-start md:self-auto px-6 py-3 rounded-full bg-vibrant-blue text-on-primary font-semibold text-sm shadow-[0_4px_12px_rgba(0,102,255,0.2)] hover:bg-primary transition-all shrink-0"
+              className="inline-flex items-center justify-center gap-2 self-start md:self-auto px-6 py-3 rounded-full bg-vibrant-blue text-on-primary font-semibold text-sm shadow-[0_4px_12px_rgba(15,23,42,0.08)] hover:bg-primary transition-all shrink-0"
             >
               <Navigation className="w-4 h-4" /> Get Directions
             </a>

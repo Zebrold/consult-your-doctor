@@ -147,7 +147,7 @@ export default async function DoctorDashboard() {
               </>
             }
             icon={<CalendarPlus className="w-[18px] h-[18px]" />}
-            className={`${headerButton} bg-vibrant-blue hover:bg-primary text-on-primary shadow-[0_4px_16px_rgba(0,102,255,0.22)] md:hover:scale-[1.02]`}
+            className={`${headerButton} bg-vibrant-blue hover:bg-primary text-on-primary shadow-[0_4px_16px_rgba(15,23,42,0.09)]`}
           />
           <WritePrescriptionButton
             current={prescribeFor ? ref(prescribeFor) : null}

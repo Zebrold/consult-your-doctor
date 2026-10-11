@@ -63,7 +63,7 @@ const VIEWS: { id: View; label: string; phone: boolean }[] = [
   { id: 'list', label: 'List', phone: false },
 ]
 
-const card = 'bg-surface-container-lowest rounded-xl shadow-[0_2px_16px_rgba(0,102,255,0.03)]'
+const card = 'bg-surface-container-lowest rounded-xl shadow-[0_2px_16px_rgba(15,23,42,0.04)]'
 
 export function ScheduleBoard({
   doctor,
@@ -173,7 +173,7 @@ export function ScheduleBoard({
   return (
     <>
       {/* Command bar */}
-      <section className="flex flex-col xl:flex-row xl:items-center justify-between gap-2.5 md:gap-stack-md md:bg-surface-container-lowest md:p-stack-md md:rounded-xl md:shadow-[0_4px_24px_rgba(0,102,255,0.04)]">
+      <section className="flex flex-col xl:flex-row xl:items-center justify-between gap-2.5 md:gap-stack-md md:bg-surface-container-lowest md:p-stack-md md:rounded-xl md:shadow-[0_4px_24px_rgba(15,23,42,0.04)]">
         <div className="hidden md:flex items-center gap-stack-sm min-w-0">
           <span className="relative shrink-0">
             <Avatar name={doctor.name} image={doctor.image} className="w-14 h-14 text-lg shadow-sm" />
@@ -248,7 +248,7 @@ export function ScheduleBoard({
             <WalkInButton
               label="New Appointment"
               icon={<PlusCircle className="w-[18px] h-[18px]" />}
-              className="px-stack-md py-2 rounded-xl md:rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm shadow-[0_4px_14px_rgba(0,102,255,0.25)] hover:bg-primary hover:scale-[1.01] transition-all flex items-center justify-center gap-1.5"
+              className="px-stack-md py-2 rounded-xl md:rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm shadow-[0_4px_14px_rgba(15,23,42,0.1)] hover:bg-primary transition-all flex items-center justify-center gap-1.5"
             />
           </div>
         </div>
@@ -444,8 +444,8 @@ export function ScheduleBoard({
                   <h3 className="font-title-md text-[13px] md:text-[15px] font-bold text-indigo-gray-900">Waiting Room</h3>
                   <span className="px-1.5 bg-primary-fixed text-primary font-bold text-[10px] rounded-full">{waiting.length}</span>
                 </div>
-                <span className="text-[10px] font-medium text-fresh-teal flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 bg-fresh-teal rounded-full animate-pulse" /> Checked in today
+                <span className="text-[10px] font-medium text-emerald-700 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-emerald-600 rounded-full" /> Checked in today
                 </span>
               </div>
               {waiting.length === 0 ? (
@@ -502,7 +502,7 @@ export function ScheduleBoard({
             <ProfileEditor
               profile={doctor.editable}
               label="Update Consultation Fee"
-              className="w-full py-2.5 rounded-full bg-primary-container hover:bg-primary text-on-primary font-label-sm text-[12px] font-bold shadow-[0_4px_14px_rgba(0,102,255,0.25)] transition-all flex items-center justify-center gap-1.5"
+              className="w-full py-2.5 rounded-full bg-primary-container hover:bg-primary text-on-primary font-label-sm text-[12px] font-bold shadow-[0_4px_14px_rgba(15,23,42,0.1)] transition-all flex items-center justify-center gap-1.5"
             />
           </div>
 
@@ -551,7 +551,7 @@ function Kpi({
 }) {
   return (
     <div
-      className={`shrink-0 w-32 md:w-auto p-2.5 md:p-stack-sm rounded-xl border shadow-[0_2px_12px_rgba(0,102,255,0.03)] flex items-start md:items-center justify-between gap-2 ${
+      className={`shrink-0 w-32 md:w-auto p-2.5 md:p-stack-sm rounded-xl border shadow-[0_2px_12px_rgba(15,23,42,0.04)] flex items-start md:items-center justify-between gap-2 ${
         highlight ? 'bg-primary/5 border-primary/30' : 'bg-surface-container-lowest border-surface-container md:border-transparent'
       }`}
     >
@@ -619,8 +619,7 @@ function Spotlight({ item, facts, now }: { item: Item; facts: BoardPatientFacts 
         : 'Up next'
 
   return (
-    <section className="relative overflow-hidden rounded-2xl md:rounded-xl bg-gradient-to-br md:bg-gradient-to-r from-vibrant-blue via-primary-container to-primary md:from-primary md:via-primary md:to-vibrant-blue text-on-primary p-4 md:p-stack-md shadow-[0_8px_24px_rgba(0,102,255,0.18)]">
-      <div aria-hidden className="absolute -right-6 -bottom-6 w-36 h-36 bg-on-primary/10 rounded-full blur-xl pointer-events-none" />
+    <section className="relative overflow-hidden rounded-2xl md:rounded-xl bg-gradient-to-br md:bg-gradient-to-r from-vibrant-blue via-primary-container to-primary md:from-primary md:via-primary md:to-vibrant-blue text-on-primary p-4 md:p-stack-md shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
       <svg aria-hidden className="hidden md:block absolute right-0 inset-y-0 h-full w-1/3 opacity-10 pointer-events-none text-on-primary" preserveAspectRatio="none" viewBox="0 0 300 120">
         <path d="M0,60 Q75,10 150,60 T300,60" fill="none" stroke="currentColor" strokeWidth="3" />
         <path d="M0,80 Q75,30 150,80 T300,80" fill="none" stroke="currentColor" strokeWidth="2" />
@@ -633,7 +632,7 @@ function Spotlight({ item, facts, now }: { item: Item; facts: BoardPatientFacts 
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-1.5 md:gap-base">
               <span className="px-2 py-0.5 rounded-full bg-on-primary/20 font-label-sm text-[10px] md:text-[11px] uppercase tracking-wider flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 bg-secondary-fixed rounded-full animate-pulse" />
+                <span className="w-1.5 h-1.5 bg-secondary-fixed rounded-full" />
                 {tag}
               </span>
               <span className="text-[11px] md:text-[13px] text-on-primary/80">
@@ -780,8 +779,8 @@ function TimelineRow({ item, now }: { item: Item; now: number }) {
     <li
       className={`p-3 md:p-stack-sm rounded-xl flex gap-3 md:gap-stack-sm transition-all ${
         live
-          ? 'bg-primary/5 border-2 border-vibrant-blue md:border-0 md:ring-2 md:ring-vibrant-blue/60 shadow-[0_4px_16px_rgba(0,102,255,0.08)]'
-          : `bg-surface-container-lowest shadow-[0_2px_12px_rgba(0,102,255,0.02)] hover:shadow-md border ${!v && kind === 'open' ? 'border-dashed border-outline-variant/70' : 'border-surface-container md:border-transparent'}`
+          ? 'bg-primary/5 border-2 border-vibrant-blue md:border-0 md:ring-2 md:ring-vibrant-blue/60 shadow-[0_4px_16px_rgba(15,23,42,0.04)]'
+          : `bg-surface-container-lowest shadow-[0_2px_12px_rgba(15,23,42,0.04)] hover:shadow-md border ${!v && kind === 'open' ? 'border-dashed border-outline-variant/70' : 'border-surface-container md:border-transparent'}`
       } ${kind === 'open' && past && !live ? 'opacity-75 hover:opacity-100' : ''}`}
     >
       <div className="w-11 md:w-16 shrink-0 flex flex-col items-center justify-center">

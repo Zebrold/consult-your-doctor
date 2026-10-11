@@ -45,6 +45,17 @@ export type TicketMessage = {
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000').replace(/\/$/, '')
 
+/** The signed-in executive or super admin working the support queue; null for everyone else. */
+async function supportStaff() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const admin = createAdminClient()
+  const { data: profile } = await admin.from('profiles').select('full_name, role').eq('id', user.id).maybeSingle()
+  if (profile?.role !== 'executive' && profile?.role !== 'super_admin') return null
+  return { user, admin, name: profile.full_name as string | null }
+}
+
 /** Creates a support ticket and notifies executive support and the requester */
 export async function createSupportTicket(input: {
   category: string
@@ -169,7 +180,9 @@ export async function getExecutiveTickets(filter?: {
   tickets: SupportTicket[]
   stats: { total: number; open: number; inProgress: number; awaiting: number; resolved: number; closed: number }
 }> {
-  const admin = createAdminClient()
+  const staff = await supportStaff()
+  if (!staff) return { tickets: [], stats: { total: 0, open: 0, inProgress: 0, awaiting: 0, resolved: 0, closed: 0 } }
+  const { admin } = staff
 
   let query = admin.from('tickets').select(`
     id, ticket_code, user_id, requester_name, requester_email, requester_phone,
@@ -228,7 +241,15 @@ export async function getExecutiveTickets(filter?: {
 
 /** Fetches ticket messages / audit history */
 export async function getTicketMessages(ticketId: string): Promise<TicketMessage[]> {
+  // Support staff see every thread; anyone else only the tickets they raised.
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
   const admin = createAdminClient()
+  if (!(await supportStaff())) {
+    const { data: own } = await admin.from('tickets').select('id').eq('id', ticketId).eq('user_id', user.id).maybeSingle()
+    if (!own) return []
+  }
   const { data: rows } = await admin
     .from('ticket_messages')
     .select('*')
@@ -254,13 +275,10 @@ export async function updateTicketStatus(
   status: TicketStatus,
   resolutionNotes?: string
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Unauthorized' }
-
-  const admin = createAdminClient()
-  const { data: execProfile } = await admin.from('profiles').select('full_name, role').eq('id', user.id).single()
-  const execName = execProfile?.full_name || 'Executive Officer'
+  const staff = await supportStaff()
+  if (!staff) return { success: false, error: 'Unauthorized' }
+  const { user, admin } = staff
+  const execName = staff.name || 'Executive Officer'
 
   // Fetch ticket details before updating
   const { data: ticket } = await admin.from('tickets').select('*').eq('id', ticketId).single()
@@ -317,13 +335,10 @@ export async function replyToTicket(
   message: string,
   newStatus: TicketStatus = 'awaiting_response'
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Unauthorized' }
-
-  const admin = createAdminClient()
-  const { data: execProfile } = await admin.from('profiles').select('full_name, role').eq('id', user.id).single()
-  const execName = execProfile?.full_name || 'Executive'
+  const staff = await supportStaff()
+  if (!staff) return { success: false, error: 'Unauthorized' }
+  const { user, admin } = staff
+  const execName = staff.name || 'Executive'
 
   const { data: ticket } = await admin.from('tickets').select('*').eq('id', ticketId).single()
   if (!ticket) return { success: false, error: 'Ticket not found' }
@@ -363,7 +378,9 @@ export async function replyToTicket(
 
 /** Assigns a ticket to an executive */
 export async function assignTicket(ticketId: string, executiveId: string): Promise<{ success: boolean }> {
-  const admin = createAdminClient()
+  const staff = await supportStaff()
+  if (!staff) return { success: false }
+  const { admin } = staff
   await admin.from('tickets').update({ assigned_to: executiveId, updated_at: new Date().toISOString() }).eq('id', ticketId)
   revalidatePath('/executive/support')
   return { success: true }

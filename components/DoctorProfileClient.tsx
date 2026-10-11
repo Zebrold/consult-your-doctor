@@ -6,38 +6,22 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { PatientDock } from "@/components/PatientDock";
 import {
-  RefreshCw,
   LogOut,
   BadgeCheck,
   ShieldCheck,
   Award,
-  CheckCheck,
-  Star,
   Calendar,
   CalendarCheck,
   ArrowRight,
   ArrowLeft,
-  Building2,
-  Plus,
   Hospital,
   Phone,
-  AlertCircle,
-  Bed,
-  BriefcaseMedical,
-  Video,
-  Globe,
-  Clock,
-  FileCheck,
-  BookOpen,
-  Brain,
   GraduationCap,
   Building,
   MessageSquare,
   CreditCard,
-  Mail,
   UserCog,
   Activity,
-  Zap,
   Shield,
   ExternalLink,
   Edit3
@@ -45,6 +29,7 @@ import {
 import type { EducationEntry } from "@/lib/education";
 import type { Review, ReviewSummary } from "@/lib/reviews";
 import { Stars } from "@/components/Stars";
+import { CONSULTATION_PLATFORM_FEE } from "@/lib/pricing";
 
 
 export interface ProfileDoctorData {
@@ -155,20 +140,18 @@ export function DoctorProfileClient({
   const searchParams = useSearchParams();
   const isPreview = searchParams.get("preview") === "patient";
 
-  const [emergencyActive, setEmergencyActive] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<string>("09:30");
+  // No time is picked until the patient taps one.
+  const [selectedSlot, setSelectedSlot] = useState<string>("");
 
-  const doctorName = doctor.profiles?.full_name || "Specialist Doctor";
+  const doctorName = doctor.profiles?.full_name || "Doctor";
   const rawName = doctorName.replace(/^Dr\.\s*/i, "");
   const specialty = doctor.departments?.name || doctor.specialty || "Specialist";
-  const experienceYears = doctor.experience_years || 8;
-  const fee = doctor.consultation_fee || 500;
+  // Shown only when the doctor has filled them in; never replaced with a made-up value.
+  const experienceYears = doctor.experience_years || null;
+  const fee = doctor.consultation_fee || null;
   const hospital = doctor.hospitals;
-
-  const qualifications = doctor.qualifications || "MD, MS - " + specialty;
-  // The medical council registration the doctor saved on their profile; otherwise their platform ID.
-  const licenseNumber = doctor.registration_number || doctor.profiles?.staff_id || `CYD-${doctor.id.slice(0, 6).toUpperCase()}`;
+  const qualifications = doctor.qualifications?.trim() || null;
   const education = doctor.education ?? [];
   const insurance = doctor.insurance_accepted ?? [];
   const reviewSummary = doctor.reviews?.summary ?? null;
@@ -254,61 +237,8 @@ export function DoctorProfileClient({
     };
   }, [doctor.schedules]);
 
-  const handleEmergencyToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const nextVal = e.target.checked;
-    setEmergencyActive(nextVal);
-    const status = nextVal ? "Active" : "Standby";
-    setToastMessage(`Emergency escalation slot is now: ${status}`);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 3000);
-  };
-
-  // Dynamic procedures based on specialty
-  const procedures = useMemo(() => {
-    if (doctor.symptoms && doctor.symptoms.length > 0) {
-      return doctor.symptoms;
-    }
-    const specLower = specialty.toLowerCase();
-    if (specLower.includes("ortho")) {
-      return [
-        "Arthroscopy & Joint Reconstruction",
-        "Minimally Invasive Trauma Surgery",
-        "Total Knee & Hip Replacement (TKR/THR)",
-        "Spine & Disc Degeneration Care",
-        "Advanced Sports Ligament Repair",
-        "Complex Fracture Osteosynthesis",
-      ];
-    }
-    if (specLower.includes("cardio")) {
-      return [
-        "Coronary Angioplasty & Stenting (PCI)",
-        "Cardiac Arrhythmia Ablation (3D Mapping)",
-        "Transcatheter Aortic Valve Implantation (TAVR)",
-        "Advanced Heart Failure Hemodynamics",
-        "Preventative Lipidology & Atheroma Reversal",
-        "Biventricular ICD Implantation",
-      ];
-    }
-    if (specLower.includes("derma")) {
-      return [
-        "Laser Resurfacing & Phototherapy",
-        "Acne Scar Subcision & Microneedling",
-        "Biological Immunotherapy for Psoriasis",
-        "Advanced Dermatopathology Biopsy",
-        "Trichology & Hair Follicle Restoration",
-        "Pediatric Eczema Protocol",
-      ];
-    }
-    return [
-      `Comprehensive ${specialty} Evaluation`,
-      `Advanced Diagnostic Procedures`,
-      `Inpatient & Outpatient Clinical Protocol`,
-      `Minimally Invasive Therapeutic Interventions`,
-      `Preventive Care & Health Screening`,
-      `Complex Second Opinion Consultation`,
-    ];
-  }, [specialty, doctor.symptoms]);
+  // Conditions and procedures the doctor lists themselves; nothing is assumed from the specialty.
+  const procedures = doctor.symptoms ?? [];
 
   const targetUrl = `/book/${doctor.id}${isPreview
       ? `?preview=patient${selectedSlot ? `&time=${selectedSlot}` : ""}`
@@ -356,8 +286,7 @@ export function DoctorProfileClient({
             {isDoctorView ? (
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 pb-2">
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-fresh-teal"></span>
-                  <span className="text-xs uppercase tracking-wider font-bold text-slate-700">Doctor Portal — Public Profile Preview</span>
+                  <span className="text-xs uppercase tracking-wider font-bold text-slate-700">Public Profile Preview</span>
                 </div>
                 <form action="/auth/signout" method="post">
                   <button
@@ -381,9 +310,6 @@ export function DoctorProfileClient({
 
             {/* Clinician Hero Profile Section */}
             <section className="bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm relative overflow-hidden border border-slate-200/80">
-              <div className="absolute -right-20 -top-20 w-96 h-96 bg-primary-fixed/20 rounded-full blur-3xl pointer-events-none"></div>
-              <div className="absolute -left-20 -bottom-20 w-80 h-80 bg-secondary-container/20 rounded-full blur-3xl pointer-events-none"></div>
-
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 relative z-10">
                 {/* Left Column: Doctor Portrait */}
                 <div className="lg:col-span-4 xl:col-span-3 flex flex-col items-center sm:items-start">
@@ -420,96 +346,56 @@ export function DoctorProfileClient({
                   <div>
                     <div className="flex flex-wrap items-center justify-between gap-2 pb-3">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="px-3 py-1 rounded-full bg-blue-50 text-vibrant-blue text-xs uppercase tracking-wider font-bold border border-blue-100">
-                          {qualifications}
-                        </span>
                         <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">
-                          Specialist in {specialty}
+                          {specialty}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1.5 text-emerald-600 text-xs font-bold">
-                        <ShieldCheck className="w-4 h-4 inline" />
-                        <span>State Medical Council &amp; ABDM Verified</span>
-                      </div>
+                      {doctor.registration_number && (
+                        <div className="flex items-center gap-1.5 text-emerald-700 text-xs font-semibold">
+                          <ShieldCheck className="w-4 h-4 inline" />
+                          <span>
+                            Reg. No. {doctor.registration_number}
+                            {doctor.registration_council ? `, ${doctor.registration_council}` : ""}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     <h1 className="text-2xl sm:text-3xl lg:text-4xl text-slate-900 tracking-tight font-extrabold mb-1">
-                      Dr. {rawName}{doctor.qualifications ? (
-                        <span className="text-vibrant-blue text-2xl font-bold ml-1.5">
-                          {doctor.qualifications}
+                      Dr. {rawName}{qualifications ? (
+                        <span className="text-slate-500 text-lg sm:text-xl font-semibold ml-2">
+                          {qualifications}
                         </span>
                       ) : null}
                     </h1>
 
                     <p className="text-base text-slate-600 mb-3 font-semibold">
-                      Senior Consultant &amp; Specialist in {specialty} • {hospital?.name || "Consult Your Doctor"}
+                      {specialty}{hospital?.name ? ` · ${hospital.name}` : ""}
                     </p>
 
-                    <p className="text-sm md:text-base text-slate-600 max-w-3xl leading-relaxed">
-                      {doctor.bio || `Specialising in clinical ${specialty}, patient-centric evidence-based diagnostics, and comprehensive treatment plans at ${hospital?.name || "partner hospitals"}.`}
-                    </p>
+                    {doctor.bio && (
+                      <p className="text-sm md:text-base text-slate-600 max-w-3xl leading-relaxed">{doctor.bio}</p>
+                    )}
 
-                    {/* Patient-facing Metric Badges */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-5">
-                      <div className="bg-slate-50/80 rounded-xl p-3.5 flex flex-col justify-between border border-slate-200/70">
-                        <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
-                          Experience
-                        </span>
-                        <div className="mt-2 flex items-baseline gap-1">
-                          <span className="text-2xl font-extrabold text-vibrant-blue">
-                            {experienceYears ? `${experienceYears}+` : "5+"}
-                          </span>
-                          <span className="text-xs text-slate-500 font-medium">Years</span>
+                    {/* Patient-facing facts */}
+                    <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-5">
+                      {[
+                        { label: "Experience", value: experienceYears ? `${experienceYears} years` : "Not listed" },
+                        { label: "Consultation fee", value: fee ? `₹${fee.toLocaleString("en-IN")}` : "Not set yet" },
+                        { label: "Hospital", value: hospital?.name || "Not listed", note: hospital?.city || undefined },
+                        {
+                          label: "Patient rating",
+                          value: reviewAverage != null ? `${reviewAverage.toFixed(1)} / 5` : "No reviews yet",
+                          note: reviewCount ? `${reviewCount} ${reviewCount === 1 ? "review" : "reviews"}` : undefined,
+                        },
+                      ].map((item) => (
+                        <div key={item.label} className="rounded-xl p-3.5 border border-slate-200 bg-slate-50/60 min-w-0">
+                          <dt className="text-xs text-slate-500 font-medium">{item.label}</dt>
+                          <dd className="mt-1 text-base font-semibold text-slate-900 truncate">{item.value}</dd>
+                          {item.note && <dd className="text-xs text-slate-500 truncate">{item.note}</dd>}
                         </div>
-                        <span className="text-[11px] text-slate-600 mt-1 flex items-center gap-1 font-medium">
-                          <Award className="w-3.5 h-3.5 text-vibrant-blue inline" /> Senior Attending
-                        </span>
-                      </div>
-
-                      <div className="bg-slate-50/80 rounded-xl p-3.5 flex flex-col justify-between border border-slate-200/70">
-                        <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
-                          Consultation Fee
-                        </span>
-                        <div className="mt-2 flex items-baseline gap-1">
-                          <span className="text-2xl font-extrabold text-slate-900">
-                            ₹{fee}
-                          </span>
-                        </div>
-                        <span className="text-[11px] text-emerald-600 mt-1 flex items-center gap-1 font-medium">
-                          <CheckCheck className="w-3.5 h-3.5 inline" /> Standard Fee
-                        </span>
-                      </div>
-
-                      <div className="bg-slate-50/80 rounded-xl p-3.5 flex flex-col justify-between border border-slate-200/70">
-                        <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
-                          Center
-                        </span>
-                        <div className="mt-2 flex items-baseline gap-1">
-                          <span className="text-base font-bold text-slate-900 truncate">
-                            {hospital?.name || "Consultation Center"}
-                          </span>
-                        </div>
-                        <span className="text-[11px] text-slate-500 mt-1 truncate">
-                          {hospital?.city || "New Delhi"}
-                        </span>
-                      </div>
-
-                      <div className="bg-slate-50/80 rounded-xl p-3.5 flex flex-col justify-between border border-slate-200/70">
-                        <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
-                          Patient Rating
-                        </span>
-                        <div className="mt-2 flex items-baseline gap-1">
-                          <span className="text-2xl font-extrabold text-vibrant-blue">
-                            {reviewAverage != null ? reviewAverage.toFixed(1) : "4.9"}
-                          </span>
-                          <span className="text-xs text-slate-500 font-medium">/ 5.0</span>
-                        </div>
-                        <a href="#reviews" className="text-[11px] text-vibrant-blue mt-1 flex items-center gap-1 font-medium hover:underline">
-                          <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500 inline" />{" "}
-                          {reviewCount ? `${reviewCount} Reviews` : "Verified Care"}
-                        </a>
-                      </div>
-                    </div>
+                      ))}
+                    </dl>
                   </div>
 
                   {/* Hero Footer Actions */}
@@ -520,7 +406,7 @@ export function DoctorProfileClient({
                           <button
                             type="button"
                             onClick={() => onEditProfile ? onEditProfile() : setToastMessage('Profile edit drawer ready')}
-                            className="flex items-center gap-2 bg-vibrant-blue hover:bg-primary text-on-primary font-label-sm text-label-sm px-6 py-2.5 rounded-full font-bold shadow-[0_2px_12px_rgba(0,102,255,0.25)] transition-all hover:scale-[1.02] cursor-pointer"
+                            className="flex items-center gap-2 bg-vibrant-blue hover:bg-primary text-on-primary font-label-sm text-label-sm px-6 py-2.5 rounded-full font-bold shadow-[0_2px_12px_rgba(15,23,42,0.1)] transition-all cursor-pointer"
                           >
                             <Edit3 className="w-4 h-4 inline" />
                             <span>Edit Public Profile</span>
@@ -543,7 +429,7 @@ export function DoctorProfileClient({
                             className="inline-flex items-center gap-1.5 text-primary hover:text-on-primary-fixed-variant font-label-sm text-label-sm font-semibold group cursor-pointer"
                           >
                             <span>View Patient-Facing Profile</span>
-                            <ExternalLink className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform inline" />
+                            <ExternalLink className="w-4 h-4 group-hover:translate-x-0.5 transition-transform inline" />
                           </Link>
 
                           <form action="/auth/signout" method="post">
@@ -563,10 +449,10 @@ export function DoctorProfileClient({
                         <div className="flex flex-wrap items-center gap-stack-sm">
                           <Link
                             href={bookUrl}
-                            className="flex items-center gap-2 bg-vibrant-blue hover:bg-primary text-on-primary font-title-md text-body-md px-6 py-3 rounded-full transition-transform active:scale-95 shadow-[0_2px_12px_rgba(0,102,255,0.25)] font-bold cursor-pointer"
+                            className="flex items-center gap-2 bg-vibrant-blue hover:bg-primary text-on-primary font-title-md text-body-md px-6 py-3 rounded-full transition-transform active:scale-95 shadow-[0_2px_12px_rgba(15,23,42,0.1)] font-bold cursor-pointer"
                           >
                             <Calendar className="w-5 h-5 inline" />
-                            <span>Book Consultation (₹{fee})</span>
+                            <span>{fee ? `Book consultation · ₹${fee.toLocaleString("en-IN")}` : "Book consultation"}</span>
                           </Link>
 
                           <a
@@ -574,7 +460,7 @@ export function DoctorProfileClient({
                             className="flex items-center gap-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-sm text-label-sm px-5 py-3 rounded-full transition-colors font-semibold"
                           >
                             <CalendarCheck className="w-4 h-4 inline" />
-                            <span>Check Clinic Hours</span>
+                            <span>See open times</span>
                           </a>
                         </div>
 
@@ -596,190 +482,60 @@ export function DoctorProfileClient({
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-stack-md">
               {/* Left Column: Affiliations, Academic acumen, Patient Reviews (8 cols) */}
               <div className="xl:col-span-8 flex flex-col gap-stack-lg">
-                {/* 1. Clinic & Hospital Affiliations */}
-                <section className="bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_2px_12px_rgba(0,80,203,0.04)] border border-surface-container">
-                  <div className="flex items-center justify-between mb-stack-md">
-                    <div>
-                      <div className="flex items-center gap-2 text-fresh-teal">
-                        <Building2 className="w-5 h-5 inline" />
-                        <span className="font-label-sm text-label-sm uppercase tracking-wider font-semibold">
-                          Active Locations
+                {/* 1. Where the doctor practises */}
+                {hospital && (
+                  <section className="bg-surface-container-lowest rounded-xl p-stack-md border border-slate-200/80">
+                    <h2 className="text-xl font-bold text-on-surface">Where Dr. {rawName} sees patients</h2>
+                    <div className="mt-4 rounded-xl border border-slate-200 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <span className="w-10 h-10 rounded-lg bg-primary-fixed/60 text-primary flex items-center justify-center shrink-0">
+                          <Hospital className="w-5 h-5" />
                         </span>
-                      </div>
-                      <h2 className="font-headline-lg text-headline-lg text-on-surface font-bold mt-1">
-                        Clinic &amp; Hospital Affiliations
-                      </h2>
-                    </div>
-                    {isDoctorView && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setToastMessage("Affiliation workflow initiated");
-                          setTimeout(() => setToastMessage(null), 2500);
-                        }}
-                        className="flex items-center gap-1.5 text-primary hover:text-on-primary-fixed-variant font-label-sm text-label-sm font-semibold cursor-pointer"
-                      >
-                        <Plus className="w-4 h-4 inline" />
-                        <span>Add Affiliation</span>
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-stack-sm">
-                    {/* Primary Hospital */}
-                    <div className="bg-surface-container-low rounded-xl p-4 flex flex-col justify-between hover:bg-surface-container transition-colors relative group border border-surface-container">
-                      <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="w-8 h-8 rounded-lg bg-surface-container-highest flex items-center justify-center text-primary">
-                            <Hospital className="w-5 h-5 inline" />
-                          </span>
-                          <span className="px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-[11px] font-semibold">
-                            Primary Center
-                          </span>
-                        </div>
-                        <h3 className="font-title-md text-title-md font-bold text-on-surface leading-tight mb-1">
-                          {hospital?.name || "Apollo Hospital"}
-                        </h3>
-                        <p className="font-body-md text-label-sm text-on-surface-variant mb-3">
-                          {hospital?.address ? `${hospital.address}, ${hospital.city || ""}` : (hospital?.city || "New Delhi")}
-                        </p>
-                        <div className="flex flex-col gap-1.5 text-on-surface-variant font-label-sm text-[13px]">
-                          <span className="flex items-center gap-2">
-                            <Building className="w-4 h-4 text-primary shrink-0 inline" />{" "}
-                            In-Person Consultations &amp; OPD
-                          </span>
-                          <span className="flex items-center gap-2">
-                            <Phone className="w-4 h-4 text-primary shrink-0 inline" />{" "}
-                            {doctor.profiles?.phone_number ? `+91 ${doctor.profiles.phone_number}` : '+91 (011) 2692 5858'}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="mt-4 pt-3 border-t border-surface-container-high/70 flex items-center justify-between">
-                        <span className="font-label-sm text-label-sm text-secondary font-semibold">
-                          Scheduled Slots
-                        </span>
-                        {isDoctorView ? (
-                          <button
-                            type="button"
-                            onClick={() => onManageSchedule ? onManageSchedule() : setToastMessage("Adjusting schedule slots")}
-                            className="text-primary hover:underline font-label-sm text-[12px] font-bold cursor-pointer"
-                          >
-                            Edit Times
-                          </button>
-                        ) : (
-                          <Link href={bookUrl} className="text-primary hover:underline font-label-sm text-[12px] font-bold">
-                            Book Slot &rarr;
+                        <div className="min-w-0">
+                          <Link href={`/hospitals/${hospital.id}`} className="font-semibold text-on-surface hover:text-vibrant-blue">
+                            {hospital.name}
                           </Link>
-                        )}
+                          {(hospital.address || hospital.city) && (
+                            <p className="text-sm text-slate-600">
+                              {[hospital.address, hospital.city].filter(Boolean).join(", ")}
+                            </p>
+                          )}
+                          <p className="mt-1 text-sm text-slate-500 flex items-center gap-1.5">
+                            <Building className="w-4 h-4" /> In-person consultations
+                          </p>
+                        </div>
                       </div>
+                      {isDoctorView ? (
+                        <button
+                          type="button"
+                          onClick={() => onManageSchedule?.()}
+                          className="text-sm font-semibold text-primary hover:underline shrink-0"
+                        >
+                          Edit times
+                        </button>
+                      ) : (
+                        <Link href={bookUrl} className="text-sm font-semibold text-primary hover:underline shrink-0">
+                          Book a time &rarr;
+                        </Link>
+                      )}
                     </div>
-
-                    {/* Secondary Care Wing */}
-                    <div className="bg-surface-container-low rounded-xl p-4 flex flex-col justify-between hover:bg-surface-container transition-colors relative group border border-surface-container">
-                      <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="w-8 h-8 rounded-lg bg-surface-container-highest flex items-center justify-center text-primary">
-                            <AlertCircle className="w-5 h-5 text-rose-600 inline" />
-                          </span>
-                          <span className="px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-sm text-[11px] font-semibold">
-                            Specialist Wing
-                          </span>
-                        </div>
-                        <h3 className="font-title-md text-title-md font-bold text-on-surface leading-tight mb-1">
-                          {hospital?.name ? `${hospital.name} Super Speciality` : "Super Speciality Pavilion"}
-                        </h3>
-                        <p className="font-body-md text-label-sm text-on-surface-variant mb-3">
-                          {hospital?.city ? `${hospital.city} Medical District` : "New Delhi Medical District"}
-                        </p>
-                        <div className="flex flex-col gap-1.5 text-on-surface-variant font-label-sm text-[13px]">
-                          <span className="flex items-center gap-2">
-                            <Bed className="w-4 h-4 text-primary shrink-0 inline" />{" "}
-                            Inpatient &amp; Surgical Suite
-                          </span>
-                          <span className="flex items-center gap-2">
-                            <BriefcaseMedical className="w-4 h-4 text-primary shrink-0 inline" />{" "}
-                            Diagnostic Floor 3
-                          </span>
-                        </div>
-                      </div>
-                      <div className="mt-4 pt-3 border-t border-surface-container-high/70 flex items-center justify-between">
-                        <span className="font-label-sm text-label-sm text-secondary font-semibold">
-                          Surgical Roster
-                        </span>
-                        <span className="text-primary font-label-sm text-[12px] font-semibold">
-                          Specialist Care
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Telehealth Facility */}
-                    <div className="bg-surface-container-low rounded-xl p-4 flex flex-col justify-between hover:bg-surface-container transition-colors relative group border border-surface-container">
-                      <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="w-8 h-8 rounded-lg bg-surface-container-highest flex items-center justify-center text-fresh-teal">
-                            <Video className="w-5 h-5 text-fresh-teal inline" />
-                          </span>
-                          <span className="px-2.5 py-0.5 rounded-full bg-fresh-teal/15 text-secondary font-label-sm text-[11px] font-semibold">
-                            Daily Schedule
-                          </span>
-                        </div>
-                        <h3 className="font-title-md text-title-md font-bold text-on-surface leading-tight mb-1">
-                          Digital Telehealth Clinic
-                        </h3>
-                        <p className="font-body-md text-label-sm text-on-surface-variant mb-3">
-                          Encrypted HD WebRTC Video &amp; Prescriptions
-                        </p>
-                        <div className="flex flex-col gap-1.5 text-on-surface-variant font-label-sm text-[13px]">
-                          <span className="flex items-center gap-2">
-                            <Globe className="w-4 h-4 text-primary shrink-0 inline" />{" "}
-                            PAN-India &amp; Teleconsult Desk
-                          </span>
-                          <span className="flex items-center gap-2">
-                            <Clock className="w-4 h-4 text-primary shrink-0 inline" />{" "}
-                            Instant Join via SMS &amp; Email
-                          </span>
-                        </div>
-                      </div>
-                      <div className="mt-4 pt-3 border-t border-surface-container-high/70 flex items-center justify-between">
-                        <span className="font-label-sm text-label-sm text-secondary font-semibold">
-                          All Timezones (IST)
-                        </span>
-                        {isDoctorView ? (
-                          <span className="text-primary font-label-sm text-[12px] font-semibold">Virtual Hub</span>
-                        ) : (
-                          <Link href={bookUrl} className="text-primary hover:underline font-label-sm text-[12px] font-bold">
-                            Book Video &rarr;
-                          </Link>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </section>
+                  </section>
+                )}
 
                 {/* 2. Academic & Clinical Acumen */}
-                <section className="bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_2px_12px_rgba(0,80,203,0.04)] border border-surface-container">
+                <section className="bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_2px_12px_rgba(15,23,42,0.04)] border border-surface-container">
                   <div className="flex items-center justify-between mb-stack-md">
                     <div>
-                      <div className="flex items-center gap-2 text-fresh-teal">
-                        <FileCheck className="w-5 h-5 inline" />
-                        <span className="font-label-sm text-label-sm uppercase tracking-wider font-semibold">
-                          Academic &amp; Clinical Acumen
-                        </span>
-                      </div>
-                      <h2 className="font-headline-lg text-headline-lg text-on-surface font-bold mt-1">
-                        Specializations, Procedures &amp; Fellowships
-                      </h2>
+                      <h2 className="text-xl font-bold text-on-surface">Qualifications and training</h2>
                     </div>
-                    <span className="font-label-sm text-label-sm text-on-surface-variant bg-surface-container px-3 py-1 rounded-full font-medium">
-                      Updated Live
-                    </span>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-stack-md">
+                  <div className={`grid grid-cols-1 gap-stack-md ${procedures.length > 0 ? "md:grid-cols-2" : ""}`}>
+                    {procedures.length > 0 && (
                     <div>
                       <h3 className="font-title-md text-title-md text-on-surface mb-3 flex items-center gap-2 font-bold">
                         <Activity className="w-5 h-5 text-primary inline" />{" "}
-                        Primary Interventions
+                        Conditions and procedures
                       </h3>
                       <div className="flex flex-wrap gap-2">
                         {procedures.map((proc, i) => (
@@ -796,23 +552,8 @@ export function DoctorProfileClient({
                         ))}
                       </div>
 
-                      <div className="mt-stack-md p-4 bg-surface-container-low rounded-xl border border-surface-container">
-                        <h4 className="font-title-md text-[16px] text-on-surface font-bold mb-2">
-                          Research Footprint
-                        </h4>
-                        <p className="font-body-md text-label-sm text-on-surface-variant mb-2 leading-relaxed">
-                          Author of clinical research and institutional protocols in {specialty}. Active participant in continuous medical education, quality assurance, and evidence-based patient management at {hospital?.name || "accredited hospitals"}.
-                        </p>
-                        <div className="flex items-center gap-4 text-primary font-label-sm text-label-sm font-semibold">
-                          <span className="flex items-center gap-1">
-                            <BookOpen className="w-4 h-4 inline" /> Clinical Publications
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Brain className="w-4 h-4 inline" /> Case Reviews
-                          </span>
-                        </div>
-                      </div>
                     </div>
+                    )}
 
                     <div>
                       <h3 className="font-title-md text-title-md text-on-surface mb-3 flex items-center gap-2 font-bold">
@@ -847,7 +588,7 @@ export function DoctorProfileClient({
                             </div>
                             <div>
                               <span className="font-label-sm text-[11px] text-secondary font-semibold uppercase">Qualifications</span>
-                              <h4 className="font-title-md text-label-sm font-bold text-on-surface">{doctor.qualifications || "Not listed yet"}</h4>
+                              <h4 className="font-title-md text-label-sm font-bold text-on-surface">{qualifications || "Not listed yet"}</h4>
                               <p className="font-body-md text-[13px] text-on-surface-variant">{specialty}</p>
                             </div>
                           </div>
@@ -864,7 +605,7 @@ export function DoctorProfileClient({
                 </section>
 
                 {/* 3. Patient Reviews: written by patients after their visits */}
-                <section id="reviews" className="scroll-mt-24 bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_2px_12px_rgba(0,80,203,0.04)] border border-surface-container">
+                <section id="reviews" className="scroll-mt-24 bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_2px_12px_rgba(15,23,42,0.04)] border border-surface-container">
                   <div className="flex flex-wrap items-center justify-between gap-stack-sm mb-stack-md">
                     <div>
                       <div className="flex items-center gap-2 text-fresh-teal">
@@ -944,99 +685,49 @@ export function DoctorProfileClient({
 
               {/* Right Column: Fee Structure, Hours, Insurances & Dispatch (4 cols) */}
               <div className="xl:col-span-4 flex flex-col gap-stack-lg">
-                {/* 1. Fee Structure */}
-                <section className="bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_2px_12px_rgba(0,80,203,0.04)] border border-surface-container">
+                {/* 1. Fee */}
+                <section className="bg-surface-container-lowest rounded-xl p-stack-md border border-slate-200/80">
                   <div className="flex items-center justify-between mb-stack-sm">
-                    <div className="flex items-center gap-2 text-fresh-teal">
-                      <CreditCard className="w-5 h-5 inline" />
-                      <h2 className="font-title-md text-title-md text-on-surface font-bold">
-                        Fee Structure
-                      </h2>
-                    </div>
-                    {isDoctorView ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setToastMessage("Tariff adjustment modal active");
-                          setTimeout(() => setToastMessage(null), 2500);
-                        }}
-                        className="font-label-sm text-label-sm text-primary hover:underline font-semibold cursor-pointer"
-                      >
-                        Update Tariffs
+                    <h2 className="text-lg font-bold text-on-surface flex items-center gap-2">
+                      <CreditCard className="w-5 h-5 text-primary" /> What you pay
+                    </h2>
+                    {isDoctorView && onEditProfile && (
+                      <button type="button" onClick={onEditProfile} className="text-sm font-semibold text-primary hover:underline">
+                        Edit fee
                       </button>
-                    ) : (
-                      <span className="font-label-sm text-label-sm text-fresh-teal font-semibold">
-                        Standard Tariffs
-                      </span>
                     )}
                   </div>
-                  <p className="font-body-md text-label-sm text-on-surface-variant mb-4">
-                    {isDoctorView
-                      ? 'Published self-pay benchmark fees for outpatient consultation and telemetry reviews.'
-                      : 'Published benchmark fees for outpatient consultation and diagnostic reviews.'}
-                  </p>
-                  <div className="flex flex-col gap-2.5">
-                    <div className="p-3 bg-surface-container-low rounded-xl flex items-center justify-between border border-surface-container">
-                      <div>
-                        <span className="font-title-md text-label-sm font-bold text-on-surface block">
-                          Initial In-Person Consult
-                        </span>
-                        <span className="font-body-md text-[12px] text-on-surface-variant">
-                          Includes physical examination &amp; assessment (45m)
-                        </span>
+                  {fee ? (
+                    <dl className="text-[15px] divide-y divide-slate-100">
+                      <div className="flex items-center justify-between py-2">
+                        <dt className="text-slate-600">Consultation fee</dt>
+                        <dd className="font-semibold text-slate-900">₹{fee.toLocaleString("en-IN")}</dd>
                       </div>
-                      <span className="font-title-md text-title-md font-bold text-primary">
-                        ₹{fee}
-                      </span>
-                    </div>
-
-                    <div className="p-3 bg-surface-container-low rounded-xl flex items-center justify-between border border-surface-container">
-                      <div>
-                        <span className="font-title-md text-label-sm font-bold text-on-surface block">
-                          Follow-up Virtual Consult
-                        </span>
-                        <span className="font-body-md text-[12px] text-on-surface-variant">
-                          HD Video review &amp; medication tuning (30m)
-                        </span>
+                      <div className="flex items-center justify-between py-2">
+                        <dt className="text-slate-600">Booking fee</dt>
+                        <dd className="font-semibold text-slate-900">₹{CONSULTATION_PLATFORM_FEE}</dd>
                       </div>
-                      <span className="font-title-md text-title-md font-bold text-secondary">
-                        ₹{Math.max(100, Math.round(fee * 0.8))}
-                      </span>
-                    </div>
-
-                    <div className="p-3 bg-surface-container-low rounded-xl flex items-center justify-between border border-surface-container">
-                      <div>
-                        <span className="font-title-md text-label-sm font-bold text-on-surface block">
-                          Complex Second Opinion
-                        </span>
-                        <span className="font-body-md text-[12px] text-on-surface-variant">
-                          Full diagnostic &amp; imaging dossier review (60m)
-                        </span>
+                      <div className="flex items-center justify-between pt-3">
+                        <dt className="font-semibold text-slate-900">Total, paid online</dt>
+                        <dd className="text-lg font-bold text-primary">₹{(fee + CONSULTATION_PLATFORM_FEE).toLocaleString("en-IN")}</dd>
                       </div>
-                      <span className="font-title-md text-title-md font-bold text-primary">
-                        ₹{Math.round(fee * 1.5)}
-                      </span>
-                    </div>
-                  </div>
+                    </dl>
+                  ) : (
+                    <p className="text-sm text-slate-600">This doctor hasn&apos;t set a consultation fee yet, so online booking isn&apos;t open.</p>
+                  )}
                 </section>
 
                 {/* 2. Appointment Hours */}
                 <section
                   id="appointment-hours"
-                  className="bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_2px_12px_rgba(0,80,203,0.04)] border border-surface-container scroll-mt-24"
+                  className="bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_2px_12px_rgba(15,23,42,0.04)] border border-surface-container scroll-mt-24"
                 >
                   <div className="flex items-center justify-between mb-stack-sm">
-                    <div className="flex items-center gap-2 text-fresh-teal">
+                    <div className="flex items-center gap-2 text-vibrant-blue">
                       <Calendar className="w-5 h-5 inline" />
                       <h2 className="font-title-md text-title-md text-on-surface font-bold">
                         Appointment Hours
                       </h2>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="w-2.5 h-2.5 rounded-full bg-fresh-teal animate-pulse"
-                        title="Hospital Schedule Engine Live"
-                      ></span>
                     </div>
                   </div>
 
@@ -1044,14 +735,14 @@ export function DoctorProfileClient({
                     <div className="p-3 bg-surface-container-low rounded-xl border border-surface-container">
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-title-md text-label-sm font-bold text-on-surface">
-                          Morning Clinic Block
+                          Morning
                         </span>
                         <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-[11px] font-semibold">
                           {scheduleData.morningRange}
                         </span>
                       </div>
                       <span className="font-body-md text-[12px] text-on-surface-variant block">
-                        Scheduled Outpatient Slots
+                        {scheduleData.activeDate ? `Open times on ${scheduleData.activeDate}` : "No open times right now"}
                       </span>
                       <div className="mt-2 flex gap-1.5 flex-wrap">
                         {scheduleData.morningSlots.map((slotTime, i) => {
@@ -1066,7 +757,7 @@ export function DoctorProfileClient({
                                 setTimeout(() => setToastMessage(null), 2500);
                               }}
                               className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${isSelected
-                                  ? "bg-primary text-on-primary shadow-sm scale-105"
+                                  ? "bg-primary text-on-primary shadow-sm"
                                   : "bg-surface-container-highest text-primary hover:bg-surface-container-high"
                                 }`}
                             >
@@ -1080,14 +771,14 @@ export function DoctorProfileClient({
                     <div className="p-3 bg-surface-container-low rounded-xl border border-surface-container">
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-title-md text-label-sm font-bold text-on-surface">
-                          Afternoon Clinic Block
+                          Afternoon
                         </span>
                         <span className="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-sm text-[11px] font-semibold">
                           {scheduleData.afternoonRange}
                         </span>
                       </div>
                       <span className="font-body-md text-[12px] text-on-surface-variant block">
-                        Specialist Follow-up &amp; Procedures
+                        {scheduleData.activeDate ? `Open times on ${scheduleData.activeDate}` : "No open times right now"}
                       </span>
                       <div className="mt-2 flex gap-1.5 flex-wrap">
                         {scheduleData.afternoonSlots.map((slotTime, i) => {
@@ -1102,7 +793,7 @@ export function DoctorProfileClient({
                                 setTimeout(() => setToastMessage(null), 2500);
                               }}
                               className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${isSelected
-                                  ? "bg-primary text-on-primary shadow-sm scale-105"
+                                  ? "bg-primary text-on-primary shadow-sm"
                                   : "bg-surface-container-highest text-primary hover:bg-surface-container-high"
                                 }`}
                             >
@@ -1116,7 +807,7 @@ export function DoctorProfileClient({
                 </section>
 
                 {/* 3. Accepted Insurances: what the doctor lists on their profile */}
-                <section className="bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_2px_12px_rgba(0,80,203,0.04)] border border-surface-container">
+                <section className="bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_2px_12px_rgba(15,23,42,0.04)] border border-surface-container">
                   <div className="flex items-center justify-between mb-stack-sm">
                     <div className="flex items-center gap-2 text-fresh-teal">
                       <Shield className="w-5 h-5 inline" />
@@ -1158,30 +849,20 @@ export function DoctorProfileClient({
                   )}
                 </section>
 
-                {/* 4. Secretariat Contact */}
-                <section className="bg-primary text-on-primary rounded-xl p-stack-md shadow-lg relative overflow-hidden">
-                  <div className="relative z-10">
-                    <span className="font-label-sm text-label-sm uppercase tracking-wider text-fresh-teal font-bold block mb-1">
-                      {isDoctorView ? 'CLINICAL DESK CONTACT' : 'Hospital Secretariat Contact'}
-                    </span>
-                    <h3 className="font-title-md text-title-md text-on-primary font-bold mb-2">
-                      Practice Desk &amp; Dispatch
-                    </h3>
-                    <p className="font-body-md text-label-sm text-on-primary/80 mb-4 leading-relaxed">
-                      Direct contact for outpatient appointments, inpatient admissions, and doctor-to-doctor clinical handovers at {hospital?.name || "the clinic"}.
-                    </p>
-                    <div className="flex flex-col gap-2.5 font-label-sm text-label-sm">
-                      <div className="flex items-center gap-2 text-on-primary">
-                        <Phone className="w-4 h-4 text-fresh-teal inline" />
-                        <span>{doctor.profiles?.phone_number ? `+91 ${doctor.profiles.phone_number}` : "+91 (011) 2692 5858 (Direct Line)"}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-on-primary">
-                        <Mail className="w-4 h-4 text-fresh-teal inline" />
-                        <span>{doctor.profiles?.email || hospital?.contact_email || "support@consultyourdoctor.com"}</span>
-                      </div>
-                    </div>
+                {/* 4. Help */}
+                <section className="rounded-xl p-stack-md border border-slate-200/80 bg-slate-50">
+                  <h3 className="text-base font-bold text-on-surface">Questions before you book?</h3>
+                  <p className="mt-1.5 text-sm text-slate-600 leading-relaxed">
+                    Our assistant can help with booking, payments and finding the right specialist, and our support team is a
+                    message away.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold">
+                    <Link href="/ai" className="text-primary hover:underline">Ask the assistant</Link>
+                    <Link href="/contact" className="text-primary hover:underline">Contact support</Link>
+                    {hospital && (
+                      <Link href={`/hospitals/${hospital.id}`} className="text-primary hover:underline">About {hospital.name}</Link>
+                    )}
                   </div>
-                  <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
                 </section>
 
                 {/* 5. Account Session Management (Only in Doctor View) */}

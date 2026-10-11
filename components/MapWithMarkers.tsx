@@ -43,6 +43,21 @@ function FitBounds({ positions }: { positions: [number, number][] }) {
   return null
 }
 
+function MapResizer() {
+  const map = useMap()
+  useEffect(() => {
+    map.invalidateSize()
+    const t = setTimeout(() => map.invalidateSize(), 250)
+    const onResize = () => map.invalidateSize()
+    window.addEventListener('resize', onResize)
+    return () => {
+      clearTimeout(t)
+      window.removeEventListener('resize', onResize)
+    }
+  }, [map])
+  return null
+}
+
 export type MapItem = {
   id: string
   name: string
@@ -159,9 +174,12 @@ export default function MapWithMarkers({
       style={{ background: '#f0f4f8' }}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; Google Maps'
+        url="https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+        subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+        maxZoom={20}
       />
+      <MapResizer />
       <FitBounds positions={allPositions} />
 
       {items.map(item => {

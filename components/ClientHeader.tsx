@@ -12,7 +12,7 @@ import { AppComingSoon } from "./AppComingSoon";
 const navLinks = [
   { name: "How it works", href: "/how-it-works" },
   { name: "What we treat", href: "/what-we-treat" },
-  { name: "Online doctor", href: "/online-doctor" },
+  { name: "Book a doctor", href: "/online-doctor" },
   { name: "Prices", href: "/prices" },
 ];
 
@@ -44,16 +44,16 @@ export function ClientHeader({ user }: { user: User | null }) {
     <header className="fixed top-0 left-0 w-full z-50 bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline-variant/30 shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
       <div className="h-20 max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop flex items-center justify-between gap-gutter">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group" aria-label="Consult your Doctor home">
+        <Link href="/" className="flex items-center gap-2.5 sm:gap-3 min-w-0" aria-label="Consult your Doctor home">
           <Image
             src="/logo-icon.png"
             alt="Consult your Doctor"
-            width={40}
-            height={40}
-            className="w-10 h-10 object-contain shrink-0 transition-transform group-hover:scale-105"
+            width={52}
+            height={52}
+            className="w-10 h-10 sm:w-12 sm:h-12 md:w-[50px] md:h-[50px] object-contain shrink-0"
             priority
           />
-          <span className="font-title-md text-lg md:text-title-md text-on-surface font-bold tracking-tight leading-tight">
+          <span className="font-title-md text-[17px] sm:text-xl md:text-[22px] text-on-surface font-extrabold tracking-tight leading-tight whitespace-nowrap">
             Consult your Doctor
           </span>
         </Link>
@@ -92,7 +92,7 @@ export function ClientHeader({ user }: { user: User | null }) {
           ) : (
             <Link
               href="/login"
-              className="inline-flex items-center px-6 py-2.5 rounded-full bg-vibrant-blue text-on-primary text-[15px] font-bold shadow-[0_6px_16px_rgba(0,102,255,0.28)] hover:bg-primary hover:shadow-[0_8px_20px_rgba(0,102,255,0.34)] active:scale-[0.98] transition-all"
+              className="inline-flex items-center px-6 py-2.5 rounded-full bg-vibrant-blue text-on-primary text-[15px] font-bold shadow-[0_6px_16px_rgba(15,23,42,0.11)] hover:bg-primary hover:shadow-[0_8px_20px_rgba(15,23,42,0.12)] active:scale-[0.98] transition-all"
             >
               Sign In
             </Link>

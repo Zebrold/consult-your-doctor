@@ -64,7 +64,7 @@ export async function sendSms(payload: SmsPayload): Promise<boolean> {
   }
 }
 
-/** Sends OTP SMS to user for mobile verification using Fast2SMS Quick OTP route */
+/** Sends OTP SMS to user for mobile verification using Fast2SMS Quick route */
 export async function sendOtpSms(phone: string, otp: string): Promise<boolean> {
   const apiKey = process.env.FAST2SMS_API_KEY || process.env.SMS_API_KEY
   if (!apiKey) return false
@@ -72,7 +72,15 @@ export async function sendOtpSms(phone: string, otp: string): Promise<boolean> {
   const number = formatIndianSmsNumber(phone)
   if (number.length !== 10) return false
 
-  // 1. Try Fast2SMS dedicated OTP route first
+  // 1. Send via Fast2SMS Quick route (route: 'q') - reliable and immediate delivery
+  const sent = await sendSms({
+    phone,
+    otp,
+    message: `Your Consult Your Doctor verification code is ${otp}. Valid for 10 minutes. Please do not share this code.`,
+  })
+  if (sent) return true
+
+  // 2. Fallback to OTP route if configured
   try {
     const res = await fetch('https://www.fast2sms.com/dev/bulkV2', {
       method: 'POST',
@@ -91,15 +99,10 @@ export async function sendOtpSms(phone: string, otp: string): Promise<boolean> {
       return true
     }
   } catch (err) {
-    console.warn('sendOtpSms route otp failed, attempting transactional fallback:', err)
+    console.warn('sendOtpSms fallback failed:', err)
   }
 
-  // 2. Fallback to Quick transactional route
-  return sendSms({
-    phone,
-    otp,
-    message: `Your Consult Your Doctor verification code is ${otp}. Valid for 10 minutes. Please do not share this code.`,
-  })
+  return false
 }
 
 

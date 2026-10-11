@@ -81,7 +81,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { txnid, productinfo, firstname, email } = body;
 
-    const key = process.env.PAYU_MERCHANT_KEY;
+    const key = process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY;
+    // The salt signs every payment. It must only ever come from the environment, never from source.
     const salt = process.env.PAYU_MERCHANT_SALT;
 
     if (!key || !salt) {

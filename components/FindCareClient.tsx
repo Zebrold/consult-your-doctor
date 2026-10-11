@@ -314,29 +314,11 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
         <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop md:py-8 max-w-[1536px] mx-auto">
           <div className="flex flex-col lg:flex-row gap-8 items-start">
             <div ref={results} className="scroll-mt-20 w-full lg:w-[58%] xl:w-[60%] flex flex-col gap-4 md:gap-6">
-              {/* Phone & tablet: map teaser */}
+              {/* Phone & tablet: live interactive Google map directly visible */}
               {clinics.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setMapOpen(true)}
-                  className="lg:hidden relative w-full h-36 md:h-40 rounded-2xl overflow-hidden shadow-sm text-left bg-[radial-gradient(#c2c6d8_1px,transparent_1px)] [background-size:18px_18px] bg-surface-container-highest"
-                >
-                  <span aria-hidden className="absolute inset-0 bg-gradient-to-br from-primary-fixed/70 via-transparent to-secondary-fixed/40" />
-                  <span className="absolute inset-0 bg-gradient-to-t from-inverse-surface/80 via-inverse-surface/20 to-transparent flex items-end justify-between p-4 gap-3">
-                    <span className="flex items-center gap-2 min-w-0">
-                      <span className="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container shrink-0">
-                        <MapIcon className="w-[18px] h-[18px]" />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-label-sm text-on-primary">Interactive Map View</span>
-                        <span className="block text-[11px] text-inverse-on-surface/80 truncate">
-                          {clinics.length} {clinics.length === 1 ? "hospital" : "hospitals"} with matching doctors
-                        </span>
-                      </span>
-                    </span>
-                    <span className="px-3 py-1.5 bg-surface/90 text-on-surface backdrop-blur-md rounded-full text-label-sm font-semibold shrink-0">Explore Map</span>
-                  </span>
-                </button>
+                <div className="lg:hidden w-full h-72 sm:h-80 rounded-2xl overflow-hidden shadow-sm border border-outline-variant/30 relative">
+                  {!isWide && mapPanel}
+                </div>
               )}
 
               <div className="flex items-center justify-between gap-3 md:px-2">
@@ -350,8 +332,7 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
                   Showing {Math.min(visible, filtered.length)} of {filtered.length}
                 </span>
                 {openTodayCount > 0 && (
-                  <span className="hidden sm:flex items-center gap-2 font-label-sm text-label-sm text-secondary font-semibold">
-                    <span className="w-2.5 h-2.5 rounded-full bg-fresh-teal" />
+                  <span className="hidden sm:flex items-center gap-2 font-label-sm text-label-sm text-vibrant-blue font-semibold">
                     {openTodayCount} with open slots today
                   </span>
                 )}
@@ -471,10 +452,10 @@ function DoctorCard({ doctor: d, now, selected, onSelect }: { doctor: FindDoctor
               {initials(d.name)}
             </span>
           )}
-          {today && <span title="Open slots today" className="md:hidden absolute bottom-1 right-1 w-3.5 h-3.5 border-2 border-surface rounded-full bg-fresh-teal" />}
+          {today && <span title="Open slots today" className="md:hidden absolute bottom-1 right-1 w-3.5 h-3.5 border-2 border-white rounded-full bg-emerald-600" />}
           {today && (
-            <span className="hidden md:flex absolute -bottom-2 -right-2 px-2.5 py-0.5 rounded-full bg-fresh-teal text-on-primary font-label-sm text-[11px] font-bold shadow-sm items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-surface-container-lowest" /> TODAY
+            <span className="hidden md:flex absolute -bottom-2 -right-2 px-2.5 py-0.5 rounded-full bg-blue-50 text-vibrant-blue border border-blue-200 font-label-sm text-[11px] font-bold shadow-sm items-center gap-1">
+              TODAY
             </span>
           )}
         </div>

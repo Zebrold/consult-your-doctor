@@ -162,7 +162,7 @@ export default async function LabDashboardPage() {
             <NewBookingButton
               {...bookingProps}
               label="New Test Intake"
-              className={`${headerButton} bg-surface-container-lowest text-indigo-gray-900 shadow-sm md:bg-vibrant-blue md:text-on-primary md:hover:scale-[1.02]`}
+              className={`${headerButton} bg-surface-container-lowest text-indigo-gray-900 shadow-sm md:bg-vibrant-blue md:text-on-primary`}
             />
           </div>
         </div>
@@ -202,11 +202,11 @@ export default async function LabDashboardPage() {
           chip={
             overdue.length > 0 ? (
               <Pill className="bg-soft-coral/10 text-soft-coral font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-soft-coral animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-soft-coral" />
                 {overdue.length} Overdue
               </Pill>
             ) : (
-              <Pill className="bg-fresh-teal/10 text-secondary">On Track</Pill>
+              <Pill className="bg-emerald-50 text-emerald-700 font-semibold">On Track</Pill>
             )
           }
           value={waiting.length}

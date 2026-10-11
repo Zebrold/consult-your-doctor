@@ -33,7 +33,9 @@ import { sendWhatsAppOtp } from '@/lib/notify/whatsapp'
 import { sendOtpSms } from '@/lib/notify/sms'
 
 function computeOtpHmac(phone: string, otp: string, expiresAt: number): string {
-  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY || 'cyd_wa_otp_secure_key'
+  // A guessable fallback secret would let anyone mint a valid code for any number, so refuse to run without one.
+  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!secret) throw new Error('Sign-in codes are not configured on this server.')
   return crypto.createHmac('sha256', secret).update(`${phone}:${otp}:${expiresAt}`).digest('hex')
 }
 
@@ -168,43 +170,41 @@ export async function sendOTP(prevState: any, formData: FormData) {
   }
 
   // Generate 6-digit OTP
-  const otp = Math.floor(100000 + Math.random() * 900000).toString()
+  const otp = crypto.randomInt(100000, 1000000).toString()
   const expiresAt = Date.now() + 10 * 60 * 1000 // 10 minutes
   const hash = computeOtpHmac(phone, otp, expiresAt)
 
   const cookieStore = await cookies()
-  cookieStore.set('cyd_wa_otp', JSON.stringify({ phone, expiresAt, hash }), {
+  const otpPayload = JSON.stringify({ phone, expiresAt, hash })
+  const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'lax' as const,
     maxAge: 600,
     path: '/',
-  })
+  }
+  cookieStore.set('cyd_auth_otp', otpPayload, cookieOptions)
+  cookieStore.set('cyd_wa_otp', otpPayload, cookieOptions)
 
-  // Primary dispatch: WhatsApp (ultra-low cost, immediate, reliable)
-  let sent = await sendWhatsAppOtp(phone, otp)
-
-  // Fallback dispatch: Quick transactional SMS if WhatsApp session API is unavailable
-  if (!sent) {
-    console.warn('[sendOTP] WhatsApp delivery failed, attempting fallback SMS route for:', phone)
-    sent = await sendOtpSms(phone, otp)
+  // WhatsApp first, then a text message. The code is never shown on screen: anyone can type any number here.
+  if (await sendWhatsAppOtp(phone, otp)) {
+    return { success: true, phone, fullName, role, isRegister, channel: 'whatsapp' }
+  }
+  console.warn('[sendOTP] WhatsApp delivery failed, trying SMS for:', phone)
+  if (await sendOtpSms(phone, otp)) {
+    return { success: true, phone, fullName, role, isRegister, channel: 'sms' }
   }
 
-  if (!sent) {
-    console.warn('[sendOTP] WhatsApp and SMS gateways unreachable. Providing fallback OTP for testing.')
-    return {
-      success: true,
-      phone,
-      fullName,
-      role,
-      isRegister,
-      channel: 'fallback',
-      fallbackOtp: '123456',
-      gatewayNotice: 'WhatsApp gateway temporarily unreachable. For testing, use verification code: 123456',
-    }
+  cookieStore.delete('cyd_auth_otp')
+  cookieStore.delete('cyd_wa_otp')
+  return {
+    error: "We couldn't send your code right now. Please try again in a minute, or continue with Google.",
+    success: false,
+    phone,
+    fullName,
+    role,
+    isRegister,
   }
-
-  return { success: true, phone, fullName, role, isRegister, channel: 'whatsapp' }
 }
 
 export async function verifyOTP(prevState: any, formData: FormData) {
@@ -222,7 +222,7 @@ export async function verifyOTP(prevState: any, formData: FormData) {
   const trimmedToken = token.trim()
 
   const cookieStore = await cookies()
-  const waOtpCookie = cookieStore.get('cyd_wa_otp')?.value
+  const otpCookie = cookieStore.get('cyd_auth_otp')?.value || cookieStore.get('cyd_wa_otp')?.value
 
   // Demo bypass
   if (phone.endsWith('9876543210') && trimmedToken === '123456') {
@@ -238,22 +238,20 @@ export async function verifyOTP(prevState: any, formData: FormData) {
   }
 
   let isOtpValid = false
-  if (trimmedToken === '123456') {
-    isOtpValid = true
-  } else if (waOtpCookie) {
+  if (otpCookie) {
     try {
-      const parsed = JSON.parse(waOtpCookie)
+      const parsed = JSON.parse(otpCookie)
       if (parsed.phone === phone) {
         isOtpValid = verifyOtpHmac(phone, trimmedToken, parsed.expiresAt, parsed.hash)
       }
     } catch (e) {
-      console.error('[verifyOTP] Error verifying cyd_wa_otp cookie:', e)
+      console.error('[verifyOTP] Error verifying OTP cookie:', e)
     }
   }
 
   if (!isOtpValid) {
     return {
-      error: 'Invalid or expired OTP. Please check your WhatsApp and try again.',
+      error: 'Invalid or expired verification code. Please check your messages and try again.',
       success: false,
       phone,
       fullName,
@@ -262,6 +260,7 @@ export async function verifyOTP(prevState: any, formData: FormData) {
     }
   }
 
+  cookieStore.delete('cyd_auth_otp')
   cookieStore.delete('cyd_wa_otp')
 
   try {
@@ -303,7 +302,7 @@ export async function verifyOTPInline(prevState: any, formData: FormData) {
   const trimmedToken = token.trim()
 
   const cookieStore = await cookies()
-  const waOtpCookie = cookieStore.get('cyd_wa_otp')?.value
+  const otpCookie = cookieStore.get('cyd_auth_otp')?.value || cookieStore.get('cyd_wa_otp')?.value
 
   // Demo bypass
   if (phone.endsWith('9876543210') && trimmedToken === '123456') {
@@ -318,22 +317,20 @@ export async function verifyOTPInline(prevState: any, formData: FormData) {
   }
 
   let isOtpValid = false
-  if (trimmedToken === '123456') {
-    isOtpValid = true
-  } else if (waOtpCookie) {
+  if (otpCookie) {
     try {
-      const parsed = JSON.parse(waOtpCookie)
+      const parsed = JSON.parse(otpCookie)
       if (parsed.phone === phone) {
         isOtpValid = verifyOtpHmac(phone, trimmedToken, parsed.expiresAt, parsed.hash)
       }
     } catch (e) {
-      console.error('[verifyOTPInline] Error verifying cyd_wa_otp cookie:', e)
+      console.error('[verifyOTPInline] Error verifying OTP cookie:', e)
     }
   }
 
   if (!isOtpValid) {
     return {
-      error: 'Invalid or expired OTP. Please check your WhatsApp and try again.',
+      error: 'Invalid or expired verification code. Please check your messages and try again.',
       success: false,
       phone,
       fullName,
@@ -342,6 +339,7 @@ export async function verifyOTPInline(prevState: any, formData: FormData) {
     }
   }
 
+  cookieStore.delete('cyd_auth_otp')
   cookieStore.delete('cyd_wa_otp')
 
   try {

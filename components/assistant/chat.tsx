@@ -501,7 +501,7 @@ function Bubble({ role, icon: Icon, children }: { role: 'user' | 'assistant'; ic
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/images/ai-doctor.png" alt="Doctor Assistant" className="w-full h-full object-contain drop-shadow-xs" />
       </div>
-      <div className="min-w-0 bg-surface-container-lowest border border-outline-variant/30 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[14px] leading-relaxed text-on-surface shadow-[0_2px_8px_rgba(0,80,203,0.04)] break-words">
+      <div className="min-w-0 bg-surface-container-lowest border border-outline-variant/30 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[14px] leading-relaxed text-on-surface shadow-[0_2px_8px_rgba(15,23,42,0.04)] break-words">
         {children}
       </div>
     </div>

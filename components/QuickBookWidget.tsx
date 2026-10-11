@@ -102,7 +102,7 @@ export function QuickBookWidget() {
 
       <button 
         onClick={handleSearch}
-        className="w-full bg-vibrant-blue text-on-primary py-4 rounded-xl font-title-md text-base btn-hover mt-4 shadow-lg shadow-vibrant-blue/20"
+        className="w-full bg-vibrant-blue text-on-primary py-4 rounded-xl font-title-md text-base btn-hover mt-4 shadow-lg shadow-slate-900/10"
       >
         Find Appointment
       </button>

@@ -46,7 +46,7 @@ function roleMeta(role?: string | null) {
     case 'super_admin':
       return { label: 'Administrator', href: '/admin/dashboard', portal: 'Admin Console', icon: ShieldAlert }
     default:
-      return { label: 'Patient', href: '/patient/profile', portal: 'Patient Portal', icon: User }
+      return { label: 'Patient', href: '/patient/profile', portal: 'My Profile', icon: User }
   }
 }
 

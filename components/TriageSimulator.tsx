@@ -180,7 +180,7 @@ export function TriageSimulator() {
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-fresh-teal animate-ping" />
+                <span className="w-2.5 h-2.5 rounded-full bg-vibrant-blue shrink-0" />
                 <h3 id="redirection-title" className="font-title-md text-title-md font-bold text-on-surface">Redirection Initialized</h3>
               </div>
               <button

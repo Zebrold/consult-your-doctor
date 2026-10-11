@@ -42,11 +42,11 @@ export function PatientSidebar({ user, profile, patientDetails, activeAppointmen
 
       {/* Patient Identity Card */}
       <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm flex flex-col gap-6 relative overflow-hidden">
-        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-vibrant-blue via-fresh-teal to-secondary-container"></div>
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-vibrant-blue to-primary"></div>
         <div className="flex flex-col items-center text-center pt-2">
           <div className="relative w-24 h-24 mb-3 bg-surface-container-high rounded-full flex items-center justify-center">
             <User className="w-12 h-12 text-primary/50" />
-            <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-fresh-teal ring-4 ring-surface-container-lowest" title="Sync Status: Live"></span>
+            <span className="absolute bottom-1 right-1 w-3.5 h-3.5 rounded-full bg-emerald-600 ring-4 ring-surface-container-lowest" title="Sync Status: Live"></span>
           </div>
           <h2 className="font-headline-lg text-title-md font-bold text-on-surface tracking-tight leading-tight">{fullName}</h2>
           <span className="font-label-sm text-label-sm text-on-surface-variant mt-0.5">

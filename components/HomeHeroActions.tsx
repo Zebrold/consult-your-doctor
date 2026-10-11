@@ -17,7 +17,7 @@ export function HomeHeroActions({ initial }: { initial?: BookingKind }) {
         <button
           type="button"
           onClick={() => setOpen('consultation')}
-          className="inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-xl bg-vibrant-blue hover:bg-primary text-on-primary text-base md:text-[17px] font-semibold shadow-[0_10px_24px_rgba(0,102,255,0.28)] hover:shadow-[0_12px_28px_rgba(0,102,255,0.36)] active:scale-[0.98] transition-all"
+          className="inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-xl bg-vibrant-blue hover:bg-primary text-on-primary text-base md:text-[17px] font-semibold shadow-[0_10px_24px_rgba(15,23,42,0.11)] hover:shadow-[0_12px_28px_rgba(15,23,42,0.12)] active:scale-[0.98] transition-all"
         >
           Book Consultation <ArrowRight className="w-[18px] h-[18px]" />
         </button>

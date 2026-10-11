@@ -65,40 +65,348 @@ export async function verifySmtp(): Promise<{ ok: boolean; error?: string }> {
   }
 }
 
+import path from 'node:path'
+
+export type EmailAttachment = {
+  filename: string
+  content?: Uint8Array | Buffer | string
+  path?: string
+  contentType?: string
+  cid?: string
+}
+
 export type Email = {
   to: string
   subject: string
   /** Plain paragraphs; links are written out in full. */
   paragraphs: string[]
-  attachments?: { filename: string; content: Uint8Array; contentType: string }[]
+  attachments?: EmailAttachment[]
   button?: { text: string; url: string }
+  html?: string
 }
 
-const escape = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
-const linkify = (s: string) => escape(s).replace(/https?:\/\/[^\s<]+/g, (url) => `<a href="${url}" style="color:#0066ff">${url}</a>`)
+const escape = (s: string) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
+const linkify = (s: string) => escape(s).replace(/https?:\/\/[^\s<]+/g, (url) => `<a href="${url}" style="color:#0050cb;font-weight:600;text-decoration:underline;">${url}</a>`)
+
+export type AppointmentEmailArgs = {
+  patientName: string
+  doctorOrService: string
+  specialty?: string | null
+  hospitalName: string
+  location?: string | null
+  dateTimeStr: string
+  tokenNumber: string
+  bookingId: string
+  amount: string
+  siteUrl?: string
+  pdfFilename?: string
+}
+
+/** Generates an executive, website-matching HTML email for appointment confirmations. */
+export function buildAppointmentEmailHtml(args: AppointmentEmailArgs): string {
+  const siteUrl = (args.siteUrl || 'https://www.consultyourdoctor.de').replace(/\/$/, '')
+  const logoUrl = 'https://www.consultyourdoctor.de/logo-icon.png'
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Appointment Confirmed - Consult Your Doctor</title>
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td, a { font-family: Arial, Helvetica, sans-serif !important; }
+  </style>
+  <![endif]-->
+</head>
+<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f1f5f9; width: 100%; margin: 0; padding: 0;">
+    <tr>
+      <td align="center" style="padding: 32px 14px 44px;">
+        <!-- Main Card Container -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 35px rgba(0, 80, 203, 0.08); border: 1px solid #e2e8f0;">
+          
+          <!-- Top Multi-Tone Brand Accent Line -->
+          <tr>
+            <td height="5" style="background: linear-gradient(90deg, #0050cb 0%, #0066ff 40%, #06b6d4 75%, #10b981 100%); font-size: 0; line-height: 0;">&nbsp;</td>
+          </tr>
+
+          <!-- Top Brand Header Bar matching Website TopBar -->
+          <tr>
+            <td style="padding: 22px 28px; border-bottom: 1px solid #f1f5f9; background-color: #ffffff;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td valign="middle">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td valign="middle" style="padding-right: 14px;">
+                          <a href="${escape(siteUrl)}" target="_blank" style="text-decoration: none; display: block;">
+                            <img src="${logoUrl}" width="48" height="48" alt="Consult your Doctor" style="display: block; border: 0; outline: none; width: 48px; height: 48px; border-radius: 12px;" />
+                          </a>
+                        </td>
+                        <td valign="middle">
+                          <a href="${escape(siteUrl)}" target="_blank" style="text-decoration: none;">
+                            <div style="font-size: 21px; font-weight: 800; color: #0050cb; letter-spacing: -0.4px; line-height: 1.15; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Consult your Doctor</div>
+                            <div style="font-size: 11px; font-weight: 700; color: #64748b; letter-spacing: 0.8px; text-transform: uppercase; margin-top: 3px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Verified Healthcare Network</div>
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td align="right" valign="middle">
+                    <span style="display: inline-block; background-color: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; border-radius: 9999px; font-size: 11px; font-weight: 700; padding: 6px 14px; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                      &#10003; Confirmed
+                    </span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Ticket Hero Banner (matches Confirmation page ticket UI) -->
+          <tr>
+            <td style="padding: 0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background: linear-gradient(135deg, #0050cb 0%, #0066ff 100%); color: #ffffff;">
+                <tr>
+                  <td style="padding: 26px 30px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td valign="middle">
+                          <div style="font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #bfdbfe; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Official Clinical Appointment</div>
+                          <div style="font-size: 38px; font-weight: 800; letter-spacing: -0.8px; line-height: 1.1; margin-top: 4px; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Token #${escape(args.tokenNumber)}</div>
+                          <div style="font-size: 12.5px; font-family: 'SF Mono', Monaco, Consolas, monospace; color: #e0f2fe; margin-top: 6px; letter-spacing: 0.5px;">Booking ID: <span style="font-weight: 700; color: #ffffff;">${escape(args.bookingId)}</span></div>
+                        </td>
+                        <td align="right" valign="middle" style="padding-left: 12px;">
+                          <div style="background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 14px; padding: 10px 16px; text-align: right; display: inline-block;">
+                            <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #dbeafe; font-weight: 600;">Payment Settled</div>
+                            <div style="font-size: 20px; font-weight: 800; color: #ffffff; margin-top: 2px;">${escape(args.amount)}</div>
+                            <div style="font-size: 10.5px; color: #86efac; font-weight: 700; margin-top: 2px;">&#9679; PayU Verified</div>
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Main Content Body -->
+          <tr>
+            <td style="padding: 30px 28px 22px;">
+              <h2 style="margin: 0 0 10px; font-size: 17px; font-weight: 700; color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                Hello ${escape(args.patientName)},
+              </h2>
+              <p style="margin: 0 0 22px; font-size: 14.5px; line-height: 1.6; color: #334155; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                Your consultation slot has been confirmed and registered with the healthcare facility. Below is your official visit summary and check-in pass. Your formal clinical confirmation slip &amp; tax receipt is attached as a PDF.
+              </p>
+
+              <!-- Consultation Details Card (Matches Website Summary) -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; margin-bottom: 24px; overflow: hidden;">
+                <tr>
+                  <td style="padding: 12px 20px; border-bottom: 1px solid #e2e8f0; background-color: #f1f5f9;">
+                    <span style="font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #0050cb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                      Consultation Summary
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 18px 20px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="padding: 7px 0; font-size: 13px; color: #64748b; width: 130px; font-weight: 500;" valign="top">Doctor / Service:</td>
+                        <td style="padding: 7px 0; font-size: 14.5px; font-weight: 700; color: #0f172a;" valign="top">
+                          ${escape(args.doctorOrService)}
+                          ${args.specialty ? `<span style="display: inline-block; background-color: #eff6ff; color: #0050cb; font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 6px; margin-left: 6px; border: 1px solid #dbeafe;">${escape(args.specialty)}</span>` : ''}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 7px 0; font-size: 13px; color: #64748b; font-weight: 500;" valign="top">Hospital / Facility:</td>
+                        <td style="padding: 7px 0; font-size: 14px; font-weight: 600; color: #0f172a;" valign="top">
+                          ${escape(args.hospitalName)}
+                          ${args.location ? `<div style="font-size: 12.5px; color: #64748b; font-weight: normal; margin-top: 2px;">&#128205; ${escape(args.location)}</div>` : ''}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 7px 0; font-size: 13px; color: #64748b; font-weight: 500;" valign="top">Scheduled Slot:</td>
+                        <td style="padding: 7px 0; font-size: 14px; font-weight: 700; color: #0050cb;" valign="top">
+                          &#128197; ${escape(args.dateTimeStr)}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 7px 0; font-size: 13px; color: #64748b; font-weight: 500;" valign="top">Patient Name:</td>
+                        <td style="padding: 7px 0; font-size: 14px; font-weight: 600; color: #0f172a;" valign="top">
+                          ${escape(args.patientName)}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 7px 0; font-size: 13px; color: #64748b; font-weight: 500;" valign="top">Payment:</td>
+                        <td style="padding: 7px 0; font-size: 14px; font-weight: 700; color: #059669;" valign="top">
+                          &#10003; Paid in Full (${escape(args.amount)}) <span style="font-size: 12px; font-weight: normal; color: #64748b;">&bull; Real-time PayU verified</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Official PDF Attachment Callout Card -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f0f7ff; border: 1px solid #bae6fd; border-radius: 14px; margin-bottom: 26px;">
+                <tr>
+                  <td style="padding: 16px 20px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                      <tr>
+                        <td width="36" valign="top" style="font-size: 26px; line-height: 1; padding-right: 12px;">
+                          &#128196;
+                        </td>
+                        <td valign="top">
+                          <div style="font-size: 14px; font-weight: 700; color: #0369a1; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                            Official Clinical Appointment Slip Attached (PDF)
+                          </div>
+                          <div style="font-size: 12.5px; color: #0284c7; margin-top: 3px; line-height: 1.45; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                            <strong>${escape(args.pdfFilename || `Appointment_Slip_${args.bookingId}.pdf`)}</strong> &bull; Includes barcode token, hospital directions, reception QR &amp; tax receipt.
+                          </div>
+                          <div style="font-size: 11.5px; color: #0369a1; margin-top: 5px; font-style: italic;">
+                            You can present this PDF on your smartphone at reception for priority check-in.
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Primary Call to Action Button (Matches Website Style) -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 26px;">
+                <tr>
+                  <td align="center">
+                    <a href="${escape(siteUrl)}/patient/appointments" target="_blank" style="display: inline-block; background-color: #0050cb; color: #ffffff; font-size: 15px; font-weight: 700; text-decoration: none; padding: 14px 36px; border-radius: 50px; box-shadow: 0 4px 16px rgba(0, 80, 203, 0.3); letter-spacing: 0.2px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                      View Appointment in Dashboard &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Hospital Check-in Guidelines Card -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 8px;">
+                <tr>
+                  <td style="padding: 16px 20px;">
+                    <div style="font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #475569; margin-bottom: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                      Hospital Check-in Guidelines
+                    </div>
+                    <ul style="margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.65; color: #64748b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                      <li>Report to the hospital or clinic reception desk <strong>15 minutes prior</strong> to your time slot.</li>
+                      <li>Present your <strong>Token #${escape(args.tokenNumber)}</strong> or show the attached PDF on your smartphone.</li>
+                      <li>Please keep a valid Government Photo ID handy.</li>
+                    </ul>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Corporate Medical Footer -->
+          <tr>
+            <td style="padding: 24px 28px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center">
+                    <p style="margin: 0 0 4px; font-size: 12px; font-weight: 700; color: #334155; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                      Consult Your Doctor &bull; Verified Healthcare Network
+                    </p>
+                    <p style="margin: 0 0 8px; font-size: 11px; color: #64748b; line-height: 1.4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                      A healthcare technology service of Zebrold International Pvt Ltd &bull; ISO 27001 Certified &bull; All Rights Reserved
+                    </p>
+                    <p style="margin: 0 0 10px; font-size: 11px; color: #64748b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                      Need assistance? Contact patient support at <a href="mailto:support@consultyourdoctor.de" style="color: #0050cb; font-weight: 600; text-decoration: none;">support@consultyourdoctor.de</a>
+                    </p>
+                    <p style="margin: 0; font-size: 10.5px; color: #94a3b8; line-height: 1.4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                      Confidential Clinical Communication: This message is intended exclusively for ${escape(args.patientName)}.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
 
 function html(paragraphs: string[], button?: { text: string; url: string }) {
-  return `<!doctype html><html><body style="margin:0;background:#f4f6fb;font-family:Arial,Helvetica,sans-serif;color:#0f172a">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px 12px">
-<table role="presentation" width="580" cellpadding="0" cellspacing="0" style="max-width:580px;background:#ffffff;border-radius:16px;box-shadow:0 4px 12px rgba(0,0,0,0.06);overflow:hidden">
-<tr><td style="background:#0066ff;padding:24px 28px;color:#ffffff">
-  <div style="font-size:22px;font-weight:bold;letter-spacing:-0.5px">Consult Your Doctor</div>
-  <div style="font-size:13px;opacity:0.9;margin-top:4px">Verified Healthcare Network</div>
-</td></tr>
-<tr><td style="padding:28px;font-size:15px;line-height:1.65;color:#1e293b">
-  ${paragraphs.map((p) => `<p style="margin:0 0 16px">${linkify(p)}</p>`).join('')}
-  ${
-    button
-      ? `<div style="margin:24px 0 12px;text-align:center">
-          <a href="${button.url}" style="display:inline-block;padding:12px 28px;background:#0066ff;color:#ffffff;text-decoration:none;font-weight:bold;border-radius:8px;font-size:15px">${escape(button.text)}</a>
-        </div>`
-      : ''
-  }
-</td></tr>
-<tr><td style="padding:16px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;line-height:1.5">
-  This is an automated notification from Consult Your Doctor (a service of Zebrold International Pvt Ltd). Please keep sensitive health and authentication details confidential.
-</td></tr>
-</table></td></tr></table></body></html>`
+  const logoUrl = 'https://www.consultyourdoctor.de/logo-icon.png'
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consult Your Doctor</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; -webkit-font-smoothing: antialiased;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f1f5f9; width: 100%; margin: 0; padding: 0;">
+    <tr>
+      <td align="center" style="padding: 32px 14px 40px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 590px; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 35px rgba(0, 80, 203, 0.08); border: 1px solid #e2e8f0;">
+          
+          <!-- Top Multi-Tone Brand Accent Line -->
+          <tr>
+            <td height="5" style="background: linear-gradient(90deg, #0050cb 0%, #0066ff 40%, #06b6d4 75%, #10b981 100%); font-size: 0; line-height: 0;">&nbsp;</td>
+          </tr>
+
+          <!-- Header with Official Website Logo -->
+          <tr>
+            <td style="padding: 22px 28px; border-bottom: 1px solid #f1f5f9; background-color: #ffffff;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td valign="middle" style="padding-right: 14px;">
+                    <a href="https://www.consultyourdoctor.de" target="_blank" style="text-decoration: none; display: block;">
+                      <img src="${logoUrl}" width="48" height="48" alt="Consult your Doctor" style="display: block; border: 0; outline: none; width: 48px; height: 48px; border-radius: 12px;" />
+                    </a>
+                  </td>
+                  <td valign="middle">
+                    <a href="https://www.consultyourdoctor.de" target="_blank" style="text-decoration: none;">
+                      <div style="font-size: 21px; font-weight: 800; color: #0050cb; letter-spacing: -0.4px; line-height: 1.15; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Consult your Doctor</div>
+                      <div style="font-size: 11px; font-weight: 700; color: #64748b; letter-spacing: 0.8px; text-transform: uppercase; margin-top: 3px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Verified Healthcare Network</div>
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Content Body -->
+          <tr>
+            <td style="padding: 30px 28px 24px; font-size: 14.5px; line-height: 1.65; color: #1e293b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+              ${paragraphs.map((p) => `<p style="margin: 0 0 16px;">${linkify(p)}</p>`).join('')}
+              ${
+                button
+                  ? `<div style="margin: 28px 0 10px; text-align: center;">
+                      <a href="${button.url}" target="_blank" style="display: inline-block; padding: 14px 36px; background-color: #0050cb; color: #ffffff; text-decoration: none; font-weight: 700; border-radius: 50px; font-size: 14.5px; box-shadow: 0 4px 16px rgba(0, 80, 203, 0.3); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">${escape(button.text)} &rarr;</a>
+                    </div>`
+                  : ''
+              }
+            </td>
+          </tr>
+
+          <!-- Corporate Medical Footer -->
+          <tr>
+            <td style="padding: 22px 28px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 11.5px; line-height: 1.5; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+              <div style="font-weight: 700; color: #334155; margin-bottom: 3px;">Consult Your Doctor &bull; Verified Healthcare Network</div>
+              <div>A service of Zebrold International Pvt Ltd &bull; Confidential Healthcare Notification</div>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
 }
 
 /** Sends an email if SMTP is configured. Returns whether it was sent; failures are logged, never thrown. */
@@ -109,13 +417,40 @@ export async function sendEmail(email: Email): Promise<boolean> {
   }
   try {
     const from = getFromAddress()
+    const logoPath = path.join(process.cwd(), 'public', 'logo-icon.png')
+    const finalAttachments: any[] = []
+
+    if (email.attachments) {
+      for (const a of email.attachments) {
+        finalAttachments.push({
+          filename: a.filename,
+          content: a.content ? (Buffer.isBuffer(a.content) ? a.content : Buffer.from(a.content)) : undefined,
+          path: a.path,
+          contentType: a.contentType,
+          cid: a.cid,
+        })
+      }
+    }
+
+    const renderedHtml = email.html || html(email.paragraphs, email.button)
+
+    // Automatically embed the website logo as an inline CID image if referenced
+    if (renderedHtml.includes('cid:cydlogo') && !finalAttachments.some((a) => a.cid === 'cydlogo')) {
+      finalAttachments.push({
+        filename: 'logo-icon.png',
+        path: logoPath,
+        cid: 'cydlogo',
+        contentType: 'image/png',
+      })
+    }
+
     await mailer().sendMail({
       from,
       to: email.to,
       subject: email.subject,
       text: email.paragraphs.join('\n\n') + (email.button ? `\n\n${email.button.text}: ${email.button.url}` : ''),
-      html: html(email.paragraphs, email.button),
-      attachments: email.attachments?.map((a) => ({ filename: a.filename, content: Buffer.from(a.content), contentType: a.contentType })),
+      html: renderedHtml,
+      attachments: finalAttachments,
     })
     console.info(`[Email Sent] To: ${email.to} | From: ${from} | Subject: ${email.subject}`)
     return true
@@ -135,12 +470,28 @@ export async function sendAppointmentConfirmationEmail(args: {
   to: string
   patientName: string
   doctorName: string
+  specialty?: string | null
   hospitalName: string
+  location?: string | null
   appointmentDate: string
   tokenNumber: string | number
   bookingId: string
+  amount?: string
   siteUrl: string
 }) {
+  const html = buildAppointmentEmailHtml({
+    patientName: args.patientName,
+    doctorOrService: args.doctorName.startsWith('Dr') ? args.doctorName : `Dr. ${args.doctorName}`,
+    specialty: args.specialty,
+    hospitalName: args.hospitalName,
+    location: args.location,
+    dateTimeStr: args.appointmentDate,
+    tokenNumber: String(args.tokenNumber),
+    bookingId: args.bookingId.toUpperCase(),
+    amount: args.amount || '₹500',
+    siteUrl: args.siteUrl,
+  })
+
   return sendEmail({
     to: args.to,
     subject: `Appointment Confirmed: Dr. ${args.doctorName} (Token #${args.tokenNumber})`,
@@ -153,6 +504,7 @@ export async function sendAppointmentConfirmationEmail(args: {
       `Please arrive 15 minutes prior to your consultation. You can view, reschedule, or manage this appointment in your patient dashboard.`,
     ],
     button: { text: 'View Appointment', url: `${args.siteUrl}/patient/appointments` },
+    html,
   })
 }
 

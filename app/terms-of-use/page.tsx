@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { LegalPage } from '@/components/legal/LegalPage'
 import { TERMS } from '@/lib/legal'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import { ROLE_COOKIE, readRoleCookie } from '@/lib/role-cookie'
 
@@ -15,9 +15,7 @@ export const metadata: Metadata = {
 export default async function TermsPage() {
   const cookieStore = await cookies()
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
 
   let userContext = null
   if (user) {

@@ -100,7 +100,7 @@ export function LabRoster({
     }
     const d = waited(b)
     if (d >= OVERDUE_DAYS) return { label: 'Report Overdue', chip: 'bg-tertiary-fixed text-tertiary', dot: 'bg-soft-coral', note: `Waiting ${d} days`, noteClass: 'text-soft-coral font-semibold', overdue: true }
-    return { label: 'Sample Collected', chip: 'bg-primary-fixed/60 text-on-primary-fixed', dot: 'bg-vibrant-blue animate-pulse', note: d === 0 ? 'Report due • collected today' : `Report due • ${d}d waiting`, noteClass: 'text-vibrant-blue', overdue: false }
+    return { label: 'Sample Collected', chip: 'bg-primary-fixed/60 text-on-primary-fixed', dot: 'bg-vibrant-blue', note: d === 0 ? 'Report due • collected today' : `Report due • ${d}d waiting`, noteClass: 'text-vibrant-blue', overdue: false }
   }
 
   const counts = useMemo(() => {
@@ -205,7 +205,7 @@ export function LabRoster({
       </div>
 
       {/* Header, search & filters */}
-      <section className="hidden md:flex bg-surface-container-lowest rounded-2xl shadow-[0_4px_30px_rgba(0,102,255,0.05)] p-6 flex-col gap-6">
+      <section className="hidden md:flex bg-surface-container-lowest rounded-2xl shadow-[0_4px_30px_rgba(15,23,42,0.04)] p-6 flex-col gap-6">
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
           <div>
             <h1 className="font-headline-lg text-headline-lg text-on-surface font-extrabold tracking-tight">Patient Roster &amp; Lab Records</h1>
@@ -242,7 +242,7 @@ export function LabRoster({
         </div>
       )}
       {/* Desktop table */}
-      <section className="hidden md:flex bg-surface-container-lowest rounded-2xl shadow-[0_4px_30px_rgba(0,102,255,0.05)] overflow-hidden flex-col w-full">
+      <section className="hidden md:flex bg-surface-container-lowest rounded-2xl shadow-[0_4px_30px_rgba(15,23,42,0.04)] overflow-hidden flex-col w-full">
         <div className="overflow-x-auto">
           <table className="w-full text-left min-w-[920px]">
             <thead>
@@ -451,7 +451,7 @@ function OverdueAlert({ b, days, more, onOpen }: { b: RosterBooking; days: numbe
         <div className="bg-surface-container-low rounded-lg p-3 flex flex-col gap-2.5">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="w-2.5 h-2.5 rounded-full bg-soft-coral animate-pulse shrink-0" />
+              <span className="w-2.5 h-2.5 rounded-full bg-soft-coral shrink-0" />
               <div className="min-w-0">
                 <div className="font-title-md text-[14px] font-bold text-on-surface truncate">Report not uploaded</div>
                 <div className="font-label-sm text-[11px] text-outline">Booked for {dayText(b.date)}</div>

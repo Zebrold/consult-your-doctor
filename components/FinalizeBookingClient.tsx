@@ -82,7 +82,8 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey }: 
 
   const confirm = async () => {
     if (!selected) return setError("Please choose an available time slot.");
-    const detailsProblem = patientDetailsError(details);
+    const activeDetails = patient ? { ...patient, ...details } : details;
+    const detailsProblem = patientDetailsError(activeDetails);
     if (detailsProblem) return setError(detailsProblem);
 
     setSubmitting(true);
@@ -90,7 +91,7 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey }: 
     const form = new FormData();
     form.append("doctor_id", doctor.id);
     form.append("schedule_id", selected.id);
-    appendPatientDetails(form, details);
+    appendPatientDetails(form, activeDetails);
 
     const res = await finalizeConsultationAppointment(form);
     if ("error" in res && res.error) {
@@ -109,9 +110,9 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey }: 
     const payError = await startPayuPayment({
       txnid: appointmentId,
       productinfo: "Consultation",
-      firstname: details.name,
-      email: details.email.trim() || "patient@example.com",
-      phone: details.phone,
+      firstname: activeDetails.name || "Patient",
+      email: (activeDetails.email || "").trim() || "patient@example.com",
+      phone: activeDetails.phone || "9999999999",
       payuKey,
     });
     if (payError) {
@@ -130,8 +131,6 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey }: 
       <PatientNavHeader isSignedIn={!!patient} name={patient?.name} email={patient?.email} backHref="/find" container="max-w-[1280px] px-margin-x-mobile lg:px-margin-x-desktop" />
 
       <main className="relative w-full overflow-hidden pb-28 md:pb-32 md:pt-8">
-        <div aria-hidden className="hidden md:block absolute -top-32 left-1/4 w-[600px] h-[450px] bg-gradient-to-br from-primary-container/10 via-fresh-teal/5 to-transparent rounded-full blur-3xl pointer-events-none" />
-
         <div className="relative max-w-[1280px] mx-auto px-margin-x-mobile lg:px-margin-x-desktop pt-2 md:py-8">
           {/* Breadcrumb & heading */}
           <div className="hidden md:flex flex-col md:flex-row md:items-center justify-between gap-4 pb-8">
@@ -165,8 +164,8 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey }: 
                       </span>
                     )}
                     {openTodayCount > 0 && (
-                      <span className="hidden md:flex absolute -bottom-2 -right-2 px-2.5 py-0.5 rounded-full bg-fresh-teal text-on-primary font-label-sm text-label-sm items-center gap-1 shadow-sm">
-                        <span className="w-1.5 h-1.5 rounded-full bg-surface-container-lowest" /> Today
+                      <span className="hidden md:flex absolute -bottom-2 -right-2 px-2.5 py-0.5 rounded-full bg-blue-50 text-vibrant-blue border border-blue-200 font-label-sm text-label-sm items-center font-bold shadow-sm">
+                        Today
                       </span>
                     )}
                   </div>
@@ -297,12 +296,53 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey }: 
               <StepCard
                 step={3}
                 title="Patient Details"
-                aside={patient ? <span className="hidden sm:inline font-label-sm text-label-sm text-indigo-gray-600">From your profile</span> : null}
+                aside={
+                  patient ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
+                      <CircleCheck className="w-3.5 h-3.5 text-emerald-600" /> Auto-Applied from Profile
+                    </span>
+                  ) : null
+                }
               >
                 {patient ? (
-                  <PatientDetailsFields value={details} onChange={setDetails} maxDate={today} />
+                  <div className="flex flex-col gap-3 rounded-xl bg-surface-container-low/70 border border-surface-container-high/60 p-4 sm:p-5">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-title-md text-base sm:text-lg font-bold text-on-surface">
+                          {details.name || patient.name || "Patient"}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full bg-fresh-teal/15 text-emerald-800 text-xs font-semibold">
+                          Verified Profile
+                        </span>
+                      </div>
+                      <span className="text-xs text-indigo-gray-600">
+                        Automatically taken from your account
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-sm border-t border-surface-container-high/40">
+                      <div className="flex flex-col">
+                        <span className="text-xs text-indigo-gray-600 font-medium">Mobile Number</span>
+                        <span className="font-semibold text-on-surface">
+                          {details.phone || patient.phone || "—"}
+                        </span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-indigo-gray-600 font-medium">Email</span>
+                        <span className="font-semibold text-on-surface truncate">
+                          {details.email || patient.email || "—"}
+                        </span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-indigo-gray-600 font-medium">Sex / DOB</span>
+                        <span className="font-semibold text-on-surface">
+                          {[details.gender || patient.gender, details.dateOfBirth || patient.dateOfBirth].filter(Boolean).join(" • ") || "Saved in profile"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 ) : (
-                  <p className="text-sm text-indigo-gray-600">Sign in first and we&apos;ll fill in your details from your profile.</p>
+                  <p className="text-sm text-indigo-gray-600">Sign in first and we&apos;ll automatically apply your details from your profile.</p>
                 )}
               </StepCard>
             </div>
@@ -349,7 +389,7 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey }: 
                       type="button"
                       disabled={submitting || !selected || !canBook}
                       onClick={confirm}
-                      className="w-full py-4 px-6 rounded-full bg-vibrant-blue text-on-primary font-title-md text-body-lg font-bold shadow-lg shadow-vibrant-blue/25 hover:bg-primary transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="w-full py-4 px-6 rounded-full bg-vibrant-blue text-on-primary font-title-md text-body-lg font-bold shadow-lg shadow-slate-900/10 hover:bg-primary transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {submitting ? (
                         <>

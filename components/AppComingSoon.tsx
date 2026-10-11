@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import Image from "next/image";
+import { Smartphone } from "lucide-react";
 
 /** The site's blue stethoscope logo, as in the header. */
 function Logo({ className = "" }: { className?: string }) {
@@ -33,7 +34,7 @@ const stores = [
 ];
 
 /**
- * The header's "Download our APP" badge. The mobile app isn't out yet, so it opens a "coming soon" card: on hover or
+ * The header's "Get the app" button. The mobile app isn't out yet, so it opens a "coming soon" card: on hover or
  * keyboard focus on desktop, and on tap on touch screens.
  */
 export function AppComingSoon({ compact = false }: { compact?: boolean }) {
@@ -61,22 +62,15 @@ export function AppComingSoon({ compact = false }: { compact?: boolean }) {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls={cardId}
-        aria-label="Download our APP, coming soon"
-        className={`relative flex items-center gap-2.5 rounded-full transition-colors ${
-          compact ? "p-1" : "pl-1.5 pr-4 py-1.5 border border-outline-variant/50 hover:border-vibrant-blue/40 hover:bg-surface-container-low"
+        aria-label="Get the app (coming soon)"
+        className={`relative flex items-center gap-2 rounded-full text-on-surface transition-colors ${
+          compact
+            ? "w-10 h-10 justify-center hover:bg-surface-container"
+            : "pl-3 pr-4 py-2 border border-slate-200 hover:border-slate-300 hover:bg-slate-50"
         }`}
       >
-        <Logo className={compact ? "w-9 h-9" : "w-8 h-8"} />
-        {compact ? (
-          <span className="absolute -top-1 -right-2 px-1.5 py-[1px] rounded-full bg-fresh-teal text-white text-[8.5px] font-bold uppercase tracking-wide ring-2 ring-surface-container-lowest">
-            Soon
-          </span>
-        ) : (
-          <span className="flex flex-col items-start leading-none">
-            <span className="text-[13px] font-bold text-on-surface whitespace-nowrap">Download our APP</span>
-            <span className="mt-1 text-[10px] font-bold uppercase tracking-wider text-vibrant-blue">Coming soon</span>
-          </span>
-        )}
+        <Smartphone className={compact ? "w-6 h-6" : "w-[18px] h-[18px] text-vibrant-blue"} strokeWidth={1.9} />
+        {!compact && <span className="text-[13px] font-semibold whitespace-nowrap">Get the app</span>}
       </button>
 
       {/* The top padding bridges the gap, so the card stays open while the pointer moves onto it. On phones the card
@@ -91,26 +85,26 @@ export function AppComingSoon({ compact = false }: { compact?: boolean }) {
       >
         <div className="w-[min(20rem,calc(100vw-2.5rem))] rounded-2xl bg-surface-container-lowest border border-slate-200 shadow-[0_16px_40px_rgba(15,23,42,0.14)] p-5">
           <div className="flex items-center gap-3">
-            <span className="w-14 h-14 rounded-[28%] bg-surface-container-lowest ring-1 ring-slate-200 shadow-[0_4px_12px_rgba(0,102,255,0.12)] flex items-center justify-center shrink-0">
-              <Logo className="w-10 h-10" />
+            <span className="w-12 h-12 rounded-2xl bg-surface-container-lowest ring-1 ring-slate-200 shadow-sm flex items-center justify-center shrink-0">
+              <Logo className="w-8 h-8" />
             </span>
             <div className="min-w-0">
-              <p className="font-bold text-on-surface leading-tight">Consult Your Doctor</p>
-              <span className="mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-fresh-teal/10 text-secondary text-[10px] font-bold uppercase tracking-wider">
-                <span className="w-1.5 h-1.5 rounded-full bg-fresh-teal animate-pulse" /> Coming soon
-              </span>
+              <p className="font-bold text-on-surface leading-tight text-base">Consult Your Doctor</p>
+              <p className="text-xs font-semibold text-vibrant-blue mt-0.5">Coming soon to iPhone and Android</p>
             </div>
           </div>
           <p className="mt-3 text-[13px] leading-relaxed text-on-surface-variant">
-            Our mobile app is on its way. Book visits, consult doctors and keep your reports in your pocket.
+            Book doctors and lab tests, and keep your prescriptions and reports with you. Until the app launches, everything works here on the website.
           </p>
           <div className="mt-4 grid grid-cols-2 gap-2">
             {stores.map(({ name, logo: StoreLogo }) => (
-              <span key={name} className="flex items-center gap-2 rounded-lg bg-black text-white px-2.5 py-2">
+              <span key={name} aria-disabled className="flex items-center gap-2 rounded-lg bg-black text-white px-2.5 py-2 opacity-40 cursor-not-allowed select-none">
                 <StoreLogo className="w-5 h-5 shrink-0" />
                 <span className="flex flex-col leading-none">
-                  <span className="text-[8.5px] font-semibold uppercase tracking-wider text-white/75">Coming soon</span>
-                  <span className="mt-1 text-[14px] font-semibold tracking-tight whitespace-nowrap">{name}</span>
+                  <span className="text-[8.5px] font-semibold uppercase tracking-wider text-white/75">
+                    {name === "Google Play" ? "Get it on" : "Download on"}
+                  </span>
+                  <span className="mt-1 text-[13px] font-semibold tracking-tight whitespace-nowrap">{name}</span>
                 </span>
               </span>
             ))}

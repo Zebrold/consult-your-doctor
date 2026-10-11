@@ -68,7 +68,7 @@ export function ContactForm() {
 
         <button
           type="submit"
-          className="w-full inline-flex items-center justify-center gap-2 py-3.5 rounded-xl bg-vibrant-blue hover:bg-primary text-on-primary font-semibold shadow-[0_10px_24px_rgba(0,102,255,0.28)] hover:shadow-[0_12px_28px_rgba(0,102,255,0.36)] active:scale-[0.99] transition-all"
+          className="w-full inline-flex items-center justify-center gap-2 py-3.5 rounded-xl bg-vibrant-blue hover:bg-primary text-on-primary font-semibold shadow-[0_10px_24px_rgba(15,23,42,0.11)] hover:shadow-[0_12px_28px_rgba(15,23,42,0.12)] active:scale-[0.99] transition-all"
         >
           Send Message <Send className="w-4 h-4" />
         </button>

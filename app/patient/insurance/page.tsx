@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Home, Search, Calendar as CalendarIcon, User, Wallet, ShieldPlus, FileText, CheckCircle2 } from 'lucide-react'
@@ -8,23 +8,15 @@ import { PatientNavHeader } from '@/components/PatientNavHeader'
 export default async function PatientInsurance() {
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect('/login/patient')
 
-  // Fetch user profile for name
-  const { data: patientDetails } = await supabase.from('patient_details').select('*').eq('id', user.id).single();
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
-
-  // For sidebar active appointments count
-  const { data: appointments } = await supabase
-    .from('appointments')
-    .select('id, status')
-    .eq('patient_id', user.id)
+  // The name for the header and the upcoming-visit count for the sidebar, fetched together.
+  const [{ data: patientDetails }, { data: profile }, { data: appointments }] = await Promise.all([
+    supabase.from('patient_details').select('*').eq('id', user.id).single(),
+    supabase.from('profiles').select('*').eq('id', user.id).single(),
+    supabase.from('appointments').select('id, status').eq('patient_id', user.id),
+  ])
 
   const upcomingAppointments = appointments?.filter(a => a.status === 'scheduled' || a.status === 'confirmed') || []
 
@@ -34,9 +26,6 @@ export default async function PatientInsurance() {
       <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-24">
         <div className="flex flex-col w-full">
           <div className="relative w-full overflow-hidden">
-            <div className="absolute -top-32 -right-20 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
-            <div className="absolute top-80 -left-20 w-80 h-80 bg-fresh-teal/5 rounded-full blur-3xl pointer-events-none"></div>
-
             <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-8">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start max-w-[1440px] mx-auto">
 
@@ -61,7 +50,6 @@ export default async function PatientInsurance() {
                     </div>
 
                     <div className="bg-gradient-to-br from-inverse-surface to-indigo-gray-900 rounded-2xl p-6 text-on-error relative overflow-hidden shadow-lg">
-                      <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
 
                       <div className="flex justify-between items-start mb-8 relative z-10">
                         <div>

@@ -67,7 +67,8 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey }
 
   const confirm = async () => {
     if (selectedTests.length === 0) return setError("Please select at least one test.");
-    const detailsProblem = patientDetailsError(details);
+    const activeDetails = patient ? { ...patient, ...details } : details;
+    const detailsProblem = patientDetailsError(activeDetails);
     if (detailsProblem) return setError(detailsProblem);
 
     setSubmitting(true);
@@ -76,7 +77,7 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey }
     form.append("center_id", center.id);
     form.append("preferred_date", date);
     for (const t of selectedTests) form.append("test_names", t.name);
-    appendPatientDetails(form, details);
+    appendPatientDetails(form, activeDetails);
 
     const res = await createDiagnosticBooking(form);
     if (res && "error" in res && res.error) {
@@ -94,9 +95,9 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey }
     const payError = await startPayuPayment({
       txnid: bookingId,
       productinfo: "Diagnostic",
-      firstname: details.name,
-      email: details.email.trim() || "patient@example.com",
-      phone: details.phone,
+      firstname: activeDetails.name || "Patient",
+      email: (activeDetails.email || "").trim() || "patient@example.com",
+      phone: activeDetails.phone || "9999999999",
       payuKey,
     });
     if (payError) {
@@ -125,8 +126,7 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey }
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
             <div className="lg:col-span-8 flex flex-col gap-6">
               {/* Lab */}
-              <section className="relative bg-surface-container-lowest rounded-xl p-5 md:p-6 shadow-[0_4px_20px_rgba(0,102,255,0.06)] md:shadow-sm overflow-hidden">
-                <div aria-hidden className="md:hidden absolute -right-8 -top-8 w-28 h-28 rounded-full bg-primary-fixed/40 blur-xl pointer-events-none" />
+              <section className="relative bg-surface-container-lowest rounded-xl p-5 md:p-6 shadow-[0_4px_20px_rgba(15,23,42,0.04)] md:shadow-sm overflow-hidden">
                 <div className="relative flex items-start gap-4">
                   {center.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -156,7 +156,7 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey }
               {/* 1. Visit */}
               <StepCard step={1} title="Sample Collection">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl bg-primary-fixed/20 ring-2 ring-vibrant-blue/60">
-                  <span className="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center shrink-0 shadow-[0_2px_8px_rgba(0,102,255,0.3)]">
+                  <span className="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center shrink-0 shadow-[0_2px_8px_rgba(15,23,42,0.12)]">
                     <Building2 className="w-5 h-5" />
                   </span>
                   <div className="flex-1 min-w-0">
@@ -214,7 +214,7 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey }
                               aria-checked={on}
                               onClick={() => toggle(t.name)}
                               className={`w-full text-left p-3.5 md:p-4 rounded-xl flex items-center justify-between gap-4 transition-all ${
-                                on ? "bg-primary-fixed/20 ring-2 ring-vibrant-blue" : "bg-surface-container-lowest md:bg-surface-container-low shadow-[0_2px_8px_rgba(0,102,255,0.04)] md:shadow-none hover:bg-surface-container"
+                                on ? "bg-primary-fixed/20 ring-2 ring-vibrant-blue" : "bg-surface-container-lowest md:bg-surface-container-low shadow-[0_2px_8px_rgba(15,23,42,0.04)] md:shadow-none hover:bg-surface-container"
                               }`}
                             >
                               <span className="flex items-center gap-3 min-w-0">
@@ -258,18 +258,63 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey }
               </StepCard>
 
               {/* 4. Patient */}
-              <StepCard step={4} title="Patient Details" aside={patient ? <span className="hidden sm:inline font-label-sm text-label-sm text-indigo-gray-600">From your profile</span> : null}>
+              <StepCard
+                step={4}
+                title="Patient Details"
+                aside={
+                  patient ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
+                      <CircleCheck className="w-3.5 h-3.5 text-emerald-600" /> Auto-Applied from Profile
+                    </span>
+                  ) : null
+                }
+              >
                 {patient ? (
-                  <PatientDetailsFields value={details} onChange={setDetails} maxDate={today} />
+                  <div className="flex flex-col gap-3 rounded-xl bg-surface-container-low/70 border border-surface-container-high/60 p-4 sm:p-5">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-title-md text-base sm:text-lg font-bold text-on-surface">
+                          {details.name || patient.name || "Patient"}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full bg-fresh-teal/15 text-emerald-800 text-xs font-semibold">
+                          Verified Profile
+                        </span>
+                      </div>
+                      <span className="text-xs text-indigo-gray-600">
+                        Automatically taken from your account
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-sm border-t border-surface-container-high/40">
+                      <div className="flex flex-col">
+                        <span className="text-xs text-indigo-gray-600 font-medium">Mobile Number</span>
+                        <span className="font-semibold text-on-surface">
+                          {details.phone || patient.phone || "—"}
+                        </span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-indigo-gray-600 font-medium">Email</span>
+                        <span className="font-semibold text-on-surface truncate">
+                          {details.email || patient.email || "—"}
+                        </span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-indigo-gray-600 font-medium">Sex / DOB</span>
+                        <span className="font-semibold text-on-surface">
+                          {[details.gender || patient.gender, details.dateOfBirth || patient.dateOfBirth].filter(Boolean).join(" • ") || "Saved in profile"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 ) : (
-                  <p className="text-sm text-indigo-gray-600">Sign in first and we&apos;ll fill in your details from your profile.</p>
+                  <p className="text-sm text-indigo-gray-600">Sign in first and we&apos;ll automatically apply your details from your profile.</p>
                 )}
               </StepCard>
             </div>
 
             {/* Summary */}
             <aside className="lg:col-span-4 flex flex-col gap-6 lg:sticky lg:top-8">
-              <div className="bg-surface-container-lowest rounded-xl p-5 md:p-6 shadow-[0_4px_20px_rgba(0,102,255,0.06)] md:shadow-md">
+              <div className="bg-surface-container-lowest rounded-xl p-5 md:p-6 shadow-[0_4px_20px_rgba(15,23,42,0.04)] md:shadow-md">
                 <div className="flex items-center justify-between pb-4 mb-4 border-b border-surface-container-high/60">
                   <h2 className="font-title-md text-body-lg md:text-title-md font-bold text-on-surface">Booking Summary</h2>
                   <span className="px-2.5 py-0.5 rounded-full bg-fresh-teal/10 text-secondary font-label-sm text-[11px] font-bold">INR</span>
@@ -311,7 +356,7 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey }
                       type="button"
                       onClick={confirm}
                       disabled={submitting || selectedTests.length === 0}
-                      className="w-full py-4 px-6 rounded-full bg-primary hover:bg-primary-container text-on-primary font-title-md text-body-lg md:text-title-md font-bold shadow-[0_8px_20px_rgba(0,80,203,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="w-full py-4 px-6 rounded-full bg-primary hover:bg-primary-container text-on-primary font-title-md text-body-lg md:text-title-md font-bold shadow-[0_8px_20px_rgba(15,23,42,0.12)] transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {submitting ? (
                         <>

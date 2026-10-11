@@ -36,7 +36,7 @@ export default async function DiagnosticBookingPage({ params }: DiagnosticBookin
       tests={pricedTests(center.test_prices)}
       patient={patient}
       now={currentTime()}
-      payuKey={process.env.PAYU_MERCHANT_KEY || "99eKD4"}
+      payuKey={process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY || "jwoG24"}
     />
   );
 }

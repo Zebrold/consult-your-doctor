@@ -1,10 +1,9 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { withSignedFiles } from '@/lib/records'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Home, Search, Calendar as CalendarIcon, User } from 'lucide-react'
-import { PatientSidebar } from '@/components/PatientSidebar'
+import { User } from 'lucide-react'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
 import { PatientDock } from '@/components/PatientDock'
 import { ConsultationsList, DiagnosticBookingsList, RecordsAndMedicationsList } from '@/components/PatientDashboardLists'
@@ -13,67 +12,68 @@ import { PatientDashboardActions } from '@/components/PatientDashboardActions'
 export default async function PatientAppointments() {
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect('/login/patient')
 
-  // Fetch user profile for name
-  const { data: patientDetails } = await supabase.from('patient_details').select('*').eq('id', user.id).single();
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
-
-  // Fetch all appointments for this patient
-  const { data: fetchedAppointments } = await supabase
-    .from('appointments')
-    .select(`
-      id,
-      status,
-      doctors (
-        specialty,
-        profiles ( full_name )
-      ),
-      hospitals (
-        name,
-        city
-      ),
-      schedules (
-        start_time
-      ),
-      medical_records (
+  // Everything on this page is independent, so it is fetched in one round trip rather than five.
+  const [
+    { data: patientDetails },
+    { data: profile },
+    { data: fetchedAppointments },
+    { data: fetchedDiagnosticBookings },
+    { data: myReviews },
+  ] = await Promise.all([
+    supabase.from('patient_details').select('*').eq('id', user.id).single(),
+    supabase.from('profiles').select('*').eq('id', user.id).single(),
+    // All appointments for this patient
+    supabase
+      .from('appointments')
+      .select(`
         id,
-        notes,
-        file_url,
-        document_type
-      )
-    `)
-    .eq('patient_id', user.id)
-    .order('created_at', { ascending: false })
-
-  // Fetch all diagnostic bookings
-  const { data: fetchedDiagnosticBookings } = await supabase
-    .from('diagnostic_bookings')
-    .select(`
-      id,
-      status,
-      test_name,
-      preferred_date,
-      diagnostic_centers (
-        name,
-        city,
-        address
-      )
-    `)
-    .eq('patient_id', user.id)
-    .order('created_at', { ascending: false })
+        status,
+        doctors (
+          specialty,
+          profiles ( full_name )
+        ),
+        hospitals (
+          name,
+          city
+        ),
+        schedules (
+          start_time
+        ),
+        medical_records (
+          id,
+          notes,
+          file_url,
+          document_type
+        )
+      `)
+      .eq('patient_id', user.id)
+      .order('created_at', { ascending: false }),
+    // All diagnostic bookings
+    supabase
+      .from('diagnostic_bookings')
+      .select(`
+        id,
+        status,
+        test_name,
+        preferred_date,
+        diagnostic_centers (
+          name,
+          city,
+          address
+        )
+      `)
+      .eq('patient_id', user.id)
+      .order('created_at', { ascending: false }),
+    // The patient's own reviews, so finished visits show their rating instead of "Rate your visit".
+    supabase.from('doctor_reviews').select('appointment_id, rating, comment').eq('patient_id', user.id),
+  ])
 
   const appointments = fetchedAppointments ?? []
   const diagnosticBookings = fetchedDiagnosticBookings ?? []
 
-  // The patient's own reviews, so finished visits show their rating instead of "Rate your visit".
-  const { data: myReviews } = await supabase.from('doctor_reviews').select('appointment_id, rating, comment').eq('patient_id', user.id)
   const reviews = Object.fromEntries(
     ((myReviews ?? []) as { appointment_id: string; rating: number; comment: string | null }[]).map((r) => [r.appointment_id, { rating: r.rating, comment: r.comment }]),
   )
@@ -95,50 +95,50 @@ export default async function PatientAppointments() {
 
   return (
     <div className="bg-background font-body-md text-body-md text-on-surface antialiased min-h-screen">
-      <PatientNavHeader name={profile?.full_name} email={profile?.email || user.email} isSignedIn container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop" />
+      <PatientNavHeader name={profile?.full_name} email={profile?.email || user.email} isSignedIn container="max-w-[1080px] px-margin-x-mobile lg:px-margin-x-desktop" />
       <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-24">
-        <div className="flex flex-col w-full">
-          <div className="relative w-full overflow-hidden">
-            <div className="absolute -top-32 -right-20 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
-            <div className="absolute top-80 -left-20 w-80 h-80 bg-fresh-teal/5 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-8">
+          <div className="max-w-[1080px] mx-auto flex flex-col gap-6">
 
-            <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-8">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start max-w-[1440px] mx-auto">
-
-                {/* ==================== LEFT COLUMN (30% -> 4 cols) ==================== */}
-                <PatientSidebar user={user} profile={profile} patientDetails={patientDetails} activeAppointmentsCount={upcomingAppointments.length} />
-
-                {/* ==================== RIGHT COLUMN (70% -> 8 cols) ==================== */}
-                <div className="lg:col-span-8 flex flex-col gap-6">
-
-                  <div className="mb-2">
-                    <h2 className="font-display-lg text-headline-lg font-bold text-on-surface">My Appointments &amp; History</h2>
-                    <p className="font-body-md text-body-lg text-on-surface-variant mt-2">Manage your consultations, diagnostic bookings, and medical records.</p>
-                  </div>
-
-                  <PatientDashboardActions />
-
-                  {/* Consultations List */}
-                  <section className="bg-surface-container-lowest rounded-xl p-6 shadow-sm">
-                    <h3 className="font-title-md text-title-md font-bold text-on-surface mb-6">Recent Consultations</h3>
-                    <ConsultationsList appointments={appointments || []} reviews={reviews} />
-                  </section>
-
-                  {/* Diagnostic Bookings List */}
-                  <section className="bg-surface-container-lowest rounded-xl p-6 shadow-sm">
-                    <h3 className="font-title-md text-title-md font-bold text-on-surface mb-6">Lab &amp; Diagnostics</h3>
-                    <DiagnosticBookingsList diagnosticBookings={diagnosticBookings || []} />
-                  </section>
-
-                  {/* Records & Prescriptions */}
-                  <section className="bg-surface-container-lowest rounded-xl p-6 shadow-sm">
-                    <h3 className="font-title-md text-title-md font-bold text-on-surface mb-6">Medical Records &amp; Prescriptions</h3>
-                    <RecordsAndMedicationsList prescriptions={prescriptions} />
-                  </section>
-
-                </div>
+            {/* Header with Title and View Profile action */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-outline-variant/20">
+              <div>
+                <h1 className="font-display-lg text-2xl md:text-3xl font-bold text-on-surface tracking-tight">
+                  My Appointments &amp; History
+                </h1>
+                <p className="font-body-md text-sm md:text-base text-on-surface-variant mt-1">
+                  Manage your consultations, diagnostic bookings, and medical records.
+                </p>
               </div>
+
+              <Link
+                href="/patient/profile"
+                className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-surface-container hover:bg-surface-variant text-sm font-semibold text-primary transition-colors border border-outline-variant/30 shadow-sm"
+              >
+                <User className="w-4 h-4" /> View Profile
+              </Link>
             </div>
+
+            <PatientDashboardActions />
+
+            {/* Consultations List */}
+            <section className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/20">
+              <h3 className="font-title-md text-lg font-bold text-on-surface mb-6">Recent Consultations</h3>
+              <ConsultationsList appointments={appointments || []} reviews={reviews} />
+            </section>
+
+            {/* Diagnostic Bookings List */}
+            <section className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/20">
+              <h3 className="font-title-md text-lg font-bold text-on-surface mb-6">Lab &amp; Diagnostics</h3>
+              <DiagnosticBookingsList diagnosticBookings={diagnosticBookings || []} />
+            </section>
+
+            {/* Records & Prescriptions */}
+            <section className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/20">
+              <h3 className="font-title-md text-lg font-bold text-on-surface mb-6">Medical Records &amp; Prescriptions</h3>
+              <RecordsAndMedicationsList prescriptions={prescriptions} />
+            </section>
+
           </div>
         </div>
       </main>

@@ -61,22 +61,37 @@ function geocode(query: string): Promise<[number, number] | null> {
   return job;
 }
 
-/** A compact pin with the hospital's doctor count; the selected one is larger and blue. */
+/** A clean Google Maps style pin with the hospital's doctor count */
 function pinIcon(count: number, selected: boolean) {
-  const size = selected ? 46 : 36;
-  const fill = selected ? "#0066FF" : "#ffffff";
-  const text = selected ? "#ffffff" : "#0050cb";
-  const ring = selected ? "#ffffff" : "#0066FF";
+  const size = selected ? 44 : 34;
+  const fill = selected ? "#EA4335" : "#1A73E8";
+  const stroke = "#ffffff";
   return L.divIcon({
     className: "cyd-pin",
     iconSize: [size, size * 1.25],
     iconAnchor: [size / 2, size * 1.25],
     tooltipAnchor: [0, -size * 1.1],
-    html: `<svg width="${size}" height="${size * 1.25}" viewBox="0 0 40 50" style="filter:drop-shadow(0 4px 6px rgba(0,40,120,.28));overflow:visible">
-      <path d="M20 49c-1.2-1.6-17-17.5-17-29A17 17 0 0 1 37 20c0 11.5-15.8 27.4-17 29z" fill="${fill}" stroke="${ring}" stroke-width="2.5"/>
-      <text x="20" y="25" text-anchor="middle" font-family="Manrope,Inter,sans-serif" font-weight="800" font-size="${count > 9 ? 13 : 15}" fill="${text}">${count > 99 ? "99+" : count}</text>
+    html: `<svg width="${size}" height="${size * 1.25}" viewBox="0 0 40 50" style="filter:drop-shadow(0 4px 8px rgba(0,0,0,.32));overflow:visible">
+      <path d="M20 49c-1.2-1.6-17-17.5-17-29A17 17 0 0 1 37 20c0 11.5-15.8 27.4-17 29z" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/>
+      <circle cx="20" cy="20" r="10" fill="#ffffff"/>
+      <text x="20" y="24" text-anchor="middle" font-family="system-ui, -apple-system, Roboto, sans-serif" font-weight="800" font-size="${count > 9 ? 11 : 13}" fill="${fill}">${count > 99 ? "99+" : count}</text>
     </svg>`,
   });
+}
+
+function MapResizer() {
+  const map = useMap();
+  useEffect(() => {
+    map.invalidateSize();
+    const t = setTimeout(() => map.invalidateSize(), 250);
+    const onResize = () => map.invalidateSize();
+    window.addEventListener("resize", onResize);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [map]);
+  return null;
 }
 
 const youIcon = L.divIcon({
@@ -230,10 +245,13 @@ export default function CareMap({
     <div className="cyd-map relative w-full h-full">
       <MapContainer center={INDIA} zoom={5} className="w-full h-full z-0" zoomControl={false} scrollWheelZoom={false} style={{ background: "#eef2f8" }}>
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          keepBuffer={4}
+          attribution='&copy; Google Maps'
+          url="https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+          subdomains={["mt0", "mt1", "mt2", "mt3"]}
+          maxZoom={20}
+          keepBuffer={6}
         />
+        <MapResizer />
         <FitToPoints setKey={setKey} points={fitPoints} />
         <FlyToSelected point={selectedId ? points[selectedId] : undefined} />
         <WheelOnFocus onChange={setWheel} />
@@ -263,8 +281,7 @@ export default function CareMap({
         {anyApproximate && <span className="text-[10px] text-indigo-gray-600 bg-surface-container-lowest/85 px-1.5 py-0.5 rounded">Some pins are at the city centre until the exact address is found</span>}
       </div>
       <style>{`
-        .cyd-map .leaflet-tile-pane { filter: saturate(0.62) brightness(1.04) contrast(0.96); }
-        .cyd-map .leaflet-control-attribution { background: rgba(255,255,255,.75); border-radius: 6px 0 0 0; font-size: 10px; }
+        .cyd-map .leaflet-control-attribution { background: rgba(255,255,255,.85); border-radius: 6px 0 0 0; font-size: 10px; }
         .cyd-map .cyd-pin { background: none; border: none; }
         .cyd-map .cyd-pin-label { border: none; border-radius: 9999px; padding: 6px 12px; font: 600 12px/16px Manrope, Inter, sans-serif; color: #131b2e; box-shadow: 0 6px 16px rgba(0,40,120,.18); }
         .cyd-map .cyd-pin-label::before { display: none; }

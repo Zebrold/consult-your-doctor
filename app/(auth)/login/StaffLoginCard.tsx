@@ -9,7 +9,7 @@ const inputClass =
   'w-full pl-10 pr-4 py-3 bg-surface-container-lowest text-on-surface text-[14px] rounded-xl border border-outline-variant/60 outline-none focus:border-vibrant-blue focus:ring-2 focus:ring-vibrant-blue/20 transition-all placeholder:text-outline/70'
 
 const primaryButtonClass =
-  'w-full py-3.5 px-6 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary font-title-md text-[15px] font-semibold transition-all duration-200 shadow-[0_4px_14px_rgba(0,102,255,0.3)] hover:shadow-[0_6px_20px_rgba(0,102,255,0.4)] active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-60'
+  'w-full py-3.5 px-6 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary font-title-md text-[15px] font-semibold transition-all duration-200 shadow-[0_4px_14px_rgba(15,23,42,0.12)] hover:shadow-[0_6px_20px_rgba(15,23,42,0.12)] active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-60'
 
 /** The sign-in card every staff portal uses (doctor, hospital, executive, diagnostic center): Staff ID and password,
  * with a password reset by email. */
@@ -57,7 +57,7 @@ export function StaffLoginCard({
 
   return (
     <div className="w-full max-w-[480px] flex flex-col items-center">
-      <div className="w-full bg-surface-container-lowest rounded-2xl shadow-[0_12px_40px_-8px_rgba(0,102,255,0.08),0_2px_12px_rgba(0,0,0,0.03)] p-6 sm:p-9 relative z-10">
+      <div className="w-full bg-surface-container-lowest rounded-2xl shadow-[0_12px_40px_-8px_rgba(15,23,42,0.04),0_2px_12px_rgba(0,0,0,0.03)] p-6 sm:p-9 relative z-10">
         {view !== 'login' && (
           <button
             type="button"

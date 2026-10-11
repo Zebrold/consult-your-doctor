@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { matchBookedTests, sumPrices } from '@/lib/pricing'
 
@@ -13,7 +13,7 @@ function one<T>(value: T | T[] | null | undefined): T | null {
 // Executives now operate platform-wide, so reads go through the service-role client after this role check.
 export async function requireExecutive() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect('/login/executive')
 
   const { data: profile } = await supabase

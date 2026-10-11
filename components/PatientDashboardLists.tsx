@@ -596,7 +596,7 @@ export function RecordsAndMedicationsList({ prescriptions }: { prescriptions: an
                   href={selectedRecord.file_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="px-6 py-2 rounded-full bg-primary text-white font-label-sm font-semibold hover:bg-vibrant-blue transition-colors flex items-center gap-2 shadow-sm shadow-primary/20"
+                  className="px-6 py-2 rounded-full bg-primary text-white font-label-sm font-semibold hover:bg-vibrant-blue transition-colors flex items-center gap-2 shadow-sm shadow-slate-900/10"
                 >
                   <Download className="w-4 h-4" />
                   Download File

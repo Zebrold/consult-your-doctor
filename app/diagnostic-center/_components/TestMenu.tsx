@@ -154,7 +154,7 @@ export function TestMenu({
             <input name="price" type="number" required min={1} step={1} placeholder="1100" className={`${field} pl-6 font-bold`} />
           </span>
         </label>
-        <button type="submit" disabled={pending} className="px-4 py-2 rounded-lg bg-fresh-teal hover:scale-[1.02] text-on-secondary text-[12px] font-bold shadow-sm flex items-center justify-center gap-1 transition-transform disabled:opacity-60 shrink-0">
+        <button type="submit" disabled={pending} className="px-4 py-2 rounded-lg bg-fresh-teal text-on-secondary text-[12px] font-bold shadow-sm flex items-center justify-center gap-1 transition-transform disabled:opacity-60 shrink-0">
           {pending ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Add Test
         </button>
       </form>

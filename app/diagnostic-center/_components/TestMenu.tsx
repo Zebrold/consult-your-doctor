@@ -108,7 +108,7 @@ export function TestMenu({
   booked = {},
   actions = LAB_ACTIONS,
   bookable = true,
-  note = `Patients pay these prices plus a ₹${DIAGNOSTIC_PLATFORM_FEE} platform fee when they book online. Changes show on the booking page straight away.`,
+  note = 'Patients pay these listed prices when they book online. Changes show on the booking page straight away.',
 }: {
   tests: Test[]
   booked?: Record<string, number>

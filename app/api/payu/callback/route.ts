@@ -150,7 +150,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid Hash' }, { status: 400 });
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const baseUrl = new URL(request.url).origin;
     const isConsultation = productinfo === 'Consultation';
     const isDiagnostic = productinfo === 'Diagnostic';
 

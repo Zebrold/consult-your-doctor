@@ -96,7 +96,7 @@ export default async function PatientAppointments() {
   return (
     <div className="bg-background font-body-md text-body-md text-on-surface antialiased min-h-screen">
       <PatientNavHeader name={profile?.full_name} email={profile?.email || user.email} isSignedIn container="max-w-[1080px] px-margin-x-mobile lg:px-margin-x-desktop" />
-      <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-24">
+      <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-dock">
         <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-8">
           <div className="max-w-[1080px] mx-auto flex flex-col gap-6">
 

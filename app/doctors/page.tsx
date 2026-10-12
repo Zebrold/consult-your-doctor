@@ -47,13 +47,13 @@ export default async function DoctorsDirectoryPage() {
       />
       <Header />
       
-      <main className="flex-1 py-12">
+      <main className="flex-1 pt-[calc(var(--header-h)+2rem)] md:pt-[calc(var(--header-h)+3rem)] pb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h1 className="text-4xl font-extrabold text-gray-900 mb-4">
+          <div className="text-center mb-8 md:mb-12">
+            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900 mb-3 md:mb-4">
               Our Medical Specialists
             </h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-base md:text-xl text-gray-600 max-w-2xl mx-auto">
               Find and book appointments with highly rated doctors practicing at premium hospitals and clinics.
             </p>
           </div>

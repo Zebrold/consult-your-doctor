@@ -193,7 +193,7 @@ export function ConditionExplorer() {
                   </li>
                 ))}
               </ol>
-              <Link href="/doctors" className="mt-6 inline-flex items-center gap-1.5 text-[15px] font-semibold text-vibrant-blue hover:underline">
+              <Link href="/doctors" className="mt-6 inline-flex items-center justify-center gap-1.5 w-full sm:w-auto h-12 sm:h-auto px-6 sm:px-0 rounded-xl sm:rounded-none bg-vibrant-blue sm:bg-transparent text-on-primary sm:text-vibrant-blue text-[15px] font-semibold sm:hover:underline">
                 Find a doctor
               </Link>
             </div>

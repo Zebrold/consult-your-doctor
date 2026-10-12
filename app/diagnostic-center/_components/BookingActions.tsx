@@ -156,7 +156,7 @@ export function UploadReportButton({
       {open && (
         <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true" aria-label={label}>
           <button type="button" aria-label="Close" className="absolute inset-0 bg-indigo-gray-900/50 backdrop-blur-sm" onClick={close} />
-          <div className="relative w-full sm:max-w-3xl max-h-[94vh] overflow-y-auto bg-surface-container-lowest rounded-t-2xl sm:rounded-2xl shadow-2xl p-5 sm:p-6 flex flex-col gap-4">
+          <div className="relative w-full sm:max-w-3xl max-h-[94dvh] overflow-y-auto bg-surface-container-lowest rounded-t-2xl sm:rounded-2xl shadow-2xl p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:p-6 flex flex-col gap-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="font-title-md text-title-md font-bold text-indigo-gray-900">{label}</h3>

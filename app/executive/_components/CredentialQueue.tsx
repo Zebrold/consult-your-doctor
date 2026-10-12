@@ -147,7 +147,7 @@ export function CredentialQueue({ applications, submittedLabels }: { application
       {credentials && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-indigo-gray-900/60 backdrop-blur-sm" />
-          <div role="dialog" aria-modal="true" aria-labelledby="credentials-title" className="relative bg-surface-container-lowest max-w-md w-full rounded-2xl p-6 shadow-2xl flex flex-col gap-5">
+          <div role="dialog" aria-modal="true" aria-labelledby="credentials-title" className="relative bg-surface-container-lowest max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain rounded-2xl p-6 shadow-2xl flex flex-col gap-5">
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-full bg-fresh-teal/15 text-secondary flex items-center justify-center">
                 <BadgeCheck className="w-6 h-6" />

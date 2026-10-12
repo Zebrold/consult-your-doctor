@@ -2,7 +2,8 @@ import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import {
-  BadgeCheck, BedDouble, Building2, CalendarCheck, CalendarClock, CalendarPlus, CircleCheck, IndianRupee, ListFilter, Phone, PhoneCall, ShieldCheck,
+  BadgeCheck, BedDouble, Building2, CalendarCheck, CalendarClock, CalendarPlus, CheckCircle2, ChevronRight,
+  CircleCheck, IndianRupee, ListFilter, Phone, PhoneCall, ShieldCheck,
   Siren, Stethoscope, TrendingDown, TrendingUp, UserRoundX, Users, Wallet, type LucideIcon,
 } from 'lucide-react'
 import { currentTime } from '@/components/patient/data'
@@ -22,8 +23,23 @@ export const dynamic = 'force-dynamic'
 
 const DAY = 86_400_000
 const LATE_MS = 15 * 60_000
-const card = 'bg-surface-container-lowest rounded-2xl p-4 md:p-6 shadow-[0_4px_24px_rgba(15,23,42,0.04)] border border-surface-container md:border-transparent'
+const card = 'bg-white rounded-xl p-4 md:p-6 shadow-xs border border-slate-200/90'
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
+
+function Counter({ icon: Icon, label, value, sub }: { icon: LucideIcon; label: string; value: string; sub: string }) {
+  return (
+    <div className="min-w-[150px] flex-1 p-3.5 md:p-4 rounded-xl bg-white shadow-xs border border-slate-200/90 flex items-center justify-between gap-2">
+      <div className="min-w-0">
+        <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">{label}</div>
+        <div className="text-2xl font-bold tracking-tight mt-0.5 text-slate-900 tabular-nums">{value}</div>
+        <div className="text-xs text-slate-500 truncate">{sub}</div>
+      </div>
+      <span className="w-9 h-9 rounded-lg bg-slate-100 border border-slate-200/60 flex items-center justify-center text-slate-600 shrink-0">
+        <Icon className="w-4 h-4" />
+      </span>
+    </div>
+  )
+}
 
 type Alert = {
   key: string
@@ -81,8 +97,6 @@ export default async function HospitalDashboardPage() {
   const paymentsToday = visits.filter((v) => v.payment && paidOn(v) === today)
   const revenueToday = paymentsToday.reduce((sum, v) => sum + hospitalShare(v.payment!), 0)
   const revenueThisMonth = revenueIn(month)
-  const revenueLastMonth = revenueIn(lastMonth)
-  const revenueTrend = revenueLastMonth ? Math.round(((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100) : null
 
   // Next 7 days: how full each department's published slots are.
   const deptFill = new Map<string, { booked: number; total: number }>()
@@ -110,7 +124,7 @@ export default async function HospitalDashboardPage() {
       icon: UserRoundX,
       title: v.patient?.name ?? 'Patient',
       chip: formatTime(v.start!),
-      line: `${mins} min past their slot • not checked in${late.length > 1 ? ` • +${late.length - 1} more` : ''}`,
+      line: `${mins} min past slot • not checked in${late.length > 1 ? ` • +${late.length - 1} more` : ''}`,
       facts: [
         { label: 'Doctor', value: doc ? doctorName(doc.name) : '—' },
         { label: 'Department', value: doc?.department ?? '—' },
@@ -128,7 +142,7 @@ export default async function HospitalDashboardPage() {
       icon: CalendarClock,
       title: doctorName(d.name),
       chip: d.department,
-      line: `No slots published for the next 7 days${unscheduled.length > 1 ? ` • +${plural(unscheduled.length - 1, 'more doctor')}` : ''}`,
+      line: `No slots published for next 7 days${unscheduled.length > 1 ? ` • +${plural(unscheduled.length - 1, 'more doctor')}` : ''}`,
       facts: [
         { label: 'Department', value: d.department },
         { label: 'Staff ID', value: d.staffId ?? '—' },
@@ -146,7 +160,7 @@ export default async function HospitalDashboardPage() {
       icon: IndianRupee,
       title: plural(unpaidToday.length, 'unpaid booking') + ' today',
       chip: 'Online',
-      line: 'The slot is held until the patient pays online',
+      line: 'Slot held until patient completes payment',
       facts: [
         { label: 'Next', value: v.patient?.name ?? 'Patient' },
         { label: 'At', value: formatTime(v.start!) },
@@ -157,181 +171,133 @@ export default async function HospitalDashboardPage() {
     })
   }
 
-  const actionButton = 'flex items-center justify-center gap-2 px-4 md:px-5 py-3 rounded-full font-label-sm text-label-sm font-semibold transition-all active:scale-95'
-
   return (
     <>
-      {/* Command header */}
-      <section className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 md:gap-6 pt-1 md:pt-4 pb-1 md:pb-4">
-        <div className="flex items-start md:items-center gap-4 md:gap-5 min-w-0">
-          <div className="relative shrink-0">
-            {hospital.image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={hospital.image} alt={hospital.name} className="w-16 h-16 md:w-20 md:h-20 rounded-2xl object-cover shadow-[0_8px_20px_rgba(15,23,42,0.05)]" />
-            ) : (
-              <span className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-primary-fixed to-surface-container text-primary flex items-center justify-center shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
-                <Building2 className="w-8 h-8 md:w-10 md:h-10" />
-              </span>
-            )}
-            {live && (
-              <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-fresh-teal flex items-center justify-center text-on-primary shadow-sm" title="Live for booking">
-                <BadgeCheck className="w-3.5 h-3.5" />
-              </span>
-            )}
-          </div>
-          <div className="flex flex-col min-w-0">
-            <div className="flex items-center flex-wrap gap-2 mb-1 md:mb-1.5">
-              <h1 className="font-display-lg text-[24px] md:text-headline-lg text-on-surface font-extrabold tracking-tight">{staff.name}</h1>
-              <span className="px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant font-label-sm text-label-sm uppercase font-semibold">Hospital Admin</span>
-              <span className={`px-2.5 py-0.5 rounded-full font-label-sm text-label-sm font-medium ${live ? 'bg-secondary-container/50 text-on-secondary-container' : 'bg-error-container text-tertiary'}`}>
-                {live ? 'Live for Booking' : 'Not Listed'}
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-indigo-gray-600 font-body-md text-[14px] md:text-body-md">
-              <span className="flex items-center gap-1.5 font-semibold text-on-surface min-w-0">
-                <Building2 className="w-[18px] h-[18px] text-vibrant-blue shrink-0" />
-                <span className="truncate">{hospital.name}</span>
-              </span>
-              <span className="hidden sm:block w-1.5 h-1.5 rounded-full bg-outline-variant" />
-              <span className="flex items-center gap-1 text-fresh-teal font-medium">
-                <ShieldCheck className="w-4 h-4" /> {plural(doctors.length, 'doctor')} • {plural(departmentNames.length, 'department')}
-              </span>
-              {(hospital.address || hospital.city) && (
-                <>
-                  <span className="hidden md:block w-1.5 h-1.5 rounded-full bg-outline-variant" />
-                  <span className="hidden md:inline font-label-sm text-label-sm truncate max-w-[320px]">{[hospital.address, hospital.city].filter(Boolean).join(', ')}</span>
-                </>
-              )}
-            </div>
-          </div>
+      {/* Command header - matches Patients & Visits and Inpatient Beds */}
+      <section className="flex flex-col lg:flex-row lg:items-end justify-between gap-3">
+        <div>
+          <span className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-surface-container-high text-primary font-label-sm text-label-sm uppercase tracking-wider">
+            Hospital Command <LiveRefresh label="Live" />
+          </span>
+          <h1 className="font-headline-lg text-[24px] md:text-headline-lg text-indigo-gray-900 font-bold tracking-tight mt-1.5">
+            {hospital.name} Dashboard
+          </h1>
+          <p className="text-sm md:text-body-md text-indigo-gray-600">
+            {staff.name} (Hospital Admin) • {plural(doctors.length, 'doctor')} across {plural(departmentNames.length, 'department')}
+            {hospital.city ? ` • ${hospital.city}` : ''}
+          </p>
         </div>
-        <div className="grid grid-cols-2 sm:flex items-center gap-3 shrink-0">
-          <Link href="/hospital/doctors" className={`${actionButton} bg-surface-container text-on-surface hover:bg-surface-container-high`}>
-            <CalendarCheck className="w-[18px] h-[18px]" /> Duty Roster
+        <div className="flex items-center gap-2.5 shrink-0">
+          <Link
+            href="/hospital/doctors"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface font-label-sm text-label-sm font-semibold transition-all"
+          >
+            <CalendarCheck className="w-4 h-4 text-indigo-gray-600" /> Duty Roster
           </Link>
           <AddDoctorButton
             departments={departmentNames}
             label="Add Doctor"
-            className={`${actionButton} md:px-6 bg-primary-container text-on-primary font-bold shadow-[0_8px_20px_rgba(15,23,42,0.11)] hover:brightness-105`}
+            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm font-bold shadow-[0_8px_20px_rgba(15,23,42,0.11)] hover:brightness-105 active:scale-95 transition-all"
           />
         </div>
       </section>
 
-      {/* Key metrics */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-5">
-        <Metric label="Slot Occupancy" icon={CalendarCheck} tint="bg-primary-fixed/40 text-primary" value={String(bookedSlots)} unit={`/ ${plural(todaySlots.length, 'Slot')}`}>
-          <div className="w-full bg-surface-container rounded-full h-2 overflow-hidden mb-3" role="img" aria-label={`${slotPct}% booked`}>
-            <div className="bg-vibrant-blue h-full rounded-full" style={{ width: `${slotPct}%` }} />
-          </div>
-          <Foot
-            left={
-              <span className="flex items-center text-primary font-semibold">
-                <TrendingUp className="w-4 h-4 mr-0.5" /> {slotPct}% booked today
-              </span>
-            }
-            right={<span className="text-fresh-teal font-semibold">{todaySlots.length - bookedSlots} open</span>}
-          />
-        </Metric>
-        <Metric label="Today's Patients" icon={Users} tint="bg-soft-coral/10 text-soft-coral" value={String(paidToday.length)} unit="Booked">
-          <div className="flex flex-wrap items-center gap-2 mb-3">
-            {late.length > 0 ? (
-              <span className="px-2 py-0.5 rounded-full bg-soft-coral/15 text-soft-coral font-label-sm text-label-sm font-bold flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-soft-coral animate-ping" /> {late.length} Not Checked In
-              </span>
-            ) : (
-              <span className="px-2 py-0.5 rounded-full bg-fresh-teal/15 text-secondary font-label-sm text-label-sm font-bold">On Track</span>
-            )}
-            <span className="text-indigo-gray-600 font-label-sm text-label-sm">{checkedIn} checked in</span>
-          </div>
-          <Foot left="Still to come • done" right={<span className="text-on-surface font-semibold">{toCome} • {completed}</span>} />
-        </Metric>
-        <Metric label="Hospital Revenue" icon={Wallet} tint="bg-fresh-teal/15 text-secondary" value={formatINR(revenueToday)} unit="Today">
-          <p className="font-body-md text-[14px] md:text-body-md text-indigo-gray-600 mb-2">{formatINR(revenueThisMonth)} collected this month</p>
-          <Foot
-            left={
-              revenueTrend != null ? (
-                <span className={`font-semibold flex items-center ${revenueTrend >= 0 ? 'text-fresh-teal' : 'text-soft-coral'}`}>
-                  {revenueTrend >= 0 ? <TrendingUp className="w-4 h-4 mr-0.5" /> : <TrendingDown className="w-4 h-4 mr-0.5" />}
-                  {revenueTrend >= 0 ? '+' : ''}
-                  {revenueTrend}% vs last month
-                </span>
-              ) : (
-                <span className="text-fresh-teal font-semibold flex items-center">
-                  <CircleCheck className="w-4 h-4 mr-0.5" /> Fees after platform charges
-                </span>
-              )
-            }
-            right={plural(paymentsToday.length, 'payment') + ' today'}
-          />
-        </Metric>
-        <Metric label="Doctors On Duty" icon={Stethoscope} tint="bg-primary-fixed text-primary" value={String(onDuty.length)} unit={`of ${plural(doctors.length, 'Doctor')}`}>
-          <div className="flex items-center gap-1.5 text-fresh-teal font-label-sm text-label-sm font-bold mb-3">
-            <BadgeCheck className="w-4 h-4" />
-            {doctors.length ? `${Math.round((onDuty.length / doctors.length) * 100)}% have slots today` : 'Add your doctors'}
-          </div>
-          <Foot left="Active Departments" right={<span className="text-primary font-bold">{plural(departmentNames.length, 'Specialty', 'Specialties')}</span>} />
-        </Metric>
+      {/* Top Counters Row - Exact matching layout from Beds & Patients pages */}
+      <section className="flex md:grid md:grid-cols-4 gap-2.5 md:gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+        <Counter
+          icon={CalendarCheck}
+          label="Slot occupancy"
+          value={`${bookedSlots}/${todaySlots.length}`}
+          sub={`${slotPct}% booked today (${todaySlots.length - bookedSlots} open)`}
+        />
+        <Counter
+          icon={Users}
+          label="Today's patients"
+          value={String(paidToday.length)}
+          sub={late.length > 0 ? `${late.length} not checked in • ${checkedIn} in` : `${checkedIn} checked in • ${toCome} to come`}
+        />
+        <Counter
+          icon={Wallet}
+          label="Hospital revenue"
+          value={formatINR(revenueToday)}
+          sub={`${formatINR(revenueThisMonth)} this month`}
+        />
+        <Counter
+          icon={Stethoscope}
+          label="Doctors on duty"
+          value={`${onDuty.length}/${doctors.length}`}
+          sub={`${plural(departmentNames.length, 'specialty', 'specialties')} active`}
+        />
       </section>
 
-      {/* Workspace */}
-      <section className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-8 items-start">
-        <div className="lg:col-span-7 min-w-0 flex flex-col gap-4 md:gap-8">
+      {/* Workspace Grid - matches beds and patients 12-col layout */}
+      <section className="grid grid-cols-1 xl:grid-cols-12 gap-4 md:gap-6 items-start">
+        <div className="xl:col-span-8 min-w-0 flex flex-col gap-4 md:gap-6">
           <AttentionTicker alerts={alerts} />
 
           {/* Today's patient queue */}
           <div className={card}>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 md:pb-6 gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 gap-3 border-b border-slate-100">
               <div>
-                <h2 className="font-title-md text-[18px] md:text-title-md font-bold text-on-surface">Today&apos;s Patient Queue</h2>
-                <p className="font-body-md text-[13px] md:text-body-md text-indigo-gray-600">Consultations booked across your doctors, in slot order</p>
+                <h2 className="text-base font-bold text-slate-900">Today&apos;s Patient Queue</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Consultations booked across your doctors, in slot order</p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="font-label-sm text-label-sm px-3 py-1.5 rounded-full bg-surface-container text-on-surface font-semibold">Total: {todays.length}</span>
-                <Link href="/hospital/patients?view=today" aria-label="Open the full list" title="Open the full list" className="p-2 rounded-full hover:bg-surface-container transition-colors text-indigo-gray-600">
-                  <ListFilter className="w-5 h-5" />
+                <span className="text-xs px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 font-semibold border border-slate-200">
+                  Total: {todays.length}
+                </span>
+                <Link
+                  href="/hospital/patients?view=today"
+                  aria-label="Open the full list"
+                  title="Open the full list"
+                  className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors"
+                >
+                  <ListFilter className="w-4 h-4" />
                 </Link>
               </div>
             </div>
             {todays.length === 0 ? (
               <Placeholder icon={Users} title="No appointments today" sub="Bookings for today show here as soon as patients book" />
             ) : (
-              <div className="flex flex-col gap-3 md:gap-3.5">
+              <div className="divide-y divide-slate-100">
                 {todays.slice(0, 6).map((v) => (
                   <QueueRow key={v.id} v={v} doc={v.doctorId ? doctorById.get(v.doctorId) : undefined} line={lineOf(v)} late={isLate(v)} />
                 ))}
-                {todays.length > 6 && (
-                  <Link href="/hospital/patients?view=today" className="text-vibrant-blue font-label-sm text-label-sm hover:underline self-start">
-                    +{todays.length - 6} more today →
-                  </Link>
-                )}
+              </div>
+            )}
+            {todays.length > 6 && (
+              <div className="pt-3 border-t border-slate-100">
+                <Link href="/hospital/patients?view=today" className="text-xs text-[#0066ff] font-semibold hover:underline flex items-center gap-1">
+                  View all {todays.length} consultations scheduled today <ChevronRight className="w-3.5 h-3.5" />
+                </Link>
               </div>
             )}
           </div>
 
           {/* Clinic sessions */}
           <div className={card}>
-            <div className="flex items-center justify-between gap-3 mb-4 md:mb-5">
+            <div className="flex items-center justify-between gap-3 pb-4 mb-4 border-b border-slate-100">
               <div>
-                <h2 className="font-title-md text-[18px] md:text-title-md font-bold text-on-surface">Clinic Sessions Today</h2>
-                <p className="font-body-md text-[13px] md:text-body-md text-indigo-gray-600">Each doctor&apos;s published slots for today</p>
+                <h2 className="text-base font-bold text-slate-900">Clinic Sessions Today</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Published schedules and active consultation shifts</p>
               </div>
-              <span className="px-3 py-1.5 rounded-full bg-primary-fixed/40 text-primary font-label-sm text-label-sm font-bold flex items-center gap-1.5 shrink-0">
-                <Stethoscope className="w-4 h-4" /> {plural(onDuty.length, 'Session')}
+              <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 flex items-center gap-1.5 shrink-0">
+                <Stethoscope className="w-3.5 h-3.5 text-slate-500" /> {plural(onDuty.length, 'Session')}
               </span>
             </div>
             {onDuty.length === 0 ? (
               <Placeholder
                 icon={CalendarPlus}
-                title="No sessions today"
+                title="No active sessions today"
                 sub="Publish slots for your doctors from the Duty Roster"
                 aside={
-                  <Link href="/hospital/doctors" className="px-3 py-1.5 rounded-full bg-vibrant-blue text-on-primary font-label-sm text-[12px] font-semibold whitespace-nowrap">
+                  <Link href="/hospital/doctors" className="px-3 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-semibold whitespace-nowrap shadow-xs">
                     Duty Roster
                   </Link>
                 }
               />
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                 {onDuty.slice(0, 6).map(({ doctor, mine }) => (
                   <Session key={doctor.id} doctor={doctor} slots={mine} now={now} />
                 ))}
@@ -340,59 +306,64 @@ export default async function HospitalDashboardPage() {
           </div>
         </div>
 
-        <div className="lg:col-span-5 min-w-0 flex flex-col gap-4 md:gap-8">
+        <div className="xl:col-span-4 min-w-0 flex flex-col gap-4 md:gap-6">
           {/* Inpatient beds */}
           <div className={card}>
-            <div className="flex items-center justify-between gap-3 mb-4 md:mb-5">
+            <div className="flex items-center justify-between gap-3 pb-3.5 mb-3.5 border-b border-slate-100">
               <div>
-                <h2 className="font-title-md text-[18px] md:text-title-md font-bold text-on-surface flex items-center gap-2">
-                  <BedDouble className="w-5 h-5 text-vibrant-blue" /> Inpatient Beds
+                <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <BedDouble className="w-4 h-4 text-slate-600" /> Inpatient Beds
                 </h2>
-                <p className="font-body-md text-[13px] md:text-body-md text-indigo-gray-600">Occupancy right now, by ward</p>
+                <p className="text-xs text-slate-500 mt-0.5">Current hospital census and ward availability</p>
               </div>
               <LiveRefresh />
             </div>
             {bedSummary.total === 0 ? (
               <Placeholder
                 icon={BedDouble}
-                title="No beds set up yet"
-                sub="Add your wards and beds to start allocating them"
+                title="No beds configured"
+                sub="Add your wards and beds to start managing admissions"
                 aside={
-                  <Link href="/hospital/beds" className="px-3 py-1.5 rounded-full bg-vibrant-blue text-on-primary font-label-sm text-[12px] font-semibold whitespace-nowrap">
+                  <Link href="/hospital/beds" className="px-3 py-1.5 rounded-lg bg-[#0066ff] hover:bg-[#0050cb] text-white text-xs font-semibold whitespace-nowrap shadow-xs">
                     Set Up Beds
                   </Link>
                 }
               />
             ) : (
               <>
-                <div className="grid grid-cols-3 gap-2.5 mb-4">
+                <div className="grid grid-cols-3 gap-2.5 mb-3.5">
                   {[
-                    { label: 'Occupied', value: bedSummary.occupied, tone: 'text-vibrant-blue' },
-                    { label: 'Available', value: bedSummary.available, tone: 'text-secondary' },
-                    { label: 'Total', value: bedSummary.total, tone: 'text-on-surface' },
+                    { label: 'Occupied', value: bedSummary.occupied },
+                    { label: 'Available', value: bedSummary.available },
+                    { label: 'Total Beds', value: bedSummary.total },
                   ].map((s) => (
-                    <div key={s.label} className="p-3 rounded-xl bg-surface text-center">
-                      <div className={`font-headline-lg text-[22px] font-extrabold ${s.tone}`}>{s.value}</div>
-                      <div className="font-label-sm text-[11px] text-indigo-gray-600 font-semibold uppercase tracking-wider">{s.label}</div>
+                    <div key={s.label} className="p-3 rounded-lg bg-slate-50 border border-slate-100 text-center">
+                      <div className="text-xl font-bold text-slate-900 tracking-tight">{s.value}</div>
+                      <div className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider mt-0.5">{s.label}</div>
                     </div>
                   ))}
                 </div>
-                <div className="w-full bg-surface-container rounded-full h-2.5 overflow-hidden mb-1.5" role="img" aria-label={`${bedSummary.occupancy}% of beds occupied`}>
-                  <div className="bg-vibrant-blue h-full rounded-full" style={{ width: `${bedSummary.occupancy}%` }} />
+                <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden mb-1.5" role="img" aria-label={`${bedSummary.occupancy}% of beds occupied`}>
+                  <div className="bg-[#0066ff] h-full rounded-full" style={{ width: `${bedSummary.occupancy}%` }} />
                 </div>
-                <p className="font-label-sm text-label-sm text-indigo-gray-600 mb-4">{bedSummary.occupancy}% occupancy{bedSummary.unavailable ? ` • ${bedSummary.unavailable} being cleaned or repaired` : ''}</p>
-                <ul className="flex flex-col gap-2 mb-4">
+                <p className="text-xs text-slate-500 mb-3.5">
+                  {bedSummary.occupancy}% occupancy{bedSummary.unavailable ? ` • ${bedSummary.unavailable} in cleaning/repair` : ''}
+                </p>
+                <ul className="flex flex-col divide-y divide-slate-100 mb-4">
                   {bedWards.slice(0, 5).map((w) => (
-                    <li key={w.ward} className="flex items-center justify-between gap-2 text-[14px]">
-                      <span className="font-semibold text-on-surface truncate">{w.ward}</span>
-                      <span className="text-indigo-gray-600 shrink-0">
+                    <li key={w.ward} className="py-2 flex items-center justify-between gap-2 text-xs">
+                      <span className="font-semibold text-slate-800 truncate">{w.ward}</span>
+                      <span className="text-slate-500 shrink-0 font-medium">
                         {w.occupied}/{w.total} occupied
                       </span>
                     </li>
                   ))}
                 </ul>
-                <Link href="/hospital/beds" className="block text-center w-full px-4 py-2.5 rounded-full bg-primary-fixed/50 text-primary font-label-sm text-label-sm font-bold hover:bg-primary-fixed transition-colors">
-                  Open Bed Allocation
+                <Link
+                  href="/hospital/beds"
+                  className="block text-center w-full py-2 px-3 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold transition-colors"
+                >
+                  Manage Bed Allocation →
                 </Link>
               </>
             )}
@@ -400,30 +371,34 @@ export default async function HospitalDashboardPage() {
 
           {/* Department occupancy */}
           <div className={card}>
-            <div className="flex items-center justify-between gap-3 mb-4 md:mb-6">
+            <div className="flex items-center justify-between gap-3 pb-3.5 mb-3.5 border-b border-slate-100">
               <div>
-                <h2 className="font-title-md text-[18px] md:text-title-md font-bold text-on-surface">Slot Occupancy by Dept</h2>
-                <p className="font-body-md text-[13px] md:text-body-md text-indigo-gray-600">Share of published slots booked</p>
+                <h2 className="text-base font-bold text-slate-900">Slot Occupancy by Dept</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Share of published appointment slots booked</p>
               </div>
-              <span className="font-label-sm text-label-sm px-2.5 py-1 rounded bg-surface-container text-on-surface-variant font-bold shrink-0">Next 7 Days</span>
+              <span className="text-xs px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 font-semibold border border-slate-200 shrink-0">
+                Next 7 Days
+              </span>
             </div>
             {departments.length === 0 ? (
-              <Placeholder icon={CalendarClock} title="No slots published" sub="Department occupancy shows once doctors have slots this week" />
+              <Placeholder icon={CalendarClock} title="No slots published" sub="Occupancy appears once doctors publish consultation hours" />
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3.5">
                 {departments.map(([dept, f]) => {
                   const pct = Math.round((f.booked / f.total) * 100)
-                  const tone = pct >= 90 ? ['text-soft-coral', 'bg-soft-coral'] : pct >= 75 ? ['text-vibrant-blue', 'bg-vibrant-blue'] : pct >= 50 ? ['text-on-surface', 'bg-primary'] : pct >= 25 ? ['text-fresh-teal', 'bg-fresh-teal'] : ['text-indigo-gray-600', 'bg-indigo-gray-600/40']
                   return (
-                    <div key={dept} className="space-y-1.5">
-                      <div className="flex justify-between items-center gap-2 text-[14px] md:text-body-md">
-                        <span className="font-bold text-on-surface truncate">{dept}</span>
-                        <span className={`font-bold shrink-0 ${tone[0]}`}>
+                    <div key={dept} className="space-y-1">
+                      <div className="flex justify-between items-center gap-2 text-xs">
+                        <span className="font-semibold text-slate-800 truncate">{dept}</span>
+                        <span className="text-slate-600 font-medium shrink-0">
                           {pct}% Full ({f.booked}/{f.total})
                         </span>
                       </div>
-                      <div className="w-full bg-surface-container rounded-full h-2 overflow-hidden">
-                        <div className={`${tone[1]} h-full rounded-full`} style={{ width: `${Math.max(pct, 2)}%` }} />
+                      <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${pct >= 90 ? 'bg-amber-500' : 'bg-[#0066ff]'}`}
+                          style={{ width: `${Math.max(pct, 2)}%` }}
+                        />
                       </div>
                     </div>
                   )
@@ -434,31 +409,44 @@ export default async function HospitalDashboardPage() {
 
           {/* Doctors on duty */}
           <div className={card}>
-            <div className="flex items-center justify-between mb-4 md:mb-5">
+            <div className="flex items-center justify-between pb-3.5 mb-3.5 border-b border-slate-100">
               <div>
-                <h2 className="font-title-md text-[18px] md:text-title-md font-bold text-on-surface">Doctors On Active Duty</h2>
-                <p className="font-body-md text-[13px] md:text-body-md text-indigo-gray-600">Consultants with slots today</p>
+                <h2 className="text-base font-bold text-slate-900">Doctors On Active Duty</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Consultants with active slots today</p>
               </div>
-              {onDuty.length > 0 && <span className="w-2 h-2 rounded-full bg-emerald-600 shrink-0" />}
+              {onDuty.length > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/70 text-[11px] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" /> {onDuty.length} Active
+                </span>
+              )}
             </div>
             {onDuty.length === 0 ? (
-              <Placeholder icon={Stethoscope} title="No doctor on duty today" sub={`${plural(doctors.length, 'doctor')} on your roster`} />
+              <Placeholder icon={Stethoscope} title="No doctor on duty today" sub={`${plural(doctors.length, 'doctor')} registered on your roster`} />
             ) : (
-              <div className="flex flex-col gap-3">
-                {onDuty.map(({ doctor: d }, i) => (
-                  <div key={d.id} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-surface hover:bg-surface-container-low transition-all">
+              <div className="flex flex-col divide-y divide-slate-100">
+                {onDuty.map(({ doctor: d }) => (
+                  <div key={d.id} className="py-2.5 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <Avatar name={d.name} image={d.image} className="w-11 h-11 text-sm" />
+                      <Avatar name={d.name} image={d.image} className="w-9 h-9 text-xs" />
                       <div className="min-w-0">
-                        <h4 className="font-body-md text-[15px] md:text-body-md font-bold text-on-surface leading-tight truncate">{doctorName(d.name)}</h4>
-                        <span className={`font-label-sm text-label-sm font-semibold truncate block ${['text-vibrant-blue', 'text-fresh-teal', 'text-indigo-gray-600', 'text-primary'][i % 4]}`}>{d.department}</span>
+                        <h4 className="text-xs md:text-sm font-semibold text-slate-900 leading-tight truncate">{doctorName(d.name)}</h4>
+                        <span className="text-[11px] text-slate-500 font-medium truncate block mt-0.5">{d.department}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      {d.staffId && <span className="hidden sm:inline font-label-sm text-label-sm px-2 py-1 rounded bg-surface-container text-on-surface-variant font-mono">ID #{d.staffId}</span>}
+                      {d.staffId && (
+                        <span className="hidden sm:inline text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 font-mono">
+                          #{d.staffId}
+                        </span>
+                      )}
                       {d.phone && (
-                        <a href={`tel:${d.phone.replace(/[^\d+]/g, '')}`} aria-label={`Call ${doctorName(d.name)}`} title={`Call ${doctorName(d.name)}`} className="p-1.5 rounded-full hover:bg-surface-container text-primary">
-                          <Phone className="w-5 h-5" />
+                        <a
+                          href={`tel:${d.phone.replace(/[^\d+]/g, '')}`}
+                          aria-label={`Call ${doctorName(d.name)}`}
+                          title={`Call ${doctorName(d.name)}`}
+                          className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors"
+                        >
+                          <Phone className="w-4 h-4" />
                         </a>
                       )}
                     </div>
@@ -468,14 +456,14 @@ export default async function HospitalDashboardPage() {
             )}
           </div>
 
-          {/* Quick actions */}
+          {/* Quick actions - Uniform enterprise shortcuts */}
           <div className={card}>
-            <h2 className="font-title-md text-[18px] md:text-title-md font-bold text-on-surface mb-4">Quick Actions</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-2.5 md:gap-3">
-              <QuickAction href="/hospital/doctors" icon={CalendarPlus} tint="bg-primary-fixed text-primary" title="Publish Slots" sub="Duty roster" />
-              <QuickAction href="/hospital/patients?view=today" icon={Users} tint="bg-soft-coral/15 text-soft-coral" title="Today's List" sub="Check-ins & visits" />
-              <QuickAction href="/hospital/beds" icon={BedDouble} tint="bg-vibrant-blue/10 text-vibrant-blue" title="Beds" sub="Admit & discharge" />
-              <QuickAction href="/hospital/revenue" icon={IndianRupee} tint="bg-fresh-teal/15 text-secondary" title="Finance" sub="Fees & payments" />
+            <h2 className="text-base font-bold text-slate-900 mb-3.5">Quick Actions</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-2.5">
+              <QuickAction href="/hospital/doctors" icon={CalendarPlus} title="Publish Slots" sub="Duty roster" />
+              <QuickAction href="/hospital/patients?view=today" icon={Users} title="Today's List" sub="Check-ins & visits" />
+              <QuickAction href="/hospital/beds" icon={BedDouble} title="Inpatient Beds" sub="Admit & discharge" />
+              <QuickAction href="/hospital/revenue" icon={IndianRupee} title="Financials" sub="Fees & settlements" />
             </div>
           </div>
         </div>
@@ -484,45 +472,18 @@ export default async function HospitalDashboardPage() {
   )
 }
 
-function Metric({ label, icon: Icon, tint, value, unit, children }: { label: string; icon: LucideIcon; tint: string; value: string; unit: string; children: ReactNode }) {
-  return (
-    <div className="bg-surface-container-lowest p-4 md:p-6 rounded-2xl shadow-[0_4px_24px_rgba(15,23,42,0.04)] border border-surface-container md:border-transparent flex flex-col justify-between hover:shadow-[0_8px_30px_rgba(15,23,42,0.04)] transition-all min-w-0">
-      <div>
-        <div className="flex items-center justify-between mb-3 md:mb-4">
-          <span className="font-label-sm text-label-sm font-bold uppercase tracking-wider text-indigo-gray-600">{label}</span>
-          <span className={`p-2 rounded-xl ${tint}`}>
-            <Icon className="w-5 h-5" />
-          </span>
-        </div>
-        <div className="flex items-baseline flex-wrap gap-x-2 mb-2">
-          <span className="font-display-lg text-[28px] md:text-headline-lg font-extrabold text-on-surface tracking-tight">{value}</span>
-          <span className="font-body-md text-[14px] md:text-body-md text-indigo-gray-600 font-medium">{unit}</span>
-        </div>
-      </div>
-      <div>{children}</div>
-    </div>
-  )
-}
 
-function Foot({ left, right }: { left: ReactNode; right: ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-2 text-indigo-gray-600 font-label-sm text-label-sm pt-1">
-      <span className="min-w-0 truncate">{left}</span>
-      <span className="shrink-0">{right}</span>
-    </div>
-  )
-}
 
 function Placeholder({ icon: Icon, title, sub, aside }: { icon: LucideIcon; title: string; sub: string; aside?: ReactNode }) {
   return (
-    <div className="p-4 rounded-xl bg-surface flex items-center justify-between gap-3">
+    <div className="p-4 rounded-lg bg-slate-50/80 border border-slate-100 flex items-center justify-between gap-3">
       <div className="flex items-center gap-3 min-w-0">
-        <span className="w-10 h-10 rounded-full bg-fresh-teal/15 text-secondary flex items-center justify-center shrink-0">
-          <Icon className="w-5 h-5" />
+        <span className="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-500 flex items-center justify-center shrink-0">
+          <Icon className="w-4 h-4" />
         </span>
         <div className="min-w-0">
-          <p className="font-body-md text-[15px] font-bold text-on-surface">{title}</p>
-          <p className="font-label-sm text-label-sm text-indigo-gray-600">{sub}</p>
+          <p className="text-xs font-semibold text-slate-800">{title}</p>
+          <p className="text-[11px] text-slate-500 truncate">{sub}</p>
         </div>
       </div>
       {aside && <span className="shrink-0">{aside}</span>}
@@ -532,127 +493,144 @@ function Placeholder({ icon: Icon, title, sub, aside }: { icon: LucideIcon; titl
 
 function AttentionTicker({ alerts }: { alerts: Alert[] }) {
   const [main, ...rest] = alerts
-  const coral = main?.tone === 'coral'
-  return (
-    <div className={`${card} relative overflow-hidden ${main ? 'md:shadow-[0_4px_28px_rgba(244,63,94,0.08)]' : ''}`}>
-      <div aria-hidden className={`absolute top-0 left-0 bottom-0 w-2 ${main ? (coral ? 'bg-soft-coral' : 'bg-vibrant-blue') : 'bg-fresh-teal'}`} />
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 md:mb-5 pl-2">
-        <div className="flex items-center gap-3">
-          {main ? (
-            <span className="relative flex h-3 w-3">
-              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${coral ? 'bg-soft-coral' : 'bg-vibrant-blue'}`} />
-              <span className={`relative inline-flex rounded-full h-3 w-3 ${coral ? 'bg-soft-coral' : 'bg-vibrant-blue'}`} />
+  if (!main) {
+    return (
+      <div className={card}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200/70 flex items-center justify-center">
+              <CheckCircle2 className="w-4 h-4" />
             </span>
-          ) : (
-            <CircleCheck className="w-5 h-5 text-fresh-teal" />
-          )}
-          <h2 className="font-title-md text-[18px] md:text-title-md font-bold text-on-surface">Urgent Attention Ticker</h2>
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900">Clinical Triage: All Clear</h2>
+              <p className="text-xs text-slate-500">Every scheduled doctor has slots published and visits are on time.</p>
+            </div>
+          </div>
+          <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/70">
+            Optimal
+          </span>
         </div>
-        <span
-          className={`self-start sm:self-auto px-3 py-1 rounded-full font-label-sm text-label-sm font-bold tracking-wider uppercase ${
-            main ? (coral ? 'bg-soft-coral/10 text-soft-coral' : 'bg-vibrant-blue/10 text-vibrant-blue') : 'bg-fresh-teal/10 text-secondary'
-          }`}
-        >
-          {main ? `${alerts.length} ${alerts.length === 1 ? 'Item Needs' : 'Items Need'} Action` : 'All Clear'}
+      </div>
+    )
+  }
+
+  return (
+    <div className={card}>
+      <div className="flex items-center justify-between gap-2 pb-3.5 mb-3.5 border-b border-slate-100">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-rose-500" />
+          <h2 className="text-base font-bold text-slate-900">Clinical Attention Required</h2>
+        </div>
+        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200/70">
+          {alerts.length} {alerts.length === 1 ? 'Item' : 'Items'} Need Action
         </span>
       </div>
 
-      {main ? (
-        <>
-          <div className="bg-indigo-gray-50 rounded-xl p-4 md:p-5 md:pl-4 flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-5">
-            <div className="flex items-start gap-3 md:gap-4 min-w-0">
-              <span className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${coral ? 'bg-soft-coral/10 text-soft-coral' : 'bg-vibrant-blue/10 text-vibrant-blue'}`}>
-                <main.icon className="w-7 h-7" />
-              </span>
-              <div className="space-y-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-title-md text-[17px] md:text-title-md font-bold text-on-surface">{main.title}</span>
-                  {main.chip && <span className="font-label-sm text-label-sm px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-semibold">{main.chip}</span>}
-                </div>
-                <p className={`font-body-md text-[14px] md:text-body-md font-semibold ${coral ? 'text-soft-coral' : 'text-vibrant-blue'}`}>{main.line}</p>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-indigo-gray-600 font-label-sm text-label-sm">
-                  {main.facts.map((f) => (
-                    <span key={f.label}>
-                      {f.label}: <strong className="text-on-surface">{f.value}</strong>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="flex md:flex-col items-center gap-2.5 shrink-0">
-              <Link href={main.primary.href} className="w-full px-4 py-2 rounded-full bg-vibrant-blue text-on-primary font-label-sm text-label-sm font-bold hover:brightness-110 active:scale-95 transition-all text-center whitespace-nowrap">
-                {main.primary.label}
-              </Link>
-              {main.call && (
-                <a
-                  href={`tel:${main.call.phone.replace(/[^\d+]/g, '')}`}
-                  className="w-full px-4 py-2 rounded-full bg-soft-coral text-on-primary font-label-sm text-label-sm font-bold hover:brightness-110 active:scale-95 shadow-[0_4px_12px_rgba(244,63,94,0.3)] transition-all flex items-center justify-center gap-1.5 whitespace-nowrap"
-                >
-                  <PhoneCall className="w-4 h-4" /> {main.call.label}
-                </a>
+      <div className="bg-slate-50/80 rounded-lg border border-slate-200/80 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-start gap-3 min-w-0">
+          <span className="w-9 h-9 rounded-lg bg-white border border-slate-200 text-slate-700 flex items-center justify-center shrink-0">
+            <main.icon className="w-4 h-4" />
+          </span>
+          <div className="space-y-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-bold text-slate-900">{main.title}</span>
+              {main.chip && (
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-white text-slate-600 border border-slate-200">
+                  {main.chip}
+                </span>
               )}
             </div>
-          </div>
-          {rest.length > 0 && (
-            <ul className="mt-3 flex flex-col gap-2 pl-2">
-              {rest.map((a) => (
-                <li key={a.key}>
-                  <Link href={a.primary.href} className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-surface-container-low transition-colors">
-                    <span className="flex items-center gap-3 min-w-0">
-                      <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${a.tone === 'coral' ? 'bg-soft-coral/10 text-soft-coral' : 'bg-vibrant-blue/10 text-vibrant-blue'}`}>
-                        <a.icon className="w-4 h-4" />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block font-body-md text-[14px] font-bold text-on-surface truncate">{a.title}</span>
-                        <span className="block font-label-sm text-label-sm text-indigo-gray-600 truncate">{a.line}</span>
-                      </span>
-                    </span>
-                    <span className="text-vibrant-blue font-label-sm text-label-sm font-semibold shrink-0">{a.primary.label} →</span>
-                  </Link>
-                </li>
+            <p className="text-xs font-medium text-rose-700">{main.line}</p>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-500 text-[11px]">
+              {main.facts.map((f) => (
+                <span key={f.label}>
+                  {f.label}: <strong className="text-slate-800 font-medium">{f.value}</strong>
+                </span>
               ))}
-            </ul>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Link
+            href={main.primary.href}
+            className="px-3.5 py-1.5 rounded-lg bg-[#0066ff] hover:bg-[#0050cb] text-white text-xs font-semibold shadow-xs transition-colors whitespace-nowrap"
+          >
+            {main.primary.label}
+          </Link>
+          {main.call && (
+            <a
+              href={`tel:${main.call.phone.replace(/[^\d+]/g, '')}`}
+              className="px-3.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 whitespace-nowrap"
+            >
+              <PhoneCall className="w-3.5 h-3.5 text-slate-500" /> {main.call.label}
+            </a>
           )}
-        </>
-      ) : (
-        <Placeholder icon={Siren} title="Nothing needs attention" sub="Every doctor has slots this week and today's patients are on track" />
+        </div>
+      </div>
+
+      {rest.length > 0 && (
+        <ul className="mt-3 divide-y divide-slate-100">
+          {rest.map((a) => (
+            <li key={a.key} className="pt-2 pb-1">
+              <Link href={a.primary.href} className="flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
+                <span className="flex items-center gap-2.5 min-w-0">
+                  <span className="w-7 h-7 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                    <a.icon className="w-3.5 h-3.5" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-xs font-bold text-slate-900 truncate">{a.title}</span>
+                    <span className="block text-[11px] text-slate-500 truncate">{a.line}</span>
+                  </span>
+                </span>
+                <span className="text-xs text-[#0066ff] font-semibold shrink-0">{a.primary.label} →</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   )
 }
 
-const QUEUE_STATUS: Record<string, { label: string; chip: string; avatar: string }> = {
-  confirmed: { label: 'Booked', chip: 'bg-primary-fixed text-primary', avatar: 'bg-primary-fixed text-primary' },
-  visited: { label: 'Checked In', chip: 'bg-fresh-teal/15 text-secondary', avatar: 'bg-secondary-container/60 text-secondary' },
-  completed: { label: 'Completed', chip: 'bg-surface-container-high text-on-surface-variant', avatar: 'bg-surface-container-high text-on-surface-variant' },
-  pending_payment: { label: 'Awaiting Payment', chip: 'bg-soft-coral/10 text-soft-coral', avatar: 'bg-tertiary-fixed text-on-tertiary-fixed' },
+const QUEUE_STATUS: Record<string, { label: string; badge: string }> = {
+  confirmed: { label: 'Booked', badge: 'bg-slate-100 text-slate-700 border-slate-200' },
+  visited: { label: 'Checked In', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200/70' },
+  completed: { label: 'Completed', badge: 'bg-slate-100 text-slate-600 border-slate-200' },
+  pending_payment: { label: 'Awaiting Payment', badge: 'bg-amber-50 text-amber-700 border-amber-200/70' },
 }
 
 function QueueRow({ v, doc, line, late }: { v: HospitalVisit; doc: HospitalDoctor | undefined; line: string | null; late: boolean }) {
-  const s = late ? { label: 'Not Checked In', chip: 'bg-soft-coral/10 text-soft-coral', avatar: 'bg-tertiary-fixed text-on-tertiary-fixed' } : QUEUE_STATUS[v.status] ?? QUEUE_STATUS.confirmed
+  const s = late
+    ? { label: 'Not Checked In', badge: 'bg-rose-50 text-rose-700 border-rose-200/70' }
+    : QUEUE_STATUS[v.status] ?? QUEUE_STATUS.confirmed
+
   return (
-    <div className="p-3 md:p-4 rounded-xl bg-surface hover:bg-surface-container-low transition-all flex items-center justify-between gap-3 md:gap-4">
-      <div className="flex items-center gap-3 md:gap-3.5 min-w-0">
-        <span className={`w-10 h-10 rounded-full flex items-center justify-center font-title-md text-sm font-bold shrink-0 ${s.avatar}`}>{initials(v.patient?.name ?? 'P')}</span>
+    <div className="py-3 flex items-center justify-between gap-3 md:gap-4 hover:bg-slate-50/60 px-2 -mx-2 rounded-lg transition-colors">
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-xs flex items-center justify-center shrink-0">
+          {initials(v.patient?.name ?? 'P')}
+        </span>
         <div className="min-w-0">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="font-body-lg text-[15px] md:text-body-lg font-bold text-on-surface truncate">{v.patient?.name ?? 'Patient'}</span>
-            {line && <span className="font-label-sm text-label-sm text-indigo-gray-600 shrink-0">{line.replace('y • ', '')}</span>}
+            <span className="text-xs md:text-sm font-semibold text-slate-900 truncate">{v.patient?.name ?? 'Patient'}</span>
+            {line && <span className="text-xs text-slate-400 font-normal shrink-0">{line.replace('y • ', '')}</span>}
           </div>
-          <p className="font-label-sm text-label-sm text-indigo-gray-600 truncate">
+          <p className="text-[11px] text-slate-500 font-mono truncate">
             {v.start ? formatTime(v.start) : 'No slot'} • #{v.code}
-            <span className="sm:hidden">{doc ? ` • ${doctorName(doc.name)}` : ''}</span>
+            <span className="sm:hidden font-sans font-medium text-slate-600">{doc ? ` • ${doctorName(doc.name)}` : ''}</span>
           </p>
         </div>
       </div>
-      <div className="flex items-center justify-end gap-4 md:gap-6 shrink-0">
+      <div className="flex items-center justify-end gap-3 sm:gap-6 shrink-0">
         {doc && (
           <div className="text-right hidden sm:block">
-            <span className="font-label-sm text-label-sm text-on-surface font-semibold block">{doctorName(doc.name)}</span>
-            <span className="font-label-sm text-label-sm text-indigo-gray-600">{doc.department}</span>
+            <span className="text-xs font-semibold text-slate-800 block">{doctorName(doc.name)}</span>
+            <span className="text-[11px] text-slate-500">{doc.department}</span>
           </div>
         )}
-        <span className={`px-2.5 md:px-3 py-1 rounded-full font-label-sm text-[11px] md:text-label-sm font-bold whitespace-nowrap ${s.chip}`}>{s.label}</span>
+        <span className={`px-2.5 py-0.5 rounded-md text-[11px] font-medium border whitespace-nowrap ${s.badge}`}>
+          {s.label}
+        </span>
       </div>
     </div>
   )
@@ -666,40 +644,49 @@ function Session({ doctor: d, slots, now }: { doctor: HospitalDoctor; slots: Slo
   const booked = slots.filter((s) => s.booked).length
   const state = now < start ? 'upcoming' : now > end ? 'done' : 'live'
   const look = {
-    live: { dot: 'bg-soft-coral animate-pulse', chip: 'bg-soft-coral/10 text-soft-coral font-bold', text: 'In Progress' },
-    upcoming: { dot: 'bg-fresh-teal', chip: 'bg-surface-container-high text-on-surface-variant font-bold', text: 'Upcoming' },
-    done: { dot: 'bg-outline-variant', chip: 'bg-surface-container text-indigo-gray-600 font-medium', text: 'Finished' },
+    live: { dot: 'bg-emerald-600', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200/70', text: 'In Progress' },
+    upcoming: { dot: 'bg-slate-400', badge: 'bg-slate-100 text-slate-700 border-slate-200', text: 'Upcoming' },
+    done: { dot: 'bg-slate-300', badge: 'bg-slate-100 text-slate-500 border-slate-200', text: 'Finished' },
   }[state]
+
   return (
-    <Link href={`/hospital/doctors/${d.id}/schedule`} className="p-4 rounded-xl bg-surface hover:bg-surface-container-low transition-colors flex flex-col justify-between gap-4 min-w-0">
+    <Link
+      href={`/hospital/doctors/${d.id}/schedule`}
+      className="p-3.5 rounded-lg border border-slate-200/80 bg-slate-50/50 hover:bg-slate-50 transition-colors flex flex-col justify-between gap-3 min-w-0"
+    >
       <div className="min-w-0">
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="font-label-sm text-label-sm font-extrabold text-vibrant-blue uppercase truncate">{d.department}</span>
-          <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${look.dot}`} />
+        <div className="flex items-center justify-between gap-2 mb-1.5">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 truncate">{d.department}</span>
+          <span className={`w-2 h-2 rounded-full shrink-0 ${look.dot}`} />
         </div>
-        <h3 className="font-title-md text-[16px] md:text-body-lg font-bold text-on-surface mb-1 truncate">{doctorName(d.name)}</h3>
-        <p className="font-label-sm text-label-sm text-indigo-gray-600">
+        <h3 className="text-xs md:text-sm font-semibold text-slate-900 truncate">{doctorName(d.name)}</h3>
+        <p className="text-[11px] text-slate-500 mt-0.5">
           {plural(slots.length, 'slot')} • {booked} booked
         </p>
       </div>
-      <div className="flex items-center justify-between gap-2 text-indigo-gray-600 font-label-sm text-label-sm">
-        <span className="font-semibold text-on-surface whitespace-nowrap">
+      <div className="flex items-center justify-between gap-2 text-xs pt-1 border-t border-slate-200/60">
+        <span className="font-mono text-[11px] text-slate-600 whitespace-nowrap">
           {formatTime(first.start)} - {formatTime(last.end ?? last.start)}
         </span>
-        <span className={`px-2 py-0.5 rounded whitespace-nowrap ${look.chip}`}>{look.text}</span>
+        <span className={`px-2 py-0.5 rounded text-[11px] font-medium border whitespace-nowrap ${look.badge}`}>
+          {look.text}
+        </span>
       </div>
     </Link>
   )
 }
 
-function QuickAction({ href, icon: Icon, tint, title, sub }: { href: string; icon: LucideIcon; tint: string; title: string; sub: string }) {
+function QuickAction({ href, icon: Icon, title, sub }: { href: string; icon: LucideIcon; title: string; sub: string }) {
   return (
-    <Link href={href} className="p-3 md:p-4 rounded-xl bg-surface hover:bg-surface-container transition-all flex flex-col items-center justify-center text-center group">
-      <span className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-transform ${tint}`}>
-        <Icon className="w-[22px] h-[22px]" />
+    <Link
+      href={href}
+      className="p-3 rounded-lg border border-slate-200/80 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all flex flex-col items-center justify-center text-center group"
+    >
+      <span className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-blue-50 group-hover:text-[#0066ff] border border-slate-200/50 transition-colors flex items-center justify-center mb-1.5">
+        <Icon className="w-4 h-4" />
       </span>
-      <span className="font-label-sm text-label-sm font-bold text-on-surface">{title}</span>
-      <span className="font-label-sm text-[11px] md:text-label-sm text-indigo-gray-600 mt-0.5">{sub}</span>
+      <span className="text-xs font-semibold text-slate-900">{title}</span>
+      <span className="text-[11px] text-slate-500 mt-0.5">{sub}</span>
     </Link>
   )
 }

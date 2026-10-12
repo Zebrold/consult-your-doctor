@@ -381,11 +381,9 @@ export default async function DoctorProfilePage() {
               </div>
               <ProfileEditor profile={editable} label="Update Fee" className="font-label-sm text-[12px] md:text-label-sm text-primary hover:underline flex items-center gap-1" />
             </div>
-            <p className="text-label-sm text-on-surface-variant mb-4">What patients pay when they book you online.</p>
+            <p className="text-label-sm text-on-surface-variant mb-4">Your consultation fee for clinic appointments.</p>
             <div className="flex flex-col gap-2.5">
               <FeeRow title="In-person consultation" sub="Your fee, paid out per visit" value={doctor.fee ? formatINR(doctor.fee) : 'Not set'} strong />
-              <FeeRow title="Platform fee" sub="Added at checkout" value={formatINR(CONSULTATION_PLATFORM_FEE)} />
-              {doctor.fee ? <FeeRow title="Patient pays" sub="Total at checkout" value={formatINR(doctor.fee + CONSULTATION_PLATFORM_FEE)} /> : null}
             </div>
           </Card>
 

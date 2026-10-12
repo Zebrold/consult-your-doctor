@@ -64,7 +64,7 @@ export function ConfirmationClient({ data }: { data: ConfirmationData }) {
         container="max-w-[1080px] px-margin-x-mobile lg:px-margin-x-desktop"
       />
 
-      <main className="max-w-[1080px] mx-auto px-4 sm:px-6 pt-6 pb-28 md:pb-32">
+      <main className="max-w-[1080px] mx-auto px-4 sm:px-6 pt-6 pb-dock">
         
         {/* Minimalist Card Container (Matches Image 1) */}
         <div className="bg-white rounded-3xl border border-gray-200/80 shadow-xl overflow-hidden max-w-[500px] mx-auto p-6 sm:p-8 print:shadow-none print:border-none print:p-0">

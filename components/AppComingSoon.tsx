@@ -63,11 +63,10 @@ export function AppComingSoon({ compact = false }: { compact?: boolean }) {
         aria-expanded={open}
         aria-controls={cardId}
         aria-label="Get the app (coming soon)"
-        className={`relative flex items-center gap-2 rounded-full text-on-surface transition-colors ${
-          compact
+        className={`relative flex items-center gap-2 rounded-full text-on-surface transition-colors ${compact
             ? "w-10 h-10 justify-center hover:bg-surface-container"
             : "pl-3 pr-4 py-2 border border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-        }`}
+          }`}
       >
         <Smartphone className={compact ? "w-6 h-6" : "w-[18px] h-[18px] text-vibrant-blue"} strokeWidth={1.9} />
         {!compact && <span className="text-[13px] font-semibold whitespace-nowrap">Get the app</span>}
@@ -79,18 +78,16 @@ export function AppComingSoon({ compact = false }: { compact?: boolean }) {
         id={cardId}
         role="dialog"
         aria-label="Consult Your Doctor app"
-        className={`absolute ${compact ? "-right-[3.25rem]" : "right-0"} top-full pt-3 z-50 transition-all duration-200 ${
-          open ? "visible opacity-100 translate-y-0" : "invisible opacity-0 -translate-y-1 lg:group-hover:visible lg:group-hover:opacity-100 lg:group-hover:translate-y-0 lg:group-focus-within:visible lg:group-focus-within:opacity-100 lg:group-focus-within:translate-y-0"
-        }`}
+        className={`absolute ${compact ? "-right-[38px]" : "right-0"} top-full pt-3 z-50 transition-all duration-200 ${open ? "visible opacity-100 translate-y-0" : "invisible opacity-0 -translate-y-1 lg:group-hover:visible lg:group-hover:opacity-100 lg:group-hover:translate-y-0 lg:group-focus-within:visible lg:group-focus-within:opacity-100 lg:group-focus-within:translate-y-0"
+          }`}
       >
-        <div className="w-[min(20rem,calc(100vw-2.5rem))] rounded-2xl bg-surface-container-lowest border border-slate-200 shadow-[0_16px_40px_rgba(15,23,42,0.14)] p-5">
+        <div className="w-[min(20rem,calc(100vw-2.5rem))] max-h-[calc(100dvh-var(--header-h)-1.5rem)] overflow-y-auto rounded-2xl bg-surface-container-lowest border border-slate-200 shadow-[0_16px_40px_rgba(15,23,42,0.14)] p-5">
           <div className="flex items-center gap-3">
             <span className="w-12 h-12 rounded-2xl bg-surface-container-lowest ring-1 ring-slate-200 shadow-sm flex items-center justify-center shrink-0">
               <Logo className="w-8 h-8" />
             </span>
             <div className="min-w-0">
               <p className="font-bold text-on-surface leading-tight text-base">Consult Your Doctor</p>
-              <p className="text-xs font-semibold text-vibrant-blue mt-0.5">Coming soon to iPhone and Android</p>
             </div>
           </div>
           <p className="mt-3 text-[13px] leading-relaxed text-on-surface-variant">

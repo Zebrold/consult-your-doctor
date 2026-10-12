@@ -31,7 +31,7 @@ export function BookingDialog({ kind, onClose }: { kind: BookingKind; onClose: (
         >
           <X className="w-5 h-5" />
         </button>
-        <div className="max-h-[85vh] overflow-y-auto overscroll-contain rounded-t-2xl sm:rounded-2xl">
+        <div className="max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-2xl sm:rounded-2xl">
           <BookConsultationForm key={kind} defaultType={kind} />
         </div>
       </div>

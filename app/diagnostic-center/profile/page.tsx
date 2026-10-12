@@ -324,7 +324,7 @@ export default async function LabProfilePage() {
                 icon={Globe}
                 eyebrow="Online Booking"
                 title={prices.length ? `${formatINR(Math.min(...prices))}${Math.max(...prices) !== Math.min(...prices) ? ` – ${formatINR(Math.max(...prices))}` : ''} per test` : 'Price your tests to go live'}
-                sub={`Patients pay online plus a ${formatINR(DIAGNOSTIC_PLATFORM_FEE)} platform fee`}
+                sub="Patients book and pay online for your lab tests"
                 badge={<span className={`font-label-sm text-label-sm px-2.5 py-1 rounded-full font-semibold ${live ? 'text-secondary bg-secondary-fixed/50' : 'text-tertiary bg-error-container/60'}`}>{live ? 'Active' : 'Paused'}</span>}
               />
               <Channel

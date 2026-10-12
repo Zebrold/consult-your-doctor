@@ -45,25 +45,25 @@ export function TopBar({
   className?: string
 }) {
   return (
-    <header className={`sticky top-0 z-40 bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline-variant/30 shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-[env(safe-area-inset-top)] print:hidden ${className}`}>
+    <header className={`sticky top-0 z-40 bg-white border-b border-slate-200 pt-[env(safe-area-inset-top)] print:hidden ${className}`}>
       <div className={`h-16 mx-auto flex items-center justify-between gap-3 ${container}`}>
         <div className="flex items-center gap-1 min-w-0">
           {backHref && (
-            <Link href={backHref} aria-label="Back" className="md:hidden w-9 h-9 -ml-2 flex items-center justify-center rounded-full text-on-surface hover:bg-surface-container shrink-0">
+            <Link href={backHref} aria-label="Back" className="md:hidden w-10 h-10 -ml-2 flex items-center justify-center rounded-full text-on-surface hover:bg-surface-container shrink-0">
               <ArrowLeft className="w-5 h-5" />
             </Link>
           )}
-          <Link href={homeHref} className="flex items-center gap-3 min-w-0 group">
+          <Link href={homeHref} className="flex items-center gap-2.5 sm:gap-3 min-w-0 group">
             <Image
               src="/logo-icon.png"
               alt="Consult your Doctor"
               width={48}
               height={48}
-              className="w-10 h-10 sm:w-11 sm:h-11 object-contain shrink-0 transition-transform"
+              className="w-9 h-9 min-[360px]:w-10 min-[360px]:h-10 sm:w-11 sm:h-11 object-contain shrink-0 transition-transform"
               priority
             />
             <span className="flex items-center min-w-0">
-              <span className="font-title-md text-base sm:text-xl font-bold text-on-surface tracking-tight leading-tight truncate">Consult your Doctor</span>
+              <span className="font-title-md text-[15px] min-[360px]:text-base sm:text-xl font-bold text-on-surface tracking-tight leading-tight truncate">Consult your Doctor</span>
             </span>
           </Link>
         </div>
@@ -75,7 +75,7 @@ export function TopBar({
           ) : (
             <Link
               href={signInHref}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary font-label-sm text-label-sm font-bold shadow-sm transition-colors"
+              className="flex items-center gap-1.5 h-10 md:h-auto px-3.5 min-[360px]:px-4 md:py-2 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary font-label-sm text-label-sm font-bold shadow-sm transition-colors"
             >
               <LogIn className="w-4 h-4" /> Sign in
             </Link>

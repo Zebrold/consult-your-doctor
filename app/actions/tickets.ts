@@ -6,6 +6,7 @@ import { sendTicketConfirmationEmail, sendTicketReplyEmail, sendEmail, emailConf
 import { sendTicketUpdateSms } from '@/lib/notify/sms'
 import { notifyTicketWhatsApp } from '@/lib/notify/patient'
 import { revalidatePath } from 'next/cache'
+import { siteUrl } from '@/lib/site-url'
 
 export type TicketPriority = 'low' | 'medium' | 'high' | 'urgent'
 export type TicketStatus = 'open' | 'in_progress' | 'awaiting_response' | 'resolved' | 'closed'
@@ -43,7 +44,6 @@ export type TicketMessage = {
   createdAt: string
 }
 
-const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000').replace(/\/$/, '')
 
 /** The signed-in executive or super admin working the support queue; null for everyone else. */
 async function supportStaff() {
@@ -155,7 +155,7 @@ export async function createSupportTicket(input: {
       ticketCode,
       category,
       subject,
-      siteUrl: SITE_URL
+      siteUrl: siteUrl()
     }).catch((e) => console.error('Ticket confirmation email error:', e))
   }
 
@@ -313,7 +313,7 @@ export async function updateTicketStatus(
       executiveName: execName,
       message: resolutionNotes || `Ticket status has been updated to ${status.toUpperCase().replace(/_/g, ' ')}.`,
       status,
-      siteUrl: SITE_URL
+      siteUrl: siteUrl()
     }).catch(() => null)
   }
 
@@ -368,7 +368,7 @@ export async function replyToTicket(
       executiveName: execName,
       message: message.trim(),
       status: newStatus,
-      siteUrl: SITE_URL
+      siteUrl: siteUrl()
     }).catch(() => null)
   }
 

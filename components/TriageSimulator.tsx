@@ -176,7 +176,7 @@ export function TriageSimulator() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="redirection-title"
-            className="relative bg-surface-container-lowest max-w-md w-full rounded-2xl p-6 shadow-2xl flex flex-col gap-5"
+            className="relative bg-surface-container-lowest max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain rounded-2xl p-6 shadow-2xl flex flex-col gap-5"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">

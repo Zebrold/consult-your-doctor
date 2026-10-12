@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { CONSULTATION_PLATFORM_FEE } from '@/lib/pricing'
+import { readLocalFees } from '@/lib/platform-fees'
 import { vitalsSentence } from '@/lib/vitals'
 import { RECORD_MAX_BYTES, RECORD_TYPES, storeRecordFile } from '@/lib/records'
 import { issuePatientToken, readPatientToken } from '@/lib/desk-token'
@@ -127,6 +127,185 @@ export async function createHospitalVisit(input: { token: string; doctorId: stri
   return payment ? { ok: true, payment } : fail('The booking was made but its payment details couldn’t be loaded. Find it under Unpaid.')
 }
 
+/** Registers a patient directly at the hospital desk, creates their visit, and optionally logs initial vitals. */
+export async function registerHospitalPatient(formData: FormData): Promise<DeskResult<{
+  patientId: string
+  appointmentId: string
+  visitCode: string
+  patientName: string
+  doctorName: string
+  fee: number
+  payment: DeskPayment | null
+}>> {
+  const ctx = await hospitalContext()
+  if (!ctx) return fail(NOT_SIGNED_IN)
+
+  const fullName = String(formData.get('fullName') || '').trim().replace(/\s+/g, ' ')
+  const rawPhone = String(formData.get('phone') || '').trim()
+  const email = String(formData.get('email') || '').trim().toLowerCase()
+  const doctorId = String(formData.get('doctorId') || '').trim()
+  const scheduleId = String(formData.get('scheduleId') || 'now').trim()
+
+  if (fullName.length < 2) return fail('Please enter the patient’s full name.')
+  const phone = indianMobile(rawPhone)
+  if (!phone) return fail('Please enter a valid 10-digit Indian mobile number.')
+  if (email && !emailPattern.test(email)) return fail('Enter a valid email address or leave it blank.')
+  if (!doctorId) return fail('Please select an attending doctor.')
+
+  // 1. Resolve or create patient profile in Supabase
+  let patientId = ''
+  const { data: existingProfile } = await ctx.admin
+    .from('profiles')
+    .select('id, full_name, email, role')
+    .in('phone_number', [phone, phone.replace('+', '')])
+    .maybeSingle()
+
+  if (existingProfile) {
+    patientId = existingProfile.id
+    if (email && (!existingProfile.email || existingProfile.email.endsWith('.internal'))) {
+      await ctx.admin.from('profiles').update({ email }).eq('id', patientId)
+    }
+  } else {
+    const cleanPhone = phone.replace('+', '')
+    const authEmail = email || `${cleanPhone}@patient.internal`
+    let authUserId: string | null = null
+
+    const { data: usersData } = await ctx.admin.auth.admin.listUsers()
+    const found = usersData?.users?.find(
+      (u) => u.phone === cleanPhone || u.phone === phone || (email && u.email === email)
+    )
+
+    if (found) {
+      authUserId = found.id
+    } else {
+      const { data: created, error: createErr } = await ctx.admin.auth.admin.createUser({
+        phone,
+        email: authEmail,
+        phone_confirm: true,
+        email_confirm: true,
+        user_metadata: { role: 'patient', full_name: fullName },
+      })
+      if (createErr && !created?.user) {
+        console.error('registerHospitalPatient auth error:', createErr)
+      }
+      authUserId = created?.user?.id ?? null
+    }
+
+    patientId = authUserId || crypto.randomUUID()
+
+    const { error: insErr } = await ctx.admin.from('profiles').upsert({
+      id: patientId,
+      full_name: fullName,
+      phone_number: phone,
+      email: email || null,
+      role: 'patient',
+    })
+    if (insErr) {
+      console.error('registerHospitalPatient profile insert error:', insErr)
+      return fail('Could not create patient profile. Please try again.')
+    }
+  }
+
+  // 2. Verify doctor
+  const { data: doctor } = await ctx.admin
+    .from('doctors')
+    .select('id, hospital_id, consultation_fee, profiles!doctors_profile_id_fkey ( full_name )')
+    .eq('id', doctorId)
+    .maybeSingle()
+
+  if (!doctor || doctor.hospital_id !== ctx.hospital.id) return fail('Doctor not found in your hospital.')
+  const fee = Number(doctor.consultation_fee) || 0
+  if (!fee) return fail('Set this doctor’s consultation fee on the Roster first.')
+
+  // 3. Slot handling
+  let slotId = scheduleId
+  if (slotId === 'now') {
+    const start = new Date()
+    const { data: slot, error: slotErr } = await ctx.admin
+      .from('schedules')
+      .insert({
+        doctor_id: doctor.id,
+        start_time: start.toISOString(),
+        end_time: new Date(start.getTime() + 15 * 60_000).toISOString(),
+        is_booked: true,
+      })
+      .select('id')
+      .single()
+    if (slotErr || !slot) return fail('Could not create walk-in slot. Please try again.')
+    slotId = slot.id
+  } else {
+    const { data: claimed } = await ctx.admin
+      .from('schedules')
+      .update({ is_booked: true })
+      .eq('id', slotId)
+      .eq('doctor_id', doctor.id)
+      .eq('is_booked', false)
+      .select('id')
+    if (!claimed?.length) return fail('That appointment slot was just taken. Please choose another.')
+  }
+
+  // 4. Create appointment
+  const { data: visit, error: visitErr } = await ctx.admin
+    .from('appointments')
+    .insert({
+      patient_id: patientId,
+      doctor_id: doctor.id,
+      hospital_id: ctx.hospital.id,
+      schedule_id: slotId,
+      status: 'pending_payment',
+    })
+    .select('id')
+    .single()
+
+  if (visitErr || !visit) {
+    console.error('registerHospitalPatient appointment error:', visitErr)
+    await ctx.admin.from('schedules').update({ is_booked: false }).eq('id', slotId)
+    return fail('Could not book the appointment. Please try again.')
+  }
+
+  // 5. Save triage/vitals if provided
+  const bp = String(formData.get('bp') || '').trim()
+  const hr = String(formData.get('hr') || '').trim()
+  const temp = String(formData.get('temp') || '').trim()
+  const complaint = String(formData.get('complaint') || '').trim()
+
+  const triageParts = []
+  if (bp) triageParts.push(`BP: ${bp}`)
+  if (hr) triageParts.push(`Pulse: ${hr} bpm`)
+  if (temp) triageParts.push(`Temp: ${temp}°F`)
+  const triageNotes = [complaint, triageParts.join(', ')].filter(Boolean).join(' | ')
+
+  if (triageNotes) {
+    try {
+      await ctx.admin
+        .from('medical_records')
+        .insert({
+          appointment_id: visit.id,
+          document_type: 'health_record',
+          notes: `Front Desk Triage: ${triageNotes}`,
+          file_url: 'none',
+        })
+    } catch (e) {
+      console.error('Triage save error:', e)
+    }
+  }
+
+  revalidateVisitPages()
+  const payment = await paymentFor(ctx.admin, ctx.hospital.id, visit.id)
+  const docName = one(doctor.profiles)?.full_name ?? 'Doctor'
+
+  return {
+    ok: true,
+    patientId,
+    appointmentId: visit.id,
+    visitCode: visit.id.slice(0, 8).toUpperCase(),
+    patientName: fullName,
+    doctorName: docName,
+    fee,
+    payment,
+  }
+}
+
 type VisitRow = {
   id: string
   status: string
@@ -162,7 +341,11 @@ async function paymentFor(admin: Admin, hospitalId: string, appointmentId: strin
     status: visit.row.status,
     what: `Consultation${visit.doctor ? ` with ${one(visit.doctor.profiles)?.full_name ?? 'the doctor'}` : ''}`,
     patient: { name: visit.patient?.full_name || 'Patient', phone: visit.patient?.phone_number ?? null, email },
-    amounts: { desk: visit.fee, online: visit.fee + CONSULTATION_PLATFORM_FEE, platformFee: CONSULTATION_PLATFORM_FEE },
+    amounts: {
+      desk: visit.fee,
+      online: visit.fee + readLocalFees().consultation,
+      platformFee: readLocalFees().consultation,
+    },
     items: [{ label: 'Consultation fee', amount: visit.fee }],
     upi: await upiQr(visit.fee, code, `Consultation ${code}`),
     payuKey: process.env.PAYU_MERCHANT_KEY ?? null,

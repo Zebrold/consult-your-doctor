@@ -11,7 +11,7 @@ export default function AuthLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="relative isolate overflow-hidden min-h-[calc(100vh-5rem)] bg-white flex items-center justify-center p-4 sm:p-8 font-sans">
+    <div className="relative isolate overflow-hidden min-h-[calc(100dvh-var(--header-h))] bg-white flex items-center justify-center p-4 sm:p-8 font-sans">
       {children}
     </div>
   )

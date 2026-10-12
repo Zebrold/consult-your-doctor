@@ -14,7 +14,7 @@ export default async function HospitalLayout({ children }: { children: React.Rea
   const live = hospital.status === 'active'
 
   return (
-    <div className="min-h-screen bg-background text-on-surface antialiased">
+    <div className="min-h-screen bg-slate-50 text-on-surface antialiased">
       <TopBar
         homeHref="/hospital/dashboard"
         section="Hospital Portal"
@@ -26,10 +26,10 @@ export default async function HospitalLayout({ children }: { children: React.Rea
           </>
         }
       />
-      <main className="w-full max-w-[1440px] mx-auto px-4 lg:px-margin-x-desktop pt-4 md:pt-6 pb-28 md:pb-32 flex flex-col gap-4 md:gap-stack-md">
+      <PortalDock portal="hospital" />
+      <main className="w-full max-w-[1440px] mx-auto px-4 lg:px-margin-x-desktop pt-4 md:pt-6 pb-dock flex flex-col gap-4 md:gap-stack-md">
         {children}
       </main>
-      <PortalDock portal="hospital" />
     </div>
   )
 }

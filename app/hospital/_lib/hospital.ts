@@ -5,7 +5,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { one } from '@/components/patient/data'
 import { istDateKey } from '@/components/patient/format'
 import type { Tone } from '@/components/portal/ui'
-import { CONSULTATION_PLATFORM_FEE, testList } from '@/lib/pricing'
+import { testList } from '@/lib/pricing'
+import { readLocalFees } from '@/lib/platform-fees'
 
 type Admin = ReturnType<typeof createAdminClient>
 type Joined<T> = T | T[] | null
@@ -244,7 +245,7 @@ async function loadPayments(admin: Admin, ids: string[]): Promise<Map<string, Pa
 }
 
 /** What the hospital keeps from a payment: online payments include the platform fee, desk payments don't. */
-export const hospitalShare = (p: Payment) => (p.gateway === 'payu' ? Math.max(0, p.amount - CONSULTATION_PLATFORM_FEE) : p.amount)
+export const hospitalShare = (p: Payment) => (p.gateway === 'payu' ? Math.max(0, p.amount - (readLocalFees().consultation)) : p.amount)
 
 export const PAYMENT_METHOD: Record<string, string> = { payu: 'Online (PayU)', upi_qr: 'UPI scanner', cash: 'Cash at desk' }
 

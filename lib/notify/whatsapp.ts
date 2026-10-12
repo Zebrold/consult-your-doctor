@@ -4,6 +4,8 @@
  * account credentials, health updates, and OTPs via Fast2SMS WhatsApp Business API and Meta Cloud API.
  */
 
+import { siteUrl } from '@/lib/site-url'
+
 const FAST2SMS_BASE = 'https://www.fast2sms.com'
 const META_BASE = `https://graph.facebook.com/${process.env.WHATSAPP_API_VERSION || 'v21.0'}`
 
@@ -40,12 +42,12 @@ function formatTemplateText(template: WhatsAppTemplate): { text: string; caption
     }
     case 'cyd_booking_confirmed': {
       const [name, what, where, bookingId, amount] = template.params
-      const text = `Hello ${name},\n\nYour booking for ${what} at ${where} is confirmed!\n\n📋 Booking ID: ${bookingId}\n💳 Amount Paid: ${amount}\n\nYour appointment confirmation slip PDF is attached.\n\nView details: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.consultyourdoctor.de'}/patient/appointments\n\nThank you for choosing Consult Your Doctor.`
+      const text = `Hello ${name},\n\nYour booking for ${what} at ${where} is confirmed!\n\n📋 Booking ID: ${bookingId}\n💳 Amount Paid: ${amount}\n\nYour appointment confirmation slip PDF is attached.\n\nView details: ${siteUrl()}/patient/appointments\n\nThank you for choosing Consult Your Doctor.`
       return { text, caption: text }
     }
     case 'cyd_health_update': {
       const [name, hospital] = template.params
-      const text = `Hello ${name},\n\n${hospital} added your health details from today's visit to your Consult Your Doctor account. Your doctor can see them too.\n\nView your records: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.consultyourdoctor.de'}/patient/profile`
+      const text = `Hello ${name},\n\n${hospital} added your health details from today's visit to your Consult Your Doctor account. Your doctor can see them too.\n\nView your records: ${siteUrl()}/patient/profile`
       return { text }
     }
     case 'cyd_account_created': {
@@ -55,7 +57,7 @@ function formatTemplateText(template: WhatsAppTemplate): { text: string; caption
     }
     case 'cyd_ticket_update': {
       const [name, ticketCode, status] = template.params
-      const text = `Hello ${name},\n\nYour support ticket ${ticketCode} status has been updated to ${status.toUpperCase().replace(/_/g, ' ')}.\n\nView tickets: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.consultyourdoctor.de'}/patient/support`
+      const text = `Hello ${name},\n\nYour support ticket ${ticketCode} status has been updated to ${status.toUpperCase().replace(/_/g, ' ')}.\n\nView tickets: ${siteUrl()}/patient/support`
       return { text }
     }
     case 'cyd_otp': {

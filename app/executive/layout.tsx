@@ -13,7 +13,7 @@ export default async function ExecutiveLayout({ children }: { children: React.Re
   const { profile } = await requireExecutive()
 
   return (
-    <div className="min-h-screen bg-background font-body-md text-on-surface">
+    <div className="min-h-screen bg-slate-50 font-body-md text-on-surface">
       <TopBar
         homeHref="/executive/dashboard"
         section="Executive Operations"
@@ -21,12 +21,12 @@ export default async function ExecutiveLayout({ children }: { children: React.Re
         chips={profile.hospitalName && <TopBarChip icon={MapPin}>{profile.hospitalName}</TopBarChip>}
         container="max-w-[1560px] px-margin-x-mobile lg:px-margin-x-desktop"
       />
+      <ExecutiveDock />
 
-      <main className="max-w-[1560px] mx-auto px-margin-x-mobile lg:px-margin-x-desktop pt-6 pb-32 flex flex-col gap-stack-lg">
+      <main className="max-w-[1560px] mx-auto px-margin-x-mobile lg:px-margin-x-desktop pt-4 md:pt-6 pb-dock flex flex-col gap-6 md:gap-stack-lg">
         {children}
       </main>
 
-      <ExecutiveDock />
     </div>
   )
 }

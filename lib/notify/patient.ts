@@ -1,4 +1,5 @@
 import { after } from 'next/server'
+import { siteUrl } from '@/lib/site-url'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { RECORD_BUCKET } from '@/lib/records'
 import { sendEmail, buildAppointmentEmailHtml } from './email'
@@ -10,7 +11,7 @@ import { sendBookingConfirmationSms, sendReportReadySms, sendAccountCreatedSms }
 
 type Admin = ReturnType<typeof createAdminClient>
 
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://www.consultyourdoctor.de').replace(/\/$/, '')
+export const SITE_URL = siteUrl()
 
 // Generated placeholder addresses are not real inboxes.
 const realEmail = (email: string | null | undefined) => (email && email.includes('@') && !email.endsWith('.internal') ? email : null)
@@ -197,7 +198,7 @@ export function notifyBookingConfirmed(args: BookingConfirmationArgs) {
         tokenNumber,
         bookingId: args.bookingId.toUpperCase(),
         amount: args.amount,
-        siteUrl: 'https://www.consultyourdoctor.de',
+        siteUrl: SITE_URL,
         pdfFilename: filename,
       })
 

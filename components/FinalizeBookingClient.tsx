@@ -130,7 +130,7 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey }: 
     <div className="bg-background text-on-surface antialiased min-h-screen">
       <PatientNavHeader isSignedIn={!!patient} name={patient?.name} email={patient?.email} backHref="/find" container="max-w-[1280px] px-margin-x-mobile lg:px-margin-x-desktop" />
 
-      <main className="relative w-full overflow-hidden pb-28 md:pb-32 md:pt-8">
+      <main className="relative w-full overflow-hidden pb-dock md:pt-8">
         <div className="relative max-w-[1280px] mx-auto px-margin-x-mobile lg:px-margin-x-desktop pt-2 md:py-8">
           {/* Breadcrumb & heading */}
           <div className="hidden md:flex flex-col md:flex-row md:items-center justify-between gap-4 pb-8">

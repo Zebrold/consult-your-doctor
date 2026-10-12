@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { siteUrl as publicSiteUrl } from '@/lib/site-url'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { randomInt } from 'node:crypto'
 import { sendDoctorRegistrationReceivedEmail, sendDoctorActivationEmail } from '@/lib/notify/email'
@@ -228,7 +229,7 @@ export async function approveDoctor(requestId: string) {
   await adminClient.from('doctor_signup_requests').update({ status: 'approved' }).eq('id', requestId)
 
   // Generate secure activation / password-setup link
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000').replace(/\/$/, '')
+  const siteUrl = publicSiteUrl()
   let activationLink = `${siteUrl}/login/doctor`
 
   try {

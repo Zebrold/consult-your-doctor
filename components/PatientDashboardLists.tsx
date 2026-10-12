@@ -269,7 +269,7 @@ export function ConsultationsList({ appointments, reviews = {} }: { appointments
       {selectedApt && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-indigo-gray-900/60 backdrop-blur-sm transition-opacity" onClick={() => setSelectedApt(null)} />
-          <div className="relative w-full max-w-md bg-surface-container-lowest rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200 border border-outline-variant/30">
+          <div className="relative w-full max-w-md bg-surface-container-lowest rounded-2xl shadow-2xl flex flex-col max-h-[90dvh] animate-in fade-in zoom-in-95 duration-200 border border-outline-variant/30">
             <div className="flex items-center justify-between p-6 border-b border-outline-variant/30">
               <h2 className="font-title-lg text-title-lg text-indigo-gray-900 font-bold flex items-center gap-2">
                 <UserCircle className="w-5 h-5 text-primary" />
@@ -413,7 +413,7 @@ export function DiagnosticBookingsList({ diagnosticBookings }: { diagnosticBooki
       {selectedBooking && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-indigo-gray-900/60 backdrop-blur-sm transition-opacity" onClick={() => setSelectedBooking(null)} />
-          <div className="relative w-full max-w-md bg-surface-container-lowest rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-md bg-surface-container-lowest rounded-2xl shadow-2xl flex flex-col max-h-[90dvh] animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-6 border-b border-outline-variant/30">
               <h2 className="font-title-lg text-title-lg text-indigo-gray-900 font-bold flex items-center gap-2">
                 <Droplet className="w-5 h-5 text-primary" />
@@ -528,7 +528,7 @@ export function RecordsAndMedicationsList({ prescriptions }: { prescriptions: an
       {selectedRecord && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-indigo-gray-900/60 backdrop-blur-sm transition-opacity" onClick={() => setSelectedRecord(null)} />
-          <div className="relative w-full max-w-md bg-surface-container-lowest rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-md bg-surface-container-lowest rounded-2xl shadow-2xl flex flex-col max-h-[90dvh] animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-6 border-b border-outline-variant/30">
               <h2 className="font-title-lg text-title-lg text-indigo-gray-900 font-bold flex items-center gap-2">
                 <FileText className="w-5 h-5 text-primary" />

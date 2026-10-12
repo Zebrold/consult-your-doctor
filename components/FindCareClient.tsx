@@ -170,7 +170,7 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
     <div className="bg-background text-on-surface antialiased min-h-screen">
       <PatientNavHeader isSignedIn={account.isSignedIn} name={account.name} email={account.email} container="max-w-[1536px] px-margin-x-mobile lg:px-margin-x-desktop" />
 
-      <main className="w-full pb-28 md:pb-32">
+      <main className="w-full pb-dock">
         {/* Search & filters */}
         <section className="w-full md:bg-surface-container-low/70 md:backdrop-blur-md px-margin-x-mobile lg:px-margin-x-desktop pt-1 pb-4 md:py-8">
           <div className="max-w-[1536px] mx-auto flex flex-col gap-3 md:gap-6">

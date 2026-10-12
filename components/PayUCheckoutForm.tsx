@@ -59,6 +59,13 @@ export function PayUCheckoutForm({
       if (amountInput) {
         amountInput.value = data.amount
       }
+      // PayU sends the patient back to the site they are on now. A build-time setting such as NEXT_PUBLIC_BASE_URL
+      // could still say localhost, which is how payments ended up returning to http://localhost:3000.
+      const callback = `${window.location.origin}/api/payu/callback`
+      for (const id of ['payu_surl', 'payu_furl']) {
+        const input = document.getElementById(id) as HTMLInputElement | null
+        if (input) input.value = callback
+      }
 
       // 3. Submit form to PayU
       if (formRef.current) {
@@ -102,8 +109,8 @@ export function PayUCheckoutForm({
         <input type="hidden" name="firstname" value={firstname} />
         <input type="hidden" name="phone" value={phone || '9999999999'} />
         
-        <input type="hidden" name="surl" value={`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/payu/callback`} />
-        <input type="hidden" name="furl" value={`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/payu/callback`} />
+        <input type="hidden" name="surl" id="payu_surl" defaultValue="" />
+        <input type="hidden" name="furl" id="payu_furl" defaultValue="" />
         
         {/* We will populate this programmatically */}
         <input type="hidden" name="hash" id="payu_hash" value="" />

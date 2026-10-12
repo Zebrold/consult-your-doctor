@@ -4,7 +4,6 @@ import { CircleDollarSign, Clock, CreditCard, FlaskConical, IndianRupee, Wallet 
 import { currentTime } from '@/components/patient/data'
 import { doctorName, formatINR, istDateKey } from '@/components/patient/format'
 import { Avatar, Card, CardHeader, Chip, EmptyState, StatCard } from '@/components/portal/ui'
-import { CONSULTATION_PLATFORM_FEE } from '@/lib/pricing'
 import { dayOf, hospitalShare, isPaidVisit, loadHospitalDoctors, loadHospitalVisits, requireHospital } from '../_lib/hospital'
 import { FinanceLedger, type LedgerRow } from '../_components/FinanceLedger'
 
@@ -143,7 +142,7 @@ export default async function HospitalFinancePage() {
                   <div className="bg-fresh-teal h-full" style={{ width: `${100 - onlinePct}%` }} />
                 </div>
                 {[
-                  { label: 'Online (PayU)', sub: `Your fee; patients also pay ₹${CONSULTATION_PLATFORM_FEE} platform fee`, value: sum(online), count: online.length, dot: 'bg-vibrant-blue' },
+                  { label: 'Online (PayU)', sub: 'Paid online by patients for consultations', value: sum(online), count: online.length, dot: 'bg-vibrant-blue' },
                   { label: 'Cash at desk', sub: 'Recorded by your front desk', value: sum(desk), count: desk.length, dot: 'bg-fresh-teal' },
                 ].map((m) => (
                   <div key={m.label} className="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low/60">

@@ -1,8 +1,9 @@
 'use client'
 
-import { Fragment } from 'react'
+import { Fragment, useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import type { LucideIcon } from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import { LayoutGrid, X, type LucideIcon } from 'lucide-react'
 import { initials } from '@/components/patient/format'
 
 export type PillTab = {
@@ -21,8 +22,9 @@ export type PillTab = {
 }
 
 /**
- * The navigation bar every section uses, floating at the bottom of the screen. Phones get an icon-only glass pill
- * where the active tab sits in a soft capsule; larger screens get the labelled pill with the active tab filled blue.
+ * The navigation bar every section uses, floating at the bottom of the screen. Phones get a glass tab bar with
+ * labelled icons, the active one in a soft capsule (sections with more than five tabs show four and a More sheet);
+ * larger screens get the labelled pill with the active tab filled blue.
  */
 export function PillNav({ tabs, label }: { tabs: PillTab[]; label: string }) {
   return (
@@ -33,35 +35,134 @@ export function PillNav({ tabs, label }: { tabs: PillTab[]; label: string }) {
   )
 }
 
+/** Most tabs a phone bar shows; past this, the rest move into the More sheet. */
+const PHONE_MAX = 5
+
 function PhoneBar({ tabs, label }: { tabs: PillTab[]; label: string }) {
+  const pathname = usePathname()
+  // The sheet belongs to the page it was opened on, so it closes by itself once a tab navigates away.
+  const [sheetPath, setSheetPath] = useState<string | null>(null)
+  const sheetOpen = sheetPath === pathname
+  const closeSheet = () => setSheetPath(null)
+
+  const overflow = tabs.length > PHONE_MAX
+  const shown = overflow ? tabs.slice(0, PHONE_MAX - 1) : tabs
+  const more = overflow ? tabs.slice(PHONE_MAX - 1) : []
+  const moreActive = more.some((t) => t.active)
+
+  useEffect(() => {
+    if (!sheetOpen) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setSheetPath(null)
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = previous
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [sheetOpen])
+
   return (
-    <nav
-      aria-label={label}
-      className="md:hidden fixed z-50 inset-x-4 bottom-4 mb-[env(safe-area-inset-bottom)] rounded-full bg-surface-container-lowest/80 backdrop-blur-2xl backdrop-saturate-150 border border-outline-variant/30 shadow-[0_12px_40px_rgba(15,23,42,0.16),inset_0_1px_0_rgba(255,255,255,0.8)] print:hidden"
-    >
-      <div className="flex items-center p-1.5">
-        {tabs.map((t) => (
-          <Link
-            key={`${t.href}-${t.label}`}
-            href={t.href}
-            aria-current={t.active ? 'page' : undefined}
-            aria-label={t.wide ?? t.label}
-            className={`relative flex-1 min-w-0 h-12 flex items-center justify-center rounded-full transition-colors duration-200 ${
-              t.active ? 'bg-primary/10 text-primary' : 'text-on-surface-variant active:bg-on-surface/5'
+    <>
+      <nav
+        aria-label={label}
+        className="md:hidden fixed z-50 inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] rounded-[28px] bg-surface-container-lowest/85 backdrop-blur-2xl backdrop-saturate-150 border border-outline-variant/30 shadow-[0_12px_40px_rgba(15,23,42,0.16),inset_0_1px_0_rgba(255,255,255,0.8)] print:hidden"
+      >
+        <div className="flex items-stretch p-1.5">
+          {shown.map((t) => (
+            <Link
+              key={`${t.href}-${t.label}`}
+              href={t.href}
+              aria-current={t.active ? 'page' : undefined}
+              className={`group flex-1 min-w-0 h-14 flex flex-col items-center justify-center gap-0.5 rounded-[22px] transition-colors duration-200 active:bg-on-surface/5 ${
+                t.active ? 'text-primary' : 'text-on-surface-variant'
+              }`}
+            >
+              <TabIcon tab={t} />
+              <TabLabel active={t.active}>{t.label}</TabLabel>
+            </Link>
+          ))}
+          {overflow && (
+            <button
+              type="button"
+              onClick={() => (sheetOpen ? closeSheet() : setSheetPath(pathname))}
+              aria-expanded={sheetOpen}
+              aria-haspopup="dialog"
+              className={`flex-1 min-w-0 h-14 flex flex-col items-center justify-center gap-0.5 rounded-[22px] transition-colors duration-200 active:bg-on-surface/5 ${
+                moreActive || sheetOpen ? 'text-primary' : 'text-on-surface-variant'
+              }`}
+            >
+              <span className={`flex items-center justify-center h-7 w-12 rounded-full transition-colors ${moreActive || sheetOpen ? 'bg-primary/10' : ''}`}>
+                {sheetOpen ? <X className="w-[22px] h-[22px]" strokeWidth={2.2} /> : <LayoutGrid className="w-[22px] h-[22px]" strokeWidth={moreActive ? 2.3 : 1.9} />}
+              </span>
+              <TabLabel active={moreActive || sheetOpen}>More</TabLabel>
+            </button>
+          )}
+        </div>
+      </nav>
+
+      {overflow && (
+        <div
+          className={`md:hidden fixed inset-0 z-[45] transition-[opacity,visibility] duration-200 print:hidden ${
+            sheetOpen ? 'visible opacity-100' : 'invisible opacity-0 pointer-events-none'
+          }`}
+        >
+          <button type="button" tabIndex={-1} aria-label="Close" onClick={closeSheet} className="absolute inset-0 w-full h-full bg-slate-900/30" />
+          <div
+            role="dialog"
+            aria-label="More sections"
+            className={`absolute inset-x-0 bottom-0 rounded-t-[28px] bg-surface-container-lowest shadow-[0_-12px_40px_rgba(15,23,42,0.16)] px-4 pt-2.5 pb-[calc(6.5rem+max(0.75rem,env(safe-area-inset-bottom)))] transition-transform duration-300 ease-out ${
+              sheetOpen ? 'translate-y-0' : 'translate-y-full'
             }`}
           >
-            {t.profile && t.avatar ? (
-              <Avatar avatar={t.avatar} icon={t.icon} className={`w-[30px] h-[30px] text-[11px] ${t.active ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface-container-lowest' : ''}`} />
-            ) : (
-              <span className="relative">
-                <t.icon className="w-[26px] h-[26px]" strokeWidth={t.active ? 2.4 : 1.9} />
-              </span>
-            )}
-          </Link>
-        ))}
-      </div>
-    </nav>
+            <span aria-hidden className="block mx-auto mb-3 h-1 w-10 rounded-full bg-outline-variant" />
+            <p className="px-1 pb-2 text-[12px] font-bold uppercase tracking-wider text-on-surface-variant">More</p>
+            <div className="grid grid-cols-3 gap-2">
+              {more.map((t) => (
+                <Link
+                  key={`${t.href}-${t.label}`}
+                  href={t.href}
+                  onClick={closeSheet}
+                  tabIndex={sheetOpen ? undefined : -1}
+                  aria-current={t.active ? 'page' : undefined}
+                  className={`flex flex-col items-center justify-center gap-2 min-h-[88px] px-2 py-3 rounded-2xl border text-center transition-colors active:scale-[0.98] ${
+                    t.active ? 'bg-primary/10 border-primary/20 text-primary' : 'bg-surface-container-low border-outline-variant/40 text-on-surface'
+                  }`}
+                >
+                  {t.profile && t.avatar ? (
+                    <Avatar avatar={t.avatar} icon={t.icon} className="w-7 h-7 text-[10px]" />
+                  ) : (
+                    <t.icon className={`w-6 h-6 ${t.ai && !t.active ? 'text-vibrant-blue' : ''}`} strokeWidth={t.active ? 2.2 : 1.9} />
+                  )}
+                  <span className="text-[12.5px] font-semibold leading-tight">{t.wide ?? t.label}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
+}
+
+/** A phone tab's icon; the active one sits in a soft capsule. */
+function TabIcon({ tab: t }: { tab: PillTab }) {
+  if (t.profile && t.avatar) {
+    return (
+      <span className="flex items-center justify-center h-7 w-12">
+        <Avatar avatar={t.avatar} icon={t.icon} className={`w-6 h-6 text-[9px] ${t.active ? 'ring-2 ring-primary ring-offset-1 ring-offset-surface-container-lowest' : ''}`} />
+      </span>
+    )
+  }
+  return (
+    <span className={`flex items-center justify-center h-7 w-12 rounded-full transition-colors ${t.active ? 'bg-primary/10' : ''}`}>
+      <t.icon className={`w-[22px] h-[22px] ${t.ai && !t.active ? 'text-vibrant-blue' : ''}`} strokeWidth={t.active ? 2.3 : 1.9} />
+    </span>
+  )
+}
+
+function TabLabel({ active, children }: { active: boolean; children: ReactNode }) {
+  return <span className={`max-w-full truncate px-0.5 text-[10.5px] min-[360px]:text-[11px] leading-none ${active ? 'font-bold' : 'font-medium'}`}>{children}</span>
 }
 
 function WideBar({ tabs, label }: { tabs: PillTab[]; label: string }) {

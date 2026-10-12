@@ -85,7 +85,7 @@ export function ManageHospitalCredentialsModal({ hospitalId, hospitalName, isOpe
 
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative">
+          <div className="bg-white rounded-3xl w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain shadow-2xl relative">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
                 <ShieldCheck className="w-6 h-6 text-indigo-600" />

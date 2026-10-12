@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Manrope } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/Header";
@@ -50,6 +50,15 @@ export const metadata: Metadata = {
   },
 };
 
+// `cover` lets the page reach under the notch and home indicator; the header, the navigation pill and the assistant
+// pad themselves with env(safe-area-inset-*), which only reports real values with it. Pinch-zoom stays allowed.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#ffffff",
+};
+
 import { getCurrentUser } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { ROLE_COOKIE, readRoleCookie } from "@/lib/role-cookie";
@@ -68,6 +77,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
+      data-scroll-behavior="smooth"
       className={`${inter.variable} ${manrope.variable} h-full antialiased scroll-smooth light`}
     >
       <body

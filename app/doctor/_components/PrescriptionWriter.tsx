@@ -53,7 +53,7 @@ const loadDraft = (id: string): Draft | null => {
   }
 }
 
-const field = 'w-full rounded-lg bg-surface-container-low px-3 py-2.5 text-[14px] text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-vibrant-blue/30'
+const field = 'w-full rounded-lg bg-surface-container-low border border-slate-200/90 px-3 py-2.5 text-[14px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-vibrant-blue/30 focus:border-vibrant-blue'
 const istToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
 const addDays = (days: number) => new Date(Date.now() + days * 86_400_000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
 
@@ -322,7 +322,11 @@ export function PrescriptionWriter({ visit, onClose }: { visit: WriterVisit; onC
                         key={f.label}
                         type="button"
                         onClick={() => set('followUp', draft.followUp === date ? '' : date)}
-                        className={`px-3 py-1.5 rounded-full text-[12.5px] font-semibold border ${draft.followUp === date ? 'bg-vibrant-blue text-on-primary border-vibrant-blue' : 'bg-surface-container-lowest border-outline-variant/60 hover:border-vibrant-blue/50'}`}
+                        className={`px-3 py-1.5 rounded-full text-[12.5px] font-semibold border transition-all ${
+                          draft.followUp === date
+                            ? 'bg-vibrant-blue text-white border-vibrant-blue shadow-xs'
+                            : 'bg-white text-slate-800 border-slate-300 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50/40'
+                        }`}
                       >
                         After {f.label}
                       </button>
@@ -392,7 +396,11 @@ function Chips({ options, value, onToggle }: { options: string[]; value: string;
             type="button"
             aria-pressed={on}
             onClick={() => onToggle(o)}
-            className={`px-2.5 py-1 rounded-full text-[12px] font-semibold border transition-colors ${on ? 'bg-vibrant-blue text-on-primary border-vibrant-blue' : 'bg-surface-container-lowest text-on-surface border-outline-variant/60 hover:border-vibrant-blue/50'}`}
+            className={`px-2.5 py-1 rounded-full text-[12px] font-semibold border transition-all ${
+              on
+                ? 'bg-vibrant-blue text-white border-vibrant-blue shadow-xs'
+                : 'bg-white text-slate-800 border-slate-300 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50/40'
+            }`}
           >
             {o}
           </button>
@@ -478,7 +486,15 @@ function MedicineRow({ index, medicine: m, onChange, onCopy, onRemove }: { index
                 <option key={u}>{u}</option>
               ))}
             </select>
-            <button type="button" onClick={() => onChange({ duration: 'Continue' })} className={`px-3 rounded-lg text-[12px] font-semibold shrink-0 ${m.duration === 'Continue' ? 'bg-vibrant-blue text-on-primary' : 'bg-surface-container hover:bg-surface-container-high'}`}>
+            <button
+              type="button"
+              onClick={() => onChange({ duration: 'Continue' })}
+              className={`px-3 rounded-lg text-[12px] font-semibold shrink-0 transition-colors ${
+                m.duration === 'Continue'
+                  ? 'bg-vibrant-blue text-white shadow-xs'
+                  : 'bg-white text-slate-800 border border-slate-300 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
               Continue
             </button>
           </div>

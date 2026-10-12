@@ -62,7 +62,7 @@ export function EditDoctorModal({ doctor, hospitals }: EditDoctorModalProps) {
 
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden my-4 md:my-8 max-h-[90vh] flex flex-col">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden my-auto max-h-[90dvh] flex flex-col">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 sticky top-0 z-10">
               <h2 className="text-xl font-bold text-gray-900">Edit Doctor Profile</h2>
               <button 

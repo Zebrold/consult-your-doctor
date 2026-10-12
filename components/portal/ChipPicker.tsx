@@ -40,8 +40,10 @@ export function ChipPicker({ name, label, suggestions, initial, placeholder = 'A
               type="button"
               aria-pressed={on}
               onClick={() => toggle(v)}
-              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12.5px] font-semibold border transition-colors ${
-                on ? 'bg-vibrant-blue text-on-primary border-vibrant-blue' : 'bg-surface-container-lowest text-on-surface border-outline-variant/60 hover:border-vibrant-blue/50'
+              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12.5px] font-semibold border transition-all ${
+                on
+                  ? 'bg-vibrant-blue text-white border-vibrant-blue shadow-xs'
+                  : 'bg-white text-slate-800 border-slate-300 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50/40'
               }`}
             >
               {on ? <Check className="w-3.5 h-3.5" /> : null}

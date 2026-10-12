@@ -34,7 +34,7 @@ export default async function DiagnosticCenterLayout({ children }: { children: R
   }
 
   return (
-    <div className="min-h-screen bg-background text-on-surface antialiased">
+    <div className="min-h-screen bg-slate-50 text-on-surface antialiased">
       <TopBar
         homeHref="/diagnostic-center/dashboard"
         section="Diagnostic Center"
@@ -47,10 +47,10 @@ export default async function DiagnosticCenterLayout({ children }: { children: R
           </TopBarChip>
         }
       />
-      <main className="w-full max-w-[1440px] mx-auto px-4 lg:px-margin-x-desktop pt-4 md:pt-6 pb-28 md:pb-32 flex flex-col gap-4 md:gap-stack-md">
+      <PortalDock portal="lab" avatar={{ name: lab.name, image: lab.image }} />
+      <main className="w-full max-w-[1440px] mx-auto px-4 lg:px-margin-x-desktop pt-4 md:pt-6 pb-dock flex flex-col gap-4 md:gap-stack-md">
         {children}
       </main>
-      <PortalDock portal="lab" avatar={{ name: lab.name, image: lab.image }} />
     </div>
   )
 }

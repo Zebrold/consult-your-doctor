@@ -4,14 +4,18 @@ import { Header } from '@/components/Header'
 import { CheckCircle2, AlertCircle, IndianRupee, MapPin, Calendar, Activity, Building2 } from 'lucide-react'
 import Link from 'next/link'
 import { PayUCheckoutForm } from '@/components/PayUCheckoutForm'
-import { DIAGNOSTIC_PLATFORM_FEE, matchBookedTests, sumPrices } from '@/lib/pricing'
+import { matchBookedTests, sumPrices } from '@/lib/pricing'
+import { getPlatformFees } from '@/lib/platform-fees'
 
 export default async function DiagnosticCheckoutPage({ params }: { params: Promise<{ bookingId: string }> }) {
   const { bookingId } = await params
   const supabase = await createClient()
   
-  // Verify User
-  const user = await getCurrentUser()
+  // Verify User & load dynamic platform fees
+  const [user, fees] = await Promise.all([
+    getCurrentUser(),
+    getPlatformFees(),
+  ])
   if (!user) {
     redirect('/login/patient')
   }
@@ -59,7 +63,7 @@ export default async function DiagnosticCheckoutPage({ params }: { params: Promi
   // Price each booked test from the lab's price list (a booking can hold several tests)
   const bookedTests = matchBookedTests(booking.test_name, center.test_prices)
   const testPrice = bookedTests ? sumPrices(bookedTests) : 0
-  const platformFee = DIAGNOSTIC_PLATFORM_FEE
+  const platformFee = fees.diagnostic
   const totalPayable = testPrice + platformFee
 
   return (

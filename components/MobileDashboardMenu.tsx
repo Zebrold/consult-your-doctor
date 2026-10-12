@@ -1,23 +1,23 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Menu, X } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 
 export function MobileDashboardMenu({ children, footer }: { children: React.ReactNode, footer?: React.ReactNode }) {
-  const [isOpen, setIsOpen] = useState(false)
   const pathname = usePathname()
-
-  // Close the menu automatically when the route changes
-  useEffect(() => {
-    setIsOpen(false)
-  }, [pathname])
+  // The menu belongs to the page it was opened on, so it closes by itself when the route changes.
+  const [openPath, setOpenPath] = useState<string | null>(null)
+  const isOpen = openPath === pathname
+  const setIsOpen = (open: boolean) => setOpenPath(open ? pathname : null)
 
   return (
     <>
-      <button 
-        onClick={() => setIsOpen(true)} 
-        className="p-2 text-gray-600 hover:text-gray-900 transition-colors md:hidden cursor-pointer"
+      <button
+        onClick={() => setIsOpen(true)}
+        aria-label="Open menu"
+        aria-expanded={isOpen}
+        className="w-11 h-11 -mr-2 flex items-center justify-center rounded-full text-gray-600 hover:text-gray-900 active:bg-gray-100 transition-colors md:hidden cursor-pointer"
       >
         <Menu className="w-6 h-6" />
       </button>
@@ -33,13 +33,13 @@ export function MobileDashboardMenu({ children, footer }: { children: React.Reac
           onClick={() => setIsOpen(false)} 
         />
         <div 
-          className={`relative w-72 max-w-[80vw] bg-white h-full flex flex-col shadow-2xl transition-transform duration-300 ease-in-out ${
+          className={`relative w-72 max-w-[80vw] bg-white h-full flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-2xl transition-transform duration-300 ease-in-out ${
             isOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
           <div className="flex items-center justify-between p-4 border-b border-gray-100">
             <span className="font-bold text-gray-900">Menu</span>
-            <button onClick={() => setIsOpen(false)} className="p-2 text-gray-400 hover:text-gray-600 bg-gray-50 rounded-full cursor-pointer">
+            <button onClick={() => setIsOpen(false)} aria-label="Close menu" className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-600 bg-gray-50 rounded-full cursor-pointer">
               <X className="w-5 h-5" />
             </button>
           </div>

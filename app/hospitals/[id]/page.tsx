@@ -98,7 +98,7 @@ export default async function HospitalProfilePage(
       />
       <Header />
       
-      <main className="flex-1 py-8 md:py-12">
+      <main className="flex-1 pt-[calc(var(--header-h)+1.5rem)] md:pt-[calc(var(--header-h)+3rem)] pb-8 md:pb-12">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 md:px-8">
           
           {/* Breadcrumbs */}

@@ -4,17 +4,21 @@ import { Header } from '@/components/Header'
 import { CheckCircle2, AlertCircle, IndianRupee, MapPin, Calendar, Clock, User, Stethoscope, Building2 } from 'lucide-react'
 import Link from 'next/link'
 import { PayUCheckoutForm } from '@/components/PayUCheckoutForm'
-import { CONSULTATION_PLATFORM_FEE } from '@/lib/pricing'
+import { getPlatformFees } from '@/lib/platform-fees'
 
 export default async function CheckoutPage({ params }: { params: Promise<{ appointmentId: string }> }) {
   const { appointmentId } = await params
   const supabase = await createClient()
   
-  // Verify User
-  const user = await getCurrentUser()
+  // Verify User & load dynamic platform fees
+  const [user, fees] = await Promise.all([
+    getCurrentUser(),
+    getPlatformFees(),
+  ])
   if (!user) {
     redirect('/login/patient')
   }
+  const platformFee = fees.consultation
 
   // Fetch Appointment Details
   const { data: appointment, error } = await supabase
@@ -142,14 +146,14 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
                 </div>
                 <div className="flex justify-between items-center text-gray-600">
                   <span>Platform Fee</span>
-                  <span className="font-semibold text-gray-900">₹{CONSULTATION_PLATFORM_FEE}</span>
+                  <span className="font-semibold text-gray-900">₹{platformFee}</span>
                 </div>
                 
                 <div className="pt-6 mt-6 border-t border-dashed border-gray-200">
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-bold text-gray-900">Total Payable</span>
                     <span className="text-2xl font-black text-[#E31E24]">
-                      ₹{(Number(doctor.consultation_fee) + CONSULTATION_PLATFORM_FEE).toFixed(2)}
+                      ₹{(Number(doctor.consultation_fee) + platformFee).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -159,7 +163,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
               <div className="mt-8 space-y-3">
                 <PayUCheckoutForm 
                   txnid={appointmentId}
-                  amount={Number(doctor.consultation_fee) + CONSULTATION_PLATFORM_FEE}
+                  amount={Number(doctor.consultation_fee) + platformFee}
                   productinfo="Consultation"
                   firstname={user.user_metadata?.full_name || 'Patient'}
                   email={user.email || 'patient@example.com'}

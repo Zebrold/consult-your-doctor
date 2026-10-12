@@ -40,7 +40,7 @@ const PORTAL_ROLE: [string, string][] = [
 const isAiPage = (path: string) => /^\/(?:(?:doctor|diagnostic-center|hospital|executive)\/)?ai$/.test(path)
 
 // Pages with the navigation pill along the bottom: lift the button above it.
-const BAR_PREFIXES = ['/doctor', '/diagnostic-center', '/hospital', '/executive', '/patient', '/find', '/book']
+const BAR_PREFIXES = ['/doctor', '/doctors', '/diagnostic-center', '/hospital', '/executive', '/patient', '/find', '/book']
 
 /**
  * The help-center chat behind the Human AI button on every page, answered by Zebrold AI. Each panel (patient, doctor,
@@ -85,34 +85,33 @@ export function Support({ role, viewer }: { role: string | null; viewer: string 
     <>
       {!open && (
         <div
-          className={`fixed z-[70] right-3 sm:right-6 md:right-8 ${
-            lifted ? 'bottom-[calc(76px+env(safe-area-inset-bottom))] md:bottom-6' : 'bottom-4 md:bottom-6'
-          } flex items-center print:hidden select-none`}
+          className={`fixed z-[35] right-3 sm:right-6 md:right-8 ${
+            lifted ? 'bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+5.75rem)] md:bottom-24' : 'bottom-[max(1rem,env(safe-area-inset-bottom))] md:bottom-6'
+          } flex flex-col items-end print:hidden select-none pointer-events-none`}
         >
-          {/* Launcher: Thought bubble on left + Doctor character on right, parallel with bottom bar */}
+          {/* Launcher: Thought bubble stacked vertically above the Doctor character, never extending left into the dock */}
           <button
             type="button"
             onClick={() => setOpen(true)}
             aria-label="Doctor Assistant - How can I help you?"
-            className="flex items-center gap-2 sm:gap-2.5 p-0 bg-transparent border-0 outline-none cursor-pointer select-none transition-transform duration-200 active:scale-95 group focus-visible:outline-none shrink-0"
+            className="pointer-events-auto flex flex-col items-end gap-1 p-0 bg-transparent border-0 outline-none cursor-pointer select-none transition-transform duration-200 active:scale-95 group focus-visible:outline-none shrink-0"
           >
-            {/* Thinking text bubble */}
-            <div className="relative bg-white text-slate-800 text-xs sm:text-[13.5px] font-semibold px-3 py-1.5 sm:px-4 sm:py-2 rounded-2xl shadow-[0_4px_16px_rgba(15,23,42,0.05)] border border-slate-200/90 flex items-center gap-1.5 whitespace-nowrap transition-all duration-200 group-hover:shadow-[0_6px_20px_rgba(15,23,42,0.09)]">
+            {/* Thinking text bubble - sits neatly ABOVE the doctor, never sticking left into the profile tab. Phones show
+                just the doctor, so the button covers as little of the page as it can. */}
+            <div className="relative bg-white text-slate-800 text-xs sm:text-[12.5px] font-semibold px-3 py-1.5 rounded-2xl shadow-[0_4px_16px_rgba(15,23,42,0.08)] border border-slate-200/90 hidden sm:flex items-center gap-1.5 whitespace-nowrap mb-0.5 group-hover:shadow-[0_6px_20px_rgba(15,23,42,0.12)]">
               <span>How can I help you?</span>
-              {/* Thought bubble indicator circles pointing to doctor on the right */}
-              <span className="absolute -right-1.5 bottom-3 w-2 h-2 rounded-full bg-white border border-slate-200 shadow-xs" />
-              <span className="absolute -right-3 bottom-2 w-1.5 h-1.5 rounded-full bg-white border border-slate-200" />
+              {/* Bubble indicator pointing down to doctor */}
+              <span className="absolute right-4 -bottom-1 w-2 h-2 rounded-full bg-white border-r border-b border-slate-200" />
             </div>
 
             {/* Doctor avatar */}
-            {/* Optimised and resized by next/image: the source PNG is 230 KB and this shows on every page. */}
             <Image
               src="/images/ai-doctor.png"
               alt="Doctor Assistant"
               width={208}
               height={190}
-              sizes="(min-width: 768px) 104px, (min-width: 640px) 88px, 72px"
-              className="w-[72px] sm:w-[88px] md:w-[104px] h-auto object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.16)]"
+              sizes="(min-width: 768px) 84px, (min-width: 640px) 76px, 56px"
+              className="w-14 sm:w-[76px] md:w-[84px] h-auto object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.16)] group-hover:scale-105 transition-transform"
             />
           </button>
         </div>
@@ -122,7 +121,7 @@ export function Support({ role, viewer }: { role: string | null; viewer: string 
         <section
           role="dialog"
           aria-label="Doctor Assistant"
-          className="fixed z-[70] inset-0 md:inset-auto md:right-6 md:bottom-6 md:w-[400px] md:h-[min(640px,calc(100vh-48px))] bg-background md:rounded-2xl shadow-[0_16px_48px_rgba(15,23,42,0.09)] md:border md:border-outline-variant/40 flex flex-col overflow-hidden pb-[env(safe-area-inset-bottom)] print:hidden"
+          className="fixed z-[70] inset-0 md:inset-auto md:right-6 md:bottom-6 md:w-[400px] md:h-[min(640px,calc(100dvh-48px))] bg-background md:rounded-2xl shadow-[0_16px_48px_rgba(15,23,42,0.09)] md:border md:border-outline-variant/40 flex flex-col overflow-hidden pb-[env(safe-area-inset-bottom)] print:hidden"
         >
           <header className="bg-gradient-to-r from-primary via-[#0052cc] to-vibrant-blue text-on-primary px-4 py-3 flex items-center justify-between gap-3 shrink-0 shadow-sm">
             <div className="flex items-center gap-3 min-w-0">

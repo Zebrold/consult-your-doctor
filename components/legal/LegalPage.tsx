@@ -87,7 +87,7 @@ export function LegalPage({
     <div className="w-full bg-background min-h-screen">
       {/* Signed-in User Return Bar */}
       {user && roleInfo && (
-        <aside aria-label="Portal Navigation" className="sticky top-20 z-40 bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline-variant/40 shadow-xs print:hidden">
+        <aside aria-label="Portal Navigation" className="sticky top-(--header-h) z-40 bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline-variant/40 shadow-xs print:hidden">
           <div className="max-w-container-max mx-auto px-margin-x-mobile md:px-margin-x-desktop py-2.5 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-xs md:text-sm text-on-surface-variant">
               {RoleIcon && <RoleIcon className="w-4 h-4 text-vibrant-blue shrink-0" />}

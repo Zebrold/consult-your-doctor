@@ -49,7 +49,7 @@ export function EditProfileModal({
         className="absolute inset-0 bg-indigo-gray-900/60 backdrop-blur-sm transition-opacity" 
         onClick={onClose} 
       />
-      <div className="relative w-full max-w-2xl bg-surface-container-lowest rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-2xl bg-surface-container-lowest rounded-2xl shadow-2xl flex flex-col max-h-[90dvh] animate-in fade-in zoom-in-95 duration-200">
         
         <div className="flex items-center justify-between p-6 border-b border-outline-variant/30">
           <h2 className="font-title-lg text-title-lg text-indigo-gray-900 font-bold">Edit Profile</h2>

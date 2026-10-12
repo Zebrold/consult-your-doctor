@@ -86,7 +86,7 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
     <div className="bg-background text-on-surface antialiased min-h-screen">
       <PatientNavHeader name={name} email={email} isSignedIn={isSignedIn} container="max-w-[1296px] px-margin-x-mobile lg:px-margin-x-desktop" />
 
-      <main className="w-full pb-28 md:pb-32">
+      <main className="w-full pb-dock">
         {/* Hero, greeting & search */}
         <section className="relative w-full overflow-hidden bg-white px-margin-x-mobile lg:px-margin-x-desktop pt-2 md:pt-10 pb-10 md:pb-16">
           <div className="relative max-w-container-max mx-auto flex flex-col gap-stack-md md:gap-8">
@@ -182,7 +182,7 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
                     <span className="hidden md:inline">Explore Popular Specialties</span>
                   </h2>
                 </div>
-                <Link href="/find" className="group flex items-center gap-1.5 text-label-sm md:font-body-md md:text-body-md font-semibold text-primary md:text-vibrant-blue hover:text-primary shrink-0">
+                <Link href="/find" className="group flex items-center gap-1.5 py-2.5 -my-2.5 md:py-0 md:my-0 text-label-sm md:font-body-md md:text-body-md font-semibold text-primary md:text-vibrant-blue hover:text-primary shrink-0">
                   <span className="md:hidden">See All</span>
                   <span className="hidden md:inline">View All {specialties.length} {specialties.length === 1 ? "Specialty" : "Specialties"}</span>
                   <ArrowRight className="hidden md:block w-[18px] h-[18px] group-hover:translate-x-1 transition-transform" />
@@ -249,7 +249,7 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
                 </h2>
                 <p className="hidden md:block font-body-md text-body-md text-indigo-gray-600 mt-1">Verified doctors, sorted by their earliest open appointment slot.</p>
               </div>
-              <Link href="/find" className="md:hidden text-label-sm text-primary font-semibold">View All</Link>
+              <Link href="/find" className="md:hidden py-2.5 -my-2.5 md:py-0 md:my-0 text-label-sm text-primary font-semibold">View All</Link>
               {doctors.length > 4 && (
                 <div className="hidden md:flex items-center gap-2">
                   <CarouselButton label="Previous doctors" onClick={() => scrollDoctors(-1)}><ChevronLeft className="w-5 h-5" /></CarouselButton>
@@ -339,7 +339,7 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
                     <span className="hidden md:inline">Partner Hospitals &amp; Diagnostics</span>
                   </h2>
                 </div>
-                <Link href="/hospitals" className="text-label-sm md:font-body-md md:text-body-md font-semibold text-primary md:text-vibrant-blue hover:text-primary shrink-0">
+                <Link href="/hospitals" className="py-2.5 -my-2.5 md:py-0 md:my-0 text-label-sm md:font-body-md md:text-body-md font-semibold text-primary md:text-vibrant-blue hover:text-primary shrink-0">
                   <span className="md:hidden">Explore All</span>
                   <span className="hidden md:inline">View Hospital Directory</span>
                 </Link>
@@ -380,7 +380,7 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
                           <span className="text-label-sm font-semibold text-primary md:text-indigo-gray-900">
                             {f.kind === "lab" ? plural(f.count, "Test") : plural(f.count, "Doctor")}
                           </span>
-                          <Link href={facilityHref(f)} className="text-label-sm md:font-body-md md:text-body-md font-bold text-fresh-teal md:text-vibrant-blue hover:underline">
+                          <Link href={facilityHref(f)} className="py-2.5 -my-2.5 md:py-0 md:my-0 text-label-sm md:font-body-md md:text-body-md font-bold text-fresh-teal md:text-vibrant-blue hover:underline">
                             {f.kind === "lab" ? "Book a Test" : "Explore Hospital"}
                           </Link>
                         </div>
@@ -398,17 +398,17 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
         {/* Patient Portal Footer */}
         <footer className="w-full mt-16 pt-8 pb-12 border-t border-outline-variant/30 text-on-surface-variant font-body-md text-xs">
           <div className="max-w-[1440px] mx-auto px-margin-x-mobile lg:px-margin-x-desktop flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-6 gap-y-2">
-              <Link href="/terms-of-use" className="hover:text-vibrant-blue hover:underline">
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-6 gap-y-0 md:gap-y-2">
+              <Link href="/terms-of-use" className="py-2.5 md:py-0 hover:text-vibrant-blue hover:underline">
                 Terms &amp; Conditions
               </Link>
-              <Link href="/privacy-policy" className="hover:text-vibrant-blue hover:underline">
+              <Link href="/privacy-policy" className="py-2.5 md:py-0 hover:text-vibrant-blue hover:underline">
                 Privacy Policy
               </Link>
-              <Link href="/patient/support" className="hover:text-vibrant-blue hover:underline">
+              <Link href="/patient/support" className="py-2.5 md:py-0 hover:text-vibrant-blue hover:underline">
                 Help &amp; FAQs
               </Link>
-              <a href="tel:108" className="text-soft-coral font-bold hover:underline">
+              <a href="tel:108" className="py-2.5 md:py-0 text-soft-coral font-bold hover:underline">
                 Emergency: Call 108
               </a>
             </div>

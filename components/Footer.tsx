@@ -83,11 +83,11 @@ export function Footer() {
         </div>
       </div>
 
-      <div className="relative max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop pt-14 pb-8">
+      <div className="relative max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop pt-10 md:pt-14 pb-[calc(2rem+env(safe-area-inset-bottom))] md:pb-8">
         {/* Main 3-Column Section */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
+        <div className="grid grid-cols-2 lg:grid-cols-12 gap-x-6 gap-y-8 lg:gap-10 items-start">
           {/* Column 1: Brand & Badges */}
-          <div className="sm:col-span-2 lg:col-span-5 flex flex-col justify-between pr-0 lg:pr-6">
+          <div className="col-span-2 lg:col-span-5 flex flex-col justify-between pr-0 lg:pr-6">
             <div>
               {/* Logo */}
               <Link
@@ -126,7 +126,7 @@ export function Footer() {
                   alt="People love us on Trustpilot"
                   width={80}
                   height={86}
-                  className="h-[78px] w-auto object-contain select-none"
+                  className="h-16 md:h-[78px] w-auto object-contain select-none"
                 />
               </div>
               <div
@@ -139,7 +139,7 @@ export function Footer() {
                   alt="LegitScript Certified"
                   width={80}
                   height={86}
-                  className="h-[78px] w-auto object-contain select-none"
+                  className="h-16 md:h-[78px] w-auto object-contain select-none"
                 />
               </div>
             </div>
@@ -155,12 +155,12 @@ export function Footer() {
             <h3 className="font-bold text-white text-[16.5px] tracking-wide mb-4 flex items-center">
               Services
             </h3>
-            <ul className="flex flex-col space-y-2 text-[13.5px]">
+            <ul className="flex flex-col md:space-y-2 text-[14px] md:text-[13.5px]">
               {ourServices.map((service) => (
                 <li key={service.label}>
                   <Link
                     href={service.href}
-                    className="group inline-flex items-center gap-2 text-white/85 hover:text-white transition-colors focus-visible:outline-none focus-visible:underline"
+                    className="group inline-flex items-center gap-2 py-2 md:py-0 text-white/85 hover:text-white transition-colors focus-visible:outline-none focus-visible:underline"
                   >
                     <ChevronRight className="w-3.5 h-3.5 text-white/60 group-hover:text-white transition-colors shrink-0" />
                     <span>{service.label}</span>
@@ -180,21 +180,21 @@ export function Footer() {
             <h3 className="font-bold text-white text-[16.5px] tracking-wide mb-4 flex items-center">
               Company
             </h3>
-            <ul className="flex flex-col space-y-2 text-[13.5px]">
+            <ul className="flex flex-col md:space-y-2 text-[14px] md:text-[13.5px]">
               {companyLinks.map((item) => (
                 <li key={item.label}>
                   {item.logins ? (
                     <details className="group/logins">
-                      <summary className="group inline-flex items-center gap-2 text-white/85 hover:text-white transition-colors cursor-pointer list-none [&::-webkit-details-marker]:hidden focus-visible:outline-none focus-visible:underline">
+                      <summary className="group inline-flex items-center gap-2 py-2 md:py-0 text-white/85 hover:text-white transition-colors cursor-pointer list-none [&::-webkit-details-marker]:hidden focus-visible:outline-none focus-visible:underline">
                         <ChevronRight className="w-3.5 h-3.5 text-white/60 group-hover:text-white transition-transform shrink-0 group-open/logins:rotate-90" />
                         <span>{item.label}</span>
                       </summary>
-                      <ul className="mt-2 ml-[6px] pl-4 border-l border-white/25 flex flex-col space-y-2">
+                      <ul className="md:mt-2 ml-[6px] pl-4 border-l border-white/25 flex flex-col md:space-y-2">
                         {item.logins.map(({ label, href, icon: Icon }) => (
                           <li key={href}>
                             <Link
                               href={href}
-                              className="inline-flex items-center gap-2 text-white/80 hover:text-white transition-colors focus-visible:outline-none focus-visible:underline"
+                              className="inline-flex items-center gap-2 py-2 md:py-0 text-white/80 hover:text-white transition-colors focus-visible:outline-none focus-visible:underline"
                             >
                               <Icon className="w-3.5 h-3.5 text-white/70 shrink-0" />
                               <span>{label}</span>
@@ -206,7 +206,7 @@ export function Footer() {
                   ) : (
                     <Link
                       href={item.href}
-                      className="group inline-flex items-center gap-2 text-white/85 hover:text-white transition-colors focus-visible:outline-none focus-visible:underline"
+                      className="group inline-flex items-center gap-2 py-2 md:py-0 text-white/85 hover:text-white transition-colors focus-visible:outline-none focus-visible:underline"
                     >
                       <ChevronRight className="w-3.5 h-3.5 text-white/60 group-hover:text-white transition-colors shrink-0" />
                       <span>{item.label}</span>

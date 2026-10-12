@@ -1,4 +1,5 @@
 import nodemailer, { type Transporter } from 'nodemailer'
+import { CANONICAL_SITE_URL } from '@/lib/site-url'
 
 // Email to patients and staff.
 // Configure SMTP_HOST, SMTP_PORT, SMTP_USER and SMTP_PASS; MAIL_FROM overrides sender.
@@ -104,7 +105,7 @@ export type AppointmentEmailArgs = {
 
 /** Generates an executive, website-matching HTML email for appointment confirmations. */
 export function buildAppointmentEmailHtml(args: AppointmentEmailArgs): string {
-  const siteUrl = (args.siteUrl || 'https://www.consultyourdoctor.de').replace(/\/$/, '')
+  const siteUrl = (args.siteUrl || CANONICAL_SITE_URL).replace(/\/$/, '')
   const logoUrl = 'https://www.consultyourdoctor.de/logo-icon.png'
 
   return `<!doctype html>

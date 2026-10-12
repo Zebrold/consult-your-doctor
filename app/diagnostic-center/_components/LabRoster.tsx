@@ -498,7 +498,7 @@ function Inspector({ b, look, onClose }: { b: RosterBooking; look: Look; onClose
   return (
     <div className="fixed inset-0 z-[70] flex items-end md:items-stretch md:justify-end" role="dialog" aria-modal="true" aria-label={`${b.patientName}'s booking`}>
       <button type="button" aria-label="Close" className="absolute inset-0 bg-indigo-gray-900/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full md:max-w-md max-h-[90vh] md:max-h-none md:h-full overflow-y-auto bg-surface-container-lowest rounded-t-2xl md:rounded-none md:rounded-l-2xl shadow-2xl p-5 md:p-6 flex flex-col gap-5">
+      <div className="relative w-full md:max-w-md max-h-[90dvh] md:max-h-none md:h-full overflow-y-auto bg-surface-container-lowest rounded-t-2xl md:rounded-none md:rounded-l-2xl shadow-2xl p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] md:p-6 flex flex-col gap-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <span className="w-12 h-12 rounded-xl bg-primary-fixed flex items-center justify-center text-primary font-title-md text-[18px] font-bold shrink-0">{initialsOf(b.patientName)}</span>

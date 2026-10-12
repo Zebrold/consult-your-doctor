@@ -13,6 +13,7 @@ const PAID = ['confirmed', 'visited', 'completed', 'report_sent']
 const maskPhone = (phone: string | null | undefined, isOwner: boolean) =>
   !phone ? null : isOwner ? phone : `•••• ${phone.replace(/D/g, '').slice(-4)}`
 import { ConfirmationClient, type ConfirmationData } from './ConfirmationClient'
+import { siteUrl } from '@/lib/site-url'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -91,7 +92,7 @@ export default async function BookingConfirmationPage(props: Props) {
       .maybeSingle()
     const doctorFee = Number(doc?.consultation_fee) || 0
 
-    const verificationUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://consultyourdoctor.de'}/book/confirmation/${id}`
+    const verificationUrl = `${siteUrl()}/book/confirmation/${id}`
     const qrDataUrl = await QRCode.toDataURL(verificationUrl, { margin: 1, width: 240 })
 
     const confirmationData: ConfirmationData = {
@@ -162,7 +163,7 @@ export default async function BookingConfirmationPage(props: Props) {
         ? 'failed'
         : 'pending'
 
-    const verificationUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://consultyourdoctor.de'}/book/confirmation/${id}`
+    const verificationUrl = `${siteUrl()}/book/confirmation/${id}`
     const qrDataUrl = await QRCode.toDataURL(verificationUrl, { margin: 1, width: 240 })
 
     const confirmationData: ConfirmationData = {

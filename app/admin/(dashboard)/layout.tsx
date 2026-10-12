@@ -110,7 +110,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* Mobile/Top Header */}
-        <header className="h-16 bg-white border-b border-gray-200 flex md:hidden items-center justify-between px-4 sm:px-6 lg:px-8">
+        <header className="sticky top-0 z-30 h-[calc(4rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] bg-white border-b border-gray-200 flex md:hidden items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-6 h-6 text-[#E31E24]" />
             <span className="font-black text-gray-900">Admin</span>

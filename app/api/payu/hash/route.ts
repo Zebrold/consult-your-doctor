@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { CONSULTATION_PLATFORM_FEE, DIAGNOSTIC_PLATFORM_FEE, matchBookedTests, sumPrices } from '@/lib/pricing';
+import { matchBookedTests, sumPrices } from '@/lib/pricing';
+import { getPlatformFees } from '@/lib/platform-fees';
 
 type Priced = { amount: number; desk: boolean } | { error: string; status: number };
 
@@ -18,6 +19,8 @@ async function amountFor(txnid: string, productinfo: string): Promise<Priced> {
   const { data: staff } = await admin.from('profiles').select('role, hospital_id, diagnostic_center_id').eq('id', user.id).maybeSingle();
   if (staff?.role === 'hospital_admin' || staff?.role === 'diagnostic_admin') return deskAmount(admin, staff, txnid, productinfo);
 
+  const fees = await getPlatformFees();
+
   if (productinfo === 'Consultation') {
     const { data } = await supabase
       .from('appointments')
@@ -30,7 +33,7 @@ async function amountFor(txnid: string, productinfo: string): Promise<Priced> {
     const doctor = (Array.isArray(data.doctors) ? data.doctors[0] : data.doctors) as { consultation_fee: number | null } | null;
     const fee = Number(doctor?.consultation_fee);
     if (!fee) return { error: "This doctor's fee isn't set, so the booking can't be paid online.", status: 422 };
-    return { amount: fee + CONSULTATION_PLATFORM_FEE, desk: false };
+    return { amount: fee + fees.consultation, desk: false };
   }
 
   if (productinfo === 'Diagnostic') {
@@ -45,7 +48,7 @@ async function amountFor(txnid: string, productinfo: string): Promise<Priced> {
     const center = (Array.isArray(data.diagnostic_centers) ? data.diagnostic_centers[0] : data.diagnostic_centers) as { test_prices: Record<string, number> | null } | null;
     const tests = matchBookedTests(data.test_name || '', center?.test_prices);
     if (!tests) return { error: "We couldn't price this booking. Please contact support.", status: 422 };
-    return { amount: sumPrices(tests) + DIAGNOSTIC_PLATFORM_FEE, desk: false };
+    return { amount: sumPrices(tests) + fees.diagnostic, desk: false };
   }
 
   return { error: 'Unknown product.', status: 400 };
@@ -55,6 +58,8 @@ type Staff = { role: string; hospital_id: string | null; diagnostic_center_id: s
 
 /** The same prices, for a booking at the staff member's own hospital or centre. */
 async function deskAmount(admin: ReturnType<typeof createAdminClient>, staff: Staff, txnid: string, productinfo: string): Promise<Priced> {
+  const fees = await getPlatformFees();
+
   if (productinfo === 'Consultation' && staff.role === 'hospital_admin' && staff.hospital_id) {
     const { data } = await admin.from('appointments').select('status, hospital_id, doctors ( consultation_fee, hospital_id )').eq('id', txnid).maybeSingle();
     const doctor = (Array.isArray(data?.doctors) ? data.doctors[0] : data?.doctors) as { consultation_fee: number | null; hospital_id: string | null } | null;
@@ -62,7 +67,7 @@ async function deskAmount(admin: ReturnType<typeof createAdminClient>, staff: St
     if (data.status !== 'pending_payment') return { error: 'This appointment is already paid.', status: 409 };
     const fee = Number(doctor?.consultation_fee);
     if (!fee) return { error: "This doctor's fee isn't set.", status: 422 };
-    return { amount: fee + CONSULTATION_PLATFORM_FEE, desk: true };
+    return { amount: fee + fees.consultation, desk: true };
   }
   if (productinfo === 'Diagnostic' && staff.role === 'diagnostic_admin' && staff.diagnostic_center_id) {
     const { data } = await admin.from('diagnostic_bookings').select('status, center_id, test_name, diagnostic_centers ( test_prices )').eq('id', txnid).maybeSingle();
@@ -71,7 +76,7 @@ async function deskAmount(admin: ReturnType<typeof createAdminClient>, staff: St
     const center = (Array.isArray(data.diagnostic_centers) ? data.diagnostic_centers[0] : data.diagnostic_centers) as { test_prices: Record<string, number> | null } | null;
     const tests = matchBookedTests(data.test_name || '', center?.test_prices);
     if (!tests) return { error: "We couldn't price this booking.", status: 422 };
-    return { amount: sumPrices(tests) + DIAGNOSTIC_PLATFORM_FEE, desk: true };
+    return { amount: sumPrices(tests) + fees.diagnostic, desk: true };
   }
   return { error: 'You can only take payment for bookings at your own hospital or centre.', status: 403 };
 }

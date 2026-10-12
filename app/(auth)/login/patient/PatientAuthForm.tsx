@@ -256,11 +256,11 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
                   role="tab"
                   aria-selected={mode === id}
                   onClick={() => switchMode(id)}
-                  className={`w-1/2 py-2.5 rounded-full font-title-md text-[14px] leading-none font-semibold transition-all duration-200 flex items-center justify-center gap-1.5 ${
+                  className={`w-1/2 h-11 md:h-auto md:py-2.5 rounded-full font-title-md text-[14px] leading-none font-semibold whitespace-nowrap transition-all duration-200 flex items-center justify-center gap-1.5 ${
                     mode === id ? 'text-on-primary bg-vibrant-blue shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-4 h-4 hidden min-[360px]:block" />
                   {label}
                 </button>
               ))}
@@ -348,7 +348,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
                       aria-label="Country code"
                       value={countryCode}
                       onChange={(e) => setCountryCode(e.target.value)}
-                      className="appearance-none bg-surface-container-low hover:bg-surface-container text-on-surface font-title-md text-[13px] font-semibold py-3 pl-3 pr-8 rounded-xl outline-none cursor-pointer transition-colors focus:ring-2 focus:ring-vibrant-blue/40"
+                      className="appearance-none w-[6.75rem] sm:w-auto truncate bg-surface-container-low hover:bg-surface-container text-on-surface font-title-md text-[13px] font-semibold py-3 pl-3 pr-8 rounded-xl outline-none cursor-pointer transition-colors focus:ring-2 focus:ring-vibrant-blue/40"
                     >
                       {countryCodes.map((country) => (
                         <option key={country.code} value={country.dialCode}>
@@ -368,8 +368,8 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
                     maxLength={15}
                     value={phone}
                     onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Enter your mobile number"
-                    className={`${inputClass} px-4 flex-1 min-w-0`}
+                    placeholder="Your mobile number"
+                    className={`${inputClass} px-3.5 sm:px-4 flex-1 min-w-0`}
                   />
                 </div>
                 <p className="text-[12px] text-on-surface-variant/80 pl-1 mt-1.5 flex items-center gap-1.5 font-medium">

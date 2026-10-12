@@ -122,7 +122,7 @@ export function AddDoctorButton({
           />
 
           {/* Modal Container (Matches Image 5) */}
-          <div className="relative w-full max-w-3xl my-auto bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col max-h-[92vh]">
+          <div className="relative w-full max-w-3xl my-auto bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col max-h-[92dvh]">
             
             {/* Header */}
             <div className="p-6 sm:p-7 border-b border-gray-100 flex items-start justify-between gap-4 bg-white sticky top-0 z-10">
@@ -386,7 +386,7 @@ export function AddDoctorButton({
                           />
                         </div>
                         <span className="text-[10.5px] text-gray-400 mt-1 block">
-                          Patients may also pay a platform fee online.
+                          Per booked doctor consultation.
                         </span>
                       </div>
 
@@ -612,7 +612,7 @@ export function EditDoctorButton({
           />
 
           {/* Modal Card (Matches Image 3) */}
-          <div className="relative w-full max-w-4xl my-auto bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col max-h-[92vh]">
+          <div className="relative w-full max-w-4xl my-auto bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col max-h-[92dvh]">
             
             {/* Header */}
             <div className="p-6 sm:p-7 border-b border-gray-100 flex items-start justify-between gap-4 bg-white sticky top-0 z-10">

@@ -33,13 +33,13 @@ export default function QuickSearch() {
 
   return (
     <div className="w-full">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 md:mb-6">
         <h2 className="font-title-md text-xl font-bold text-indigo-gray-900">
           Find a doctor, hospital or lab
         </h2>
 
-        {/* Tabs */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Tabs: one swipeable row on phones */}
+        <div className="w-[calc(100%+2*var(--spacing-margin-x-mobile))] md:w-auto flex md:flex-wrap items-center gap-2 overflow-x-auto no-scrollbar -mx-margin-x-mobile px-margin-x-mobile md:mx-0 md:px-0 md:overflow-visible">
           {tabs.map((tab) => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id
@@ -49,7 +49,7 @@ export default function QuickSearch() {
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
                 aria-pressed={isActive}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-colors ${
+                className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 px-3.5 md:px-3 py-2 md:py-1.5 rounded-full text-[13px] md:text-xs transition-colors ${
                   isActive
                     ? 'bg-vibrant-blue text-white font-bold'
                     : 'bg-white border border-slate-200 text-slate-700 hover:text-primary font-semibold'
@@ -76,7 +76,7 @@ export default function QuickSearch() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder={currentTab.placeholder}
             aria-label={currentTab.label}
-            className="w-full pl-10 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 outline-none text-sm"
+            className="w-full pl-10 pr-4 py-3 md:py-2.5 bg-surface-container-lowest border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 outline-none text-sm"
           />
         </div>
         <div className="md:col-span-5 relative">
@@ -87,13 +87,13 @@ export default function QuickSearch() {
             onChange={(e) => setLocation(e.target.value)}
             placeholder="City, postcode or clinic..."
             aria-label="Location"
-            className="w-full pl-10 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 outline-none text-sm"
+            className="w-full pl-10 pr-4 py-3 md:py-2.5 bg-surface-container-lowest border border-outline-variant rounded-lg focus:border-vibrant-blue focus:ring-1 focus:ring-vibrant-blue/50 outline-none text-sm"
           />
         </div>
         <div className="md:col-span-2">
           <button
             type="submit"
-            className="w-full bg-vibrant-blue text-on-primary py-2.5 rounded-lg font-bold text-sm hover:bg-primary transition-colors flex items-center justify-center gap-1"
+            className="w-full bg-vibrant-blue text-on-primary py-3 md:py-2.5 rounded-lg font-bold text-[15px] md:text-sm hover:bg-primary transition-colors flex items-center justify-center gap-1"
           >
             Search <ArrowRight className="w-4 h-4" />
           </button>

@@ -37,7 +37,7 @@ export function AuthModal({ isOpen, onClose, initialType = 'login' }: AuthModalP
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-md bg-white p-8 rounded-xl shadow-lg border border-gray-100 transition-colors">
+      <div className="relative w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain bg-white p-6 sm:p-8 rounded-xl shadow-lg border border-gray-100 transition-colors">
         <button 
           onClick={onClose}
           className="absolute top-4 right-4 p-1 text-gray-400 hover:text-gray-900:text-white transition-colors rounded-full cursor-pointer"

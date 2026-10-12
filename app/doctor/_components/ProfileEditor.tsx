@@ -127,7 +127,7 @@ export function ProfileEditor({
       {open && (
         <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true" aria-label="Edit profile">
           <button type="button" aria-label="Close" className="absolute inset-0 bg-indigo-gray-900/50 backdrop-blur-sm" onClick={() => setOpen(false)} />
-          <form onSubmit={submit} className="relative w-full sm:max-w-3xl h-[94vh] sm:h-auto sm:max-h-[92vh] bg-surface-container-lowest rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+          <form onSubmit={submit} className="relative w-full sm:max-w-3xl h-[94dvh] sm:h-auto sm:max-h-[92dvh] bg-surface-container-lowest rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
             <div className="p-5 sm:p-6 pb-3 flex items-start justify-between gap-3 border-b border-surface-container">
               <div>
                 <h3 className="font-title-md text-title-md font-bold text-indigo-gray-900">Edit Public Profile</h3>
@@ -175,7 +175,7 @@ export function ProfileEditor({
                 <Field label="Years of experience">
                   <input name="experience_years" type="number" min={0} max={70} defaultValue={profile.experience ?? ''} className={input} />
                 </Field>
-                <Field label="Consultation fee (₹)" hint="Patients also pay a platform fee at checkout.">
+                <Field label="Consultation fee (₹)" hint="Fee per booked consultation visit.">
                   <input name="consultation_fee" type="number" min={0} step={1} required defaultValue={profile.fee ?? ''} className={input} />
                 </Field>
                 <Field label="Clinic address" className="sm:col-span-2">
@@ -263,7 +263,7 @@ export function ProfileEditor({
               {error && <p role="alert" className="p-3 rounded-lg bg-error-container text-on-error-container text-sm">{error}</p>}
             </div>
 
-            <div className="p-4 sm:px-6 border-t border-surface-container flex justify-end gap-2">
+            <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-4 sm:px-6 border-t border-surface-container flex justify-end gap-2">
               <button type="button" onClick={() => setOpen(false)} className="px-5 py-2.5 rounded-full text-sm font-semibold text-indigo-gray-600 hover:bg-surface-container">
                 Cancel
               </button>

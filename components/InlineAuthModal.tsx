@@ -62,7 +62,7 @@ export function InlineAuthModal({ isOpen, onClose, onSuccess }: InlineAuthModalP
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-      <div className="bg-surface-container-lowest rounded-2xl w-full max-w-md shadow-2xl overflow-hidden relative border border-surface-variant">
+      <div className="bg-surface-container-lowest rounded-2xl w-full max-w-md shadow-2xl max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain relative border border-surface-variant">
         <button 
           onClick={onClose}
           className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-10"

@@ -371,7 +371,7 @@ export function ExecutivePaymentsClient({ initialTransactions, stats }: Props) {
       {/* Detailed Transaction Modal & Traceable Correction Drawer */}
       {selectedTxn && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-indigo-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-surface-container-lowest max-w-xl w-full rounded-2xl p-6 shadow-2xl flex flex-col gap-5 border border-outline-variant/30 max-h-[90vh] overflow-y-auto">
+          <div className="bg-surface-container-lowest max-w-xl w-full rounded-2xl p-6 shadow-2xl flex flex-col gap-5 border border-outline-variant/30 max-h-[90dvh] overflow-y-auto">
             {/* Modal Header */}
             <div className="flex items-start justify-between border-b border-outline-variant/20 pb-4">
               <div>

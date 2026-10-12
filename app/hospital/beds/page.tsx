@@ -7,22 +7,23 @@ import { LiveRefresh } from '@/components/portal/LiveRefresh'
 import { loadHospitalBeds, loadRecentDischarges, stayDays, summarizeBeds, wardSummaries } from '@/lib/beds'
 import { loadHospitalDoctors, requireHospital } from '../_lib/hospital'
 import { AddBedsButton, BedBoard } from '../_components/BedBoard'
+import { BedSyncNotice } from '../_components/BedSyncNotice'
 
 export const metadata: Metadata = { title: 'Inpatient Beds | Hospital Portal' }
 export const dynamic = 'force-dynamic'
 
-const card = 'bg-surface-container-lowest rounded-2xl p-4 md:p-6 shadow-[0_4px_24px_rgba(15,23,42,0.04)] border border-surface-container md:border-transparent'
+const card = 'bg-white rounded-xl p-5 border border-slate-200/90 shadow-xs'
 
-function Counter({ icon: Icon, label, value, sub, tone }: { icon: LucideIcon; label: string; value: string; sub: string; tone: string }) {
+function Counter({ icon: Icon, label, value, sub }: { icon: LucideIcon; label: string; value: string; sub: string; tone?: string }) {
   return (
-    <div className="min-w-[150px] flex-1 p-4 rounded-xl bg-surface-container-lowest shadow-sm border border-surface-container md:border-transparent flex items-center justify-between gap-2">
+    <div className="min-w-[150px] flex-1 p-4 rounded-xl bg-white shadow-xs border border-slate-200/90 flex items-center justify-between gap-2">
       <div className="min-w-0">
-        <div className="font-label-sm text-[11px] md:text-label-sm text-indigo-gray-600 uppercase tracking-wider font-semibold">{label}</div>
-        <div className={`font-headline-lg text-[26px] md:text-headline-lg font-bold tracking-tight mt-0.5 ${tone}`}>{value}</div>
-        <div className="text-[11px] text-indigo-gray-600 truncate">{sub}</div>
+        <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">{label}</div>
+        <div className="text-2xl font-bold tracking-tight mt-0.5 text-slate-900 tabular-nums">{value}</div>
+        <div className="text-xs text-slate-500 truncate">{sub}</div>
       </div>
-      <span className="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center text-primary shrink-0">
-        <Icon className="w-5 h-5" />
+      <span className="w-9 h-9 rounded-lg bg-slate-100 border border-slate-200/60 flex items-center justify-center text-slate-600 shrink-0">
+        <Icon className="w-4 h-4" />
       </span>
     </div>
   )
@@ -50,19 +51,7 @@ export default async function HospitalBedsPage() {
         {beds.ready && <AddBedsButton wards={wards.map((w) => w.ward)} />}
       </section>
 
-      {!beds.persistedInDb && (
-        <div className="p-4 rounded-2xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-[13px] flex items-start gap-3 shadow-sm">
-          <CircleAlert className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-          <div className="min-w-0">
-            <h2 className="font-title-md text-[14.5px] font-bold text-amber-900 dark:text-amber-100 leading-tight">
-              Bed Allocation is Active (High-Availability Mode)
-            </h2>
-            <p className="text-[12.5px] text-amber-800 dark:text-amber-300/90 mt-1 leading-relaxed">
-              Your bed board is fully functional. To permanently synchronize bed allocations with Supabase PostgreSQL, ask your database admin to execute <code className="font-mono px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/60 font-semibold text-[11.5px]">supabase/migrations/20261009_beds_reviews_profiles.sql</code> in the Supabase SQL editor.
-            </p>
-          </div>
-        </div>
-      )}
+      {!beds.persistedInDb && <BedSyncNotice />}
 
       <>
           <section className="flex md:grid md:grid-cols-4 gap-2.5 md:gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">

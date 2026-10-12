@@ -252,12 +252,12 @@ export function DoctorProfileClient({
     <div className="bg-background font-body-md text-on-surface antialiased min-h-screen">
       {/* Mobile Sticky Header for Phone View */}
       {!isDoctorView && (
-        <header className="md:hidden sticky top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 h-14 px-4 flex items-center justify-between shadow-xs">
+        <header className="md:hidden sticky top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] px-3 flex items-center justify-between gap-2 shadow-xs">
           <div className="flex items-center gap-2.5 min-w-0">
             <Link
               href={findUrl}
               aria-label="Back to Doctor Directory"
-              className="w-9 h-9 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 active:scale-95 transition-all shrink-0"
+              className="w-10 h-10 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 active:scale-95 transition-all shrink-0"
             >
               <ArrowLeft className="w-5 h-5" />
             </Link>
@@ -272,14 +272,14 @@ export function DoctorProfileClient({
           </div>
           <Link
             href={bookUrl}
-            className="px-3.5 py-1.5 rounded-full bg-vibrant-blue hover:bg-primary text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 shrink-0"
+            className="h-10 px-4 rounded-full bg-vibrant-blue hover:bg-primary text-white text-[13px] font-bold shadow-xs active:scale-[0.97] transition-all flex items-center gap-1.5 shrink-0"
           >
             <Calendar className="w-3.5 h-3.5" />
             <span>Book</span>
           </Link>
         </header>
       )}
-      <main className="w-full bg-background pb-32">
+      <main className="w-full bg-background pb-dock">
         <div className="flex flex-col w-full">
           <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop py-stack-lg flex flex-col gap-stack-lg max-w-[1440px] mx-auto">
             {/* Top Navigation / Status Header */}

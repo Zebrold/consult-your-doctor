@@ -39,7 +39,7 @@ function ConditionalLayoutInner({
   }
 
   return (
-    <div className="min-h-screen flex flex-col pt-20">
+    <div className="min-h-dvh flex flex-col pt-(--header-h)">
       {header}
       <main className="flex-grow">{children}</main>
       {footer}
@@ -54,7 +54,7 @@ export function ConditionalLayout(props: {
   isPatientLoggedIn?: boolean;
 }) {
   return (
-    <Suspense fallback={<div className="min-h-screen flex flex-col pt-20">{props.header}<main className="flex-grow">{props.children}</main>{props.footer}</div>}>
+    <Suspense fallback={<div className="min-h-dvh flex flex-col pt-(--header-h)">{props.header}<main className="flex-grow">{props.children}</main>{props.footer}</div>}>
       <ConditionalLayoutInner {...props} />
     </Suspense>
   );

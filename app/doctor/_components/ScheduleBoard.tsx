@@ -483,7 +483,7 @@ export function ScheduleBoard({
                   <span className="font-title-md text-[15px] text-indigo-gray-900">Consultation Fees</span>
                   <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-bold text-[10px]">Live</span>
                 </div>
-                <span className="text-[11px] text-indigo-gray-600">What patients pay to book you</span>
+                <span className="text-[11px] text-indigo-gray-600">Your consultation fee per visit</span>
               </div>
               <span className="px-2 py-0.5 rounded-full bg-primary text-on-primary font-label-sm text-[10px] font-bold shrink-0">₹ INR</span>
             </div>
@@ -496,8 +496,6 @@ export function ScheduleBoard({
                   className="w-6 h-6 rounded-full flex items-center justify-center text-indigo-gray-600 hover:text-primary hover:bg-surface-container-lowest transition-colors"
                 />
               </FeeRow>
-              <FeeRow icon={Receipt} tint="bg-surface-container text-secondary" title="Platform Fee" sub="Added at checkout" value={formatINR(CONSULTATION_PLATFORM_FEE)} />
-              {doctor.fee ? <FeeRow icon={Wallet} tint="bg-fresh-teal/15 text-fresh-teal" title="Patient Pays" sub="Total at checkout" value={formatINR(doctor.fee + CONSULTATION_PLATFORM_FEE)} /> : null}
             </div>
             <ProfileEditor
               profile={doctor.editable}

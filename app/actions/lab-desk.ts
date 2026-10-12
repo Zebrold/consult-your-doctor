@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ageFrom, istDateKey } from '@/components/patient/format'
-import { DIAGNOSTIC_PLATFORM_FEE, matchBookedTests, sumPrices } from '@/lib/pricing'
+import { matchBookedTests, sumPrices } from '@/lib/pricing'
+import { readLocalFees } from '@/lib/platform-fees'
 import { REPORT_BUCKET, reportPath } from '@/lib/lab-reports'
 import { renderLabReportPdf } from '@/lib/pdf/lab-report'
 import { issuePatientToken, readPatientToken } from '@/lib/desk-token'
@@ -154,7 +155,11 @@ async function labPayment(admin: Admin, center: Center, bookingId: string): Prom
     status: found.row.status,
     what: tests.map((t) => t.name).join(', '),
     patient: { name: found.patient?.full_name || 'Patient', phone: found.patient?.phone_number ?? null, email },
-    amounts: { desk: amount, online: amount + DIAGNOSTIC_PLATFORM_FEE, platformFee: DIAGNOSTIC_PLATFORM_FEE },
+    amounts: {
+      desk: amount,
+      online: amount + readLocalFees().diagnostic,
+      platformFee: readLocalFees().diagnostic,
+    },
     items: tests.map((t) => ({ label: t.name, amount: t.price })),
     upi: await upiQr(amount, code, `Lab tests ${code}`),
     payuKey: process.env.PAYU_MERCHANT_KEY ?? null,

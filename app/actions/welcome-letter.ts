@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { siteUrl } from '@/lib/site-url'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { doctorName } from '@/components/patient/format'
 import { renderWelcomeLetter, type PartnerType, type WelcomeLetter } from '@/lib/pdf/welcome-letter'
@@ -19,8 +20,7 @@ const LOGIN_PATH: Record<PartnerType, string> = { doctor: '/login/doctor', hospi
 /** PARTNER_PORTAL_URL when set; otherwise the site's own sign-in page for this kind of partner. */
 function loginUrl(type: PartnerType) {
   if (process.env.PARTNER_PORTAL_URL) return process.env.PARTNER_PORTAL_URL
-  const site = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || ''
-  const base = site && !/localhost|127\.0\.0\.1/.test(site) ? site.replace(/\/$/, '') : 'https://consultyourdoctor.de'
+  const base = siteUrl()
   return `${base}${LOGIN_PATH[type]}`
 }
 

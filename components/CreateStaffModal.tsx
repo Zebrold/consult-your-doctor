@@ -46,7 +46,7 @@ export function CreateStaffModal({ hospitals }: { hospitals: { id: string, name:
 
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md my-8 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md my-auto animate-in fade-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <h3 className="text-xl font-bold text-gray-900">Create Staff Account</h3>
               <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-gray-600">

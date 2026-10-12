@@ -47,7 +47,7 @@ export function PageHeader({
   actions?: React.ReactNode
 }) {
   return (
-    <section className="flex flex-col xl:flex-row xl:items-end justify-between gap-stack-md bg-gradient-to-r from-surface-container via-surface-container-low to-surface-container-lowest p-6 md:p-8 rounded-2xl shadow-sm">
+    <section className="flex flex-col xl:flex-row xl:items-end justify-between gap-4 md:gap-stack-md bg-gradient-to-r from-surface-container via-surface-container-low to-surface-container-lowest p-5 md:p-8 rounded-2xl shadow-sm">
       <div className="flex flex-col gap-2 max-w-3xl">
         <span className="inline-flex items-center gap-1.5 self-start px-3 py-1 rounded-full bg-vibrant-blue text-on-primary font-label-sm text-label-sm tracking-wide shadow-sm uppercase">
           {eyebrow}
@@ -119,7 +119,7 @@ export function Panel({
   children: React.ReactNode
 }) {
   return (
-    <section id={id} className={`bg-surface-container-lowest rounded-2xl p-6 lg:p-8 shadow-sm flex flex-col gap-6 scroll-mt-24 ${className}`}>
+    <section id={id} className={`bg-surface-container-lowest rounded-2xl p-4 sm:p-6 lg:p-8 shadow-sm flex flex-col gap-5 md:gap-6 scroll-mt-24 ${className}`}>
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">

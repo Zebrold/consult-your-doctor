@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { siteUrl as publicSiteUrl } from '@/lib/site-url'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { sendDoctorActivationEmail } from '@/lib/notify/email'
@@ -301,7 +302,7 @@ export async function createHospitalDoctor(formData: FormData) {
   }
 
   // 7. If email provided, send invitation link
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000').replace(/\/$/, '')
+  const siteUrl = publicSiteUrl()
   let activationLink = `${siteUrl}/login/doctor`
   let invitationSent = false
 
@@ -366,7 +367,7 @@ export async function resendDoctorInvitation(doctorId: string, email: string): P
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000').replace(/\/$/, '')
+  const siteUrl = publicSiteUrl()
   let activationLink = `${siteUrl}/login/doctor`
 
   try {

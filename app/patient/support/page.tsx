@@ -94,7 +94,7 @@ export default async function PatientSupport() {
   return (
     <div className="bg-background font-body-md text-body-md text-on-surface antialiased min-h-screen">
       <PatientNavHeader name={profile?.full_name} email={profile?.email || user.email} isSignedIn container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop" />
-      <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-28 md:pb-32">
+      <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-dock">
         <div className="relative w-full overflow-hidden">
           <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start max-w-[1440px] mx-auto">

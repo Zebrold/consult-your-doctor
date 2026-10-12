@@ -31,6 +31,7 @@ import crypto from 'crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendWhatsAppOtp } from '@/lib/notify/whatsapp'
 import { sendOtpSms } from '@/lib/notify/sms'
+import { siteUrl } from '@/lib/site-url'
 
 function computeOtpHmac(phone: string, otp: string, expiresAt: number): string {
   // A guessable fallback secret would let anyone mint a valid code for any number, so refuse to run without one.
@@ -451,7 +452,7 @@ export async function sendPasswordResetOTP(staffId: string) {
 
   const supabase = await createClient()
   const { error } = await supabase.auth.resetPasswordForEmail(profile.email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/update-password`,
+    redirectTo: `${siteUrl()}/update-password`,
   })
 
   if (error) {

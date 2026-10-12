@@ -13,15 +13,15 @@ export const dynamic = 'force-dynamic'
 const VIEWS: BoardView[] = ['today', 'upcoming', 'past', 'unpaid', 'all']
 const DAY = 86_400_000
 
-function Counter({ icon: Icon, label, value, tone }: { icon: LucideIcon; label: string; value: number; tone: string }) {
+function Counter({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: number; tone?: string }) {
   return (
-    <div className="min-w-[132px] flex-1 p-3.5 md:p-4 rounded-xl bg-surface-container-lowest shadow-sm border border-surface-container md:border-transparent flex items-center justify-between gap-2">
+    <div className="min-w-[132px] flex-1 p-3.5 md:p-4 rounded-xl bg-white shadow-xs border border-slate-200/90 flex items-center justify-between gap-2">
       <div>
-        <div className="font-label-sm text-[11px] md:text-label-sm text-indigo-gray-600">{label}</div>
-        <div className={`font-headline-lg text-[24px] md:text-headline-lg font-bold tracking-tight mt-0.5 ${tone}`}>{value}</div>
+        <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">{label}</div>
+        <div className="text-2xl font-bold tracking-tight mt-0.5 text-slate-900 tabular-nums">{value}</div>
       </div>
-      <span className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-surface-container-low flex items-center justify-center text-primary shrink-0">
-        <Icon className="w-5 h-5" />
+      <span className="w-9 h-9 rounded-lg bg-slate-100 border border-slate-200/60 flex items-center justify-center text-slate-600 shrink-0">
+        <Icon className="w-4 h-4" />
       </span>
     </div>
   )

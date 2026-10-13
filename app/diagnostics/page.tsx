@@ -1,10 +1,13 @@
 import { jsonLd } from "@/lib/json-ld";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { Metadata } from "next";
 import Link from "next/link";
 import { MapPin, Phone, ArrowRight, Microscope } from "lucide-react";
 import Image from "next/image";
 import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
+import { PatientNavHeader } from "@/components/PatientNavHeader";
+import { PatientDock } from "@/components/PatientDock";
 
 export const revalidate = 0;
 
@@ -15,6 +18,17 @@ export const metadata: Metadata = {
 
 export default async function DiagnosticsDirectoryPage() {
   const supabase = await createClient();
+  const user = await getCurrentUser();
+  let viewer = null;
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, role, email")
+      .eq("id", user.id)
+      .maybeSingle();
+    viewer = profile;
+  }
+  const isLoggedIn = !!user;
 
   const { data: diagnosticCenters } = await supabase
     .from("diagnostic_centers")
@@ -38,9 +52,19 @@ export default async function DiagnosticsDirectoryPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLd(schema) }}
       />
-      <Header />
+      {isLoggedIn ? (
+        <PatientNavHeader
+          isSignedIn={isLoggedIn}
+          name={viewer?.full_name || user?.user_metadata?.full_name}
+          email={viewer?.email || user?.email}
+          container="max-w-7xl px-4 sm:px-6 lg:px-8"
+          backHref="/"
+        />
+      ) : (
+        <Header />
+      )}
       
-      <main className="flex-1 pt-[calc(var(--header-h)+2rem)] md:pt-[calc(var(--header-h)+3rem)] pb-12">
+      <main className={`flex-1 ${isLoggedIn ? 'pt-6 md:pt-8 pb-dock' : 'pt-[calc(var(--header-h)+2rem)] md:pt-[calc(var(--header-h)+3rem)] pb-12'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8 md:mb-12">
             <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900 mb-3 md:mb-4">
@@ -103,6 +127,11 @@ export default async function DiagnosticsDirectoryPage() {
           )}
         </div>
       </main>
+      {isLoggedIn ? (
+        <PatientDock activeTab="find" isSignedIn={isLoggedIn} name={viewer?.full_name || user?.user_metadata?.full_name} />
+      ) : (
+        <Footer />
+      )}
     </div>
   );
 }

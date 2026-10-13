@@ -11,6 +11,8 @@ import { currentTime, loadAvailability, one } from '@/components/patient/data';
 import { pricedTests } from '@/lib/pricing';
 import { HomePhoneMockup } from '@/components/HomePhoneMockup';
 import { TrustedByPatients } from '@/components/TrustedByPatients';
+import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 
 const stats = [
   { value: "60,000+", label: "Patients treated" },
@@ -184,113 +186,117 @@ export default async function Home(props: {
   }
 
   return (
-    <>
-      {/* Hero Section */}
-      <section className="relative isolate overflow-hidden bg-white border-b border-slate-100">
-        <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop pt-10 pb-4 md:pt-14 lg:py-10 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-4 items-center">
-          <div className="lg:col-span-6 flex flex-col gap-6 md:gap-8">
-            <h1 className="font-display-lg text-[44px] leading-[1.06] sm:text-6xl lg:text-[76px] lg:leading-[1.04] font-extrabold tracking-tight text-indigo-gray-900">
-              Healthcare <br />
-              <span className="text-vibrant-blue">made simple,</span>
-              <br />
-              for everyone.
-            </h1>
-            <p className="font-body-lg text-base md:text-[19px] md:leading-relaxed text-slate-600 max-w-xl">
-              Find the right doctor, book a hospital visit or lab test in minutes, and keep every prescription and report in one place.
-            </p>
-            <HomeHeroActions initial={heroBooking} />
-            <div className="flex items-center gap-3.5 pt-1">
-              <div className="flex -space-x-2.5 shrink-0" aria-hidden>
-                {heroTrustAvatars.map((avatar, i) => (
-                  <div
-                    key={i}
-                    className="relative w-10 h-10 md:w-11 md:h-11 rounded-full ring-[2.5px] ring-white overflow-hidden bg-slate-100 shrink-0"
-                  >
-                    <Image
-                      src={avatar.src}
-                      alt={avatar.alt}
-                      width={88}
-                      height={88}
-                      className="w-full h-full object-cover"
-                      priority
-                    />
+    <div className="min-h-dvh flex flex-col pt-(--header-h)">
+      <Header />
+      <main className="flex-grow">
+        {/* Hero Section */}
+        <section className="relative isolate overflow-hidden bg-white border-b border-slate-100">
+          <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop pt-10 pb-4 md:pt-14 lg:py-10 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-4 items-center">
+            <div className="lg:col-span-6 flex flex-col gap-6 md:gap-8">
+              <h1 className="font-display-lg text-[44px] leading-[1.06] sm:text-6xl lg:text-[76px] lg:leading-[1.04] font-extrabold tracking-tight text-indigo-gray-900">
+                Healthcare <br />
+                <span className="text-vibrant-blue">made simple,</span>
+                <br />
+                for everyone.
+              </h1>
+              <p className="font-body-lg text-base md:text-[19px] md:leading-relaxed text-slate-600 max-w-xl">
+                Find the right doctor, book a hospital visit or lab test in minutes, and keep every prescription and report in one place.
+              </p>
+              <HomeHeroActions initial={heroBooking} />
+              <div className="flex items-center gap-3.5 pt-1">
+                <div className="flex -space-x-2.5 shrink-0" aria-hidden>
+                  {heroTrustAvatars.map((avatar, i) => (
+                    <div
+                      key={i}
+                      className="relative w-10 h-10 md:w-11 md:h-11 rounded-full ring-[2.5px] ring-white overflow-hidden bg-slate-100 shrink-0"
+                    >
+                      <Image
+                        src={avatar.src}
+                        alt={avatar.alt}
+                        width={88}
+                        height={88}
+                        className="w-full h-full object-cover"
+                        priority
+                      />
+                    </div>
+                  ))}
+                </div>
+                <p className="text-sm md:text-base text-slate-600 font-medium leading-snug">
+                  <span className="font-bold text-vibrant-blue mr-1.5">2M+</span>
+                  People trust Consult Your Doctor for their healthcare needs
+                </p>
+              </div>
+            </div>
+
+            <div className="lg:col-span-6 flex justify-center lg:justify-end">
+              <HomeHeroArt />
+            </div>
+          </div>
+        </section>
+
+        {/* Quick Medical Search */}
+        <section className="py-10 bg-surface-container-low border-b border-slate-100">
+          <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop">
+            <QuickSearch />
+          </div>
+        </section>
+
+        {/* Stats Section */}
+        <section className="py-12 bg-white border-b border-slate-100">
+          <dl className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop grid grid-cols-2 md:grid-cols-4 gap-y-8 md:divide-x md:divide-slate-200">
+            {stats.map((stat) => (
+              <div key={stat.label} className="flex flex-col items-center text-center px-4">
+                <dt className="order-2 mt-1 text-sm text-slate-600">{stat.label}</dt>
+                <dd className="order-1 font-display-lg text-3xl md:text-4xl font-bold tracking-tight text-indigo-gray-900">{stat.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        {/* App Preview & Conditions Treated */}
+        <section className="relative isolate overflow-hidden py-16 bg-white">
+          <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
+            <div className="lg:col-span-5 relative flex items-center justify-center">
+              <HomePhoneMockup />
+            </div>
+
+            <div className="lg:col-span-7 space-y-6">
+              <div className="space-y-3">
+                <p className="text-sm font-semibold text-vibrant-blue">What we treat</p>
+                <h2 className="font-headline-lg text-2xl md:text-4xl font-bold text-indigo-gray-900 tracking-tight leading-tight">
+                  Care for everyday and long-term conditions
+                </h2>
+                <p className="font-body-lg text-base text-slate-600 max-w-2xl leading-relaxed">
+                  Book a specialist for anything from a fever to a follow-up for blood pressure. Your prescriptions and lab reports are saved to your account, ready to download or show at the pharmacy.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-6 pt-2">
+                {conditionGroups.map((group) => (
+                  <div key={group.title} className="space-y-2.5">
+                    <h3 className="font-semibold text-sm text-indigo-gray-900 border-b border-slate-200 pb-2">{group.title}</h3>
+                    <ul className="space-y-2.5">
+                      {group.items.map((item) => (
+                        <li key={item} className="flex items-center gap-2">
+                          <CircleCheck aria-hidden className="w-4 h-4 text-vibrant-blue shrink-0" />
+                          <span className="text-slate-700 text-sm">{item}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 ))}
               </div>
-              <p className="text-sm md:text-base text-slate-600 font-medium leading-snug">
-                <span className="font-bold text-vibrant-blue mr-1.5">2M+</span>
-                People trust Consult Your Doctor for their healthcare needs
-              </p>
+
+              <Link href="/what-we-treat" className="inline-flex items-center gap-1.5 text-vibrant-blue font-bold text-sm hover:underline">
+                See everything we treat <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
           </div>
+        </section>
 
-          <div className="lg:col-span-6 flex justify-center lg:justify-end">
-            <HomeHeroArt />
-          </div>
-        </div>
-      </section>
-
-      {/* Quick Medical Search */}
-      <section className="py-10 bg-surface-container-low border-b border-slate-100">
-        <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop">
-          <QuickSearch />
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-12 bg-white border-b border-slate-100">
-        <dl className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop grid grid-cols-2 md:grid-cols-4 gap-y-8 md:divide-x md:divide-slate-200">
-          {stats.map((stat) => (
-            <div key={stat.label} className="flex flex-col items-center text-center px-4">
-              <dt className="order-2 mt-1 text-sm text-slate-600">{stat.label}</dt>
-              <dd className="order-1 font-display-lg text-3xl md:text-4xl font-bold tracking-tight text-indigo-gray-900">{stat.value}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-
-      {/* App Preview & Conditions Treated */}
-      <section className="relative isolate overflow-hidden py-16 bg-white">
-        <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
-          <div className="lg:col-span-5 relative flex items-center justify-center">
-            <HomePhoneMockup />
-          </div>
-
-          <div className="lg:col-span-7 space-y-6">
-            <div className="space-y-3">
-              <p className="text-sm font-semibold text-vibrant-blue">What we treat</p>
-              <h2 className="font-headline-lg text-2xl md:text-4xl font-bold text-indigo-gray-900 tracking-tight leading-tight">
-                Care for everyday and long-term conditions
-              </h2>
-              <p className="font-body-lg text-base text-slate-600 max-w-2xl leading-relaxed">
-                Book a specialist for anything from a fever to a follow-up for blood pressure. Your prescriptions and lab reports are saved to your account, ready to download or show at the pharmacy.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-6 pt-2">
-              {conditionGroups.map((group) => (
-                <div key={group.title} className="space-y-2.5">
-                  <h3 className="font-semibold text-sm text-indigo-gray-900 border-b border-slate-200 pb-2">{group.title}</h3>
-                  <ul className="space-y-2.5">
-                    {group.items.map((item) => (
-                      <li key={item} className="flex items-center gap-2">
-                        <CircleCheck aria-hidden className="w-4 h-4 text-vibrant-blue shrink-0" />
-                        <span className="text-slate-700 text-sm">{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-
-            <Link href="/what-we-treat" className="inline-flex items-center gap-1.5 text-vibrant-blue font-bold text-sm hover:underline">
-              See everything we treat <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <TrustedByPatients />
-    </>
+        <TrustedByPatients />
+      </main>
+      <Footer />
+    </div>
   );
 }

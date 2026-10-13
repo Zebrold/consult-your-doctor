@@ -1,8 +1,10 @@
 import { jsonLd } from '@/lib/json-ld'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
-import { MapPin, Mail, Phone, Building2, UserCircle, CheckCircle2, Award, FlaskConical, ShieldCheck, Siren, ArrowRight } from 'lucide-react'
+import { PatientNavHeader } from '@/components/PatientNavHeader'
+import { PatientDock } from '@/components/PatientDock'
+import { MapPin, Mail, Phone, Building2, UserCircle, CheckCircle2, Award, FlaskConical, ShieldCheck, Siren, ArrowRight, ArrowLeft } from 'lucide-react'
 import { testList } from '@/lib/pricing'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -44,6 +46,17 @@ export default async function HospitalProfilePage(
   const id = params.id
 
   const supabase = await createClient()
+  const user = await getCurrentUser()
+  let viewer = null
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name, role, email')
+      .eq('id', user.id)
+      .maybeSingle()
+    viewer = profile
+  }
+  const isLoggedIn = !!user
 
   // Fetch hospital
   const { data: hospital, error: hospitalError } = await supabase
@@ -97,16 +110,49 @@ export default async function HospitalProfilePage(
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLd(schema) }}
       />
-      <Header />
+      {isLoggedIn ? (
+        <>
+          <PatientNavHeader
+            isSignedIn={isLoggedIn}
+            name={viewer?.full_name || user?.user_metadata?.full_name}
+            email={viewer?.email || user?.email}
+            container="max-w-[1440px] px-4 sm:px-6 md:px-8"
+            backHref="/hospitals"
+            className="hidden md:block"
+          />
+          {/* Mobile phone sticky header */}
+          <header className="md:hidden sticky top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] px-3 flex items-center justify-between gap-2 shadow-xs">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Link
+                href="/hospitals"
+                aria-label="Back to Hospitals"
+                className="w-10 h-10 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 active:scale-95 transition-all shrink-0"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+              <div className="min-w-0">
+                <h1 className="font-headline-lg text-[16px] font-bold text-slate-900 tracking-tight truncate">
+                  {hospital.name}
+                </h1>
+                <p className="text-[11px] text-primary font-semibold truncate leading-none mt-0.5">
+                  {hospital.city}
+                </p>
+              </div>
+            </div>
+          </header>
+        </>
+      ) : (
+        <Header />
+      )}
       
-      <main className="flex-1 pt-[calc(var(--header-h)+1.5rem)] md:pt-[calc(var(--header-h)+3rem)] pb-8 md:pb-12">
+      <main className={`flex-1 ${isLoggedIn ? 'pt-4 md:pt-6 pb-dock md:pb-12' : 'pt-[calc(var(--header-h)+1.5rem)] md:pt-[calc(var(--header-h)+3rem)] pb-8 md:pb-12'}`}>
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 md:px-8">
           
           {/* Breadcrumbs */}
           <nav aria-label="Breadcrumb" className="mb-6 flex items-center gap-2 text-sm text-slate-500 font-medium">
             <Link href="/" className="hover:text-vibrant-blue transition-colors">Home</Link>
             <span>/</span>
-            <Link href="/search?type=hospital" className="hover:text-vibrant-blue transition-colors">Hospitals</Link>
+            <Link href="/hospitals" className="hover:text-vibrant-blue transition-colors">Hospitals</Link>
             <span>/</span>
             <span className="text-slate-800 font-semibold truncate">{hospital.name}</span>
           </nav>
@@ -310,7 +356,11 @@ export default async function HospitalProfilePage(
         </div>
       </main>
 
-      <Footer />
+      {isLoggedIn ? (
+        <PatientDock activeTab="find" isSignedIn={isLoggedIn} name={viewer?.full_name || user?.user_metadata?.full_name} />
+      ) : (
+        <Footer />
+      )}
     </div>
   )
 }

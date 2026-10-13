@@ -1,13 +1,12 @@
 "use client";
 
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import React, { Suspense } from "react";
 
 function ConditionalLayoutInner({
   header,
   footer,
   children,
-  isPatientLoggedIn,
 }: {
   header: React.ReactNode;
   footer: React.ReactNode;
@@ -15,13 +14,9 @@ function ConditionalLayoutInner({
   isPatientLoggedIn?: boolean;
 }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const isPreviewPatient = pathname === "/" && searchParams.get("preview") === "patient";
-  const isPatientHome = pathname === "/" && (isPatientLoggedIn || isPreviewPatient);
 
   const isDashboard =
-    isPatientHome ||
+    pathname === "/" ||
     pathname === "/ai" ||
     pathname?.startsWith("/hospital") ||
     pathname?.startsWith("/executive") ||

@@ -87,7 +87,6 @@ export default async function RootLayout({
         <ConditionalLayout
           header={<Header />}
           footer={<Footer />}
-          isPatientLoggedIn={isPatientLoggedIn}
         >
           {children}
         </ConditionalLayout>

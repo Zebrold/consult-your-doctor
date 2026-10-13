@@ -39,7 +39,7 @@ async function amountFor(txnid: string, productinfo: string): Promise<Priced> {
   if (productinfo === 'Diagnostic') {
     const { data } = await supabase
       .from('diagnostic_bookings')
-      .select('status, test_name, diagnostic_centers ( test_prices )')
+      .select('status, test_name, booking_type, doorstep_fee, diagnostic_centers ( test_prices )')
       .eq('id', txnid)
       .eq('patient_id', user.id)
       .maybeSingle();
@@ -48,7 +48,8 @@ async function amountFor(txnid: string, productinfo: string): Promise<Priced> {
     const center = (Array.isArray(data.diagnostic_centers) ? data.diagnostic_centers[0] : data.diagnostic_centers) as { test_prices: Record<string, number> | null } | null;
     const tests = matchBookedTests(data.test_name || '', center?.test_prices);
     if (!tests) return { error: "We couldn't price this booking. Please contact support.", status: 422 };
-    return { amount: sumPrices(tests) + fees.diagnostic, desk: false };
+    const doorstepFee = (data as any).booking_type === 'doorstep' ? (Number((data as any).doorstep_fee) || 0) : 0;
+    return { amount: sumPrices(tests) + doorstepFee + fees.diagnostic, desk: false };
   }
 
   return { error: 'Unknown product.', status: 400 };
@@ -70,13 +71,14 @@ async function deskAmount(admin: ReturnType<typeof createAdminClient>, staff: St
     return { amount: fee + fees.consultation, desk: true };
   }
   if (productinfo === 'Diagnostic' && staff.role === 'diagnostic_admin' && staff.diagnostic_center_id) {
-    const { data } = await admin.from('diagnostic_bookings').select('status, center_id, test_name, diagnostic_centers ( test_prices )').eq('id', txnid).maybeSingle();
+    const { data } = await admin.from('diagnostic_bookings').select('status, center_id, test_name, booking_type, doorstep_fee, diagnostic_centers ( test_prices )').eq('id', txnid).maybeSingle();
     if (!data || data.center_id !== staff.diagnostic_center_id) return { error: 'Booking not found.', status: 404 };
     if (data.status !== 'pending_payment') return { error: 'This booking is already paid.', status: 409 };
     const center = (Array.isArray(data.diagnostic_centers) ? data.diagnostic_centers[0] : data.diagnostic_centers) as { test_prices: Record<string, number> | null } | null;
     const tests = matchBookedTests(data.test_name || '', center?.test_prices);
     if (!tests) return { error: "We couldn't price this booking.", status: 422 };
-    return { amount: sumPrices(tests) + fees.diagnostic, desk: true };
+    const doorstepFee = (data as any).booking_type === 'doorstep' ? (Number((data as any).doorstep_fee) || 0) : 0;
+    return { amount: sumPrices(tests) + doorstepFee + fees.diagnostic, desk: true };
   }
   return { error: 'You can only take payment for bookings at your own hospital or centre.', status: 403 };
 }
@@ -96,6 +98,10 @@ export async function POST(request: Request) {
 
     if (!txnid || !productinfo || !firstname || !email) {
       return NextResponse.json({ error: 'Missing required payment fields' }, { status: 400 });
+    }
+    // Every field is joined with "|" into the signed string, so a "|" inside one would shift the others.
+    if ([txnid, productinfo, firstname, email].some((v) => typeof v !== 'string' || v.length > 200 || /[|\u0000-\u001f]/.test(v))) {
+      return NextResponse.json({ error: 'Invalid payment details' }, { status: 400 });
     }
 
     const priced = await amountFor(String(txnid), String(productinfo));

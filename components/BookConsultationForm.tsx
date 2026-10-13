@@ -28,6 +28,7 @@ export function BookConsultationFormInner({ defaultType = 'consultation' }: { de
   const [selectedDoctor, setSelectedDoctor] = useState<string>('')
   const [selectedDiagnostic, setSelectedDiagnostic] = useState<string>('')
   const [diagnosticDate, setDiagnosticDate] = useState<string>('')
+  const [diagBookingType, setDiagBookingType] = useState<'walk_in' | 'doorstep'>('walk_in')
 
   // Loading states
   const [isLoading, setIsLoading] = useState(true)
@@ -145,7 +146,7 @@ export function BookConsultationFormInner({ defaultType = 'consultation' }: { de
       const { data: hData } = await supabase.from('hospitals').select('id, name').eq('city', selectedCity).eq('status', 'active')
       setHospitals(hData || [])
       
-      const { data: cData } = await supabase.from('diagnostic_centers').select('id, name, address, available_tests, test_prices').eq('city', selectedCity).eq('status', 'active')
+      const { data: cData } = await supabase.from('diagnostic_centers').select('id, name, address, available_tests, test_prices, doorstep_enabled, doorstep_fee').eq('city', selectedCity).eq('status', 'active')
       setCenters(cData || [])
     }
     fetchFacilities()
@@ -498,6 +499,53 @@ export function BookConsultationFormInner({ defaultType = 'consultation' }: { de
                   className={selectClass}
                 />
               </SelectField>
+
+              {/* Collection Mode */}
+              {selectedCenter && (
+                <div className="flex flex-col gap-1.5 pt-1">
+                  <span className="font-label-sm text-xs font-semibold text-on-surface-variant">Sample Collection Mode</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDiagBookingType('walk_in')}
+                      className={`p-2.5 rounded-xl border text-left transition-all text-xs font-semibold ${
+                        diagBookingType === 'walk_in'
+                          ? 'border-vibrant-blue bg-primary-fixed/20 text-on-surface shadow-sm'
+                          : 'border-outline-variant/30 bg-surface-container-low text-indigo-gray-600 hover:bg-surface-container'
+                      }`}
+                    >
+                      <span className="block font-bold">🚶 Walk-In</span>
+                      <span className="text-[11px] text-indigo-gray-600 block">At Lab (Free)</span>
+                    </button>
+
+                    {(() => {
+                      const curCenter = centers.find((c) => c.id === selectedCenter)
+                      const enabled = (curCenter as any)?.doorstep_enabled !== false
+                      const fee = Number((curCenter as any)?.doorstep_fee) || 100
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => enabled && setDiagBookingType('doorstep')}
+                          disabled={!enabled}
+                          className={`p-2.5 rounded-xl border text-left transition-all text-xs font-semibold ${
+                            !enabled
+                              ? 'opacity-40 cursor-not-allowed border-outline-variant/20 bg-surface-container-low text-outline'
+                              : diagBookingType === 'doorstep'
+                              ? 'border-emerald-600 bg-emerald-50 text-emerald-900 shadow-sm'
+                              : 'border-outline-variant/30 bg-surface-container-low text-indigo-gray-600 hover:bg-surface-container'
+                          }`}
+                        >
+                          <span className="block font-bold">🏠 Doorstep</span>
+                          <span className="text-[11px] text-emerald-700 block">
+                            {enabled ? `Home (+₹${fee})` : 'Unavailable'}
+                          </span>
+                        </button>
+                      )
+                    })()}
+                  </div>
+                  <input type="hidden" name="booking_type" value={diagBookingType} />
+                </div>
+              )}
             </>
           )}
 

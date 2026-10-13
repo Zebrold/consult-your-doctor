@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
-import { AlarmClock, CalendarCheck, FileCheck2, TrendingDown, TrendingUp, Users, type LucideIcon } from 'lucide-react'
+import { AlarmClock, CalendarCheck, FileCheck2, Home, TrendingDown, TrendingUp, Users, type LucideIcon } from 'lucide-react'
 import { currentTime } from '@/components/patient/data'
 import { istDateKey } from '@/components/patient/format'
 import { loadPatientFacts } from '@/lib/patient-facts'
@@ -73,11 +73,21 @@ export default async function LabPatientsPage(props: { searchParams?: Promise<{ 
   const collectedAll = bookings.filter((b) => b.status !== 'confirmed').length
 
   const initialGroup = GROUPS.includes(params.status as RosterGroup) ? (params.status as RosterGroup) : 'all'
-  const bookingProps = { tests: pricedTests(lab.prices), minDate: today, maxDate: shiftDay(today, 90), defaultDate: today }
+  const walkInCount = bookings.filter((b) => b.bookingType !== 'doorstep').length
+  const doorstepCount = bookings.filter((b) => b.bookingType === 'doorstep').length
+
+  const bookingProps = {
+    tests: pricedTests(lab.prices),
+    minDate: today,
+    maxDate: shiftDay(today, 90),
+    defaultDate: today,
+    doorstepEnabled: lab.doorstepEnabled,
+    defaultDoorstepFee: lab.doorstepFee,
+  }
 
   return (
     <>
-      <section className="flex md:grid md:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-gutter overflow-x-auto snap-x snap-mandatory scroll-px-4 md:scroll-px-0 -mx-4 px-4 md:mx-0 md:px-0 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <section className="flex md:grid md:grid-cols-2 xl:grid-cols-5 gap-3 md:gap-gutter overflow-x-auto snap-x snap-mandatory scroll-px-4 md:scroll-px-0 -mx-4 px-4 md:mx-0 md:px-0 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <Metric
           label="Patients"
           value={patientIds.length.toLocaleString('en-IN')}
@@ -92,6 +102,19 @@ export default async function LabPatientsPage(props: { searchParams?: Promise<{ 
           footLeft="With a paid booking"
           footRight={`${newThisMonth} this month`}
           footRightClass="text-primary"
+        />
+        <Metric
+          label="Walk-In & Doorstep"
+          value={String(bookings.length)}
+          icon={Home}
+          chip={
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-vibrant-blue">
+              {doorstepCount} Doorstep
+            </span>
+          }
+          footLeft={`🚶 ${walkInCount} Walk-In`}
+          footRight={`🏠 ${doorstepCount} Doorstep`}
+          footRightClass="text-primary font-bold"
         />
         <Metric
           label="Bookings This Month"

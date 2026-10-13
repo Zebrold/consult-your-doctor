@@ -1,5 +1,6 @@
 'use client'
 
+import { safeNextPath } from '@/lib/safe-redirect'
 import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -485,7 +486,7 @@ export function Composer({ chat, placeholder, wide = false, autoFocus = false }:
             </button>
           )}
         </div>
-        <p className="text-[10.5px] text-on-surface-variant text-center mt-1.5">For general healthcare guidance. In an emergency, call 112. Do not share passwords or payment OTPs.</p>
+        <p className="text-[10.5px] text-on-surface-variant text-center mt-1.5">For general healthcare guidance. In an emergency, call 108. Do not share passwords or payment OTPs.</p>
       </div>
     </form>
   )
@@ -569,9 +570,10 @@ function inline(text: string, onNavigate?: () => void): ReactNode[] {
     if (m[1] !== undefined) {
       const href = m[2]
       const cls = 'text-vibrant-blue font-semibold underline underline-offset-2 hover:text-primary'
-      if (href.startsWith('/') && !href.startsWith('//')) {
+      const local = safeNextPath(href, '')
+      if (local) {
         out.push(
-          <Link key={key} href={href} onClick={onNavigate} className={cls}>
+          <Link key={key} href={local} onClick={onNavigate} className={cls}>
             {m[1]}
           </Link>,
         )

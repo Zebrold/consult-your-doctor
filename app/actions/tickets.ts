@@ -52,7 +52,7 @@ async function supportStaff() {
   if (!user) return null
   const admin = createAdminClient()
   const { data: profile } = await admin.from('profiles').select('full_name, role').eq('id', user.id).maybeSingle()
-  if (profile?.role !== 'executive' && profile?.role !== 'super_admin') return null
+  if (profile?.role !== 'executive') return null
   return { user, admin, name: profile.full_name as string | null }
 }
 

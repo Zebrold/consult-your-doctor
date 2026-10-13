@@ -98,7 +98,7 @@ export function ConfirmationClient({ data }: { data: ConfirmationData }) {
                 Token Number
               </span>
               <div className="font-black text-2xl sm:text-3xl text-[#0066ff] tracking-tight mt-0.5">
-                Token #{data.tokenNumber}
+                {data.tokenNumber.replace(/^#/, '')}
               </div>
             </div>
 

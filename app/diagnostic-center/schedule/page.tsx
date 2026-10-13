@@ -31,6 +31,8 @@ export default async function LabSchedulePage(props: { searchParams?: Promise<{ 
     bloodGroup: b.patient ? facts[b.patient.id]?.bloodGroup ?? null : null,
     testCount: b.tests.length,
     reportUrl: reports[b.id] ?? null,
+    bookingType: b.bookingType,
+    doorstepFee: b.doorstepFee,
   }))
 
   const booked: Record<string, number> = {}
@@ -45,6 +47,8 @@ export default async function LabSchedulePage(props: { searchParams?: Promise<{ 
         city: lab.city,
         address: lab.address,
         live: lab.status === 'active',
+        doorstepEnabled: lab.doorstepEnabled,
+        doorstepFee: lab.doorstepFee,
         tests: lab.tests,
         priced: pricedTests(lab.prices),
       }}

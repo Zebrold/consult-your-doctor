@@ -1,3 +1,4 @@
+import { jsonLd } from "@/lib/json-ld";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
@@ -126,7 +127,7 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(schema) }}
       />
       {viewer?.role === "doctor" ? (
         <TopBar

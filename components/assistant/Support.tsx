@@ -15,7 +15,6 @@ const SUGGESTIONS: Record<string, string[]> = {
   diagnostic_admin: ['A test can’t be booked online', 'How do I upload a report?', 'How do I book a walk-in?'],
   hospital_admin: ['Patients can’t book our doctor', 'How do I publish slots?', 'Where do I see revenue?'],
   executive: ['How do desk payments work?', 'A patient’s booking is missing', 'How do I book a walk-in?'],
-  super_admin: ['What can each portal do?', 'How do hospitals publish slots?', 'How do lab reports reach patients?'],
 }
 
 /** Each section's full-page Zebrold AI tab. */
@@ -96,9 +95,8 @@ export function Support({ role, viewer }: { role: string | null; viewer: string 
             aria-label="Doctor Assistant - How can I help you?"
             className="pointer-events-auto flex flex-col items-end gap-1 p-0 bg-transparent border-0 outline-none cursor-pointer select-none transition-transform duration-200 active:scale-95 group focus-visible:outline-none shrink-0"
           >
-            {/* Thinking text bubble - sits neatly ABOVE the doctor, never sticking left into the profile tab. Phones show
-                just the doctor, so the button covers as little of the page as it can. */}
-            <div className="relative bg-white text-slate-800 text-xs sm:text-[12.5px] font-semibold px-3 py-1.5 rounded-2xl shadow-[0_4px_16px_rgba(15,23,42,0.08)] border border-slate-200/90 hidden sm:flex items-center gap-1.5 whitespace-nowrap mb-0.5 group-hover:shadow-[0_6px_20px_rgba(15,23,42,0.12)]">
+            {/* Thinking text bubble - sits neatly ABOVE the doctor */}
+            <div className="relative bg-white text-slate-800 text-[11px] sm:text-[12.5px] font-semibold px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-2xl shadow-[0_4px_16px_rgba(15,23,42,0.08)] border border-slate-200/90 flex items-center gap-1.5 whitespace-nowrap mb-0.5 group-hover:shadow-[0_6px_20px_rgba(15,23,42,0.12)]">
               <span>How can I help you?</span>
               {/* Bubble indicator pointing down to doctor */}
               <span className="absolute right-4 -bottom-1 w-2 h-2 rounded-full bg-white border-r border-b border-slate-200" />
@@ -161,7 +159,7 @@ export function Support({ role, viewer }: { role: string | null; viewer: string 
               <>
                 <p className="font-semibold text-primary text-[15px]">Hello! How can I help you today?</p>
                 <p className="mt-1.5">Ask questions about finding doctors, booking appointments, lab tests, or managing your health records.</p>
-                <p className="mt-1.5 text-on-surface-variant text-[12px]">For medical emergencies, please call 112 immediately.</p>
+                <p className="mt-1.5 text-on-surface-variant text-[12px]">For medical emergencies, please call 108 immediately.</p>
               </>
             }
             empty={

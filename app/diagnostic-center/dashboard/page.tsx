@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import Link from 'next/link'
 import {
   AlarmClock, Armchair, BadgeCheck, CalendarDays, CalendarRange, CircleCheck, ClipboardCheck, FileCheck2, FileUp, FlaskConical,
-  FolderOpen, IndianRupee, Microscope, Settings2, TrendingDown, TrendingUp, UserCheck, Users, type LucideIcon,
+  FolderOpen, Home, IndianRupee, Microscope, Settings2, TrendingDown, TrendingUp, UserCheck, Users, type LucideIcon,
 } from 'lucide-react'
 import { currentTime } from '@/components/patient/data'
 import { formatINR, istDateKey } from '@/components/patient/format'
@@ -71,6 +71,13 @@ export default async function LabDashboardPage() {
   const reportRate = collectedAll ? Math.floor((sentAll / collectedAll) * 100) : null
   const valueToday = paidToday.reduce((s, b) => s + (b.amount ?? 0), 0)
 
+  // Walk-In vs Doorstep Breakdown
+  const walkInTotal = paid.filter((b) => b.bookingType !== 'doorstep').length
+  const doorstepTotal = paid.filter((b) => b.bookingType === 'doorstep').length
+  const totalBookings = paid.length
+  const walkInPct = totalBookings ? Math.round((walkInTotal / totalBookings) * 100) : 0
+  const doorstepPct = totalBookings ? Math.round((doorstepTotal / totalBookings) * 100) : 0
+
   // What needs the lab first: an overdue report, then the next patient to check in today, then any report due.
   const spot: { booking: LabBooking; kind: SpotKind } | null = overdue[0]
     ? { booking: overdue[0], kind: 'overdue' }
@@ -100,7 +107,14 @@ export default async function LabDashboardPage() {
     return { day: key, offset, list, top }
   })
 
-  const bookingProps = { tests: pricedTests(lab.prices), minDate: today, maxDate: shiftDay(today, 90), defaultDate: today }
+  const bookingProps = {
+    tests: pricedTests(lab.prices),
+    minDate: today,
+    maxDate: shiftDay(today, 90),
+    defaultDate: today,
+    doorstepEnabled: lab.doorstepEnabled,
+    defaultDoorstepFee: lab.doorstepFee,
+  }
   const nextUp = paid.find((b) => b.status === 'confirmed' && !!b.date && b.date > today) ?? null
   const spotlight = spot ? (
     <Spotlight booking={spot.booking} kind={spot.kind} days={waitDays(spot.booking)} line={lineOf(spot.booking)} today={today} />
@@ -171,7 +185,7 @@ export default async function LabDashboardPage() {
       <div className="md:hidden">{spotlight}</div>
 
       {/* KPI row */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      <section className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
         <Kpi
           label="Daily Intake"
           icon={FlaskConical}
@@ -194,6 +208,44 @@ export default async function LabDashboardPage() {
           <span className={`md:hidden block mt-1.5 font-label-sm text-[11px] font-semibold ${intakeTrend == null || intakeTrend >= 0 ? 'text-fresh-teal' : 'text-soft-coral'}`}>
             {intakeTrend == null ? (unpaidToday ? `+${unpaidToday} unpaid online` : 'Booked & paid today') : `${intakeTrend >= 0 ? '↑' : '↓'} ${Math.abs(intakeTrend)}% vs yesterday`}
           </span>
+        </Kpi>
+
+        {/* Single KPI card of total Walk-In and Doorstep */}
+        <Kpi
+          label="Walk-In & Doorstep"
+          icon={Home}
+          iconClass="text-vibrant-blue"
+          chip={
+            <Pill className="bg-primary-fixed text-on-primary-fixed-variant">
+              {totalBookings} Total
+            </Pill>
+          }
+          value={totalBookings}
+          unit="bookings"
+          sub={`${walkInTotal} walk-in • ${doorstepTotal} doorstep`}
+        >
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between text-[11px] font-semibold">
+              <span className="flex items-center gap-1 text-slate-700">
+                🚶 {walkInTotal} Walk-In
+              </span>
+              <span className="flex items-center gap-1 text-vibrant-blue font-bold">
+                🏠 {doorstepTotal} Doorstep
+              </span>
+            </div>
+            <div className="w-full h-1.5 rounded-full bg-surface-container overflow-hidden flex">
+              <div
+                style={{ width: `${walkInPct}%` }}
+                className="h-full bg-slate-500"
+                title={`${walkInTotal} Walk-In (${walkInPct}%)`}
+              />
+              <div
+                style={{ width: `${doorstepPct}%` }}
+                className="h-full bg-vibrant-blue"
+                title={`${doorstepTotal} Doorstep (${doorstepPct}%)`}
+              />
+            </div>
+          </div>
         </Kpi>
         <Kpi
           label="Awaiting Report"

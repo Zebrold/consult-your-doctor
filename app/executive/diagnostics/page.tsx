@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { AlertTriangle, Building2, CircleCheck, FileCheck, FlaskConical, GitBranch, Microscope, Phone, Receipt, Wallet } from 'lucide-react'
+import { AlertTriangle, Building2, CircleCheck, FileCheck, FlaskConical, GitBranch, KeyRound, Microscope, Phone, Receipt, Wallet } from 'lucide-react'
 import {
   LAB_STATUS_LABELS,
   buildAttentionItems,
@@ -9,12 +9,19 @@ import {
   requireExecutive,
 } from '../_lib/ops'
 import { BarList, Chip, EmptyState, MetricCard, PageHeader, Panel } from '../_components/ui'
+import { AddDiagnosticCenterButton, AddLoginButton } from '../_components/NetworkForms'
 
 export const metadata: Metadata = { title: 'Diagnostic Centers & Lab Operations' }
 
 export default async function ExecutiveDiagnosticsPage() {
   const { admin } = await requireExecutive()
-  const [labs, bookings] = await Promise.all([loadLabs(admin), loadLabBookings(admin)])
+  const [labs, bookings, { data: labLogins }] = await Promise.all([
+    loadLabs(admin),
+    loadLabBookings(admin),
+    admin.from('profiles').select('diagnostic_center_id').eq('role', 'diagnostic_admin'),
+  ])
+  const hasLogin = new Set(((labLogins ?? []) as { diagnostic_center_id: string | null }[]).map((p) => p.diagnostic_center_id))
+  const labsWithoutLogin = labs.filter((l) => !hasLogin.has(l.id))
   const now = currentTime()
 
   const today = new Date(now)
@@ -75,7 +82,12 @@ export default async function ExecutiveDiagnosticsPage() {
         eyebrow="Lab Operations"
         title="Diagnostic Centers & Lab Operations"
         description="Partner labs, today's lab visits, bookings that need follow-up, and how test prices compare across labs."
-        actions={<Chip tone="teal" dot>{activeLabs.length} active labs in {cities.size} cities</Chip>}
+        actions={
+          <>
+            <Chip tone="teal" dot>{activeLabs.length} active labs in {cities.size} cities</Chip>
+            <AddDiagnosticCenterButton />
+          </>
+        }
       />
 
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
@@ -97,6 +109,22 @@ export default async function ExecutiveDiagnosticsPage() {
           footer={<span>Of {collected.length} samples collected</span>}
         />
       </section>
+
+      {labsWithoutLogin.length > 0 && (
+        <Panel title="Centres Without a Staff Login" icon={KeyRound} description="These centres can't manage their tests, bookings or reports until their staff have a sign-in.">
+          <ul className="flex flex-col divide-y divide-surface-container rounded-xl ring-1 ring-surface-container">
+            {labsWithoutLogin.map((lab) => (
+              <li key={lab.id} className="flex items-center justify-between gap-3 p-4">
+                <div className="min-w-0">
+                  <p className="font-semibold text-indigo-gray-900 truncate">{lab.name}</p>
+                  {lab.city && <p className="text-sm text-indigo-gray-600">{lab.city}</p>}
+                </div>
+                <AddLoginButton kind="lab" id={lab.id} name={lab.name} />
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
 
       <Panel
         title="Bookings Needing Follow-up"

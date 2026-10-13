@@ -1,3 +1,5 @@
+import { safeNextPath } from '@/lib/safe-redirect'
+import { consumeOAuthState } from '@/lib/oauth-state'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { ROLE_COOKIE, ROLE_COOKIE_OPTIONS, roleCookieValue } from '@/lib/role-cookie'
@@ -18,7 +20,7 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/'
-  const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/'
+  const safeNext = safeNextPath(next)
 
   if (code) {
     const supabase = await createClient()
@@ -57,7 +59,9 @@ export async function GET(request: Request) {
       // Continue to direct Google OAuth fallback below
     }
 
-    // 2. Direct Google OAuth token exchange fallback
+    // 2. Direct Google OAuth token exchange fallback, only for a sign-in this browser started (lib/oauth-state.ts).
+    const started = await consumeOAuthState(searchParams.get('state'))
+    if (!started) return NextResponse.redirect(`${origin}/login/patient?error=google`)
     try {
       const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
@@ -83,7 +87,8 @@ export async function GET(request: Request) {
           const name = googleUser.name || email.split('@')[0]
           const picture = googleUser.picture || null
 
-          if (email) {
+          // Accounts are matched by email, so only an address Google has verified.
+          if (email && googleUser.email_verified === true) {
             const admin = createAdminClient()
             let userId: string
             const { data: usersData } = await admin.auth.admin.listUsers()
@@ -117,7 +122,7 @@ export async function GET(request: Request) {
                 await supabase.auth.verifyOtp({ token_hash: linkData.properties.hashed_token, type: 'email' })
                 const cookieStore = await cookies()
                 cookieStore.set(ROLE_COOKIE, roleCookieValue(userId, userRole), ROLE_COOKIE_OPTIONS)
-                return NextResponse.redirect(`${origin}${safeNext}`)
+                return NextResponse.redirect(`${origin}${started.next}`)
               }
             }
           }

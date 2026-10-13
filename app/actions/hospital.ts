@@ -5,6 +5,8 @@ import { siteUrl as publicSiteUrl } from '@/lib/site-url'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { sendDoctorActivationEmail } from '@/lib/notify/email'
+import { createAdminClient as createServiceClient } from '@/lib/supabase/admin'
+import { provisionDoctor } from '@/lib/provisioning'
 
 export async function generateDoctorSlots(formData: FormData) {
   const supabase = await createClient()
@@ -189,167 +191,32 @@ export async function createHospitalDoctor(formData: FormData) {
   const { data: profile } = await supabase.from('profiles').select('role, hospital_id').eq('id', user.id).single()
   if (profile?.role !== 'hospital_admin' || !profile.hospital_id) return { error: 'Forbidden. Hospital Admin only.' }
 
-  const password = formData.get('password') as string
   const fullName = String(formData.get('fullName') || '').trim()
-  const doctorEmail = String(formData.get('email') || '').trim().toLowerCase()
   const specialty = String(formData.get('specialty') || '').trim()
-  const experienceYears = parseInt(formData.get('experienceYears') as string || '0', 10)
-  const consultationFee = parseFloat(formData.get('consultationFee') as string || '0')
-
   if (!fullName || !specialty) {
     return { error: 'Doctor name and specialty are required.' }
   }
 
-  // 2. Initialize Supabase Admin Client
-  const adminAuthClient = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
-
-  // Generate Unique ID CYD-[Initials]-[4 digits]
-  const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-  let adminId = ''
-  let emailForAuth = ''
-  let isUnique = false
-
-  while (!isUnique) {
-    adminId = `CYD${initials}${Math.floor(1000 + Math.random() * 9000)}`
-    emailForAuth = doctorEmail || `${adminId.toLowerCase()}@cyd.internal`
-    
-    // Check if exists
-    const { data: taken } = await adminAuthClient.from('profiles').select('id').eq('staff_id', adminId).maybeSingle()
-    if (!taken) {
-      isUnique = true
-    }
-  }
-
-  // Check if real email already taken
-  if (doctorEmail) {
-    const { data: existingByEmail } = await adminAuthClient.from('profiles').select('id').eq('email', doctorEmail).maybeSingle()
-    if (existingByEmail) {
-      return { error: 'An account with this email address already exists.' }
-    }
-  }
-
-  const effectivePassword = password && password.length >= 8 ? password : `CydDoc!${Math.random().toString(36).slice(-8)}`
-
-  // 3. Create Auth User
-  const { data: newAuthUser, error: authError } = await adminAuthClient.auth.admin.createUser({
-    email: emailForAuth,
-    password: effectivePassword,
-    email_confirm: true,
-    user_metadata: { role: 'doctor', full_name: fullName }
-  })
-
-  if (authError) {
-    console.error('Failed to create auth user:', authError)
-    return { error: authError.message }
-  }
-
-  // 4. Insert the profile
-  const { error: profileError } = await adminAuthClient.from('profiles').insert({
-    id: newAuthUser.user.id,
-    role: 'doctor',
-    full_name: fullName,
-    email: doctorEmail || null,
-    hospital_id: profile.hospital_id,
-    staff_id: adminId
-  })
-
-  if (profileError) {
-    console.error('Failed to update profile:', profileError)
-    await adminAuthClient.auth.admin.deleteUser(newAuthUser.user.id)
-    return { error: 'User created, but failed to assign profile.' }
-  }
-
-  // 5. Look up or create Department
-  let departmentId = ''
-  const { data: existingDept } = await adminAuthClient
-    .from('departments')
-    .select('id')
-    .eq('hospital_id', profile.hospital_id)
-    .eq('name', specialty)
-    .single()
-
-  if (existingDept) {
-    departmentId = existingDept.id
-  } else {
-    const { data: newDept } = await adminAuthClient.from('departments').insert({
-      hospital_id: profile.hospital_id,
-      name: specialty
-    }).select().single()
-    if (newDept) departmentId = newDept.id
-  }
-
-  if (!departmentId) {
-    return { error: 'Failed to assign department.' }
-  }
-
-  // 6. Insert Doctor Record
-  const { data: newDoctor, error: doctorError } = await adminAuthClient.from('doctors').insert({
-    profile_id: newAuthUser.user.id,
-    hospital_id: profile.hospital_id,
-    department_id: departmentId,
+  // 2. The sign-in, department, doctor record and activation email (shared with the executive portal).
+  const result = await provisionDoctor(createServiceClient(), {
+    hospitalId: profile.hospital_id,
+    fullName,
+    email: String(formData.get('email') || ''),
     specialty,
-    experience_years: experienceYears,
-    consultation_fee: consultationFee
-  }).select('id').single()
-
-  if (doctorError) {
-    console.error('Failed to create doctor record:', doctorError)
-    return { error: 'Failed to finalize doctor registration.' }
-  }
-
-  // 7. If email provided, send invitation link
-  const siteUrl = publicSiteUrl()
-  let activationLink = `${siteUrl}/login/doctor`
-  let invitationSent = false
-
-  if (doctorEmail) {
-    try {
-      const { data: linkData } = await adminAuthClient.auth.admin.generateLink({
-        type: 'recovery',
-        email: doctorEmail,
-        options: { redirectTo: `${siteUrl}/update-password` }
-      })
-      if (linkData?.properties?.action_link) {
-        activationLink = linkData.properties.action_link
-      }
-    } catch (err) {
-      console.warn('generateLink fallback:', err)
-    }
-
-    const { data: hospital } = await adminAuthClient.from('hospitals').select('name').eq('id', profile.hospital_id).maybeSingle()
-
-    invitationSent = await sendDoctorActivationEmail({
-      to: doctorEmail,
-      doctorName: fullName,
-      activationLink,
-      hospitalName: hospital?.name,
-    })
-
-    // Record invitation in doctor_invitations if table exists
-    try {
-      await adminAuthClient.from('doctor_invitations').insert({
-        hospital_id: profile.hospital_id,
-        doctor_id: newDoctor?.id || null,
-        email: doctorEmail,
-        full_name: fullName,
-        specialty,
-        status: 'invitation_pending',
-        invited_by: user.id
-      })
-    } catch {}
-  }
+    experienceYears: parseInt(formData.get('experienceYears') as string || '0', 10) || 0,
+    consultationFee: parseFloat(formData.get('consultationFee') as string || '0') || 0,
+    password: formData.get('password') as string | null,
+    invitedBy: user.id,
+  })
+  if ('error' in result) return { error: result.error }
 
   for (const path of ['/hospital/dashboard', '/hospital/doctors', '/hospital/staff']) revalidatePath(path)
-  return { 
-    success: true, 
-    doctorId: adminId, 
-    email: doctorEmail || null, 
-    activationLink: doctorEmail ? activationLink : null,
-    invitationSent 
+  return {
+    success: true,
+    doctorId: result.staffId,
+    email: result.email,
+    activationLink: result.activationLink,
+    invitationSent: result.invitationSent,
   }
 }
 

@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
   BedDouble, Building2, CalendarDays, CircleAlert, CircleCheck, Download, FileText, FlaskConical, HeartPulse, IdCard, MapPin, Microscope,
-  Pill, Receipt, Siren, SquarePen, Stethoscope, type LucideIcon,
+  Pill, Receipt, Siren, SquarePen, Stethoscope, Phone, type LucideIcon,
 } from 'lucide-react'
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -208,6 +208,8 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
   }
   const payment = typeof searchParams.payment === 'string' ? searchParams.payment : null
 
+  const isSetupMandatory = searchParams.setup === 'mandatory' || !profile?.phone_number
+
   return (
     <div className="bg-background font-body-md text-body-md text-on-surface antialiased min-h-screen">
       <PatientNavHeader name={name} email={email} isSignedIn container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop" />
@@ -215,13 +217,42 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
         <div className="relative w-full overflow-hidden">
           <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start max-w-[1440px] mx-auto">
-              <PatientSidebar user={user} profile={profile} patientDetails={details} activeAppointmentsCount={upcoming.length} />
+              <PatientSidebar 
+                user={user} 
+                profile={profile} 
+                patientDetails={details} 
+                activeAppointmentsCount={upcoming.length} 
+                initialOpen={Boolean(isSetupMandatory)}
+                isMandatory={Boolean(isSetupMandatory)}
+              />
 
               <div className="lg:col-span-8 flex flex-col gap-6">
                 <div className="mb-2">
                   <h1 className="font-display-lg text-headline-lg font-bold text-on-surface">Personal Information &amp; History</h1>
                   <p className="font-body-md text-body-lg text-on-surface-variant mt-2">Your medical details, lab reports and payments in one place.</p>
                 </div>
+
+                {isSetupMandatory && (
+                  <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-in fade-in duration-300">
+                    <div className="flex items-start gap-3">
+                      <span className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-800 shrink-0">
+                        <Phone className="w-5 h-5 text-amber-700" />
+                      </span>
+                      <div>
+                        <h3 className="font-title-sm font-bold text-amber-950 text-base">Mobile Number is Mandatory</h3>
+                        <p className="font-body-sm text-xs text-amber-900/80 mt-0.5">
+                          Please complete your profile details. A valid phone number is mandatory to receive your appointment booking slips, doctor prescriptions, and live WhatsApp updates.
+                        </p>
+                      </div>
+                    </div>
+                    <ProfileEditButton 
+                      details={editDetails} 
+                      className="px-5 py-2.5 rounded-full bg-amber-600 hover:bg-amber-700 text-white font-label-sm text-xs font-bold shrink-0 transition-colors shadow-sm"
+                    >
+                      Complete Profile Details
+                    </ProfileEditButton>
+                  </div>
+                )}
 
                 {payment === 'success' && (
                   <Banner tone="teal" icon={CircleCheck}>Payment received. Your booking is confirmed. It&apos;s listed under My Appointments &amp; History with its booking ID.</Banner>

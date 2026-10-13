@@ -53,9 +53,9 @@ export function isMorning(iso: string) {
 
 export const formatINR = (amount: number) => `₹${Math.round(amount).toLocaleString('en-IN')}`
 
-/** Names are stored with or without the "Dr." prefix; show it exactly once. */
+/** Names are stored with or without the "Dr." prefix (sometimes "Dr.Name", sometimes twice); show it exactly once. */
 export function doctorName(name: string | null | undefined) {
-  const bare = (name || '').replace(/^Dr\.?\s+/i, '').trim()
+  const bare = (name || '').replace(/^(?:dr(?:\.\s*|\s+))+/i, '').trim()
   return bare ? `Dr. ${bare}` : 'Doctor'
 }
 

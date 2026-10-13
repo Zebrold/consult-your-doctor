@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { CircleCheck, KeyRound, Plus, Printer, Search, Send, X } from 'lucide-react'
+import { CircleCheck, Home, KeyRound, Plus, Printer, Search, Send, X } from 'lucide-react'
 import { registerLabPatient, recordLabPayment, resetLabPatientPassword, sendLabPatientOtp } from '@/app/actions/lab-desk'
 import { formatINR } from '@/components/patient/format'
 import { ErrorNote, PaymentPanel, PrimaryButton, QuietButton, Steps } from '@/components/portal/desk'
@@ -14,6 +14,8 @@ export type BookingFormProps = {
   minDate: string
   maxDate: string
   defaultDate: string
+  doorstepEnabled?: boolean
+  defaultDoorstepFee?: number
 }
 
 type Credentials = { patientCode: string; password: string | null }
@@ -24,13 +26,14 @@ const input =
 const STEPS = ['Details', 'Verify', 'Payment']
 
 /** A small slip with the patient's sign-in details, printed for them to keep. */
-function printSlip(name: string, credentials: Credentials) {
-  const w = window.open('', '_blank', 'width=420,height=520')
+function printSlip(name: string, credentials: Credentials, bookingType: 'walk_in' | 'doorstep', doorstepFee: number) {
+  const w = window.open('', '_blank', 'width=420,height=560')
   if (!w) return
   const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
+  const modeLabel = bookingType === 'doorstep' ? `Doorstep (Home Visit • Fee ₹${doorstepFee})` : 'Walk-In (In-Center)'
   w.document.write(`<!doctype html><title>Patient login</title><body style="font-family:Arial,sans-serif;padding:24px;color:#0f172a">
 <h2 style="margin:0 0 4px;color:#0066ff">Consult Your Doctor</h2><p style="margin:0 0 18px;color:#475569">Your patient account</p>
-<p style="margin:6px 0">Name: <b>${esc(name)}</b></p><p style="margin:6px 0">Patient ID: <b style="font-family:monospace;font-size:18px">${esc(credentials.patientCode)}</b></p>
+<p style="margin:6px 0">Name: <b>${esc(name)}</b></p><p style="margin:6px 0">Booking Mode: <b>${esc(modeLabel)}</b></p><p style="margin:6px 0">Patient ID: <b style="font-family:monospace;font-size:18px">${esc(credentials.patientCode)}</b></p>
 ${credentials.password ? `<p style="margin:6px 0">Password: <b style="font-family:monospace;font-size:18px">${esc(credentials.password)}</b></p>` : ''}
 <p style="margin:18px 0 0;font-size:13px;color:#475569">Sign in at consultyourdoctor.de/login/patient with your Patient ID and password, or with your mobile number and a one-time code. Your reports appear in your account. Keep this slip private.</p>
 <script>window.onload=()=>{window.print()}</script></body>`)
@@ -41,9 +44,19 @@ ${credentials.password ? `<p style="margin:6px 0">Password: <b style="font-famil
  * Books tests for a walk-in or phone patient: the patient confirms their mobile number with a one-time code (which
  * gives them an account with a Patient ID and password), then the desk takes payment by PayU, the UPI scanner or cash.
  */
-export function NewBookingForm({ tests, minDate, maxDate, defaultDate, onDone }: BookingFormProps & { onDone?: () => void }) {
+export function NewBookingForm({
+  tests,
+  minDate,
+  maxDate,
+  defaultDate,
+  doorstepEnabled = true,
+  defaultDoorstepFee = 100,
+  onDone,
+}: BookingFormProps & { onDone?: () => void }) {
   const router = useRouter()
   const [step, setStep] = useState<'details' | 'verify' | 'pay' | 'done'>('details')
+  const [bookingType, setBookingType] = useState<'walk_in' | 'doorstep'>('walk_in')
+  const [doorstepFee, setDoorstepFee] = useState<number>(defaultDoorstepFee)
   const [details, setDetails] = useState({ name: '', phone: '', email: '', date: defaultDate })
   const [selected, setSelected] = useState<string[]>([])
   const [query, setQuery] = useState('')
@@ -56,6 +69,13 @@ export function NewBookingForm({ tests, minDate, maxDate, defaultDate, onDone }:
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
+  // Reset booking type if doorstep gets disabled
+  useEffect(() => {
+    if (!doorstepEnabled && bookingType === 'doorstep') {
+      setBookingType('walk_in')
+    }
+  }, [doorstepEnabled, bookingType])
+
   useEffect(() => {
     if (resendIn <= 0) return
     const t = setTimeout(() => setResendIn((s) => s - 1), 1000)
@@ -66,11 +86,15 @@ export function NewBookingForm({ tests, minDate, maxDate, defaultDate, onDone }:
     const q = query.trim().toLowerCase()
     return q ? tests.filter((t) => t.name.toLowerCase().includes(q)) : tests
   }, [tests, query])
-  const total = tests.filter((t) => selected.includes(t.name)).reduce((s, t) => s + t.price, 0)
+
+  const testsTotal = tests.filter((t) => selected.includes(t.name)).reduce((s, t) => s + t.price, 0)
+  const total = testsTotal + (bookingType === 'doorstep' ? doorstepFee : 0)
   const toggle = (name: string) => setSelected((cur) => (cur.includes(name) ? cur.filter((n) => n !== name) : [...cur, name]))
 
   const reset = () => {
     setStep('details')
+    setBookingType('walk_in')
+    setDoorstepFee(defaultDoorstepFee)
     setDetails({ name: '', phone: '', email: '', date: defaultDate })
     setSelected([])
     setQuery('')
@@ -84,6 +108,9 @@ export function NewBookingForm({ tests, minDate, maxDate, defaultDate, onDone }:
 
   const sendCode = () => {
     if (selected.length === 0) return setError('Select at least one test.')
+    if (bookingType === 'doorstep' && !doorstepEnabled) {
+      return setError('Doorstep service is currently disabled in the schedule settings.')
+    }
     start(async () => {
       const res = await sendLabPatientOtp(details.phone)
       if (!res.ok) return setError(res.error)
@@ -97,7 +124,13 @@ export function NewBookingForm({ tests, minDate, maxDate, defaultDate, onDone }:
   const verify = (e: FormEvent) => {
     e.preventDefault()
     start(async () => {
-      const res = await registerLabPatient({ ...details, tests: selected, code })
+      const res = await registerLabPatient({
+        ...details,
+        tests: selected,
+        code,
+        bookingType,
+        doorstepFee: bookingType === 'doorstep' ? doorstepFee : 0,
+      })
       if (!res.ok) return setError(res.error)
       setError(null)
       setToken(res.token)
@@ -126,7 +159,7 @@ export function NewBookingForm({ tests, minDate, maxDate, defaultDate, onDone }:
         <span className="flex items-center gap-2 text-sm font-bold text-indigo-gray-900">
           <KeyRound className="w-4 h-4 text-vibrant-blue" /> Patient login
         </span>
-        <button type="button" onClick={() => printSlip(details.name, credentials)} className="inline-flex items-center gap-1 text-[12px] font-bold text-vibrant-blue">
+        <button type="button" onClick={() => printSlip(details.name, credentials, bookingType, doorstepFee)} className="inline-flex items-center gap-1 text-[12px] font-bold text-vibrant-blue">
           <Printer className="w-3.5 h-3.5" /> Print slip
         </button>
       </div>
@@ -178,6 +211,60 @@ export function NewBookingForm({ tests, minDate, maxDate, defaultDate, onDone }:
               <input value={details.date} onChange={(e) => setDetails({ ...details, date: e.target.value })} type="date" required min={minDate} max={maxDate} className={input} />
             </label>
           </div>
+
+          {/* Booking Type: Walk-In vs Doorstep */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="flex flex-col gap-1">
+              <span className="font-label-sm text-label-sm text-indigo-gray-600 flex items-center justify-between">
+                <span>Booking Type</span>
+                {doorstepEnabled === false && (
+                  <span className="text-[10px] text-amber-600 font-semibold">Doorstep Off</span>
+                )}
+              </span>
+              <select
+                value={bookingType}
+                onChange={(e) => {
+                  const val = e.target.value as 'walk_in' | 'doorstep'
+                  if (val === 'doorstep' && doorstepEnabled === false) return
+                  setBookingType(val)
+                }}
+                className={input}
+              >
+                <option value="walk_in">🚶 Walk-In (In-Center)</option>
+                <option value="doorstep" disabled={doorstepEnabled === false}>
+                  🏠 Doorstep (Home Collection){doorstepEnabled === false ? ' — Disabled' : ''}
+                </option>
+              </select>
+            </label>
+
+            {bookingType === 'doorstep' ? (
+              <label className="flex flex-col gap-1">
+                <span className="font-label-sm text-label-sm text-indigo-gray-600 flex items-center justify-between">
+                  <span>Doorstep Fee (₹)</span>
+                  <span className="text-[10px] text-vibrant-blue font-bold uppercase">Editable</span>
+                </span>
+                <span className="flex items-center rounded-xl bg-surface-container-low border border-transparent focus-within:border-vibrant-blue focus-within:bg-surface-container-lowest">
+                  <span className="pl-3.5 text-sm font-semibold text-indigo-gray-600">₹</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    required
+                    value={doorstepFee}
+                    onChange={(e) => setDoorstepFee(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-full bg-transparent px-2 py-2.5 text-sm font-semibold text-indigo-gray-900 placeholder:text-outline focus:outline-none"
+                    placeholder="100"
+                  />
+                </span>
+              </label>
+            ) : (
+              <div className="hidden sm:flex flex-col justify-center px-3.5 py-2 rounded-xl bg-surface-container-low/60 border border-transparent text-[12px] text-indigo-gray-600">
+                <span className="font-medium text-indigo-gray-800">In-Center Walk-In</span>
+                <span className="text-[11px] text-emerald-600 font-semibold">Standard booking • No collection fee</span>
+              </div>
+            )}
+          </div>
+
           <label className="flex flex-col gap-1">
             <span className="font-label-sm text-label-sm text-indigo-gray-600">Email (optional, for the report)</span>
             <input value={details.email} onChange={(e) => setDetails({ ...details, email: e.target.value })} type="email" autoComplete="off" placeholder="priya@example.com" className={input} />
@@ -216,9 +303,23 @@ export function NewBookingForm({ tests, minDate, maxDate, defaultDate, onDone }:
             </div>
           </fieldset>
 
-          <div className="flex items-center justify-between px-1 text-sm">
-            <span className="text-indigo-gray-600">To collect</span>
-            <span className="font-title-md text-[18px] font-bold text-indigo-gray-900">{formatINR(total)}</span>
+          <div className="flex flex-col gap-1.5 p-3 rounded-xl bg-surface-container-low/80 border border-outline-variant/30 text-sm">
+            <div className="flex items-center justify-between text-indigo-gray-600">
+              <span>Tests ({selected.length} selected)</span>
+              <span className="font-semibold text-indigo-gray-900">{formatINR(testsTotal)}</span>
+            </div>
+            {bookingType === 'doorstep' && (
+              <div className="flex items-center justify-between text-indigo-gray-600">
+                <span className="flex items-center gap-1.5 text-vibrant-blue font-semibold">
+                  <Home className="w-3.5 h-3.5" /> Doorstep Collection Fee
+                </span>
+                <span className="font-bold text-vibrant-blue">+{formatINR(doorstepFee)}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between pt-1.5 border-t border-outline-variant/40">
+              <span className="font-bold text-indigo-gray-900">To collect</span>
+              <span className="font-title-md text-[18px] font-bold text-indigo-gray-900">{formatINR(total)}</span>
+            </div>
           </div>
           <ErrorNote>{error}</ErrorNote>
           <PrimaryButton pending={pending}>

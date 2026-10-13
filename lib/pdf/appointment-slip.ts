@@ -109,7 +109,7 @@ export async function generateAppointmentSlipPdf(data: AppointmentSlipData): Pro
     size: 9,
     color: C.primary,
   })
-  page.drawText(`#${safe(data.tokenNumber)}`, {
+  page.drawText(`${safe(data.tokenNumber).replace(/^#/, '')}`, {
     x: M + 18,
     y: y - 56,
     font: bold,

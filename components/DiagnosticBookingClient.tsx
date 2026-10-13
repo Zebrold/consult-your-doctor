@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  BadgeCheck, Building2, CalendarDays, Check, CircleCheck, FileText, FlaskConical, IdCard, Lock, LoaderCircle,
+  BadgeCheck, Building2, CalendarDays, Check, CircleCheck, FileText, FlaskConical, Home, IdCard, Lock, LoaderCircle,
   MapPin, Microscope, Navigation, Plus, Search,
 } from "lucide-react";
 import { PatientDock } from "@/components/PatientDock";
@@ -23,6 +23,8 @@ export interface DiagnosticCenter {
   city: string | null;
   address: string | null;
   image: string | null;
+  doorstepEnabled?: boolean;
+  doorstepFee?: number;
 }
 
 interface DiagnosticBookingClientProps {
@@ -39,6 +41,12 @@ const COLLAPSED = 8;
 export function DiagnosticBookingClient({ center, tests, patient, now, payuKey }: DiagnosticBookingClientProps) {
   const days = useMemo(() => upcomingDays(now, 6), [now]);
   const today = days[0].key;
+  const doorstepEnabled = center.doorstepEnabled !== false;
+  const doorstepFee = Number(center.doorstepFee) || 100;
+  const [bookingType, setBookingType] = useState<'walk_in' | 'doorstep'>('walk_in');
+  const isDoorstep = bookingType === 'doorstep' && doorstepEnabled;
+  const currentDoorstepFee = isDoorstep ? doorstepFee : 0;
+
   const [chosen, setChosen] = useState<string[]>([]);
   const [filter, setFilter] = useState("");
   const [showAll, setShowAll] = useState(false);
@@ -53,7 +61,7 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey }
 
   const selectedTests = tests.filter((t) => chosen.includes(t.name));
   const testsTotal = selectedTests.reduce((sum, t) => sum + t.price, 0);
-  const total = testsTotal + DIAGNOSTIC_PLATFORM_FEE;
+  const total = testsTotal + currentDoorstepFee + DIAGNOSTIC_PLATFORM_FEE;
   const cheapest = tests.length ? Math.min(...tests.map((t) => t.price)) : null;
 
   const q = filter.trim().toLowerCase();
@@ -76,6 +84,8 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey }
     const form = new FormData();
     form.append("center_id", center.id);
     form.append("preferred_date", date);
+    form.append("booking_type", isDoorstep ? "doorstep" : "walk_in");
+    form.append("doorstep_fee", String(currentDoorstepFee));
     for (const t of selectedTests) form.append("test_names", t.name);
     appendPatientDetails(form, activeDetails);
 
@@ -153,26 +163,79 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey }
                 </div>
               </section>
 
-              {/* 1. Visit */}
-              <StepCard step={1} title="Sample Collection">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl bg-primary-fixed/20 ring-2 ring-vibrant-blue/60">
-                  <span className="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center shrink-0 shadow-[0_2px_8px_rgba(15,23,42,0.12)]">
-                    <Building2 className="w-5 h-5" />
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <span className="font-title-md text-body-lg font-bold text-on-surface flex items-center gap-2">
-                      Lab Centre Visit <CircleCheck className="w-4 h-4 text-vibrant-blue" />
-                    </span>
-                    <span className="block text-sm text-on-surface-variant mt-0.5">Samples are collected at the lab: {location || center.name}.</span>
-                  </div>
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([center.name, location].filter(Boolean).join(", "))}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="self-start sm:self-center px-3 py-1.5 rounded-full bg-surface-container-lowest text-on-surface font-label-sm text-label-sm font-semibold shadow-sm hover:bg-surface-variant flex items-center gap-1.5 shrink-0"
+              {/* 1. Visit / Collection Mode */}
+              <StepCard step={1} title="Sample Collection Mode">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {/* Option 1: Walk-In */}
+                  <button
+                    type="button"
+                    onClick={() => setBookingType('walk_in')}
+                    className={`p-4 rounded-xl text-left border-2 transition-all flex flex-col justify-between gap-3 ${
+                      !isDoorstep
+                        ? 'border-vibrant-blue bg-primary-fixed/20 ring-1 ring-vibrant-blue/50'
+                        : 'border-outline-variant/30 bg-surface-container-low hover:bg-surface-container'
+                    }`}
                   >
-                    <Navigation className="w-4 h-4 text-vibrant-blue" /> Directions
-                  </a>
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center shrink-0 shadow-sm">
+                        <Building2 className="w-5 h-5" />
+                      </span>
+                      {!isDoorstep ? (
+                        <CircleCheck className="w-5 h-5 text-vibrant-blue" />
+                      ) : (
+                        <span className="text-xs font-semibold text-outline">Select</span>
+                      )}
+                    </div>
+                    <div>
+                      <span className="font-title-md text-base font-bold text-on-surface block">
+                        🚶 Lab Centre Visit (Walk-In)
+                      </span>
+                      <span className="text-xs text-on-surface-variant block mt-0.5 line-clamp-2">
+                        Provide sample directly at {location || center.name}.
+                      </span>
+                    </div>
+                    <span className="text-xs font-bold text-primary">₹0 Collection Fee</span>
+                  </button>
+
+                  {/* Option 2: Doorstep */}
+                  <button
+                    type="button"
+                    onClick={() => doorstepEnabled && setBookingType('doorstep')}
+                    disabled={!doorstepEnabled}
+                    className={`p-4 rounded-xl text-left border-2 transition-all flex flex-col justify-between gap-3 ${
+                      !doorstepEnabled
+                        ? 'opacity-50 cursor-not-allowed border-outline-variant/20 bg-surface-container-low'
+                        : isDoorstep
+                        ? 'border-emerald-600 bg-emerald-50 ring-1 ring-emerald-500/50'
+                        : 'border-outline-variant/30 bg-surface-container-low hover:bg-surface-container'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                        <Home className="w-5 h-5" />
+                      </span>
+                      {isDoorstep ? (
+                        <CircleCheck className="w-5 h-5 text-emerald-600" />
+                      ) : (
+                        <span className="text-xs font-semibold text-outline">
+                          {doorstepEnabled ? 'Select' : 'Unavailable'}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <span className="font-title-md text-base font-bold text-on-surface block">
+                        🏠 Doorstep (Home Collection)
+                      </span>
+                      <span className="text-xs text-on-surface-variant block mt-0.5 line-clamp-2">
+                        {doorstepEnabled
+                          ? `A certified phlebotomist visits your address on ${formatLongDate(date)}.`
+                          : 'Doorstep service is currently disabled by this lab.'}
+                      </span>
+                    </div>
+                    <span className="text-xs font-bold text-emerald-700">
+                      {doorstepEnabled ? `+${formatINR(doorstepFee)} Home Visit Fee` : 'Not Available'}
+                    </span>
+                  </button>
                 </div>
               </StepCard>
 
@@ -326,7 +389,11 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey }
                     selectedTests.map((t) => <SummaryRow key={t.name} label={t.name} value={formatINR(t.price)} />)
                   )}
                   <SummaryRow label="Platform fee" value={formatINR(DIAGNOSTIC_PLATFORM_FEE)} />
-                  <SummaryRow label="Sample collection" sub="At the lab" value="Free" tone="free" />
+                  {isDoorstep ? (
+                    <SummaryRow label="Doorstep home visit" sub="Phlebotomist collection" value={formatINR(doorstepFee)} />
+                  ) : (
+                    <SummaryRow label="Sample collection" sub="At the lab" value="Free" tone="free" />
+                  )}
                 </div>
                 <div className="py-4 bg-surface-container-low -mx-5 md:-mx-6 px-5 md:px-6 flex items-center justify-between gap-3">
                   <div>

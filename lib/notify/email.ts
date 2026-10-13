@@ -174,7 +174,7 @@ export function buildAppointmentEmailHtml(args: AppointmentEmailArgs): string {
                       <tr>
                         <td valign="middle">
                           <div style="font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #bfdbfe; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Official Clinical Appointment</div>
-                          <div style="font-size: 38px; font-weight: 800; letter-spacing: -0.8px; line-height: 1.1; margin-top: 4px; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Token #${escape(args.tokenNumber)}</div>
+                          <div style="font-size: 38px; font-weight: 800; letter-spacing: -0.8px; line-height: 1.1; margin-top: 4px; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Token ${escape(args.tokenNumber).replace(/^#/, '')}</div>
                           <div style="font-size: 12.5px; font-family: 'SF Mono', Monaco, Consolas, monospace; color: #e0f2fe; margin-top: 6px; letter-spacing: 0.5px;">Booking ID: <span style="font-weight: 700; color: #ffffff;">${escape(args.bookingId)}</span></div>
                         </td>
                         <td align="right" valign="middle" style="padding-left: 12px;">
@@ -297,7 +297,7 @@ export function buildAppointmentEmailHtml(args: AppointmentEmailArgs): string {
                     </div>
                     <ul style="margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.65; color: #64748b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
                       <li>Report to the hospital or clinic reception desk <strong>15 minutes prior</strong> to your time slot.</li>
-                      <li>Present your <strong>Token #${escape(args.tokenNumber)}</strong> or show the attached PDF on your smartphone.</li>
+                      <li>Present your <strong>Token ${escape(args.tokenNumber).replace(/^#/, '')}</strong> or show the attached PDF on your smartphone.</li>
                       <li>Please keep a valid Government Photo ID handy.</li>
                     </ul>
                   </td>
@@ -495,11 +495,11 @@ export async function sendAppointmentConfirmationEmail(args: {
 
   return sendEmail({
     to: args.to,
-    subject: `Appointment Confirmed: Dr. ${args.doctorName} (Token #${args.tokenNumber})`,
+    subject: `Appointment Confirmed: Dr. ${args.doctorName} (Token ${String(args.tokenNumber).replace(/^#/, '')})`,
     paragraphs: [
       `Hello ${args.patientName},`,
       `Your consultation with Dr. ${args.doctorName} at ${args.hospitalName} has been confirmed.`,
-      `Token Number: #${args.tokenNumber}`,
+      `Token Number: ${String(args.tokenNumber).replace(/^#/, '')}`,
       `Booking Reference ID: ${args.bookingId}`,
       `Scheduled Date & Time: ${args.appointmentDate}`,
       `Please arrive 15 minutes prior to your consultation. You can view, reschedule, or manage this appointment in your patient dashboard.`,

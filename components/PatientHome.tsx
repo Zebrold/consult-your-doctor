@@ -4,13 +4,14 @@ import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowRight, Building2, CalendarClock, CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin,
-  Microscope, Search, Stethoscope, UserRound, Zap, type LucideIcon,
+  ArrowRight, Building2, CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin,
+  Microscope, Search, Stethoscope, type LucideIcon,
 } from "lucide-react";
 import { PatientDock } from "@/components/PatientDock";
 import { PatientNavHeader } from "@/components/PatientNavHeader";
-import { doctorName, firstName, formatDayLabel, formatINR, formatSlot, formatTime, initials } from "@/components/patient/format";
+import { doctorName, formatDayLabel, formatINR, formatSlot, formatTime, initials } from "@/components/patient/format";
 import { specialtyMeta } from "@/components/patient/specialties";
+import { PhoneHome } from "@/components/patient/PhoneHome";
 
 export type HomeDoctor = {
   id: string;
@@ -19,10 +20,15 @@ export type HomeDoctor = {
   hospital: string | null;
   city: string | null;
   experience: number | null;
+  /** Degrees as the doctor entered them, e.g. "MBBS, MD". */
+  qualifications: string | null;
   fee: number | null;
   image: string | null;
   nextSlot: string | null;
   openToday: number;
+  /** Average of published patient ratings, or null when there are none. */
+  rating: number | null;
+  reviewCount: number;
 };
 
 export type HomeFacility = {
@@ -57,7 +63,8 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [city, setCity] = useState("");
-  const carousel = useRef<HTMLDivElement>(null);
+  const doctorRow = useRef<HTMLDivElement>(null);
+  const facilityRow = useRef<HTMLDivElement>(null);
 
   const search = (e: FormEvent) => {
     e.preventDefault();
@@ -67,11 +74,11 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
     router.push(`/find${params.size ? `?${params}` : ""}`);
   };
 
-  const scrollDoctors = (direction: 1 | -1) => {
-    const el = carousel.current;
+  // Moves a card row along by one card, wrapping round at either end.
+  const scrollRow = (el: HTMLDivElement | null, direction: 1 | -1) => {
     if (!el) return;
     const card = el.firstElementChild as HTMLElement | null;
-    const step = card ? card.offsetWidth + 24 : 320;
+    const step = card ? card.offsetWidth + (parseFloat(getComputedStyle(el).columnGap) || 24) : 320;
     const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 8;
     if (direction === 1 && atEnd) el.scrollTo({ left: 0, behavior: "smooth" });
     else if (direction === -1 && el.scrollLeft <= 8) el.scrollTo({ left: el.scrollWidth, behavior: "smooth" });
@@ -84,11 +91,22 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
 
   return (
     <div className="bg-background text-on-surface antialiased min-h-screen">
-      <PatientNavHeader name={name} email={email} isSignedIn={isSignedIn} container="max-w-[1296px] px-margin-x-mobile lg:px-margin-x-desktop" />
+      {/* Phones have their own app-style header in PhoneHome. */}
+      <PatientNavHeader name={name} email={email} isSignedIn={isSignedIn} container="max-w-[1296px] px-margin-x-mobile lg:px-margin-x-desktop" className="hidden md:block" />
 
       <main className="w-full pb-dock">
-        {/* Hero, greeting & search */}
-        <section className="relative w-full overflow-hidden bg-white px-margin-x-mobile lg:px-margin-x-desktop pt-2 md:pt-10 pb-10 md:pb-16">
+        <PhoneHome
+          name={name}
+          email={email}
+          isSignedIn={isSignedIn}
+          now={now}
+          visitLine={isSignedIn && nextVisit ? visitLine : null}
+          doctors={doctors}
+          specialties={specialties}
+        />
+
+        {/* Tablet & desktop: hero, greeting & search */}
+        <section className="hidden md:block relative w-full overflow-hidden bg-white px-margin-x-mobile lg:px-margin-x-desktop pt-2 md:pt-10 pb-8 md:pb-7">
           <div className="relative max-w-container-max mx-auto flex flex-col gap-stack-md md:gap-8">
             {/* Desktop greeting */}
             <div className="hidden md:flex items-center gap-3">
@@ -99,28 +117,12 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
             </div>
 
             <div className="flex flex-col gap-2 md:gap-4 md:pt-2">
-              <span className="font-label-sm text-label-sm uppercase tracking-wider text-primary md:text-vibrant-blue font-bold">
-                <span className="md:hidden">{name ? `Welcome back, ${firstName(name)}` : "Welcome"}</span>
-                <span className="hidden md:inline">Verified Doctors &amp; Partner Labs</span>
-              </span>
-              <h1 className="font-headline-lg-mobile text-headline-lg-mobile md:font-display-lg md:text-display-lg text-on-surface tracking-tight md:leading-[1.08]">
-                <span className="md:hidden">Find your specialist today</span>
-                <span className="hidden md:inline">Find a specialist and book a visit near you</span>
-              </h1>
+              <span className="font-label-sm text-label-sm uppercase tracking-wider text-vibrant-blue font-bold">Verified Doctors &amp; Partner Labs</span>
+              <h1 className="font-display-lg text-display-lg text-on-surface tracking-tight leading-[1.08]">Find a specialist and book a visit near you</h1>
               <p className="hidden md:block font-body-lg text-body-lg text-indigo-gray-600 max-w-2xl">
                 Search verified doctors, partner hospitals and diagnostic labs, see their real open slots, and book in a few taps.
               </p>
             </div>
-
-            {/* Mobile next-visit note */}
-            {isSignedIn && nextVisit && (
-              <Link href="/patient/appointments" className="md:hidden flex items-center gap-3 p-3.5 rounded-xl bg-surface-container-lowest shadow-[0_4px_20px_rgb(0,80,203,0.05)]">
-                <span className="w-10 h-10 rounded-full bg-primary-fixed text-primary flex items-center justify-center shrink-0">
-                  <CalendarClock className="w-5 h-5" />
-                </span>
-                <span className="text-sm text-on-surface leading-snug">{visitLine}</span>
-              </Link>
-            )}
 
             <form
               onSubmit={search}
@@ -172,7 +174,7 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
 
         {/* Popular specialties */}
         {specialties.length > 0 && (
-          <section className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-10 md:py-14">
+          <section className="hidden md:block w-full px-margin-x-mobile lg:px-margin-x-desktop pb-8 md:py-7">
             <div className="max-w-container-max mx-auto">
               <div className="flex items-center md:items-end justify-between gap-4 mb-stack-sm md:mb-8">
                 <div>
@@ -187,26 +189,6 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
                   <span className="hidden md:inline">View All {specialties.length} {specialties.length === 1 ? "Specialty" : "Specialties"}</span>
                   <ArrowRight className="hidden md:block w-[18px] h-[18px] group-hover:translate-x-1 transition-transform" />
                 </Link>
-              </div>
-
-              {/* Phone: compact scroller */}
-              <div className="md:hidden flex gap-4 overflow-x-auto pb-2 -mx-margin-x-mobile px-margin-x-mobile [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {specialties.slice(0, 10).map((s, i) => {
-                  const { icon: Icon } = specialtyMeta(s.name);
-                  const tint = ["bg-primary-fixed text-on-primary-fixed", "bg-secondary-fixed text-on-secondary-fixed", "bg-tertiary-fixed text-on-tertiary-fixed", "bg-surface-container-highest text-on-surface"][i % 4];
-                  return (
-                    <Link
-                      key={s.name}
-                      href={`/find?specialty=${encodeURIComponent(s.name)}`}
-                      className="flex flex-col items-center gap-2 min-w-[84px] p-3 rounded-xl bg-surface-container-lowest hover:bg-surface-container shadow-sm transition-colors"
-                    >
-                      <span className={`w-12 h-12 rounded-full flex items-center justify-center ${tint}`}>
-                        <Icon className="w-6 h-6" />
-                      </span>
-                      <span className="text-label-sm text-on-surface whitespace-nowrap">{s.name}</span>
-                    </Link>
-                  );
-                })}
               </div>
 
               {/* Tablet & desktop: cards */}
@@ -238,7 +220,7 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
         )}
 
         {/* Doctors */}
-        <section className="w-full md:bg-surface-container-low px-margin-x-mobile lg:px-margin-x-desktop pb-10 md:py-16">
+        <section className="hidden md:block w-full md:bg-surface-container-low px-margin-x-mobile lg:px-margin-x-desktop pb-8 md:py-7">
           <div className="max-w-container-max mx-auto flex flex-col gap-stack-sm md:gap-8">
             <div className="flex items-center md:items-end justify-between gap-4">
               <div>
@@ -249,12 +231,8 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
                 </h2>
                 <p className="hidden md:block font-body-md text-body-md text-indigo-gray-600 mt-1">Verified doctors, sorted by their earliest open appointment slot.</p>
               </div>
-              <Link href="/find" className="md:hidden py-2.5 -my-2.5 md:py-0 md:my-0 text-label-sm text-primary font-semibold">View All</Link>
-              {doctors.length > 4 && (
-                <div className="hidden md:flex items-center gap-2">
-                  <CarouselButton label="Previous doctors" onClick={() => scrollDoctors(-1)}><ChevronLeft className="w-5 h-5" /></CarouselButton>
-                  <CarouselButton label="Next doctors" onClick={() => scrollDoctors(1)}><ChevronRight className="w-5 h-5" /></CarouselButton>
-                </div>
+              {doctors.length > 2 && (
+                <CarouselButtons label="doctors" className={doctors.length <= 4 ? "lg:hidden" : ""} onScroll={(d) => scrollRow(doctorRow.current, d)} />
               )}
             </div>
 
@@ -265,26 +243,9 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
               </div>
             ) : (
               <>
-                {/* Phone: list rows */}
-                <div className="md:hidden flex flex-col gap-base">
-                  {doctors.slice(0, 4).map((d) => (
-                    <Link key={d.id} href={`/book/${d.id}`} className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_4px_20px_rgb(0,80,203,0.04)] flex gap-4 items-center">
-                      <DoctorPhoto doctor={d} className="w-16 h-16 rounded-full" />
-                      <div className="flex flex-col flex-1 min-w-0">
-                        <h3 className="font-title-md text-body-lg font-semibold text-on-surface truncate">{doctorName(d.name)}</h3>
-                        <p className="text-sm text-outline truncate">{d.specialty || "Specialist"}{d.hospital ? ` · ${d.hospital}` : ""}</p>
-                        <div className="flex items-center gap-2 mt-2 flex-wrap">
-                          <AvailabilityChip doctor={d} now={now} />
-                          {d.experience ? <span className="text-label-sm text-outline">• {d.experience} yrs exp</span> : null}
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-
-                {/* Tablet & desktop: card carousel */}
+                {/* Card carousel */}
                 <div
-                  ref={carousel}
+                  ref={doctorRow}
                   className="hidden md:flex gap-6 overflow-x-auto snap-x scroll-smooth pb-4 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                 >
                   {doctors.map((d) => (
@@ -329,7 +290,7 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
 
         {/* Hospitals & labs */}
         {facilities.length > 0 && (
-          <section id="care-network" className="scroll-mt-6 w-full px-margin-x-mobile lg:px-margin-x-desktop md:py-16">
+          <section id="care-network" className="scroll-mt-6 w-full px-margin-x-mobile lg:px-margin-x-desktop pb-8 md:py-7">
             <div className="max-w-container-max mx-auto">
               <div className="flex items-center md:items-end justify-between gap-4 mb-stack-sm md:mb-8">
                 <div>
@@ -339,17 +300,25 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
                     <span className="hidden md:inline">Partner Hospitals &amp; Diagnostics</span>
                   </h2>
                 </div>
-                <Link href="/hospitals" className="py-2.5 -my-2.5 md:py-0 md:my-0 text-label-sm md:font-body-md md:text-body-md font-semibold text-primary md:text-vibrant-blue hover:text-primary shrink-0">
-                  <span className="md:hidden">Explore All</span>
-                  <span className="hidden md:inline">View Hospital Directory</span>
-                </Link>
+                <div className="flex items-center gap-4 shrink-0">
+                  <Link href="/hospitals" className="py-2.5 -my-2.5 md:py-0 md:my-0 text-label-sm md:font-body-md md:text-body-md font-semibold text-primary md:text-vibrant-blue hover:text-primary">
+                    <span className="md:hidden">Explore All</span>
+                    <span className="hidden md:inline">View Hospital Directory</span>
+                  </Link>
+                  {facilities.length > 2 && (
+                    <CarouselButtons label="hospitals and labs" className={facilities.length <= 3 ? "lg:hidden" : ""} onScroll={(d) => scrollRow(facilityRow.current, d)} />
+                  )}
+                </div>
               </div>
 
-              <div className="flex md:grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 overflow-x-auto md:overflow-visible pb-2 -mx-margin-x-mobile px-margin-x-mobile md:mx-0 md:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div
+                ref={facilityRow}
+                className="flex gap-4 md:gap-6 overflow-x-auto snap-x scroll-smooth pb-2 md:pb-4 pt-1 -mx-margin-x-mobile px-margin-x-mobile scroll-px-margin-x-mobile md:mx-0 md:px-0 md:scroll-px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              >
                 {facilities.map((f) => {
                   const Icon = f.kind === "lab" ? Microscope : Building2;
                   return (
-                    <article key={`${f.kind}-${f.id}`} className="min-w-[260px] max-w-[260px] md:min-w-0 md:max-w-none bg-surface-container-lowest rounded-xl overflow-hidden shadow-[0_4px_20px_rgb(0,80,203,0.04)] md:shadow-sm hover:shadow-md transition-all flex flex-col">
+                    <article key={`${f.kind}-${f.id}`} className="snap-start shrink-0 w-[260px] md:w-[calc((100%-24px)/2)] lg:w-[calc((100%-48px)/3)] bg-surface-container-lowest rounded-xl overflow-hidden shadow-[0_4px_20px_rgb(0,80,203,0.04)] md:shadow-sm hover:shadow-md transition-all flex flex-col">
                       <Link href={facilityHref(f)} className="h-32 md:h-48 w-full relative bg-surface-container block">
                         {f.image ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -396,7 +365,7 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
         {reviews}
 
         {/* Patient Portal Footer */}
-        <footer className="w-full mt-16 pt-8 pb-12 border-t border-outline-variant/30 text-on-surface-variant font-body-md text-xs">
+        <footer className="w-full pt-8 pb-12 border-t border-outline-variant/30 text-on-surface-variant font-body-md text-xs">
           <div className="max-w-[1440px] mx-auto px-margin-x-mobile lg:px-margin-x-desktop flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-6 gap-y-0 md:gap-y-2">
               <Link href="/terms-of-use" className="py-2.5 md:py-0 hover:text-vibrant-blue hover:underline">
@@ -430,6 +399,15 @@ function QuickFilter({ href, icon: Icon, children }: { href: string; icon: Lucid
       <Icon className="w-[18px] h-[18px]" />
       {children}
     </Link>
+  );
+}
+
+function CarouselButtons({ label, className = "", onScroll }: { label: string; className?: string; onScroll: (direction: 1 | -1) => void }) {
+  return (
+    <div className={`hidden md:flex items-center gap-2 ${className}`}>
+      <CarouselButton label={`Previous ${label}`} onClick={() => onScroll(-1)}><ChevronLeft className="w-5 h-5" /></CarouselButton>
+      <CarouselButton label={`Next ${label}`} onClick={() => onScroll(1)}><ChevronRight className="w-5 h-5" /></CarouselButton>
+    </div>
   );
 }
 
@@ -469,24 +447,12 @@ function SlotBadge({ doctor, now }: { doctor: HomeDoctor; now: number }) {
   }
   const day = formatDayLabel(doctor.nextSlot, now);
   return day === "Today" ? (
-    <span className="flex items-center gap-1 text-secondary">
-      <Zap className="w-3.5 h-3.5" /> Today {formatTime(doctor.nextSlot)}
+    <span className="flex items-center gap-1.5 text-secondary">
+      <span aria-hidden className="w-2 h-2 rounded-full bg-fresh-teal" /> Today {formatTime(doctor.nextSlot)}
     </span>
   ) : (
     <span className="flex items-center gap-1 text-indigo-gray-900">
       <CalendarDays className="w-3.5 h-3.5" /> {day}
-    </span>
-  );
-}
-
-/** Phone list chip: "Available Today" or the next day with an open slot. */
-function AvailabilityChip({ doctor, now }: { doctor: HomeDoctor; now: number }) {
-  if (doctor.openToday > 0) {
-    return <span className="px-2 py-0.5 rounded-full bg-blue-50 text-vibrant-blue font-semibold text-label-sm">Available Today</span>;
-  }
-  return (
-    <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant text-label-sm">
-      {doctor.nextSlot ? `Next Available: ${formatDayLabel(doctor.nextSlot, now)}` : "No open slots"}
     </span>
   );
 }

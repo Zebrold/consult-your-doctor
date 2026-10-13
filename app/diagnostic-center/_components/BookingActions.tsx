@@ -8,8 +8,16 @@ import { createLabReport, labPaymentInfo, recordLabPayment, type ResultRow } fro
 import { DeskDialog, PaymentPanel } from '@/components/portal/desk'
 import type { DeskPayment } from '@/components/portal/desk-types'
 
-/** What the action buttons need to know about a booking (plain data, so server pages can pass it). */
-export type BookingRef = { id: string; code: string; status: string; patientName: string; phone: string | null; testLabel: string }
+export type BookingRef = {
+  id: string
+  code: string
+  status: string
+  patientName: string
+  phone: string | null
+  testLabel: string
+  bookingType?: 'walk_in' | 'doorstep'
+  doorstepFee?: number
+}
 
 const styles = {
   teal: 'bg-fresh-teal hover:bg-secondary text-on-secondary shadow-[0_4px_14px_rgba(20,184,166,0.3)]',

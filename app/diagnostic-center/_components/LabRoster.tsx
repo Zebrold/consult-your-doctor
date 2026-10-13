@@ -288,10 +288,17 @@ export function LabRoster({
                       </div>
                     </td>
                     <td className="py-4 px-4 whitespace-nowrap">
-                      <div className="flex flex-col">
-                        <span className="font-label-sm text-label-sm font-bold text-on-surface flex items-center gap-1">
-                          <Barcode className={`w-4 h-4 ${active ? 'text-vibrant-blue' : 'text-indigo-gray-600'}`} />#{b.code}
-                        </span>
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-label-sm text-label-sm font-bold text-on-surface flex items-center gap-1">
+                            <Barcode className={`w-4 h-4 ${active ? 'text-vibrant-blue' : 'text-indigo-gray-600'}`} />#{b.code}
+                          </span>
+                          {b.bookingType === 'doorstep' ? (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-primary/10 text-primary shrink-0">🏠 Doorstep</span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-surface-container text-indigo-gray-600 shrink-0">🚶 Walk-In</span>
+                          )}
+                        </div>
                         <span className="font-label-sm text-label-sm text-indigo-gray-600">{b.date === today ? 'Booked for today' : `For ${dayText(b.date)}`}</span>
                       </div>
                     </td>
@@ -375,8 +382,13 @@ export function LabRoster({
                   <Avatar name={b.patientName} className="w-10 h-10 text-xs" />
                   <span className="flex flex-col min-w-0">
                     <span className="font-title-md text-[15px] font-bold text-on-surface truncate">{b.patientName}</span>
-                    <span className="font-label-sm text-[11px] text-outline truncate">
-                      {b.ageSex ? `${b.ageSex.replace(' • ', ' ')} • ` : ''}#{b.code}
+                    <span className="font-label-sm text-[11px] text-outline truncate flex items-center gap-1.5 flex-wrap">
+                      <span>{b.ageSex ? `${b.ageSex.replace(' • ', ' ')} • ` : ''}#{b.code}</span>
+                      {b.bookingType === 'doorstep' ? (
+                        <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-primary/10 text-primary">🏠 Doorstep</span>
+                      ) : (
+                        <span className="px-1.5 py-0.2 rounded text-[9px] font-medium bg-surface-container text-indigo-gray-600">🚶 Walk-In</span>
+                      )}
                     </span>
                   </span>
                 </button>
@@ -504,8 +516,13 @@ function Inspector({ b, look, onClose }: { b: RosterBooking; look: Look; onClose
             <span className="w-12 h-12 rounded-xl bg-primary-fixed flex items-center justify-center text-primary font-title-md text-[18px] font-bold shrink-0">{initialsOf(b.patientName)}</span>
             <div className="min-w-0">
               <h2 className="font-title-md text-title-md text-indigo-gray-900 font-bold tracking-tight truncate">{b.patientName}</h2>
-              <span className="font-label-sm text-[12px] text-indigo-gray-600">
-                {b.ageSex && `${b.ageSex} • `}Booking #{b.code}
+              <span className="font-label-sm text-[12px] text-indigo-gray-600 flex items-center gap-1.5 flex-wrap">
+                <span>{b.ageSex && `${b.ageSex} • `}Booking #{b.code}</span>
+                {b.bookingType === 'doorstep' ? (
+                  <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-primary/10 text-primary">🏠 Doorstep</span>
+                ) : (
+                  <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-surface-container text-indigo-gray-600">🚶 Walk-In</span>
+                )}
               </span>
             </div>
           </div>
@@ -554,6 +571,12 @@ function Details({ b }: { b: RosterBooking }) {
             </li>
           ))}
         </ul>
+        {b.bookingType === 'doorstep' && (
+          <div className="flex items-center justify-between px-1 text-[12px] text-on-surface">
+            <span className="flex items-center gap-1 font-medium text-indigo-gray-700">🏠 Doorstep Collection Fee</span>
+            <span className="font-semibold">{formatINR(b.doorstepFee ?? 0)}</span>
+          </div>
+        )}
         {b.amount != null && (
           <div className="flex items-center justify-between px-1 text-[12px]">
             <span className="text-indigo-gray-600">Total at your prices</span>

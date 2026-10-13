@@ -111,7 +111,7 @@ export async function sendBookingConfirmationSms(
   phone: string,
   details: { bookingId: string; tokenNumber?: string | number; doctorOrLab: string; date: string; hospital: string }
 ): Promise<boolean> {
-  const tokenPart = details.tokenNumber ? ` Token #${details.tokenNumber}.` : ''
+  const tokenPart = details.tokenNumber ? ` Token ${String(details.tokenNumber).replace(/^#/, '')}.` : ''
   return sendSms({
     phone,
     message: `Consult Your Doctor: Your booking with ${details.doctorOrLab} at ${details.hospital} is confirmed.${tokenPart} ID: ${details.bookingId}. Date: ${details.date}.`,

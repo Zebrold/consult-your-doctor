@@ -225,7 +225,7 @@ export function Footer() {
         <div className="flex flex-col items-center text-center gap-4">
           {/* Disclaimer text */}
           <p className="text-[11.5px] sm:text-[12px] leading-relaxed text-white/70 max-w-5xl text-center">
-            Consult Your Doctor is a healthcare technology platform. Your care is provided by the independent doctors, hospitals and diagnostic centres you book; we provide booking, payments and your digital records. In an emergency, call 112. Read about the{" "}
+            Consult Your Doctor is a healthcare technology platform. Your care is provided by the independent doctors, hospitals and diagnostic centres you book; we provide booking, payments and your digital records. In an emergency, call 108. Read about the{" "}
             <Link
               href="/terms-of-use"
               className="text-white font-semibold underline underline-offset-2 hover:text-white/90 focus-visible:outline-none"

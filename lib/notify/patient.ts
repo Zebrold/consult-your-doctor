@@ -204,11 +204,11 @@ export function notifyBookingConfirmed(args: BookingConfirmationArgs) {
 
       await sendEmail({
         to: contact.email,
-        subject: `Appointment Confirmed: ${args.what} at ${args.where} (Token #${tokenNumber})`,
+        subject: `Appointment Confirmed: ${args.what} at ${args.where} (Token ${tokenNumber.replace(/^#/, '')})`,
         paragraphs: [
           `Hello ${firstName(contact.name)},`,
           `Your appointment for ${args.what} at ${args.where} is confirmed!`,
-          `📋 Appointment Token: #${tokenNumber}`,
+          `📋 Appointment Token: ${tokenNumber.replace(/^#/, '')}`,
           `🔖 Booking Reference ID: ${args.bookingId.toUpperCase()}`,
           `💳 Amount Paid: ${args.amount} (Real-time PayU verified)`,
           `📅 Schedule: ${args.dateTimeStr || 'Scheduled Visit'}`,

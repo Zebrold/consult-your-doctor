@@ -59,7 +59,11 @@ export async function createDiagnosticBooking(formData: FormData) {
       return { error: 'Please choose a visit date from today onwards.' }
     }
 
-    const { data: center } = await supabase.from('diagnostic_centers').select('test_prices').eq('id', centerId).maybeSingle()
+    const { data: center } = await supabase
+      .from('diagnostic_centers')
+      .select('test_prices, doorstep_enabled, doorstep_fee')
+      .eq('id', centerId)
+      .maybeSingle()
     const offered = new Set(pricedTests(center?.test_prices).map((t) => t.name))
     if (selectedTests.some((name) => !offered.has(name))) {
       return { error: 'Some of the selected tests are no longer offered by this lab. Please review your selection.' }
@@ -77,18 +81,53 @@ export async function createDiagnosticBooking(formData: FormData) {
     return { error: 'Please select a center, a test, and a preferred date.' }
   }
 
-  // 3. Insert Booking
-  const { data: booking, error } = await supabase
+  const reqBookingType = (formData.get('booking_type') as string) === 'doorstep' ? 'doorstep' : 'walk_in'
+  let doorstepFee = 0
+
+  if (reqBookingType === 'doorstep') {
+    const { data: centerSettings } = await supabase
+      .from('diagnostic_centers')
+      .select('doorstep_enabled, doorstep_fee')
+      .eq('id', centerId)
+      .maybeSingle()
+
+    if (centerSettings?.doorstep_enabled === false) {
+      return { error: 'Doorstep home collection is currently unavailable at this diagnostic center.' }
+    }
+    doorstepFee = Math.max(0, Number(centerSettings?.doorstep_fee) || 100)
+  }
+
+  // 3. Insert Booking with doorstep details
+  let { data: booking, error } = await supabase
     .from('diagnostic_bookings')
     .insert({
       patient_id: user.id,
       center_id: centerId,
       test_name: testName,
       preferred_date: preferredDate,
+      booking_type: reqBookingType,
+      doorstep_fee: doorstepFee,
       status: 'pending_payment'
     })
     .select('id')
     .single()
+
+  // Fallback if DB columns haven't been migrated yet
+  if (error && /booking_type|doorstep_fee/.test(error.message)) {
+    const fallbackRes = await supabase
+      .from('diagnostic_bookings')
+      .insert({
+        patient_id: user.id,
+        center_id: centerId,
+        test_name: testName,
+        preferred_date: preferredDate,
+        status: 'pending_payment'
+      })
+      .select('id')
+      .single()
+    booking = fallbackRes.data
+    error = fallbackRes.error
+  }
 
   if (error || !booking) {
     console.error('Error creating diagnostic booking:', error)

@@ -1,3 +1,4 @@
+import { safeNextPath } from '@/lib/safe-redirect'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -57,7 +58,8 @@ export async function POST(request: Request) {
     }
 
     const email = tokenInfo.email?.toLowerCase().trim()
-    if (!email) {
+    // Accounts are matched by email, so only an address Google has verified (tokeninfo reports it as a string).
+    if (!email || String(tokenInfo.email_verified) !== 'true') {
       return NextResponse.json({ error: 'Google account has no associated email' }, { status: 400 })
     }
 
@@ -108,8 +110,10 @@ export async function POST(request: Request) {
     }
 
     // 2. Ensure public profile exists
-    const { data: profile } = await admin.from('profiles').select('id, role').eq('id', userId).maybeSingle()
+    const { data: profile } = await admin.from('profiles').select('id, role, phone_number').eq('id', userId).maybeSingle()
     const userRole = profile?.role || 'patient'
+    const isNew = !profile
+    const isMissingPhone = !profile?.phone_number
 
     if (!profile) {
       const { error: profileError } = await admin.from('profiles').insert({
@@ -153,11 +157,17 @@ export async function POST(request: Request) {
     const cookieStore = await cookies()
     cookieStore.set(ROLE_COOKIE, roleCookieValue(userId, userRole), ROLE_COOKIE_OPTIONS)
 
-    const safeNext = next && next.startsWith('/') && !next.startsWith('//') ? next : '/'
+    const safeNext = safeNextPath(next)
+
+    // For new accounts or patient accounts without a phone number, mandate profile setup
+    let finalRedirect = safeNext
+    if (userRole === 'patient' && (isNew || isMissingPhone)) {
+      finalRedirect = `/patient/profile?setup=mandatory${safeNext && safeNext !== '/' ? `&next=${encodeURIComponent(safeNext)}` : ''}`
+    }
 
     return NextResponse.json({
       success: true,
-      redirect: safeNext,
+      redirect: finalRedirect,
       user: {
         id: userId,
         email,

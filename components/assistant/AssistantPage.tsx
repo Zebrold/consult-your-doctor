@@ -67,12 +67,6 @@ const PROMPTS: Record<string, Prompt[]> = {
     { text: 'How do desk payments work?', icon: IndianRupee },
     { text: 'Make a PDF of lab test prices for the desk', icon: FileText },
   ],
-  super_admin: [
-    { text: 'What can each portal do?', icon: ListChecks },
-    { text: 'How do hospitals publish slots?', icon: CalendarPlus },
-    { text: 'How do lab reports reach patients?', icon: Upload },
-    { text: 'Make a PDF overview of the booking flow', icon: FileText },
-  ],
 }
 
 const INTRO: Record<string, string> = {
@@ -82,7 +76,6 @@ const INTRO: Record<string, string> = {
   diagnostic_admin: 'Ask about your lab portal (bookings, walk-ins, reports and your test menu) or look up labs.',
   hospital_admin: 'Ask about your hospital portal (doctors, slots, visits, finance and staff) or look up doctors.',
   executive: 'Find doctors with open slots, labs and test prices, and get help with walk-ins and desk payments.',
-  super_admin: 'Ask how any part of the site works, or look up doctors and labs.',
 }
 
 const SECTION: Record<string, string> = {
@@ -92,7 +85,6 @@ const SECTION: Record<string, string> = {
   diagnostic_admin: 'Diagnostic center assistant',
   hospital_admin: 'Hospital portal assistant',
   executive: 'Front desk assistant',
-  super_admin: 'Platform assistant',
 }
 
 /**
@@ -185,8 +177,8 @@ export function AssistantPage({ role, viewer }: { role: string | null; viewer: s
               </div>
               <p className="text-[12px] text-on-surface-variant">
                 Zebrold AI isn’t a doctor. In an emergency, call{' '}
-                <a href="tel:112" className="font-bold text-soft-coral">
-                  112
+                <a href="tel:108" className="font-bold text-soft-coral">
+                  108
                 </a>
                 .
               </p>
@@ -237,7 +229,7 @@ export function AssistantPage({ role, viewer }: { role: string | null; viewer: s
           <ul className="flex flex-col gap-2 text-[12.5px] text-on-surface-variant leading-snug list-disc pl-4">
             <li>Zebrold AI isn’t a doctor and can make mistakes. It can’t diagnose, prescribe or read results.</li>
             <li>
-              In an emergency, call <strong className="text-soft-coral">112</strong>.
+              In an emergency, call <strong className="text-soft-coral">108</strong>.
             </li>
             <li>Never share one-time codes, passwords or card details in the chat.</li>
           </ul>

@@ -7,6 +7,7 @@ import {
   Calendar, Clock, HelpCircle, CheckCircle2, AlertCircle, RefreshCw, Printer
 } from 'lucide-react'
 import { ReviewButton, type ExistingReview } from './patient/ReviewButton'
+import { doctorName } from './patient/format'
 
 const getStatusColor = (status: string) => {
   const s = (status || '').toLowerCase();
@@ -38,7 +39,6 @@ type TabCategory = 'upcoming' | 'completed' | 'cancelled' | 'rescheduled' | 'all
 /** `reviews` holds the patient's own reviews by appointment id, so finished visits show "Rate your visit" or their rating. */
 export function ConsultationsList({ appointments, reviews = {} }: { appointments: any[]; reviews?: Record<string, ExistingReview> }) {
   const [activeTab, setActiveTab] = useState<TabCategory>('upcoming')
-  const [selectedApt, setSelectedApt] = useState<any | null>(null)
 
   const items = appointments || []
 
@@ -173,7 +173,7 @@ export function ConsultationsList({ appointments, reviews = {} }: { appointments
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="font-title-md text-base md:text-lg font-bold text-on-surface">
-                          Dr. {doctor?.profiles?.full_name || 'Medical Specialist'}
+                          {doctorName(doctor?.profiles?.full_name)}
                         </h4>
                         <span className="px-2.5 py-0.5 rounded-full bg-surface-container text-primary text-[11px] font-bold">
                           {doctor?.specialty || 'General'}
@@ -189,7 +189,7 @@ export function ConsultationsList({ appointments, reviews = {} }: { appointments
                   <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-2">
                     <div className="flex items-center gap-2">
                       <span className="px-3 py-1 rounded-xl bg-gradient-to-r from-primary to-vibrant-blue text-white font-mono text-xs font-bold shadow-sm">
-                        Token #{token}
+                        Token {token}
                       </span>
                       <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize ${badgeClass}`}>
                         {apt.status.replace('_', ' ')}
@@ -247,100 +247,18 @@ export function ConsultationsList({ appointments, reviews = {} }: { appointments
                     </Link>
 
                     {(apt.status === 'completed' || apt.status === 'visited') && (
-                      <ReviewButton appointmentId={apt.id} doctorName={`Dr. ${doctor?.profiles?.full_name ?? ''}`.trim()} existing={reviews[apt.id] ?? null} />
+                      <ReviewButton
+                        appointmentId={apt.id}
+                        doctorName={doctorName(doctor?.profiles?.full_name)}
+                        hospital={hospital ? { id: hospital.id || apt.hospital_id, name: hospital.name, city: hospital.city } : null}
+                        existing={reviews[apt.id] ?? null}
+                      />
                     )}
-
-                    <button
-                      type="button"
-                      onClick={() => setSelectedApt(apt)}
-                      className="px-3.5 py-1.5 rounded-full bg-primary-container text-on-primary-container hover:bg-primary hover:text-white text-xs font-bold transition-all shadow-sm"
-                    >
-                      Details
-                    </button>
                   </div>
                 </div>
               </div>
             )
           })}
-        </div>
-      )}
-
-      {/* Consultation Details Modal */}
-      {selectedApt && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-          <div className="absolute inset-0 bg-indigo-gray-900/60 backdrop-blur-sm transition-opacity" onClick={() => setSelectedApt(null)} />
-          <div className="relative w-full max-w-md bg-surface-container-lowest rounded-2xl shadow-2xl flex flex-col max-h-[90dvh] animate-in fade-in zoom-in-95 duration-200 border border-outline-variant/30">
-            <div className="flex items-center justify-between p-6 border-b border-outline-variant/30">
-              <h2 className="font-title-lg text-title-lg text-indigo-gray-900 font-bold flex items-center gap-2">
-                <UserCircle className="w-5 h-5 text-primary" />
-                Consultation Details
-              </h2>
-              <button 
-                onClick={() => setSelectedApt(null)}
-                className="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-variant flex items-center justify-center text-on-surface-variant transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto space-y-4">
-              <div className="flex items-center justify-between p-3 rounded-xl bg-surface-container-low">
-                <div>
-                  <span className="text-[11px] text-outline font-semibold uppercase block">Token Number</span>
-                  <span className="font-mono text-base font-bold text-primary">Token #{calcToken(selectedApt.id)}</span>
-                </div>
-                <div>
-                  <span className="text-[11px] text-outline font-semibold uppercase block text-right">Status</span>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize ${getStatusBadge(selectedApt.status)}`}>
-                    {selectedApt.status.replace('_', ' ')}
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-[12px] font-semibold text-outline uppercase tracking-wider mb-1">Doctor</p>
-                <p className="font-body-md text-indigo-gray-900 font-bold">Dr. {selectedApt.doctors?.profiles?.full_name}</p>
-                <p className="font-label-sm text-primary font-semibold">{selectedApt.doctors?.specialty}</p>
-              </div>
-
-              <div>
-                <p className="text-[12px] font-semibold text-outline uppercase tracking-wider mb-1">Schedule</p>
-                <p className="font-body-md text-indigo-gray-900 font-medium">
-                  {selectedApt.schedules?.start_time ? new Date(selectedApt.schedules.start_time).toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : '—'}
-                </p>
-                <p className="font-label-sm text-indigo-gray-600 mt-0.5">
-                  Time: {selectedApt.schedules?.start_time ? new Date(selectedApt.schedules.start_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-[12px] font-semibold text-outline uppercase tracking-wider mb-1">Hospital / Clinic</p>
-                <p className="font-body-md text-indigo-gray-900">{selectedApt.hospitals?.name}</p>
-                <p className="font-label-sm text-indigo-gray-600">{selectedApt.hospitals?.city}</p>
-              </div>
-
-              <div>
-                <p className="text-[12px] font-semibold text-outline uppercase tracking-wider mb-1">Booking Reference</p>
-                <p className="font-mono font-bold text-primary">#{selectedApt.id.slice(0, 8).toUpperCase()}</p>
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-outline-variant/30 flex items-center justify-between bg-surface-container-lowest rounded-b-2xl">
-              <Link
-                href={`/book/confirmation/${selectedApt.id}`}
-                className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
-              >
-                <Printer className="w-3.5 h-3.5" /> View Confirmation Slip
-              </Link>
-
-              <button 
-                onClick={() => setSelectedApt(null)}
-                className="px-6 py-2 rounded-full bg-surface-container hover:bg-surface-variant text-indigo-gray-900 font-label-sm font-semibold transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>
@@ -375,8 +293,19 @@ export function DiagnosticBookingsList({ diagnosticBookings }: { diagnosticBooki
                 <Droplet className="w-[20px] h-[20px]" />
               </div>
               <div>
-                <h4 className="font-title-md text-body-lg text-indigo-gray-900 font-bold capitalize">{booking.test_name.replace(/-/g, ' ')}</h4>
-                <p className="font-label-sm text-label-sm text-indigo-gray-600">{center.name} · {date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="font-title-md text-body-lg text-indigo-gray-900 font-bold capitalize">{booking.test_name.replace(/-/g, ' ')}</h4>
+                  {booking.booking_type === 'doorstep' ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold">
+                      🏠 Doorstep {booking.doorstep_fee ? `(₹${booking.doorstep_fee})` : ''}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container text-indigo-gray-600 text-[10px] font-medium">
+                      🚶 Walk-In
+                    </span>
+                  )}
+                </div>
+                <p className="font-label-sm text-label-sm text-indigo-gray-600 mt-0.5">{center.name} · {date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
               </div>
             </div>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
@@ -437,6 +366,15 @@ export function DiagnosticBookingsList({ diagnosticBookings }: { diagnosticBooki
                 <p className="text-[13px] font-semibold text-outline uppercase tracking-wider mb-1">Schedule</p>
                 <p className="font-body-md text-indigo-gray-900 font-medium">
                   {new Date(selectedBooking.preferred_date).toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[13px] font-semibold text-outline uppercase tracking-wider mb-1">Collection Mode</p>
+                <p className="font-body-md text-indigo-gray-900 font-semibold flex items-center gap-1.5">
+                  {selectedBooking.booking_type === 'doorstep'
+                    ? `🏠 Doorstep Collection (Home Fee: ₹${selectedBooking.doorstep_fee || 0})`
+                    : '🚶 In-Center Walk-In Visit'}
                 </p>
               </div>
 
@@ -550,7 +488,7 @@ export function RecordsAndMedicationsList({ prescriptions }: { prescriptions: an
 
               <div>
                 <p className="text-[13px] font-semibold text-outline uppercase tracking-wider mb-1">Doctor &amp; Date</p>
-                <p className="font-body-md text-indigo-gray-900">Dr. {selectedRecord.doctor_name}</p>
+                <p className="font-body-md text-indigo-gray-900">{doctorName(selectedRecord.doctor_name)}</p>
                 <p className="font-label-sm text-indigo-gray-600 mt-1">{new Date(selectedRecord.date).toLocaleDateString('en-IN', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
               </div>
 

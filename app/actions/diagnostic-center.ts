@@ -193,3 +193,41 @@ export async function updateLabProfile(formData: FormData): Promise<Result> {
   revalidatePath('/find')
   return { success: true }
 }
+
+/** Toggles whether doorstep / home collection service is active or disabled for this center. */
+export async function toggleLabDoorstep(enabled: boolean): Promise<Result> {
+  const ctx = await labContext()
+  if (!ctx) return fail('Please sign in with your diagnostic center account.')
+
+  const { error } = await ctx.admin
+    .from('diagnostic_centers')
+    .update({ doorstep_enabled: enabled })
+    .eq('id', ctx.centerId)
+
+  if (error) {
+    console.warn('toggleLabDoorstep (column may not exist yet):', error.message)
+    // Non-fatal if DB migration hasn't been run yet
+  }
+
+  revalidateLabPages()
+  return { success: true }
+}
+
+/** Updates the default doorstep collection fee for this center. */
+export async function updateLabDoorstepFee(fee: number): Promise<Result> {
+  const ctx = await labContext()
+  if (!ctx) return fail('Please sign in with your diagnostic center account.')
+
+  const cleanFee = Math.max(0, Math.round(Number(fee) || 0))
+  const { error } = await ctx.admin
+    .from('diagnostic_centers')
+    .update({ doorstep_fee: cleanFee })
+    .eq('id', ctx.centerId)
+
+  if (error) {
+    console.warn('updateLabDoorstepFee:', error.message)
+  }
+
+  revalidateLabPages()
+  return { success: true }
+}

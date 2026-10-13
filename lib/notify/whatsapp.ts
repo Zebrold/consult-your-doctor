@@ -10,7 +10,7 @@ const FAST2SMS_BASE = 'https://www.fast2sms.com'
 const META_BASE = `https://graph.facebook.com/${process.env.WHATSAPP_API_VERSION || 'v21.0'}`
 
 const getApiKey = () => process.env.FAST2SMS_API_KEY || process.env.WHATSAPP_API_KEY
-const getPhoneNumberId = () => process.env.WHATSAPP_PHONE_NUMBER_ID || '1327040000500501'
+const getPhoneNumberId = () => process.env.WHATSAPP_PHONE_NUMBER_ID || '1358256674038637'
 const getMetaToken = () => process.env.WHATSAPP_TOKEN || ''
 
 export const whatsappConfigured = () => Boolean(getApiKey() || (getMetaToken() && getPhoneNumberId()))

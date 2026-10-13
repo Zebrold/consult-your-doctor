@@ -1,12 +1,13 @@
 'use client'
 
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, useTransition, type ReactNode } from 'react'
 import {
   CalendarCheck, CalendarDays, CalendarRange, CheckCircle2, ChevronLeft, ChevronRight, CircleCheck, ClipboardList, Clock,
-  FlaskConical, Hourglass, IndianRupee, ListChecks, Phone, Plus, TrendingUp, UserCheck, Zap, type LucideIcon,
+  FlaskConical, Home, Hourglass, IndianRupee, ListChecks, Phone, Plus, TrendingUp, UserCheck, Zap, type LucideIcon,
 } from 'lucide-react'
 import { Avatar, Chip, EmptyState, type Tone } from '@/components/portal/ui'
 import { formatINR, IST } from '@/components/patient/format'
+import { toggleLabDoorstep, updateLabDoorstepFee } from '@/app/actions/diagnostic-center'
 import { CallLink, NextStep, ReportLink, type BookingRef } from './BookingActions'
 import { NewBookingButton, NewBookingForm } from './NewBooking'
 import { TestMenu } from './TestMenu'
@@ -18,6 +19,8 @@ export type ScheduleBooking = BookingRef & {
   bloodGroup: string | null
   testCount: number
   reportUrl: string | null
+  bookingType?: 'walk_in' | 'doorstep'
+  doorstepFee?: number
 }
 
 type LabHeader = {
@@ -26,6 +29,8 @@ type LabHeader = {
   city: string | null
   address: string | null
   live: boolean
+  doorstepEnabled?: boolean
+  doorstepFee?: number
   tests: { name: string; price: number | null }[]
   priced: { name: string; price: number }[]
 }
@@ -85,6 +90,33 @@ export function LabSchedule({
   const [view, setView] = useState<View>('day')
   const [filter, setFilter] = useState<Filter | null>(null)
   const [month, setMonth] = useState(initialDate.slice(0, 7))
+  const [doorstepOn, setDoorstepOn] = useState<boolean>(lab.doorstepEnabled ?? true)
+  const [isTogglingDoorstep, startDoorstepTransition] = useTransition()
+
+  const [doorstepFeeVal, setDoorstepFeeVal] = useState<number>(lab.doorstepFee ?? 100)
+  const [editingFee, setEditingFee] = useState<boolean>(false)
+  const [feeInput, setFeeInput] = useState<string>(String(lab.doorstepFee ?? 100))
+  const [isUpdatingFee, startFeeTransition] = useTransition()
+
+  const handleToggleDoorstep = () => {
+    const nextVal = !doorstepOn
+    setDoorstepOn(nextVal)
+    startDoorstepTransition(async () => {
+      const res = await toggleLabDoorstep(nextVal)
+      if (!res.success) {
+        setDoorstepOn(!nextVal)
+      }
+    })
+  }
+
+  const handleSaveFee = () => {
+    const num = Math.max(0, parseInt(feeInput, 10) || 0)
+    setDoorstepFeeVal(num)
+    setEditingFee(false)
+    startFeeTransition(async () => {
+      await updateLabDoorstepFee(num)
+    })
+  }
 
   const byDay = useMemo(() => {
     const map = new Map<string, ScheduleBooking[]>()
@@ -188,6 +220,70 @@ export function LabSchedule({
           </div>
           {viewToggle(false)}
           <div className="flex items-center gap-2">
+            {/* Doorstep Service ON/OFF Toggle */}
+            <button
+              type="button"
+              onClick={handleToggleDoorstep}
+              disabled={isTogglingDoorstep}
+              title={doorstepOn ? 'Doorstep service is ON (Click to disable)' : 'Doorstep service is OFF (Click to enable)'}
+              className={`px-3.5 py-2 rounded-full font-label-sm text-[12px] font-bold border transition-all flex items-center gap-2 shadow-sm active:scale-95 ${
+                doorstepOn
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                  : 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200'
+              }`}
+            >
+              <Home className="w-4 h-4 text-emerald-600" />
+              <span>Doorstep:</span>
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                doorstepOn ? 'bg-emerald-600 text-white' : 'bg-slate-400 text-white'
+              }`}>
+                {doorstepOn ? 'ON' : 'OFF'}
+              </span>
+            </button>
+            {/* Doorstep Fee Editor */}
+            {editingFee ? (
+              <div className="flex items-center gap-1.5 bg-surface-container-lowest p-1 rounded-full border border-outline-variant/60 shadow-sm">
+                <span className="text-[11px] font-bold text-indigo-gray-700 pl-2">Fee ₹</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="5000"
+                  value={feeInput}
+                  onChange={(e) => setFeeInput(e.target.value)}
+                  className="w-16 px-1.5 py-0.5 text-xs font-bold rounded bg-surface-container border border-outline-variant/40 focus:outline-none"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveFee}
+                  disabled={isUpdatingFee}
+                  className="px-2.5 py-1 rounded-full bg-vibrant-blue text-white text-[11px] font-bold hover:bg-primary transition-colors"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingFee(false)}
+                  className="px-2 py-1 rounded-full text-slate-500 text-[11px] hover:bg-surface-variant transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setFeeInput(String(doorstepFeeVal))
+                  setEditingFee(true)
+                }}
+                title="Click to change Doorstep Home Collection fee"
+                className="px-3.5 py-2 rounded-full font-label-sm text-[12px] font-semibold bg-surface-container-lowest border border-outline-variant/60 hover:bg-surface-container transition-all flex items-center gap-1.5 shadow-sm text-indigo-gray-800"
+              >
+                <span>Fee:</span>
+                <span className="font-bold text-primary">{formatINR(doorstepFeeVal)}</span>
+                <span className="text-[10px] text-indigo-gray-600">✏️</span>
+              </button>
+            )}
             <a
               href="#tests"
               className="px-4 py-2 rounded-full font-label-sm text-label-sm bg-indigo-gray-50 hover:bg-surface-container border border-outline-variant/60 text-indigo-gray-900 font-semibold transition-all flex items-center gap-1.5 shadow-sm"
@@ -199,6 +295,8 @@ export function LabSchedule({
               minDate={today}
               maxDate={shift(today, 90)}
               defaultDate={bookingDefault}
+              doorstepEnabled={doorstepOn}
+              defaultDoorstepFee={doorstepFeeVal}
               label="New Test Intake"
               className="px-4 py-2 rounded-full font-label-sm text-label-sm bg-primary-container text-on-primary font-bold shadow-[0_4px_14px_rgba(15,23,42,0.1)] hover:bg-primary transition-all flex items-center gap-1.5"
             />
@@ -230,9 +328,16 @@ export function LabSchedule({
           <a href="#book" className="flex items-center justify-center gap-1.5 bg-vibrant-blue text-on-primary py-2.5 px-3 rounded-full font-label-sm text-label-sm shadow-sm active:scale-[0.98] transition-transform">
             <Plus className="w-[18px] h-[18px]" /> New Booking
           </a>
-          <a href="#tests" className="flex items-center justify-center gap-1.5 bg-surface-container-low text-primary py-2.5 px-3 rounded-full font-label-sm text-label-sm active:scale-[0.98] transition-transform">
-            <ListChecks className="w-[18px] h-[18px] text-fresh-teal" /> Test Prices
-          </a>
+          <button
+            type="button"
+            onClick={handleToggleDoorstep}
+            disabled={isTogglingDoorstep}
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-full font-label-sm text-label-sm font-semibold border transition-all ${
+              doorstepOn ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-surface-container-low text-indigo-gray-600 border-slate-200'
+            }`}
+          >
+            <Home className="w-[16px] h-[16px]" /> Doorstep: {doorstepOn ? 'ON' : 'OFF'}
+          </button>
         </div>
       </section>
 
@@ -507,14 +612,37 @@ export function LabSchedule({
         <div className="contents lg:flex lg:col-span-4 lg:flex-col lg:gap-6 min-w-0">
           {/* Direct booking */}
           <section id="book" className={`order-3 lg:order-none ${card} p-4 md:p-5 flex flex-col gap-3 scroll-mt-20 min-w-0`}>
-            <div className="flex items-center gap-2">
-              <span className="w-7 h-7 rounded-lg bg-vibrant-blue text-on-primary flex items-center justify-center shrink-0">
-                <Zap className="w-4 h-4" />
-              </span>
-              <h2 className="font-title-md text-[17px] md:text-title-md font-bold text-indigo-gray-900">Direct Patient Fast Booking</h2>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-7 h-7 rounded-lg bg-vibrant-blue text-on-primary flex items-center justify-center shrink-0">
+                  <Zap className="w-4 h-4" />
+                </span>
+                <h2 className="font-title-md text-[17px] md:text-title-md font-bold text-indigo-gray-900 truncate">Direct Patient Fast Booking</h2>
+              </div>
+              <button
+                type="button"
+                onClick={handleToggleDoorstep}
+                disabled={isTogglingDoorstep}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all border shrink-0 ${
+                  doorstepOn
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                    : 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200'
+                }`}
+              >
+                <Home className="w-3.5 h-3.5" />
+                <span>Doorstep: {doorstepOn ? 'ON' : 'OFF'}</span>
+              </button>
             </div>
-            <p className="font-body-md text-[13px] text-indigo-gray-600">Book a walk-in or phone patient. They pay at your desk and the report goes to their account.</p>
-            <NewBookingForm key={bookingDefault} tests={lab.priced} minDate={today} maxDate={shift(today, 90)} defaultDate={bookingDefault} />
+            <p className="font-body-md text-[13px] text-indigo-gray-600">Book a walk-in or doorstep patient. They pay at your desk and the report goes to their account.</p>
+            <NewBookingForm
+              key={`${bookingDefault}-${doorstepOn}-${doorstepFeeVal}`}
+              tests={lab.priced}
+              minDate={today}
+              maxDate={shift(today, 90)}
+              defaultDate={bookingDefault}
+              doorstepEnabled={doorstepOn}
+              defaultDoorstepFee={doorstepFeeVal}
+            />
           </section>
 
           {/* Week turnaround */}

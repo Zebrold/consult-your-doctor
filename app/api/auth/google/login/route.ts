@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { getGoogleClientId } from '@/lib/google-auth'
+import { issueOAuthState } from '@/lib/oauth-state'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
     scope: 'openid email profile',
     access_type: 'offline',
     prompt: 'select_account',
-    state: next,
+    state: await issueOAuthState(next),
   })
 
   return NextResponse.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`)

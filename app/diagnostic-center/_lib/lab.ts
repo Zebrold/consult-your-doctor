@@ -20,6 +20,8 @@ export type LabInfo = {
   email: string | null
   status: string | null
   createdAt: string | null
+  doorstepEnabled: boolean
+  doorstepFee: number
   /** Tests in the lab's own order, with the price patients pay the lab (before the platform fee). */
   tests: LabTest[]
   prices: Record<string, number>
@@ -38,6 +40,8 @@ type CenterRow = {
   created_at: string | null
   available_tests: string[] | null
   test_prices: Record<string, number | string> | null
+  doorstep_enabled?: boolean | null
+  doorstep_fee?: number | string | null
 }
 
 // Generated placeholder addresses are not real inboxes.
@@ -51,6 +55,7 @@ function toLab(c: CenterRow): LabInfo {
   }
   // available_tests holds the order; prices can also exist for tests missing from it.
   const names = Array.from(new Set([...(c.available_tests ?? []), ...Object.keys(prices)]))
+  const doorstepFee = Number(c.doorstep_fee)
   return {
     id: c.id,
     name: c.name || 'Diagnostic center',
@@ -60,6 +65,8 @@ function toLab(c: CenterRow): LabInfo {
     email: realEmail(c.contact_email),
     status: c.status,
     createdAt: c.created_at,
+    doorstepEnabled: c.doorstep_enabled ?? true,
+    doorstepFee: Number.isFinite(doorstepFee) && doorstepFee >= 0 ? doorstepFee : 100,
     tests: names.map((name) => ({ name, price: name in prices ? prices[name] : null })),
     prices,
   }
@@ -82,12 +89,25 @@ export const requireLab = cache(async () => {
   const staff: LabStaff = { id: user.id, name: profile.full_name || 'Lab staff', email: realEmail(profile.email || user.email) }
   if (!profile.diagnostic_center_id) return { user, admin, staff, lab: null }
 
-  const { data: center } = await admin
+  let center: CenterRow | null = null
+  const { data, error } = await admin
     .from('diagnostic_centers')
-    .select('id, name, city, address, image_url, contact_email, status, created_at, available_tests, test_prices')
+    .select('id, name, city, address, image_url, contact_email, status, created_at, available_tests, test_prices, doorstep_enabled, doorstep_fee')
     .eq('id', profile.diagnostic_center_id)
     .maybeSingle()
-  return { user, admin, staff, lab: center ? toLab(center as CenterRow) : null }
+
+  if (error && /doorstep/i.test(error.message)) {
+    const fallback = await admin
+      .from('diagnostic_centers')
+      .select('id, name, city, address, image_url, contact_email, status, created_at, available_tests, test_prices')
+      .eq('id', profile.diagnostic_center_id)
+      .maybeSingle()
+    center = fallback.data as CenterRow | null
+  } else {
+    center = data as CenterRow | null
+  }
+
+  return { user, admin, staff, lab: center ? toLab(center) : null }
 })
 
 /** Like requireLab, for pages that need the center (the layout explains when the account has none). */
@@ -106,8 +126,10 @@ export type LabBooking = {
   createdAt: string
   tests: LabTest[]
   testLabel: string
-  /** What the lab charges for these tests at today's prices; null when a test can't be priced. */
+  /** What the lab charges for these tests at today's prices (including doorstep fee if applicable). */
   amount: number | null
+  bookingType: 'walk_in' | 'doorstep'
+  doorstepFee: number
   patient: { id: string; name: string; phone: string | null; email: string | null } | null
 }
 
@@ -117,6 +139,8 @@ type BookingRow = {
   test_name: string | null
   preferred_date: string | null
   created_at: string
+  booking_type?: string | null
+  doorstep_fee?: number | string | null
   profiles: { id: string; full_name: string | null; phone_number: string | null; email: string | null } | { id: string; full_name: string | null; phone_number: string | null; email: string | null }[] | null
 }
 
@@ -133,18 +157,37 @@ function describeTests(testName: string, prices: Record<string, number>): { test
 
 /** This center's bookings (never another center's), oldest day first. Cancelled bookings are left out. */
 export async function loadLabBookings(admin: Admin, lab: LabInfo): Promise<LabBooking[]> {
-  const { data } = await admin
+  let rows: BookingRow[] = []
+
+  const res = await admin
     .from('diagnostic_bookings')
-    .select('id, status, test_name, preferred_date, created_at, profiles ( id, full_name, phone_number, email )')
+    .select('id, status, test_name, preferred_date, created_at, booking_type, doorstep_fee, profiles ( id, full_name, phone_number, email )')
     .eq('center_id', lab.id)
     .neq('status', 'cancelled')
     .order('created_at', { ascending: false })
     .limit(2000)
 
-  return ((data ?? []) as BookingRow[])
+  if (res.error && /booking_type|doorstep/i.test(res.error.message)) {
+    const fallback = await admin
+      .from('diagnostic_bookings')
+      .select('id, status, test_name, preferred_date, created_at, profiles ( id, full_name, phone_number, email )')
+      .eq('center_id', lab.id)
+      .neq('status', 'cancelled')
+      .order('created_at', { ascending: false })
+      .limit(2000)
+    rows = (fallback.data ?? []) as BookingRow[]
+  } else {
+    rows = (res.data ?? []) as BookingRow[]
+  }
+
+  return rows
     .map((row) => {
       const patient = one(row.profiles)
       const tests = describeTests(row.test_name || '', lab.prices)
+      const isDoorstep = row.booking_type === 'doorstep'
+      const doorstepFee = Number(row.doorstep_fee) || 0
+      const totalAmount = tests.amount != null ? tests.amount + (isDoorstep ? doorstepFee : 0) : null
+
       return {
         id: row.id,
         code: bookingCode(row.id),
@@ -153,7 +196,9 @@ export async function loadLabBookings(admin: Admin, lab: LabInfo): Promise<LabBo
         createdAt: row.created_at,
         tests: tests.tests,
         testLabel: tests.label,
-        amount: tests.amount,
+        amount: totalAmount,
+        bookingType: (isDoorstep ? 'doorstep' : 'walk_in') as 'walk_in' | 'doorstep',
+        doorstepFee,
         patient: patient
           ? {
               id: patient.id,
@@ -194,5 +239,7 @@ export const bookingRef = (b: LabBooking) => ({
   patientName: b.patient?.name ?? 'Patient',
   phone: b.patient?.phone ?? null,
   testLabel: b.testLabel,
+  bookingType: b.bookingType,
+  doorstepFee: b.doorstepFee,
 })
 

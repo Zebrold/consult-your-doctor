@@ -27,7 +27,6 @@ function ConditionalLayoutInner({
     pathname?.startsWith("/executive") ||
     pathname?.startsWith("/corporate") ||
     pathname?.startsWith("/doctor") ||
-    pathname?.startsWith("/admin") ||
     pathname?.startsWith("/diagnostic") ||
     pathname?.startsWith("/patient") ||
     pathname?.startsWith("/find") ||

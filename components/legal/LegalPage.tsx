@@ -43,8 +43,6 @@ function roleMeta(role?: string | null) {
       return { label: 'Diagnostic Staff', href: '/diagnostic-center/dashboard', portal: 'Diagnostic Portal', icon: Microscope }
     case 'executive':
       return { label: 'Executive', href: '/executive/dashboard', portal: 'Executive Dashboard', icon: ShieldAlert }
-    case 'super_admin':
-      return { label: 'Administrator', href: '/admin/dashboard', portal: 'Admin Console', icon: ShieldAlert }
     default:
       return { label: 'Patient', href: '/patient/profile', portal: 'My Profile', icon: User }
   }

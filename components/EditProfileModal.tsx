@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Save, Loader2 } from 'lucide-react'
+import { X, Save, Loader2, Phone } from 'lucide-react'
 import { updatePatientProfile } from '@/app/actions/patient_profile'
 
 export function EditProfileModal({ 
@@ -9,30 +9,57 @@ export function EditProfileModal({
   onClose, 
   user, 
   profile, 
-  patientDetails 
+  patientDetails,
+  isMandatory = false,
 }: { 
   isOpen: boolean
   onClose: () => void
   user: any
   profile: any
   patientDetails: any
+  isMandatory?: boolean
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   if (!isOpen) return null
 
+  const currentPhone = profile?.phone_number || user?.phone || ''
+  const defaultDigits = String(currentPhone).replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '')
+  const needsPhone = isMandatory || !profile?.phone_number
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setIsSubmitting(true)
     setError(null)
 
     const formData = new FormData(e.currentTarget)
-    
+    const phoneInput = (formData.get('phone_number') as string)?.trim()
+    const digits = phoneInput?.replace(/\D/g, '') || ''
+
+    if (!digits || digits.length < 10) {
+      setError('Please provide a valid 10-digit mobile phone number.')
+      return
+    }
+
+    setIsSubmitting(true)
+
     try {
       const result = await updatePatientProfile(formData)
       if (result.success) {
         onClose()
+        if (typeof window !== 'undefined') {
+          const url = new URL(window.location.href)
+          const next = url.searchParams.get('next')
+          if (next) {
+            window.location.href = next
+            return
+          }
+          if (url.searchParams.has('setup')) {
+            url.searchParams.delete('setup')
+            window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''))
+          }
+          window.location.reload()
+        }
       } else {
         setError(result.error || 'Failed to update profile')
       }
@@ -52,8 +79,18 @@ export function EditProfileModal({
       <div className="relative w-full max-w-2xl bg-surface-container-lowest rounded-2xl shadow-2xl flex flex-col max-h-[90dvh] animate-in fade-in zoom-in-95 duration-200">
         
         <div className="flex items-center justify-between p-6 border-b border-outline-variant/30">
-          <h2 className="font-title-lg text-title-lg text-indigo-gray-900 font-bold">Edit Profile</h2>
+          <div>
+            <h2 className="font-title-lg text-title-lg text-indigo-gray-900 font-bold">
+              {needsPhone ? 'Complete Profile' : 'Edit Profile'}
+            </h2>
+            {needsPhone && (
+              <p className="text-xs text-on-surface-variant mt-0.5">
+                Fill out your details to receive appointment slips &amp; live doctor updates.
+              </p>
+            )}
+          </div>
           <button 
+            type="button"
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-variant flex items-center justify-center text-on-surface-variant transition-colors"
           >
@@ -64,8 +101,20 @@ export function EditProfileModal({
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
           <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-6">
             
+            {needsPhone && (
+              <div className="p-4 rounded-xl bg-blue-50 border border-blue-200/80 flex items-start gap-3 text-blue-950">
+                <Phone className="w-5 h-5 text-vibrant-blue shrink-0 mt-0.5" />
+                <div className="text-xs space-y-0.5">
+                  <p className="font-bold text-sm text-blue-900">Mobile Number is Mandatory</p>
+                  <p className="text-blue-800/90 leading-relaxed">
+                    Please provide your 10-digit mobile number. It is required to send your official appointment confirmation slip, WhatsApp notifications, and doctor prescription updates.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {error && (
-              <div className="p-3 rounded-lg bg-error/10 text-error font-label-sm">
+              <div className="p-3 rounded-lg bg-error/10 text-error font-label-sm font-semibold">
                 {error}
               </div>
             )}
@@ -75,21 +124,36 @@ export function EditProfileModal({
               <h3 className="font-title-md font-bold text-on-surface mb-4">Basic Information</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="font-label-sm text-on-surface-variant">Full Legal Name</label>
+                  <label className="font-label-sm text-on-surface-variant">Full Legal Name *</label>
                   <input 
                     name="full_name"
                     defaultValue={profile?.full_name || ''}
                     required
+                    placeholder="e.g. John Doe"
                     className="w-full px-4 py-2.5 rounded-xl border border-outline-variant/50 bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-vibrant-blue/50"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="font-label-sm text-on-surface-variant">Phone Number (Read-only)</label>
-                  <input 
-                    value={user?.phone || profile?.phone_number || ''}
-                    disabled
-                    className="w-full px-4 py-2.5 rounded-xl border border-outline-variant/50 bg-surface-container-low text-on-surface-variant cursor-not-allowed"
-                  />
+                  <label className="font-label-sm text-on-surface-variant flex items-center justify-between">
+                    <span>Mobile / WhatsApp Number <span className="text-error font-bold">*</span></span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-vibrant-blue bg-blue-50 px-2 py-0.5 rounded-full">Mandatory</span>
+                  </label>
+                  <div className="flex items-center rounded-xl border border-outline-variant/50 bg-surface-container-lowest focus-within:ring-2 focus-within:ring-vibrant-blue/50 overflow-hidden">
+                    <span className="px-3.5 py-2.5 bg-surface-container text-on-surface-variant font-semibold text-sm border-r border-outline-variant/30 select-none">
+                      +91
+                    </span>
+                    <input 
+                      name="phone_number"
+                      type="tel"
+                      defaultValue={defaultDigits}
+                      placeholder="9876543210"
+                      pattern="[0-9]{10}"
+                      maxLength={10}
+                      required
+                      className="w-full px-3.5 py-2.5 bg-transparent focus:outline-none text-on-surface text-sm font-medium"
+                    />
+                  </div>
+                  <p className="text-[11px] text-on-surface-variant">Enter 10 digits for WhatsApp slips &amp; doctor updates.</p>
                 </div>
               </div>
             </div>

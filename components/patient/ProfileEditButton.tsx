@@ -29,6 +29,7 @@ export function ProfileEditButton({ details, className, children }: { details: P
         user={null}
         profile={{ full_name: details.full_name, phone_number: details.phone_number }}
         patientDetails={details}
+        isMandatory={!details.phone_number}
       />
     </>
   );

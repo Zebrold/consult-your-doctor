@@ -11,9 +11,24 @@ import {
 import { EditProfileModal } from '@/components/EditProfileModal'
 import { ageFrom } from '@/components/patient/format'
 
-export function PatientSidebar({ user, profile, patientDetails, activeAppointmentsCount }: { user: any, profile: any, patientDetails?: any, activeAppointmentsCount?: number }) {
+export function PatientSidebar({ 
+  user, 
+  profile, 
+  patientDetails, 
+  activeAppointmentsCount,
+  initialOpen = false,
+  isMandatory = false,
+}: { 
+  user: any
+  profile: any
+  patientDetails?: any
+  activeAppointmentsCount?: number
+  initialOpen?: boolean
+  isMandatory?: boolean
+}) {
   const pathname = usePathname()
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const needsPhone = isMandatory || !profile?.phone_number
+  const [isEditModalOpen, setIsEditModalOpen] = useState(Boolean(initialOpen || (isMandatory && needsPhone)))
 
   const fullName = profile?.full_name || 'Patient'
   // Accounts made from a phone number get an internal placeholder address; don't show it as theirs.
@@ -38,6 +53,7 @@ export function PatientSidebar({ user, profile, patientDetails, activeAppointmen
         user={user}
         profile={profile}
         patientDetails={patientDetails}
+        isMandatory={needsPhone}
       />
 
       {/* Patient Identity Card */}
@@ -90,13 +106,27 @@ export function PatientSidebar({ user, profile, patientDetails, activeAppointmen
               <span className="text-on-surface font-medium truncate">{email}</span>
             </div>
           )}
-          {phone && (
+          {phone ? (
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center text-fresh-teal">
                 <Phone className="w-[18px] h-[18px]" />
               </div>
               <span className="text-on-surface font-medium">{phone}</span>
             </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(true)}
+              className="flex items-center gap-2.5 p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-800 hover:bg-amber-500/20 text-xs font-semibold transition-colors text-left"
+            >
+              <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-700 shrink-0">
+                <Phone className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <span className="block font-bold">Add Phone Number</span>
+                <span className="block text-[11px] text-amber-700 font-normal">Mandatory for appointments</span>
+              </div>
+            </button>
           )}
         </div>
 
@@ -212,8 +242,8 @@ export function PatientSidebar({ user, profile, patientDetails, activeAppointmen
         <div className="flex flex-col">
           <span className="font-title-md text-body-md font-bold text-on-surface">Medical emergency?</span>
           <p className="font-body-md text-label-sm text-on-surface-variant mt-0.5">Call India&apos;s emergency number or go to the nearest emergency department. Don&apos;t wait for an appointment.</p>
-          <a href="tel:112" className="mt-2 font-label-sm text-label-sm font-bold text-vibrant-blue hover:underline inline-flex items-center gap-1">
-            Call 112
+          <a href="tel:108" className="mt-2 font-label-sm text-label-sm font-bold text-vibrant-blue hover:underline inline-flex items-center gap-1">
+            Call 108
             <ArrowRight className="w-[14px] h-[14px]" />
           </a>
         </div>

@@ -1,4 +1,5 @@
 import { createClient, getCurrentUser } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, CircleCheck } from "lucide-react";
@@ -63,7 +64,7 @@ export default async function Home(props: {
       supabase
         .from('doctors')
         .select(`
-          id, specialty, experience_years, consultation_fee, image_url,
+          id, specialty, experience_years, consultation_fee, image_url, qualifications,
           profiles!doctors_profile_id_fkey ( full_name ),
           hospitals ( id, name, city )
         `)
@@ -89,7 +90,7 @@ export default async function Home(props: {
     ]);
 
     type DoctorRow = {
-      id: string; specialty: string | null; experience_years: number | null; consultation_fee: number | null; image_url: string | null;
+      id: string; specialty: string | null; experience_years: number | null; consultation_fee: number | null; image_url: string | null; qualifications: string | null;
       profiles: { full_name: string | null } | { full_name: string | null }[] | null;
       hospitals: { id: string; name: string; city: string | null } | { id: string; name: string; city: string | null }[] | null;
     };
@@ -102,10 +103,13 @@ export default async function Home(props: {
         hospital: hospital?.name ?? null,
         city: hospital?.city ?? null,
         experience: d.experience_years,
+        qualifications: d.qualifications?.trim() || null,
         fee: d.consultation_fee,
         image: d.image_url,
         nextSlot: availability[d.id]?.nextSlot ?? null,
         openToday: availability[d.id]?.openToday ?? 0,
+        rating: null,
+        reviewCount: 0,
       };
     });
 
@@ -119,6 +123,24 @@ export default async function Home(props: {
       .filter((d) => d.fee)
       .sort((a, b) => (a.nextSlot ?? '￿').localeCompare(b.nextSlot ?? '￿') || Number(!!b.image) - Number(!!a.image))
       .slice(0, 8);
+
+    // Published patient ratings for the doctors shown; doctors without any show their availability instead.
+    if (recommended.length) {
+      const { data: ratingRows } = await createAdminClient()
+        .from('doctor_reviews')
+        .select('doctor_id, rating')
+        .in('doctor_id', recommended.map((d) => d.id))
+        .eq('is_published', true);
+      const byDoctor = new Map<string, number[]>();
+      for (const r of (ratingRows ?? []) as { doctor_id: string; rating: number }[]) byDoctor.set(r.doctor_id, [...(byDoctor.get(r.doctor_id) ?? []), r.rating]);
+      for (const d of recommended) {
+        const ratings = byDoctor.get(d.id);
+        if (ratings?.length) {
+          d.reviewCount = ratings.length;
+          d.rating = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+        }
+      }
+    }
 
     type HospitalRow = { id: string; name: string; city: string | null; address: string | null; image_url: string | null; doctors: { id: string }[] | null };
     type LabRow = { id: string; name: string; city: string | null; address: string | null; image_url: string | null; test_prices: Record<string, number> | null };
@@ -156,7 +178,7 @@ export default async function Home(props: {
         specialties={specialties}
         facilities={facilities}
         cities={cities}
-        reviews={<TrustedByPatients />}
+        reviews={<TrustedByPatients compact />}
       />
     );
   }

@@ -57,7 +57,16 @@ type Credentials = { patientCode: string; password: string | null }
  * Confirms the patient's code, makes sure they have an account with a Patient ID (and, for a first registration, a
  * generated password), and books the tests unpaid. Payment can only be taken after this.
  */
-export async function registerLabPatient(input: { name: string; phone: string; email: string; date: string; tests: string[]; code: string }): Promise<DeskResult<{ token: string; credentials: Credentials; payment: DeskPayment }>> {
+export async function registerLabPatient(input: {
+  name: string
+  phone: string
+  email: string
+  date: string
+  tests: string[]
+  code: string
+  bookingType?: 'walk_in' | 'doorstep'
+  doorstepFee?: number
+}): Promise<DeskResult<{ token: string; credentials: Credentials; payment: DeskPayment }>> {
   const ctx = await labContext()
   if (!ctx) return fail(NOT_SIGNED_IN)
   const name = input.name.trim().replace(/\s+/g, ' ')
@@ -92,15 +101,48 @@ export async function registerLabPatient(input: { name: string; phone: string; e
     notifyAccountCreated({ patientId: verified.userId, patientCode: issued.patientCode, password: issued.password })
   }
 
-  const { data: booking, error } = await ctx.admin
+  const bookingType = input.bookingType === 'doorstep' ? 'doorstep' : 'walk_in'
+  const doorstepFee = bookingType === 'doorstep' ? Math.max(0, Math.round(Number(input.doorstepFee) || 0)) : 0
+
+  let booking: { id: string } | null = null
+  const { data: bData, error } = await ctx.admin
     .from('diagnostic_bookings')
-    .insert({ patient_id: verified.userId, center_id: ctx.center.id, test_name: testName, preferred_date: input.date, status: 'pending_payment' })
+    .insert({
+      patient_id: verified.userId,
+      center_id: ctx.center.id,
+      test_name: testName,
+      preferred_date: input.date,
+      status: 'pending_payment',
+      booking_type: bookingType,
+      doorstep_fee: doorstepFee,
+    })
     .select('id')
     .single()
-  if (error || !booking) {
-    console.error('registerLabPatient booking:', error)
+
+  if (error && /booking_type|doorstep/i.test(error.message)) {
+    const fallback = await ctx.admin
+      .from('diagnostic_bookings')
+      .insert({
+        patient_id: verified.userId,
+        center_id: ctx.center.id,
+        test_name: testName,
+        preferred_date: input.date,
+        status: 'pending_payment',
+      })
+      .select('id')
+      .single()
+    if (fallback.error || !fallback.data) {
+      console.error('registerLabPatient fallback booking error:', fallback.error)
+      return fail('The patient is registered, but the booking could not be created. Please try again.')
+    }
+    booking = fallback.data
+  } else if (error || !bData) {
+    console.error('registerLabPatient booking error:', error)
     return fail('The patient is registered, but the booking could not be created. Please try again.')
+  } else {
+    booking = bData
   }
+
   revalidateLabPages()
   const payment = await labPayment(ctx.admin, ctx.center, booking.id)
   if (!payment) return fail('The booking was made but its payment details couldn’t be loaded. Find it under the patient’s bookings.')
@@ -126,15 +168,27 @@ type BookingRow = {
   patient_id: string
   test_name: string
   preferred_date: string | null
+  booking_type?: string | null
+  doorstep_fee?: number | string | null
   patient: Joined<{ full_name: string | null; phone_number: string | null; email: string | null }>
 }
 
 async function bookingAt(admin: Admin, centerId: string, bookingId: string) {
-  const { data } = await admin
+  let { data } = await admin
     .from('diagnostic_bookings')
-    .select('id, status, center_id, patient_id, test_name, preferred_date, patient:profiles!diagnostic_bookings_patient_id_fkey ( full_name, phone_number, email )')
+    .select('id, status, center_id, patient_id, test_name, preferred_date, booking_type, doorstep_fee, patient:profiles!diagnostic_bookings_patient_id_fkey ( full_name, phone_number, email )')
     .eq('id', bookingId)
     .maybeSingle()
+
+  if (!data) {
+    const fallback = await admin
+      .from('diagnostic_bookings')
+      .select('id, status, center_id, patient_id, test_name, preferred_date, patient:profiles!diagnostic_bookings_patient_id_fkey ( full_name, phone_number, email )')
+      .eq('id', bookingId)
+      .maybeSingle()
+    data = fallback.data as typeof data
+  }
+
   const row = data as unknown as BookingRow | null
   if (!row || row.center_id !== centerId) return null
   return { row, patient: one(row.patient) }
@@ -145,22 +199,31 @@ async function labPayment(admin: Admin, center: Center, bookingId: string): Prom
   if (!found) return null
   const tests = matchBookedTests(found.row.test_name, center.test_prices)
   if (!tests) return null
-  const amount = sumPrices(tests)
+  const testsTotal = sumPrices(tests)
+  const isDoorstep = found.row.booking_type === 'doorstep'
+  const doorstepFee = isDoorstep ? (Number(found.row.doorstep_fee) || 0) : 0
+  const amount = testsTotal + doorstepFee
   const code = bookingId.slice(0, 8).toUpperCase()
   const email = found.patient?.email && !found.patient.email.endsWith('.internal') ? found.patient.email : null
+
+  const items = tests.map((t) => ({ label: t.name, amount: t.price }))
+  if (doorstepFee > 0) {
+    items.push({ label: 'Doorstep Collection Fee', amount: doorstepFee })
+  }
+
   return {
     kind: 'diagnostic',
     id: bookingId,
     code,
     status: found.row.status,
-    what: tests.map((t) => t.name).join(', '),
+    what: tests.map((t) => t.name).join(', ') + (isDoorstep ? ' • Doorstep' : ''),
     patient: { name: found.patient?.full_name || 'Patient', phone: found.patient?.phone_number ?? null, email },
     amounts: {
       desk: amount,
       online: amount + readLocalFees().diagnostic,
       platformFee: readLocalFees().diagnostic,
     },
-    items: tests.map((t) => ({ label: t.name, amount: t.price })),
+    items,
     upi: await upiQr(amount, code, `Lab tests ${code}`),
     payuKey: process.env.PAYU_MERCHANT_KEY ?? null,
   }

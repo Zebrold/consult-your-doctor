@@ -1,3 +1,4 @@
+import { jsonLd } from "@/lib/json-ld";
 import { createClient } from "@/lib/supabase/server";
 import { Metadata } from "next";
 import Link from "next/link";
@@ -43,7 +44,7 @@ export default async function DoctorsDirectoryPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(schema) }}
       />
       <Header />
       

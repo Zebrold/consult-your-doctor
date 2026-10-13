@@ -34,7 +34,7 @@ export async function welcomeLetterPdf(input: { username: string; password: stri
   if (!user) return { success: false, error: 'Please sign in.' }
   const admin = createAdminClient()
   const { data: caller } = await admin.from('profiles').select('role, hospital_id').eq('id', user.id).maybeSingle()
-  if (caller?.role !== 'super_admin' && caller?.role !== 'hospital_admin') return { success: false, error: 'Only administrators can print welcome letters.' }
+  if (caller?.role !== 'hospital_admin') return { success: false, error: 'Only hospital administrators can print welcome letters.' }
 
   const { data: profile } = await admin
     .from('profiles')

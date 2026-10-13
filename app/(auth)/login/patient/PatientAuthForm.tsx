@@ -1,5 +1,6 @@
 'use client'
 
+import { safeNextPath } from '@/lib/safe-redirect'
 import { startTransition, useActionState, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -27,7 +28,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
   const searchParams = useSearchParams()
   // Where to return after signing in, e.g. the booking page that sent the patient here.
   const rawNext = searchParams.get('next') || ''
-  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : ''
+  const next = safeNextPath(rawNext, '')
   const [mode, setMode] = useState<Mode>(searchParams.get('mode') === 'register' ? 'register' : 'signin')
   const [step, setStep] = useState<1 | 2>(1)
   // Patients a diagnostic centre registered can sign in with the Patient ID and password they were given.

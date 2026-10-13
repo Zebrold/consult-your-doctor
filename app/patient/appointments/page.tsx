@@ -59,6 +59,8 @@ export default async function PatientAppointments() {
         status,
         test_name,
         preferred_date,
+        booking_type,
+        doorstep_fee,
         diagnostic_centers (
           name,
           city,
@@ -68,14 +70,17 @@ export default async function PatientAppointments() {
       .eq('patient_id', user.id)
       .order('created_at', { ascending: false }),
     // The patient's own reviews, so finished visits show their rating instead of "Rate your visit".
-    supabase.from('doctor_reviews').select('appointment_id, rating, comment').eq('patient_id', user.id),
+    supabase.from('doctor_reviews').select('appointment_id, rating, comment, hospital_rating, hospital_comment').eq('patient_id', user.id),
   ])
 
   const appointments = fetchedAppointments ?? []
   const diagnosticBookings = fetchedDiagnosticBookings ?? []
 
   const reviews = Object.fromEntries(
-    ((myReviews ?? []) as { appointment_id: string; rating: number; comment: string | null }[]).map((r) => [r.appointment_id, { rating: r.rating, comment: r.comment }]),
+    ((myReviews ?? []) as { appointment_id: string; rating: number; comment: string | null; hospital_rating?: number | null; hospital_comment?: string | null }[]).map((r) => [
+      r.appointment_id,
+      { rating: r.rating, comment: r.comment, hospitalRating: r.hospital_rating ?? null, hospitalComment: r.hospital_comment ?? null },
+    ]),
   )
 
   // Extract prescriptions from medical_records

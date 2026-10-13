@@ -57,12 +57,12 @@ export type PaymentStats = {
 }
 
 /** Verifies that the signed-in user is an authorized executive or super admin */
-async function requireExecutiveOrAdmin() {
+async function requireExecutiveCaller() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthorized')
   const { data: profile } = await supabase.from('profiles').select('role, full_name').eq('id', user.id).single()
-  if (profile?.role !== 'executive' && profile?.role !== 'super_admin') {
+  if (profile?.role !== 'executive') {
     throw new Error('Forbidden: Executive permissions required')
   }
   return { user, profile }
@@ -73,7 +73,7 @@ export async function getExecutivePayments(): Promise<{
   transactions: TransactionRow[]
   stats: PaymentStats
 }> {
-  await requireExecutiveOrAdmin()
+  await requireExecutiveCaller()
   const admin = createAdminClient()
 
   // 1. Fetch payments
@@ -223,7 +223,7 @@ export async function processPaymentRefund(
   amount: number,
   reason: string
 ): Promise<{ success: boolean; error?: string }> {
-  const { user, profile } = await requireExecutiveOrAdmin()
+  const { user, profile } = await requireExecutiveCaller()
   if (!reason || reason.trim().length < 5) {
     return { success: false, error: 'A specific reason of at least 5 characters is required for financial corrections.' }
   }
@@ -286,7 +286,7 @@ export async function adjustPaymentStatus(
   newStatus: PaymentStatus,
   reason: string
 ): Promise<{ success: boolean; error?: string }> {
-  const { user, profile } = await requireExecutiveOrAdmin()
+  const { user, profile } = await requireExecutiveCaller()
   if (!reason || reason.trim().length < 5) {
     return { success: false, error: 'A valid reason is required for status adjustment.' }
   }
@@ -322,7 +322,7 @@ export async function adjustPaymentStatus(
 
 /** Fetches audit history for a specific payment */
 export async function getPaymentAuditTrail(paymentId: string): Promise<PaymentAuditRow[]> {
-  await requireExecutiveOrAdmin()
+  await requireExecutiveCaller()
   const admin = createAdminClient()
   const { data: audits } = await admin
     .from('payment_audits')

@@ -23,14 +23,14 @@ export default function WhatWeTreatPage() {
           <div className="flex flex-col gap-1 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="font-title-md text-title-md font-bold text-on-error-container">When to Seek Emergency Care</h2>
-              <span className="px-2.5 py-0.5 rounded-full bg-error text-on-error font-label-sm text-label-sm font-bold uppercase">Immediate 112 / 911</span>
+              <span className="px-2.5 py-0.5 rounded-full bg-error text-on-error font-label-sm text-label-sm font-bold uppercase">Immediate 108</span>
             </div>
             <p className="font-body-md text-body-md text-on-surface-variant">
-              Telehealth is intended for non-emergent medical situations. If you or someone with you experiences <strong>sudden severe chest pain</strong>, <strong>extreme shortness of breath</strong>, <strong>signs of stroke</strong> (facial drooping, slurred speech), <strong>uncontrolled bleeding</strong>, or <strong>severe trauma</strong>, please call your local emergency services (112 or 911) or go directly to the nearest hospital Emergency Room.
+              Telehealth is intended for non-emergent medical situations. If you or someone with you experiences <strong>sudden severe chest pain</strong>, <strong>extreme shortness of breath</strong>, <strong>signs of stroke</strong> (facial drooping, slurred speech), <strong>uncontrolled bleeding</strong>, or <strong>severe trauma</strong>, please call emergency services (108) or go directly to the nearest hospital Emergency Room.
             </p>
           </div>
           <a
-            href="tel:112"
+            href="tel:108"
             className="shrink-0 inline-flex items-center gap-2 px-5 py-3 rounded-full bg-error text-on-error font-label-sm text-label-sm font-bold shadow-md hover:opacity-90 transition-all"
           >
             <Phone className="w-4 h-4" />

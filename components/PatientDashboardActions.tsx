@@ -55,13 +55,13 @@ export function PatientDashboardActions() {
           </div>
         </button> */}
         {/* No emergency care through the site: send people to the national emergency number. */}
-        <a href="tel:112" className="group flex items-center gap-3 p-3.5 rounded-xl bg-tertiary-fixed text-tertiary hover:bg-error-container transition-all duration-200 transform shadow-sm">
+        <a href="tel:108" className="group flex items-center gap-3 p-3.5 rounded-xl bg-tertiary-fixed text-tertiary hover:bg-error-container transition-all duration-200 transform shadow-sm">
           <div className="w-10 h-10 rounded-lg bg-surface-container-lowest flex items-center justify-center text-tertiary transition-transform">
             <ShieldAlert className="w-[22px] h-[22px]" />
           </div>
           <div className="text-left">
             <p className="font-label-sm text-label-sm font-semibold leading-tight">Emergency?</p>
-            <p className="font-label-sm text-[11px] opacity-80 leading-none mt-0.5">Call 112 now</p>
+            <p className="font-label-sm text-[11px] opacity-80 leading-none mt-0.5">Call 108 now</p>
           </div>
         </a>
       </div>

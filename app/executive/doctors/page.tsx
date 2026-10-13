@@ -4,6 +4,7 @@ import { currentTime, formatDate, loadApplications, loadAppointments, loadDoctor
 import { BarList, Chip, MetricCard, PageHeader, Panel } from '../_components/ui'
 import { CredentialQueue } from '../_components/CredentialQueue'
 import { DoctorRoster, type RosterRow } from '../_components/DoctorRoster'
+import { AddDoctorButton, type HospitalOption } from '../_components/NetworkForms'
 
 export const metadata: Metadata = { title: 'Doctor Network & Credentialing' }
 
@@ -12,12 +13,14 @@ export default async function ExecutiveDoctorsPage() {
   const now = currentTime()
   const nowIso = new Date(now).toISOString()
 
-  const [doctors, applications, appointments, slotsResult] = await Promise.all([
+  const [doctors, applications, appointments, slotsResult, { data: hospitalRows }] = await Promise.all([
     loadDoctors(admin),
     loadApplications(admin),
     loadAppointments(admin),
     admin.from('schedules').select('doctor_id').eq('is_booked', false).gte('start_time', nowIso),
+    admin.from('hospitals').select('id, name, city').order('name'),
   ])
+  const hospitals = (hospitalRows ?? []) as HospitalOption[]
 
   const today = new Date(now)
   today.setHours(0, 0, 0, 0)
@@ -64,7 +67,8 @@ export default async function ExecutiveDoctorsPage() {
       <PageHeader
         eyebrow="Credentialing"
         title="Doctor Network & Credentialing"
-        description="Review new doctor applications, create accounts for approved clinicians, and see who is available across the network."
+        description="Add doctors at any partner hospital, review new doctor applications, and see who is available across the network."
+        actions={<AddDoctorButton hospitals={hospitals} />}
       />
 
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">

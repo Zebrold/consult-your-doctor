@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { ROLE_COOKIE, ROLE_COOKIE_OPTIONS, readRoleCookie, roleCookieValue } from '@/lib/role-cookie'
 
-const AUTH_PAGES = ['/login', '/signup', '/signup/doctor', '/login/patient', '/login/doctor', '/login/hospital', '/login/executive', '/login/diagnostic', '/admin']
+const AUTH_PAGES = ['/login', '/signup', '/signup/doctor', '/login/patient', '/login/doctor', '/login/hospital', '/login/executive', '/login/diagnostic']
 
 /** Pages every account can open after signing in, whatever portal it belongs to. */
 const SHARED_PAGES = [
@@ -13,13 +13,15 @@ const SHARED_PAGES = [
   '/privacy',
 ]
 
+/** The roles that have a part of the site; an account with any other role (a retired one) is signed out. */
+const PORTAL_ROLES = new Set(['patient', 'doctor', 'executive', 'hospital_admin', 'diagnostic_admin'])
+
 /** Where each role lands after signing in, and the part of the site staff are confined to. */
 function homeFor(role: string) {
   if (role === 'doctor') return { dashboardPath: '/doctor/dashboard', allowedPrefix: '/doctor' }
   if (role === 'executive') return { dashboardPath: '/executive/dashboard', allowedPrefix: '/executive' }
   if (role === 'hospital_admin') return { dashboardPath: '/hospital/dashboard', allowedPrefix: '/hospital' }
   if (role === 'diagnostic_admin') return { dashboardPath: '/diagnostic-center/dashboard', allowedPrefix: '/diagnostic' }
-  if (role === 'super_admin') return { dashboardPath: '/admin/dashboard', allowedPrefix: '/admin' }
   return { dashboardPath: '/', allowedPrefix: '/' }
 }
 
@@ -89,8 +91,7 @@ export async function proxy(request: NextRequest) {
                            path.startsWith('/doctor/') || path === '/doctor' ||
                            path.startsWith('/executive') ||
                            path.startsWith('/hospital/') || path === '/hospital' ||
-                           path.startsWith('/diagnostic-center') || path.startsWith('/diagnostic/') || path === '/diagnostic' ||
-                           path.startsWith('/admin/dashboard')
+                           path.startsWith('/diagnostic-center') || path.startsWith('/diagnostic/') || path === '/diagnostic'
 
   if (user) {
     // The cookie only counts if it was written for this user; otherwise look the role up and rewrite it.
@@ -100,6 +101,11 @@ export async function proxy(request: NextRequest) {
       const fresh: string = profile?.role || 'patient'
       supabaseResponse.cookies.set(ROLE_COOKIE, roleCookieValue(user.id, fresh), ROLE_COOKIE_OPTIONS)
       role = fresh
+    }
+
+    // Accounts left with a role that no longer has a portal can't use the site at all; end their session.
+    if (!PORTAL_ROLES.has(role) && !path.startsWith('/auth/signout')) {
+      return redirectTo('/auth/signout?next=/')
     }
 
     const { dashboardPath, allowedPrefix } = homeFor(role)
@@ -126,8 +132,7 @@ export async function proxy(request: NextRequest) {
         path.startsWith('/doctor/') || path === '/doctor' ||
         path.startsWith('/executive') ||
         path.startsWith('/hospital/') || path === '/hospital' ||
-        path.startsWith('/diagnostic-center') ||
-        path.startsWith('/admin')
+        path.startsWith('/diagnostic-center')
       if (isTryingToAccessOtherRolePath) target = dashboardPath
     }
 

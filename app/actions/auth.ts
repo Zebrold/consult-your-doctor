@@ -1,5 +1,7 @@
 'use server'
 
+import { safeNextPath } from '@/lib/safe-redirect'
+import { DEMO_CODE, DEMO_PATIENT_EMAIL, demoLoginEnabled, demoPatientPassword, isDemoPhone } from '@/lib/demo-login'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
@@ -32,6 +34,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { sendWhatsAppOtp } from '@/lib/notify/whatsapp'
 import { sendOtpSms } from '@/lib/notify/sms'
 import { siteUrl } from '@/lib/site-url'
+import { checkOtpChallenge, clientIp, otpSendAllowed, otpTableReady, recordOtpChallenge, type OtpVerdict } from '@/lib/otp-guard'
 
 function computeOtpHmac(phone: string, otp: string, expiresAt: number): string {
   // A guessable fallback secret would let anyone mint a valid code for any number, so refuse to run without one.
@@ -48,6 +51,31 @@ function verifyOtpHmac(phone: string, token: string, expiresAt: number, expected
   } catch {
     return false
   }
+}
+
+/**
+ * Checks a sign-in code. With the challenge table in place the guess is checked against the stored code, which allows
+ * a few guesses and works once; a cookie without a challenge id is then refused, so it can't be edited back to the
+ * old unlimited check. Before the table exists, the signed cookie alone decides (as it always did).
+ */
+async function checkOtp(phone: string, token: string, cookieValue: string | undefined): Promise<OtpVerdict> {
+  if (!cookieValue) return 'invalid'
+  let parsed: { phone?: string; expiresAt?: number; hash?: string; cid?: string | null }
+  try {
+    parsed = JSON.parse(cookieValue)
+  } catch {
+    return 'invalid'
+  }
+  if (parsed.phone !== phone) return 'invalid'
+  const admin = createAdminClient()
+  if (parsed.cid) {
+    const verdict = await checkOtpChallenge(admin, parsed.cid, phone, (hash, expiresAt) => verifyOtpHmac(phone, token, expiresAt, hash))
+    if (verdict !== 'unavailable') return verdict
+  } else if (await otpTableReady(admin)) {
+    return 'invalid'
+  }
+  if (typeof parsed.expiresAt !== 'number' || typeof parsed.hash !== 'string') return 'invalid'
+  return verifyOtpHmac(phone, token, parsed.expiresAt, parsed.hash) ? 'valid' : 'invalid'
 }
 
 /** Authenticates or creates the patient user in Supabase auth, setting cookies and profiles */
@@ -136,9 +164,11 @@ export async function sendOTP(prevState: any, formData: FormData) {
 
   phone = formatPhoneNumber(phone, countryCode)
 
-  // Demo / dummy patient bypass for UI testing
-  if (phone.endsWith('9876543210')) {
-    return { success: true, phone, fullName, role, isRegister }
+  // The demo patient signs in without a text where demo sign-in is switched on; elsewhere the number is refused so
+  // no real person at that number is sent codes.
+  if (isDemoPhone(phone)) {
+    if (demoLoginEnabled()) return { success: true, phone, fullName, role, isRegister }
+    return { error: 'Enter a valid 10-digit Indian mobile number.', success: false, phone, fullName, role, isRegister }
   }
 
   if (!phone.startsWith(SMS_COUNTRY_CODE)) {
@@ -170,13 +200,25 @@ export async function sendOTP(prevState: any, formData: FormData) {
     }
   }
 
+  // Caps on codes per number and per network, so the site can't be used to flood a number or run up message costs.
+  const guardAdmin = createAdminClient()
+  const ip = await clientIp()
+  const allowed = await otpSendAllowed(guardAdmin, phone, ip)
+  if (!allowed.ok) return { error: allowed.error, success: false, phone, fullName, role, isRegister }
+
   // Generate 6-digit OTP
   const otp = crypto.randomInt(100000, 1000000).toString()
   const expiresAt = Date.now() + 10 * 60 * 1000 // 10 minutes
   const hash = computeOtpHmac(phone, otp, expiresAt)
+  // Stored server-side so wrong guesses are counted and the code works once (lib/otp-guard.ts).
+  const cid = await recordOtpChallenge(guardAdmin, { phone, hash, expiresAt, ip })
+  // A code that couldn't be stored could never be accepted, so don't send it.
+  if (!cid && (await otpTableReady(guardAdmin))) {
+    return { error: "We couldn't send your code right now. Please try again in a minute.", success: false, phone, fullName, role, isRegister }
+  }
 
   const cookieStore = await cookies()
-  const otpPayload = JSON.stringify({ phone, expiresAt, hash })
+  const otpPayload = JSON.stringify({ phone, expiresAt, hash, cid })
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -225,34 +267,25 @@ export async function verifyOTP(prevState: any, formData: FormData) {
   const cookieStore = await cookies()
   const otpCookie = cookieStore.get('cyd_auth_otp')?.value || cookieStore.get('cyd_wa_otp')?.value
 
-  // Demo bypass
-  if (phone.endsWith('9876543210') && trimmedToken === '123456') {
+  const demoPassword = demoPatientPassword()
+  if (demoPassword && isDemoPhone(phone) && trimmedToken === DEMO_CODE) {
     const supabase = await createClient()
     const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
-      email: 'patient.demo@cyd.internal',
-      password: 'Password123!',
+      email: DEMO_PATIENT_EMAIL,
+      password: demoPassword,
     })
     if (authErr) return { error: authErr.message, success: false, phone, fullName, role, isRegister }
     cookieStore.set(ROLE_COOKIE, roleCookieValue(authData.user.id, 'patient'), ROLE_COOKIE_OPTIONS)
     const next = String(formData.get('next') || '')
-    redirect(next.startsWith('/') && !next.startsWith('//') ? next : '/')
+    redirect(safeNextPath(next))
   }
 
-  let isOtpValid = false
-  if (otpCookie) {
-    try {
-      const parsed = JSON.parse(otpCookie)
-      if (parsed.phone === phone) {
-        isOtpValid = verifyOtpHmac(phone, trimmedToken, parsed.expiresAt, parsed.hash)
-      }
-    } catch (e) {
-      console.error('[verifyOTP] Error verifying OTP cookie:', e)
-    }
-  }
-
-  if (!isOtpValid) {
+  const verdict = await checkOtp(phone, trimmedToken, otpCookie)
+  if (verdict !== 'valid') {
     return {
-      error: 'Invalid or expired verification code. Please check your messages and try again.',
+      error: verdict === 'locked'
+        ? 'Too many incorrect codes. Please request a new code.'
+        : 'Invalid or expired verification code. Please check your messages and try again.',
       success: false,
       phone,
       fullName,
@@ -271,7 +304,7 @@ export async function verifyOTP(prevState: any, formData: FormData) {
     }
 
     const next = String(formData.get('next') || '')
-    redirect(next.startsWith('/') && !next.startsWith('//') ? next : '/')
+    redirect(safeNextPath(next))
   } catch (err: any) {
     if (err?.digest?.startsWith?.('NEXT_REDIRECT')) {
       throw err
@@ -305,33 +338,24 @@ export async function verifyOTPInline(prevState: any, formData: FormData) {
   const cookieStore = await cookies()
   const otpCookie = cookieStore.get('cyd_auth_otp')?.value || cookieStore.get('cyd_wa_otp')?.value
 
-  // Demo bypass
-  if (phone.endsWith('9876543210') && trimmedToken === '123456') {
+  const demoPassword = demoPatientPassword()
+  if (demoPassword && isDemoPhone(phone) && trimmedToken === DEMO_CODE) {
     const supabase = await createClient()
     const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
-      email: 'patient.demo@cyd.internal',
-      password: 'Password123!',
+      email: DEMO_PATIENT_EMAIL,
+      password: demoPassword,
     })
     if (authErr) return { error: authErr.message, success: false, phone, fullName, role, isRegister }
     cookieStore.set(ROLE_COOKIE, roleCookieValue(authData.user.id, 'patient'), ROLE_COOKIE_OPTIONS)
     return { success: true, user: authData.user }
   }
 
-  let isOtpValid = false
-  if (otpCookie) {
-    try {
-      const parsed = JSON.parse(otpCookie)
-      if (parsed.phone === phone) {
-        isOtpValid = verifyOtpHmac(phone, trimmedToken, parsed.expiresAt, parsed.hash)
-      }
-    } catch (e) {
-      console.error('[verifyOTPInline] Error verifying OTP cookie:', e)
-    }
-  }
-
-  if (!isOtpValid) {
+  const verdict = await checkOtp(phone, trimmedToken, otpCookie)
+  if (verdict !== 'valid') {
     return {
-      error: 'Invalid or expired verification code. Please check your messages and try again.',
+      error: verdict === 'locked'
+        ? 'Too many incorrect codes. Please request a new code.'
+        : 'Invalid or expired verification code. Please check your messages and try again.',
       success: false,
       phone,
       fullName,
@@ -427,8 +451,6 @@ export async function staffLogin(prevState: any, formData: FormData) {
     redirect('/executive/dashboard')
   } else if (expectedRole === 'hospital_admin') {
     redirect('/hospital/dashboard')
-  } else if (expectedRole === 'super_admin') {
-    redirect('/admin/dashboard')
   } else if (expectedRole === 'diagnostic_admin') {
     redirect('/diagnostic-center/dashboard')
   }
@@ -521,5 +543,5 @@ export async function patientIdLogin(prevState: { error?: string } | null, formD
   const cookieStore = await cookies()
   cookieStore.set(ROLE_COOKIE, roleCookieValue(data.user.id, 'patient'), ROLE_COOKIE_OPTIONS)
   const next = String(formData.get('next') || '')
-  redirect(next.startsWith('/') && !next.startsWith('//') ? next : '/patient/profile')
+  redirect(safeNextPath(next, '/patient/profile'))
 }

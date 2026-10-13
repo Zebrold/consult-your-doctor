@@ -23,7 +23,6 @@ type Viewer = { id: string; role: string | null; hospitalId: string | null; cent
 const canSee = (viewer: Viewer, patientId: string | null, place: { hospitalId?: string | null; centerId?: string | null }) =>
   viewer.id === patientId ||
   viewer.role === 'executive' ||
-  viewer.role === 'super_admin' ||
   (viewer.role === 'hospital_admin' && !!viewer.hospitalId && viewer.hospitalId === place.hospitalId) ||
   (viewer.role === 'diagnostic_admin' && !!viewer.centerId && viewer.centerId === place.centerId)
 

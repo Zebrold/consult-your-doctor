@@ -60,7 +60,6 @@ export function ClientHeader({ user }: { user: User | null }) {
     hospital_admin: "/hospital/dashboard",
     diagnostic_admin: "/diagnostic-center/dashboard",
     executive: "/executive/dashboard",
-    super_admin: "/admin/dashboard",
   };
   const dashboardHref = PORTAL_HOME[String(user?.user_metadata?.role ?? "")] ?? "/patient/profile";
 

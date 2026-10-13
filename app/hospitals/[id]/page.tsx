@@ -1,3 +1,4 @@
+import { jsonLd } from '@/lib/json-ld'
 import { createClient } from '@/lib/supabase/server'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
@@ -94,7 +95,7 @@ export default async function HospitalProfilePage(
     <div className="min-h-screen bg-[#FAFBFD] flex flex-col font-sans">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(schema) }}
       />
       <Header />
       

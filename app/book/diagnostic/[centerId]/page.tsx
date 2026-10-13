@@ -25,14 +25,22 @@ export default async function DiagnosticBookingPage({ params }: DiagnosticBookin
   const supabase = await createClient();
 
   const [{ data: center }, patient] = await Promise.all([
-    supabase.from("diagnostic_centers").select("id, name, city, address, image_url, test_prices").eq("id", centerId).maybeSingle(),
+    supabase.from("diagnostic_centers").select("id, name, city, address, image_url, test_prices, doorstep_enabled, doorstep_fee").eq("id", centerId).maybeSingle(),
     loadPatientDefaults(supabase),
   ]);
   if (!center) notFound();
 
   return (
     <DiagnosticBookingClient
-      center={{ id: center.id, name: center.name, city: center.city, address: center.address, image: center.image_url }}
+      center={{
+        id: center.id,
+        name: center.name,
+        city: center.city,
+        address: center.address,
+        image: center.image_url,
+        doorstepEnabled: (center as any).doorstep_enabled !== false,
+        doorstepFee: Number((center as any).doorstep_fee) || 100,
+      }}
       tests={pricedTests(center.test_prices)}
       patient={patient}
       now={currentTime()}

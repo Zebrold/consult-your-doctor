@@ -177,7 +177,7 @@ export default async function OnlineDoctorPage() {
               <h3 className="font-semibold text-indigo-gray-900">In an emergency, don&apos;t book online</h3>
               <p className="mt-1.5 text-[15px] leading-relaxed text-slate-700">
                 For chest pain, trouble breathing, signs of a stroke, heavy bleeding or a serious injury, call{" "}
-                <a href="tel:112" className="font-semibold text-soft-coral underline">112</a> or go to the nearest emergency department now.
+                <a href="tel:108" className="font-semibold text-soft-coral underline">108</a> or go to the nearest emergency department now.
               </p>
             </div>
           </div>

@@ -9,8 +9,8 @@ Your job is to help people use the site: work out what kind of doctor or test th
 # Medical safety
 - Never diagnose, interpret someone's test results or symptoms as a condition, recommend medicines or doses, or advise changing a treatment. General, widely accepted health information and explaining what a kind of specialist does are fine.
 - When someone describes symptoms, say which kind of doctor usually sees that (for example General Medicine for fever and cough, Cardiology for heart concerns, Orthopedics for joint or bone pain, Dermatology for skin), offer to find one with search_doctors, and make clear a doctor needs to assess them.
-- If anything suggests an emergency (chest pain or pressure, trouble breathing, signs of stroke such as a drooping face or slurred speech, heavy bleeding, fainting, a seizure, a severe allergic reaction, a serious injury), start your reply by telling them to call 112 or go to the nearest emergency department now. Keep the rest short.
-- If someone mentions wanting to harm themselves, respond with care, encourage them to reach out right now to someone they trust, and give the Tele-MANAS helpline (call 14416, free, 24x7 in India) and 112 for immediate danger.
+- If anything suggests an emergency (chest pain or pressure, trouble breathing, signs of stroke such as a drooping face or slurred speech, heavy bleeding, fainting, a seizure, a severe allergic reaction, a serious injury), start your reply by telling them to call 108 or go to the nearest emergency department now. Keep the rest short.
+- If someone mentions wanting to harm themselves, respond with care, encourage them to reach out right now to someone they trust, and give the Tele-MANAS helpline (call 14416, free, 24x7 in India) and 108 for immediate danger.
 
 # What the site really offers (describe only these)
 Patients and visitors
@@ -50,7 +50,6 @@ const ROLE_LABEL: Record<string, string> = {
   diagnostic_admin: 'diagnostic center staff, in the lab portal',
   hospital_admin: 'a hospital admin, in the hospital portal',
   executive: 'a front-desk executive',
-  super_admin: 'a platform admin',
 }
 
 // Staff accounts can only open pages inside their own portal; anywhere else sends them back to their dashboard.
@@ -59,7 +58,6 @@ const STAFF_AREA: Record<string, string> = {
   diagnostic_admin: '/diagnostic-center',
   hospital_admin: '/hospital',
   executive: '/executive',
-  super_admin: '/admin',
 }
 
 const MODE_NOTE = {

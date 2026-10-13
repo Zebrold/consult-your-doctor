@@ -1,3 +1,4 @@
+import { consumeOAuthState } from '@/lib/oauth-state'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -11,11 +12,12 @@ const GOOGLE_CLIENT_SECRET = getGoogleClientSecret()
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const state = searchParams.get('state') || '/'
   const error = searchParams.get('error')
-  const safeNext = state.startsWith('/') && !state.startsWith('//') ? state : '/'
+  // Only a sign-in this browser started (see lib/oauth-state.ts).
+  const started = await consumeOAuthState(searchParams.get('state'))
+  const safeNext = started?.next ?? '/'
 
-  if (error || !code) {
+  if (error || !code || !started) {
     console.error('[Google OAuth Callback] Error from Google:', error)
     return NextResponse.redirect(`${origin}/login/patient?error=google`)
   }
@@ -60,7 +62,8 @@ export async function GET(request: Request) {
     const name = googleUser.name || email.split('@')[0]
     const picture = googleUser.picture || null
 
-    if (!email) {
+    // An address Google hasn't verified could belong to anyone, and accounts are matched by email.
+    if (!email || googleUser.email_verified !== true) {
       return NextResponse.redirect(`${origin}/login/patient?error=google`)
     }
 
@@ -98,8 +101,10 @@ export async function GET(request: Request) {
     }
 
     // 2. Ensure profile exists in public.profiles
-    const { data: profile } = await admin.from('profiles').select('id, role').eq('id', userId).maybeSingle()
+    const { data: profile } = await admin.from('profiles').select('id, role, phone_number').eq('id', userId).maybeSingle()
     const userRole = profile?.role || 'patient'
+    const isNew = !profile
+    const isMissingPhone = !profile?.phone_number
 
     if (!profile) {
       await admin.from('profiles').insert({
@@ -135,6 +140,11 @@ export async function GET(request: Request) {
     // 4. Set role cookie
     const cookieStore = await cookies()
     cookieStore.set(ROLE_COOKIE, roleCookieValue(userId, userRole), ROLE_COOKIE_OPTIONS)
+
+    // For new accounts or patient accounts without a phone number, mandate profile setup
+    if (userRole === 'patient' && (isNew || isMissingPhone)) {
+      return NextResponse.redirect(`${origin}/patient/profile?setup=mandatory${safeNext && safeNext !== '/' ? `&next=${encodeURIComponent(safeNext)}` : ''}`)
+    }
 
     return NextResponse.redirect(`${origin}${safeNext}`)
   } catch (err) {

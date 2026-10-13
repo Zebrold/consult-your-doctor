@@ -1,6 +1,7 @@
 import { randomInt } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import type { createAdminClient } from '@/lib/supabase/admin'
+import { DEMO_CODE, DEMO_PATIENT_EMAIL, DEMO_PHONE, demoLoginEnabled, demoPatientPassword } from '@/lib/demo-login'
 
 type Admin = ReturnType<typeof createAdminClient>
 
@@ -9,9 +10,6 @@ type Admin = ReturnType<typeof createAdminClient>
 // and once it checks out the patient's account exists. The code is checked on a throwaway client that keeps no
 // session, so the staff member stays signed in as themselves.
 
-// The demo number and code used for patient sign-in work here too, for trying the desk flows without a text.
-const DEMO_PHONE = '+919876543210'
-const DEMO_CODE = '123456'
 
 /** A 10-digit Indian mobile number (with or without +91 / 0) as "+91XXXXXXXXXX", or null. */
 export function indianMobile(raw: string | null | undefined) {
@@ -31,7 +29,8 @@ type Outcome<T = object> = ({ ok: true } & T) | { ok: false; error: string }
 
 /** Texts the patient a sign-in code. New numbers get an account when the code is confirmed. */
 export async function sendPatientOtp(phone: string): Promise<Outcome> {
-  if (phone === DEMO_PHONE) return { ok: true }
+  // The demo number and code used for patient sign-in work here too where demo sign-in is on (lib/demo-login.ts).
+  if (phone === DEMO_PHONE && demoLoginEnabled()) return { ok: true }
   const { error } = await otpClient().auth.signInWithOtp({ phone, options: { shouldCreateUser: true } })
   if (!error) return { ok: true }
   console.error('sendPatientOtp:', error)
@@ -48,7 +47,7 @@ export async function verifyPatientOtp(admin: Admin, phone: string, code: string
   const token = code.replace(/\D/g, '')
   if (token.length < 4) return { ok: false, error: 'Enter the code the patient received.' }
 
-  if (phone === DEMO_PHONE) {
+  if (phone === DEMO_PHONE && demoLoginEnabled()) {
     if (token !== DEMO_CODE) return { ok: false, error: 'That code is wrong or has expired. Send a new one.' }
     const { data } = await admin.from('profiles').select('id').in('phone_number', [phone, phone.slice(1)]).limit(1).maybeSingle()
     return data ? { ok: true, userId: data.id } : { ok: false, error: 'The demo patient account isn’t set up.' }
@@ -132,9 +131,12 @@ export async function issuePatientCredentials(admin: Admin, userId: string): Pro
   }
   if (!patientCode) return { ok: false, error: 'Could not create a unique Patient ID. Please try again.' }
 
-  // The demo patient keeps its known password, which the demo sign-in relies on.
-  const { data: auth } = await admin.auth.admin.getUserById(userId)
-  if (auth.user?.email === 'patient.demo@cyd.internal') return { ok: true, patientCode, password: 'Password123!' }
+  // The demo patient keeps the password the demo sign-in uses (only where demo sign-in is on).
+  const demoPassword = demoPatientPassword()
+  if (demoPassword) {
+    const { data: auth } = await admin.auth.admin.getUserById(userId)
+    if (auth.user?.email === DEMO_PATIENT_EMAIL) return { ok: true, patientCode, password: demoPassword }
+  }
 
   const password = generatePassword()
   const { error } = await admin.auth.admin.updateUserById(userId, { password })

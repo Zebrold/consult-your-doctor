@@ -1,101 +1,69 @@
-import fs from 'node:fs'
-import path from 'node:path'
+import defaultFeesJson from './platform-fees.json'
+import {
+  type PlatformFeeItem,
+  type PlatformFees,
+  DEFAULT_FEE_ITEMS,
+  DEFAULT_FEES,
+} from './platform-fees-types'
 
-export type PlatformFeeItem = {
-  id: string
-  name: string
-  amount: number
-  description?: string
-  appliesTo?: 'consultation' | 'diagnostic' | 'custom'
-}
+export * from './platform-fees-types'
 
-export type PlatformFees = {
-  consultation: number
-  diagnostic: number
-  items: PlatformFeeItem[]
-  [key: string]: any
-}
-
-export const DEFAULT_FEE_ITEMS: PlatformFeeItem[] = [
-  {
-    id: 'consultation',
-    name: 'Doctor Consultation Platform Fee',
-    amount: 49,
-    description: 'Added to online doctor appointments at checkout.',
-    appliesTo: 'consultation',
-  },
-  {
-    id: 'diagnostic',
-    name: 'Diagnostic Lab Platform Fee',
-    amount: 29,
-    description: 'Added to online diagnostic lab test bookings at checkout.',
-    appliesTo: 'diagnostic',
-  },
-]
-
-export const DEFAULT_FEES: PlatformFees = {
-  consultation: 49,
-  diagnostic: 29,
-  items: DEFAULT_FEE_ITEMS,
-}
-
-function getJsonFilePath(): string {
-  return path.join(process.cwd(), 'lib', 'platform-fees.json')
-}
+// In-memory cache for fast runtime retrieval
+let cachedFees: PlatformFees | null = null
 
 export function readLocalFees(): PlatformFees {
+  if (cachedFees) return cachedFees
+
   try {
-    const file = getJsonFilePath()
-    if (fs.existsSync(file)) {
-      const parsed = JSON.parse(fs.readFileSync(file, 'utf-8'))
-      const c = Number(parsed.consultation)
-      const d = Number(parsed.diagnostic)
+    const parsed = defaultFeesJson as any
+    const c = Number(parsed.consultation)
+    const d = Number(parsed.diagnostic)
 
-      const items: PlatformFeeItem[] =
-        Array.isArray(parsed.items)
-          ? parsed.items.map((it: any) => ({
-              id: String(it.id || it.key || Math.random().toString(36).substring(2, 9)),
-              name: String(it.name || 'Platform Fee').trim(),
-              amount: Math.max(0, Math.round(Number(it.amount) || 0)),
-              description: it.description ? String(it.description).trim() : undefined,
-              appliesTo: it.appliesTo || 'custom',
-            }))
-          : [
-              {
-                id: 'consultation',
-                name: 'Doctor Consultation Platform Fee',
-                amount: Number.isFinite(c) && c >= 0 ? c : DEFAULT_FEES.consultation,
-                description: 'Added to online doctor appointments at checkout.',
-                appliesTo: 'consultation',
-              },
-              {
-                id: 'diagnostic',
-                name: 'Diagnostic Lab Platform Fee',
-                amount: Number.isFinite(d) && d >= 0 ? d : DEFAULT_FEES.diagnostic,
-                description: 'Added to online diagnostic lab test bookings at checkout.',
-                appliesTo: 'diagnostic',
-              },
-            ]
+    const items: PlatformFeeItem[] =
+      Array.isArray(parsed.items)
+        ? parsed.items.map((it: any) => ({
+            id: String(it.id || it.key || Math.random().toString(36).substring(2, 9)),
+            name: String(it.name || 'Platform Fee').trim(),
+            amount: Math.max(0, Math.round(Number(it.amount) || 0)),
+            description: it.description ? String(it.description).trim() : undefined,
+            appliesTo: it.appliesTo || 'custom',
+          }))
+        : [
+            {
+              id: 'consultation',
+              name: 'Doctor Consultation Platform Fee',
+              amount: Number.isFinite(c) && c >= 0 ? c : DEFAULT_FEES.consultation,
+              description: 'Added to online doctor appointments at checkout.',
+              appliesTo: 'consultation',
+            },
+            {
+              id: 'diagnostic',
+              name: 'Diagnostic Lab Platform Fee',
+              amount: Number.isFinite(d) && d >= 0 ? d : DEFAULT_FEES.diagnostic,
+              description: 'Added to online diagnostic lab test bookings at checkout.',
+              appliesTo: 'diagnostic',
+            },
+          ]
 
-      const consultItems = items.filter((it) => it.appliesTo === 'consultation' || it.id === 'consultation')
-      const diagItems = items.filter((it) => it.appliesTo === 'diagnostic' || it.id === 'diagnostic')
+    const consultItems = items.filter((it) => it.appliesTo === 'consultation' || it.id === 'consultation')
+    const diagItems = items.filter((it) => it.appliesTo === 'diagnostic' || it.id === 'diagnostic')
 
-      const consultFee =
-        consultItems.length > 0
-          ? consultItems.reduce((sum, it) => sum + it.amount, 0)
-          : (Array.isArray(parsed.items) ? 0 : (Number.isFinite(c) && c >= 0 ? c : DEFAULT_FEES.consultation))
+    const consultFee =
+      consultItems.length > 0
+        ? consultItems.reduce((sum, it) => sum + it.amount, 0)
+        : (Array.isArray(parsed.items) ? 0 : (Number.isFinite(c) && c >= 0 ? c : DEFAULT_FEES.consultation))
 
-      const diagFee =
-        diagItems.length > 0
-          ? diagItems.reduce((sum, it) => sum + it.amount, 0)
-          : (Array.isArray(parsed.items) ? 0 : (Number.isFinite(d) && d >= 0 ? d : DEFAULT_FEES.diagnostic))
+    const diagFee =
+      diagItems.length > 0
+        ? diagItems.reduce((sum, it) => sum + it.amount, 0)
+        : (Array.isArray(parsed.items) ? 0 : (Number.isFinite(d) && d >= 0 ? d : DEFAULT_FEES.diagnostic))
 
-      return {
-        consultation: consultFee,
-        diagnostic: diagFee,
-        items,
-      }
+    cachedFees = {
+      consultation: consultFee,
+      diagnostic: diagFee,
+      items,
     }
+    return cachedFees
   } catch {}
 
   return {
@@ -105,11 +73,16 @@ export function readLocalFees(): PlatformFees {
 }
 
 export function writeLocalFees(fees: PlatformFees): void {
+  cachedFees = fees
   try {
-    const file = getJsonFilePath()
-    fs.writeFileSync(file, JSON.stringify(fees, null, 2), 'utf-8')
-  } catch (err) {
-    console.error('Failed to write local platform fees:', err)
+    if (typeof window === 'undefined' && process.env.NODE_ENV !== 'production') {
+      const fs = require('node:fs')
+      const path = require('node:path')
+      const file = path.join(process.cwd(), 'lib', 'platform-fees.json')
+      fs.writeFileSync(file, JSON.stringify(fees, null, 2), 'utf-8')
+    }
+  } catch {
+    // Graceful fallback on read-only environments (e.g. Vercel)
   }
 }
 

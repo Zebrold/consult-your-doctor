@@ -16,7 +16,7 @@ import {
   Coins,
 } from 'lucide-react'
 import { updatePlatformFeesAction } from '@/app/actions/pricing'
-import { type PlatformFeeItem, type PlatformFees, DEFAULT_FEE_ITEMS } from '@/lib/platform-fees'
+import { type PlatformFeeItem, type PlatformFees, DEFAULT_FEE_ITEMS } from '@/lib/platform-fees-types'
 import { formatINR } from '@/components/patient/format'
 
 interface Props {

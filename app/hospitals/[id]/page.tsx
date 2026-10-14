@@ -4,7 +4,8 @@ import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
 import { PatientDock } from '@/components/PatientDock'
-import { MapPin, Mail, Phone, Building2, UserCircle, CheckCircle2, Award, FlaskConical, ShieldCheck, Siren, ArrowRight, ArrowLeft } from 'lucide-react'
+import { PhoneBar } from '@/components/patient/PhoneHeader'
+import { MapPin, Mail, Phone, Building2, UserCircle, CheckCircle2, Award, FlaskConical, ShieldCheck, Siren, ArrowRight } from 'lucide-react'
 import { testList } from '@/lib/pricing'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -120,26 +121,16 @@ export default async function HospitalProfilePage(
             backHref="/hospitals"
             className="hidden md:block"
           />
-          {/* Mobile phone sticky header */}
-          <header className="md:hidden sticky top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] px-3 flex items-center justify-between gap-2 shadow-xs">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <Link
-                href="/hospitals"
-                aria-label="Back to Hospitals"
-                className="w-10 h-10 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 active:scale-95 transition-all shrink-0"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-              <div className="min-w-0">
-                <h1 className="font-headline-lg text-[16px] font-bold text-slate-900 tracking-tight truncate">
-                  {hospital.name}
-                </h1>
-                <p className="text-[11px] text-primary font-semibold truncate leading-none mt-0.5">
-                  {hospital.city}
-                </p>
-              </div>
-            </div>
-          </header>
+          {/* Phones: the blue bar */}
+          <PhoneBar
+            title={hospital.name}
+            subtitle={hospital.city}
+            backHref="/hospitals"
+            backLabel="Back to Hospitals"
+            isSignedIn={isLoggedIn}
+            name={viewer?.full_name || user?.user_metadata?.full_name}
+            email={viewer?.email || user?.email}
+          />
         </>
       ) : (
         <Header />

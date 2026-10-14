@@ -5,6 +5,7 @@ import { BrainCircuit, ChevronDown, HelpCircle, MessageCircleQuestion, PhoneCall
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { PatientSidebar } from '@/components/PatientSidebar'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
+import { AccountShortcuts } from '@/components/patient/AccountShortcuts'
 import { PatientDock } from '@/components/PatientDock'
 import { SupportTicketButton } from '@/components/patient/SupportTicket'
 import { currentTime, one } from '@/components/patient/data'
@@ -93,15 +94,25 @@ export default async function PatientSupport() {
 
   return (
     <div className="bg-background font-body-md text-body-md text-on-surface antialiased min-h-screen">
-      <PatientNavHeader name={profile?.full_name} email={profile?.email || user.email} isSignedIn container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop" />
+      <PatientNavHeader
+        name={profile?.full_name}
+        email={profile?.email || user.email}
+        isSignedIn
+        container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop"
+        backHref="/patient/profile"
+        eyebrow="My account"
+        title="Help & Support"
+        subtitle="Answers to common questions, or reach our support desk."
+      />
       <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-dock">
         <div className="relative w-full overflow-hidden">
-          <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-8">
+          <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-5 md:pt-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start max-w-[1440px] mx-auto">
               <PatientSidebar user={user} profile={profile} patientDetails={patientDetails} activeAppointmentsCount={upcomingAppointments.length} />
 
               <div className="lg:col-span-8 flex flex-col gap-6">
-                <div className="mb-2">
+                <AccountShortcuts />
+                <div className="hidden md:block mb-2">
                   <h1 className="font-display-lg text-headline-lg font-bold text-on-surface">Help, Support &amp; FAQs</h1>
                   <p className="font-body-md text-body-lg text-on-surface-variant mt-2">Get answers to common questions or reach our support desk.</p>
                 </div>

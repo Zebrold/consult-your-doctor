@@ -11,6 +11,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { PatientDock } from '@/components/PatientDock'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
 import { PatientSidebar } from '@/components/PatientSidebar'
+import { AccountShortcuts } from '@/components/patient/AccountShortcuts'
+import { HeroStat, HeroStats } from '@/components/patient/PhoneHeader'
 import { ProfileEditButton } from '@/components/patient/ProfileEditButton'
 import { currentTime, one } from '@/components/patient/data'
 import { ageFrom, doctorName, formatINR, formatShortDate, initials } from '@/components/patient/format'
@@ -212,10 +214,25 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
 
   return (
     <div className="bg-background font-body-md text-body-md text-on-surface antialiased min-h-screen">
-      <PatientNavHeader name={name} email={email} isSignedIn container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop" />
+      <PatientNavHeader
+        name={name}
+        email={email}
+        isSignedIn
+        container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop"
+        eyebrow="My profile"
+        title={name}
+        subtitle={[`UHID CYD-${user.id.slice(0, 8).toUpperCase()}`, phone].filter(Boolean).join(' • ')}
+        hero={
+          <HeroStats>
+            <HeroStat href="/patient/appointments" value={upcoming.length} label="Upcoming visits" />
+            <HeroStat href="#labs" value={reportsSent} label="Lab reports" />
+            <HeroStat href="#records" value={records} label="Prescriptions" />
+          </HeroStats>
+        }
+      />
       <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-dock">
         <div className="relative w-full overflow-hidden">
-          <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-8">
+          <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-5 md:pt-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start max-w-[1440px] mx-auto">
               <PatientSidebar 
                 user={user} 
@@ -227,7 +244,8 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
               />
 
               <div className="lg:col-span-8 flex flex-col gap-6">
-                <div className="mb-2">
+                <AccountShortcuts />
+                <div className="hidden md:block mb-2">
                   <h1 className="font-display-lg text-headline-lg font-bold text-on-surface">Personal Information &amp; History</h1>
                   <p className="font-body-md text-body-lg text-on-surface-variant mt-2">Your medical details, lab reports and payments in one place.</p>
                 </div>
@@ -261,7 +279,7 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
                   <Banner tone="coral" icon={CircleAlert}>The payment didn&apos;t go through, so the booking isn&apos;t confirmed yet. You can try again from &ldquo;Awaiting payment&rdquo; below.</Banner>
                 )}
 
-                <div className="grid grid-cols-3 gap-3 md:gap-4">
+                <div className="hidden md:grid grid-cols-3 gap-3 md:gap-4">
                   <Stat href="/patient/appointments" label="Upcoming visits" value={upcoming.length} icon={CalendarDays} tint="text-primary" />
                   <Stat href="#labs" label="Lab reports" value={reportsSent} icon={Microscope} tint="text-fresh-teal" />
                   <Stat href="#records" label="Prescriptions" value={records} icon={FileText} tint="text-on-surface-variant" />

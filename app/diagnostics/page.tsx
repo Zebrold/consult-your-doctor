@@ -59,14 +59,18 @@ export default async function DiagnosticsDirectoryPage() {
           email={viewer?.email || user?.email}
           container="max-w-7xl px-4 sm:px-6 lg:px-8"
           backHref="/"
+          eyebrow="Lab tests"
+          title="Diagnostic Centers & Labs"
+          subtitle={`${diagnosticCenters?.length ?? 0} partner ${diagnosticCenters?.length === 1 ? "lab" : "labs"}`}
         />
       ) : (
         <Header />
       )}
       
-      <main className={`flex-1 ${isLoggedIn ? 'pt-6 md:pt-8 pb-dock' : 'pt-[calc(var(--header-h)+2rem)] md:pt-[calc(var(--header-h)+3rem)] pb-12'}`}>
+      <main className={`flex-1 ${isLoggedIn ? 'pt-5 md:pt-8 pb-dock' : 'pt-[calc(var(--header-h)+2rem)] md:pt-[calc(var(--header-h)+3rem)] pb-12'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8 md:mb-12">
+          {/* Signed-in phones have the title in the blue header. */}
+          <div className={`${isLoggedIn ? 'hidden md:block' : ''} text-center mb-8 md:mb-12`}>
             <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900 mb-3 md:mb-4">
               Top Diagnostic Centers & Labs
             </h1>

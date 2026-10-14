@@ -64,11 +64,20 @@ export function PortalPageSkeleton() {
   )
 }
 
-/** Patient pages draw their own top bar, so the placeholder includes one. */
+/** Patient pages draw their own top bar (the blue header on phones), so the placeholder includes one. */
 export function PatientPageSkeleton() {
   return (
     <div className="min-h-screen bg-background">
-      <div className="sticky top-0 z-40 h-16 border-b border-outline-variant/30 bg-surface-container-lowest" />
+      <div className="hidden md:block sticky top-0 z-40 h-16 border-b border-outline-variant/30 bg-surface-container-lowest" />
+      <div className="md:hidden h-[calc(env(safe-area-inset-top)+190px)] rounded-b-[32px] bg-[linear-gradient(160deg,#0758f2_0%,#1570ff_55%,#2b86ff_100%)] shadow-[0_14px_30px_-14px_rgba(0,80,220,0.6)] px-4 pt-[calc(env(safe-area-inset-top)+14px)]">
+        <div className="flex items-center justify-between">
+          <div className="w-40 h-10 rounded-xl bg-white/15" />
+          <div className="w-24 h-11 rounded-full bg-white/15" />
+        </div>
+        <div className="mt-6 w-24 h-4 rounded-md bg-white/20" />
+        <div className="mt-2.5 w-52 h-8 rounded-lg bg-white/25" />
+        <div className="mt-2.5 w-64 h-4 rounded-md bg-white/15" />
+      </div>
       <div className="max-w-[1240px] mx-auto px-margin-x-mobile lg:px-12 py-6 md:py-8">
         <PortalPageSkeleton />
       </div>

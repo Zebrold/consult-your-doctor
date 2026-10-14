@@ -11,6 +11,8 @@ import { PatientDock } from "@/components/PatientDock";
 import { PatientNavHeader } from "@/components/PatientNavHeader";
 import { doctorName, formatINR, formatSlot, initials } from "@/components/patient/format";
 import type { Clinic } from "@/components/patient/CareMap";
+import type { HomeDoctor } from "@/components/PatientHome";
+import { DoctorCard as PhoneDoctorCard } from "@/components/patient/PhoneHome";
 
 const CareMap = dynamic(() => import("@/components/patient/CareMap"), {
   ssr: false,
@@ -40,6 +42,17 @@ interface FindCareClientProps {
 }
 
 const PAGE = 8;
+
+/** The home page's phone card shows these doctors too; the search list has no ratings or map pins. */
+const asHomeDoctor = (d: FindDoctor): HomeDoctor => ({
+  ...d,
+  hospital: d.hospital?.name ?? null,
+  city: d.hospital?.city ?? null,
+  rating: null,
+  reviewCount: 0,
+  lat: null,
+  lng: null,
+});
 
 // Leaflet needs a visible, sized container, so the inline map only mounts on wide screens.
 const wideQuery = "(min-width: 1024px)";
@@ -168,13 +181,50 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
 
   return (
     <div className="bg-background text-on-surface antialiased min-h-screen">
-      <PatientNavHeader isSignedIn={account.isSignedIn} name={account.name} email={account.email} container="max-w-[1536px] px-margin-x-mobile lg:px-margin-x-desktop" />
+      <PatientNavHeader
+        isSignedIn={account.isSignedIn}
+        name={account.name}
+        email={account.email}
+        container="max-w-[1536px] px-margin-x-mobile lg:px-margin-x-desktop"
+        eyebrow="Find care"
+        title="Find a Doctor"
+        subtitle={`${filtered.length} verified ${filtered.length === 1 ? "doctor" : "doctors"} ${city ? `in ${city}` : "across all cities"}`}
+        hero={
+          <form onSubmit={submitSearch} role="search" className="flex items-center gap-2.5 h-[54px] pl-4 pr-1.5 rounded-full bg-white/15 border border-white/25 backdrop-blur-sm focus-within:bg-white/25 transition-colors">
+            <Search className="w-5 h-5 text-white/90 shrink-0" />
+            <label className="sr-only" htmlFor="find-phone-search">Search doctors or specialties</label>
+            <input
+              id="find-phone-search"
+              type="search"
+              enterKeyHint="search"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setVisible(PAGE);
+              }}
+              placeholder="Search doctors or specialties…"
+              className="flex-1 min-w-0 bg-transparent text-white placeholder:text-white/70 focus:outline-none [&::-webkit-search-cancel-button]:hidden"
+            />
+            <button
+              type="button"
+              onClick={() => setFiltersOpen((o) => !o)}
+              aria-label="Filters"
+              aria-expanded={filtersOpen}
+              className="relative w-11 h-11 rounded-full bg-white text-indigo-gray-900 flex items-center justify-center shrink-0 shadow-sm active:scale-95 transition-transform"
+            >
+              <SlidersHorizontal className="w-[18px] h-[18px]" />
+              {(city || availableToday || sort !== "soonest") && <span aria-hidden className="absolute top-2 right-2 w-2 h-2 rounded-full bg-vibrant-blue" />}
+            </button>
+          </form>
+        }
+      />
 
       <main className="w-full pb-dock">
         {/* Search & filters */}
-        <section className="w-full md:bg-surface-container-low/70 md:backdrop-blur-md px-margin-x-mobile lg:px-margin-x-desktop pt-1 pb-4 md:py-8">
+        <section className="w-full md:bg-surface-container-low/70 md:backdrop-blur-md px-margin-x-mobile lg:px-margin-x-desktop pt-5 pb-4 md:py-8">
           <div className="max-w-[1536px] mx-auto flex flex-col gap-3 md:gap-6">
-            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 lg:gap-4">
+            {/* Phones search in the blue header. */}
+            <div className="hidden md:flex flex-col lg:flex-row items-stretch lg:items-center gap-3 lg:gap-4">
               <form onSubmit={submitSearch} className="relative flex-1 group" role="search">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-on-surface-variant md:text-outline group-focus-within:text-vibrant-blue transition-colors pointer-events-none" />
                 <input
@@ -188,15 +238,6 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
                     setVisible(PAGE);
                   }}
                 />
-                <button
-                  type="button"
-                  onClick={() => setFiltersOpen((o) => !o)}
-                  aria-label="Filters"
-                  aria-expanded={filtersOpen}
-                  className="md:hidden absolute right-2 top-2 w-10 h-10 flex items-center justify-center bg-primary text-on-primary rounded-lg"
-                >
-                  <SlidersHorizontal className="w-5 h-5" />
-                </button>
                 <button
                   type="submit"
                   className="hidden md:flex absolute inset-y-1.5 right-1.5 px-6 rounded-full bg-vibrant-blue text-on-primary font-title-md text-body-md font-semibold hover:bg-primary transition-all items-center gap-2 shadow-sm"
@@ -266,7 +307,7 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
               </button>
               <div
                 ref={pills}
-                className="flex items-center gap-2 md:gap-2.5 overflow-x-auto pb-1 pt-1 -mx-margin-x-mobile px-margin-x-mobile md:mx-0 md:px-7 scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden w-full"
+                className="flex items-center gap-2 md:gap-2.5 overflow-x-auto pb-3 md:pb-1 pt-1 -mx-margin-x-mobile px-margin-x-mobile md:mx-0 md:px-7 scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden w-full"
               >
                 <SpecialtyPill active={!specialty} onClick={() => pickSpecialty("")} icon>All Specialists</SpecialtyPill>
                 {specialties.map((s) => (
@@ -323,7 +364,7 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
 
               <div className="flex items-center justify-between gap-3 md:px-2">
                 <div>
-                  <h2 className="font-title-md text-title-md md:font-headline-lg text-on-surface md:font-bold tracking-tight">Available Doctors</h2>
+                  <h2 className="font-title-md text-[21px] font-extrabold text-indigo-gray-900 md:text-title-md md:font-headline-lg md:text-on-surface md:font-bold tracking-tight">Available Doctors</h2>
                   <p className="hidden md:block font-body-md text-label-sm text-indigo-gray-600 mt-0.5">
                     {filtered.length} verified {filtered.length === 1 ? "doctor" : "doctors"} {city ? `in ${city}` : "across all cities"}
                   </p>
@@ -350,15 +391,24 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
                   )}
                 </div>
               ) : (
-                filtered.slice(0, visible).map((d) => (
-                  <DoctorCard
-                    key={d.id}
-                    doctor={d}
-                    now={now}
-                    selected={!!d.hospital && d.hospital.id === selectedClinic}
-                    onSelect={() => d.hospital && setSelectedClinic(d.hospital.id)}
-                  />
-                ))
+                <>
+                  <ul className="md:hidden flex flex-col gap-3">
+                    {filtered.slice(0, visible).map((d) => (
+                      <PhoneDoctorCard key={d.id} doctor={asHomeDoctor(d)} km={null} now={now} />
+                    ))}
+                  </ul>
+                  <div className="hidden md:flex flex-col gap-6">
+                    {filtered.slice(0, visible).map((d) => (
+                      <DoctorCard
+                        key={d.id}
+                        doctor={d}
+                        now={now}
+                        selected={!!d.hospital && d.hospital.id === selectedClinic}
+                        onSelect={() => d.hospital && setSelectedClinic(d.hospital.id)}
+                      />
+                    ))}
+                  </div>
+                </>
               )}
 
               {visible < filtered.length && (
@@ -405,8 +455,10 @@ function SpecialtyPill({ active, onClick, icon, children }: { active: boolean; o
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`px-4 md:px-5 py-2.5 md:py-2 rounded-full text-label-sm md:font-body-md md:text-body-md whitespace-nowrap transition-all shadow-sm shrink-0 flex items-center gap-1.5 ${
-        active ? "bg-primary md:bg-vibrant-blue text-on-primary font-semibold" : "bg-surface-container-low md:bg-surface-container-lowest text-on-surface-variant hover:text-on-surface"
+      className={`px-4 md:px-5 py-2.5 md:py-2 rounded-full text-label-sm md:font-body-md md:text-body-md whitespace-nowrap transition-all shrink-0 flex items-center gap-1.5 border md:border-0 ${
+        active
+          ? "bg-vibrant-blue border-vibrant-blue text-on-primary font-semibold shadow-[0_6px_14px_-6px_rgba(0,102,255,0.7)] md:shadow-sm"
+          : "bg-white md:bg-surface-container-lowest border-[#edf1f7] text-slate-700 md:text-on-surface-variant hover:text-on-surface md:shadow-sm"
       }`}
     >
       {icon && <Stethoscope className="w-4 h-4 md:hidden" />}
@@ -431,6 +483,7 @@ function AvailableTodayToggle({ checked, onChange, pill }: { checked: boolean; o
   );
 }
 
+/** Tablets and desktops; phones list doctors with the home page's card (PhoneDoctorCard). */
 function DoctorCard({ doctor: d, now, selected, onSelect }: { doctor: FindDoctor; now: number; selected: boolean; onSelect: () => void }) {
   const name = doctorName(d.name);
   const today = d.openToday > 0;

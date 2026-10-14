@@ -1,18 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowRight, Bell, Building2, CalendarClock, CalendarDays, ChevronDown, ChevronRight, Ellipsis, FlaskConical, Globe2,
-  LifeBuoy, LoaderCircle, LocateFixed, LogIn, LogOut, MapPin, Menu, Plus, Search, SlidersHorizontal, Star, Stethoscope,
-  UserRound, X, type LucideIcon,
+  ArrowRight, CalendarClock, CalendarDays, ChevronDown, ChevronRight, Ellipsis, Globe2,
+  LoaderCircle, LocateFixed, MapPin, Search, SlidersHorizontal, Star, Stethoscope, type LucideIcon,
 } from "lucide-react";
 import type { HomeDoctor } from "@/components/PatientHome";
 import { doctorName, formatDayLabel, formatINR, initials } from "@/components/patient/format";
 import { specialtyMeta } from "@/components/patient/specialties";
 import { byNearness, type usePatientLocation } from "@/components/patient/location";
+import { BlueHeader, BrandRow } from "@/components/patient/PhoneHeader";
+import { MenuSheet, Sheet } from "@/components/patient/PhoneSheet";
 import { formatDistance } from "@/lib/geo";
 
 // The patient home on phones: the blue header with the greeting, location and search, the specialty shortcuts and
@@ -63,35 +63,8 @@ export function PhoneHome({ name, email, isSignedIn, now, visitLine, doctors, sp
       <h1 className="sr-only">Find doctors and hospitals near you</h1>
 
       {/* Blue header: brand, greeting, location and search */}
-      <section className="relative overflow-hidden rounded-b-[32px] bg-[linear-gradient(160deg,#0758f2_0%,#1570ff_55%,#2b86ff_100%)] text-white px-4 pt-[calc(env(safe-area-inset-top)+14px)] pb-6 shadow-[0_14px_30px_-14px_rgba(0,80,220,0.6)]">
-        <span aria-hidden className="absolute -right-28 -top-20 w-80 h-80 rounded-full bg-white/[0.07]" />
-        <span aria-hidden className="absolute -right-14 top-32 w-56 h-56 rounded-full bg-white/[0.06]" />
-        <Plus aria-hidden className="absolute right-6 top-[128px] w-14 h-14 text-white/15" strokeWidth={3.5} />
-
-        <div className="relative flex items-center justify-between gap-3">
-          <Link href="/" className="flex items-center gap-2.5 min-w-0" aria-label="Consult your Doctor home">
-            <Image src="/logo-icon-white.png" alt="" width={96} height={96} sizes="40px" priority className="w-10 h-10 object-contain shrink-0" />
-            <span className="min-w-0 leading-tight">
-              <span className="block font-title-md text-[16px] min-[360px]:text-[18px] font-extrabold tracking-tight truncate">Consult your Doctor</span>
-              <span className="block text-[12.5px] text-white/80 truncate">Your Health, Our Priority</span>
-            </span>
-          </Link>
-          <div className="flex items-center gap-2 shrink-0">
-            {isSignedIn && (
-              <Link
-                href="/patient/appointments"
-                aria-label={visitLine ? `Bookings: ${visitLine}` : "Bookings"}
-                className="relative w-11 h-11 rounded-full bg-white/15 border border-white/20 flex items-center justify-center active:scale-95 transition-transform"
-              >
-                <Bell className="w-5 h-5" />
-                {visitLine && <span aria-hidden className="absolute top-2.5 right-2.5 w-2.5 h-2.5 rounded-full bg-[#ff4d4f] ring-2 ring-[#1570ff]" />}
-              </Link>
-            )}
-            <button type="button" onClick={() => setSheet("menu")} aria-label="Open menu" aria-haspopup="dialog" className="w-11 h-11 rounded-full bg-white/15 border border-white/20 flex items-center justify-center active:scale-95 transition-transform">
-              <Menu className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
+      <BlueHeader>
+        <BrandRow isSignedIn={isSignedIn} dot={!!visitLine} bellLabel={visitLine ? `Bookings: ${visitLine}` : "Bookings"} onMenu={() => setSheet("menu")} />
 
         <Greeting name={name} now={now} />
 
@@ -122,7 +95,7 @@ export function PhoneHome({ name, email, isSignedIn, now, visitLine, doctors, sp
             <SlidersHorizontal className="w-[18px] h-[18px]" />
           </Link>
         </form>
-      </section>
+      </BlueHeader>
 
       <div className="px-4 pt-5 pb-8 flex flex-col gap-6">
         {isSignedIn && visitLine && (
@@ -245,7 +218,8 @@ function SpecialtyRow({ specialties }: { specialties: { name: string; count: num
 
 const compactCount = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1).replace(/\.0$/, "")}K` : String(n));
 
-function DoctorCard({ doctor: d, km, now }: { doctor: HomeDoctor; km: number | null; now: number }) {
+/** A doctor in the phone lists: photo, name, specialty, rating or next slot, fee and Consult Now. */
+export function DoctorCard({ doctor: d, km, now }: { doctor: HomeDoctor; km: number | null; now: number }) {
   const availableToday = d.openToday > 0;
   // Degrees (or the hospital when none are listed) and experience, as on the doctor's profile.
   const details = [d.qualifications || d.hospital, d.experience ? `${d.experience}+ Years Exp.` : null].filter(Boolean).join(" • ");
@@ -308,38 +282,6 @@ function Chip({ tone, children }: { tone: "green" | "grey"; children: ReactNode 
   );
 }
 
-/** A panel that slides up from the bottom over a dimmed page. */
-function Sheet({ title, subtitle, onClose, children }: { title: string; subtitle?: string; onClose: () => void; children: ReactNode }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = previous;
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [onClose]);
-  return (
-    <div className="fixed inset-0 z-[60] flex items-end" role="dialog" aria-modal="true" aria-label={title}>
-      <button type="button" tabIndex={-1} aria-label="Close" onClick={onClose} className="absolute inset-0 w-full h-full bg-slate-900/40" />
-      <div className="relative w-full max-h-[85dvh] overflow-y-auto overscroll-contain bg-white rounded-t-[28px] shadow-[0_-12px_40px_rgba(15,23,42,0.2)] px-4 pt-2 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
-        <span aria-hidden className="block w-10 h-1.5 rounded-full bg-slate-200 mx-auto mb-3" />
-        <div className="flex items-start justify-between gap-3 mb-4">
-          <div>
-            <p className="font-title-md text-[19px] font-extrabold text-indigo-gray-900">{title}</p>
-            {subtitle && <p className="text-[13px] text-slate-500">{subtitle}</p>}
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="w-10 h-10 -mr-1 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
-
 function LocationSheet({ place, cities, onClose }: { place: Place; cities: string[]; onClose: () => void }) {
   const { location, status } = place;
   const message =
@@ -399,51 +341,6 @@ function LocationSheet({ place, cities, onClose }: { place: Place; cities: strin
           <Globe2 className="w-5 h-5 text-slate-500" /> Show all locations
         </button>
       )}
-    </Sheet>
-  );
-}
-
-function MenuSheet({ name, email, isSignedIn, onClose }: { name: string | null; email: string | null; isSignedIn: boolean; onClose: () => void }) {
-  const links: { href: string; label: string; icon: LucideIcon }[] = [
-    ...(isSignedIn
-      ? [
-          { href: "/patient/appointments", label: "My appointments", icon: CalendarDays },
-          { href: "/patient/profile", label: "My profile & records", icon: UserRound },
-        ]
-      : []),
-    { href: "/find", label: "Find a doctor", icon: Stethoscope },
-    { href: "/hospitals", label: "Hospitals", icon: Building2 },
-    { href: "/diagnostics", label: "Lab tests", icon: FlaskConical },
-    { href: isSignedIn ? "/patient/support" : "/contact", label: "Help & support", icon: LifeBuoy },
-  ];
-  return (
-    <Sheet title={isSignedIn ? name || "My account" : "Menu"} subtitle={isSignedIn ? email ?? undefined : undefined} onClose={onClose}>
-      <nav aria-label="Account and site" className="flex flex-col">
-        {links.map(({ href, label, icon: Icon }) => (
-          <Link key={href} href={href} onClick={onClose} className="flex items-center gap-3 min-h-[52px] px-2 rounded-2xl text-[16px] font-semibold text-indigo-gray-900 active:bg-slate-100">
-            <Icon className="w-5 h-5 text-vibrant-blue shrink-0" />
-            <span className="flex-1">{label}</span>
-            <ChevronRight className="w-5 h-5 text-slate-300" />
-          </Link>
-        ))}
-      </nav>
-      <div className="mt-3">
-        {isSignedIn ? (
-          <form action="/auth/signout" method="post">
-            <button type="submit" className="w-full h-12 rounded-full border border-slate-200 text-indigo-gray-900 font-semibold flex items-center justify-center gap-2 active:bg-slate-50">
-              <LogOut className="w-5 h-5 text-red-600" /> Sign out
-            </button>
-          </form>
-        ) : (
-          <Link href="/login/patient" onClick={onClose} className="w-full h-12 rounded-full bg-vibrant-blue text-white font-bold flex items-center justify-center gap-2 shadow-[0_6px_16px_rgba(0,102,255,0.25)]">
-            <LogIn className="w-5 h-5" /> Sign in or create an account
-          </Link>
-        )}
-      </div>
-      <p className="mt-4 px-2 flex gap-4 text-[13px] text-slate-500">
-        <Link href="/terms-of-use" onClick={onClose} className="py-1.5">Terms &amp; Conditions</Link>
-        <Link href="/privacy-policy" onClick={onClose} className="py-1.5">Privacy Policy</Link>
-      </p>
     </Sheet>
   );
 }

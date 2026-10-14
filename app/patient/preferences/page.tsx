@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { Home, Search, Calendar as CalendarIcon, User, Bell, Smartphone, Mail, Moon, Globe, ChevronRight, FileText, ShieldCheck } from 'lucide-react'
 import { PatientSidebar } from '@/components/PatientSidebar'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
+import { PatientDock } from '@/components/PatientDock'
+import { AccountShortcuts } from '@/components/patient/AccountShortcuts'
 
 export default async function PatientPreferences() {
   const supabase = await createClient()
@@ -22,11 +24,20 @@ export default async function PatientPreferences() {
 
   return (
     <div className="bg-background font-body-md text-body-md text-on-surface antialiased min-h-screen">
-      <PatientNavHeader name={profile?.full_name} email={profile?.email || user.email} isSignedIn container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop" />
-      <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-24">
+      <PatientNavHeader
+        name={profile?.full_name}
+        email={profile?.email || user.email}
+        isSignedIn
+        container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop"
+        backHref="/patient/profile"
+        eyebrow="My account"
+        title="Preferences"
+        subtitle="Notifications, channels and app settings."
+      />
+      <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-dock">
         <div className="flex flex-col w-full">
           <div className="relative w-full overflow-hidden">
-            <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-8">
+            <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-5 md:pt-8">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start max-w-[1440px] mx-auto">
 
                 {/* ==================== LEFT COLUMN (30% -> 4 cols) ==================== */}
@@ -34,8 +45,8 @@ export default async function PatientPreferences() {
 
                 {/* ==================== RIGHT COLUMN (70% -> 8 cols) ==================== */}
                 <div className="lg:col-span-8 flex flex-col gap-6">
-
-                  <div className="mb-2">
+                  <AccountShortcuts />
+                  <div className="hidden md:block mb-2">
                     <h2 className="font-display-lg text-headline-lg font-bold text-on-surface">App Preferences &amp; Notifications</h2>
                     <p className="font-body-md text-body-lg text-on-surface-variant mt-2">Manage your communication channels and application settings.</p>
                   </div>
@@ -174,6 +185,8 @@ export default async function PatientPreferences() {
           </div>
         </div>
       </main>
+
+      <PatientDock activeTab="profile" name={profile?.full_name} />
     </div>
   )
 }

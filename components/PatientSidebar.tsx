@@ -45,7 +45,8 @@ export function PatientSidebar({
     : null
 
   return (
-    <div className="lg:col-span-4 flex flex-col gap-6">
+    // On phones the blue header and AccountShortcuts stand in for the identity and menu cards, and the rest moves below the page.
+    <div className="lg:col-span-4 flex flex-col gap-6 order-last md:order-none">
       {/* Edit Profile Modal */}
       <EditProfileModal 
         isOpen={isEditModalOpen}
@@ -57,7 +58,7 @@ export function PatientSidebar({
       />
 
       {/* Patient Identity Card */}
-      <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm flex flex-col gap-6 relative overflow-hidden">
+      <div className="hidden md:flex bg-surface-container-lowest rounded-xl p-6 shadow-sm flex-col gap-6 relative overflow-hidden">
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-vibrant-blue to-primary"></div>
         <div className="flex flex-col items-center text-center pt-2">
           <div className="relative w-24 h-24 mb-3 bg-surface-container-high rounded-full flex items-center justify-center">
@@ -146,7 +147,7 @@ export function PatientSidebar({
       </div>
 
       {/* Navigation Menu Card */}
-      <div className="bg-surface-container-lowest rounded-xl p-3 shadow-sm flex flex-col gap-1.5">
+      <div className="hidden md:flex bg-surface-container-lowest rounded-xl p-3 shadow-sm flex-col gap-1.5">
         <div className="px-3 pt-2 pb-1">
           <span className="font-label-sm text-label-sm uppercase tracking-wider font-bold text-outline">Patient Dashboard</span>
         </div>

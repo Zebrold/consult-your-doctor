@@ -146,7 +146,11 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
           className="hidden md:block"
         />
       )}
-      <DoctorProfileClient doctor={doctorData} isLoggedIn={isLoggedIn} />
+      <DoctorProfileClient
+        doctor={doctorData}
+        isLoggedIn={isLoggedIn}
+        viewer={viewer?.role === "doctor" ? null : { name: viewer?.full_name ?? null, email: viewer?.email || user?.email || null }}
+      />
     </>
   );
 }

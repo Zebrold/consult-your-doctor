@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { PatientDock } from "@/components/PatientDock";
+import { PhoneBar, barActionClass } from "@/components/patient/PhoneHeader";
 import {
   LogOut,
   BadgeCheck,
@@ -13,7 +14,6 @@ import {
   Calendar,
   CalendarCheck,
   ArrowRight,
-  ArrowLeft,
   Hospital,
   Phone,
   GraduationCap,
@@ -76,6 +76,8 @@ export interface ProfileDoctorData {
 export interface DoctorProfileClientProps {
   doctor: ProfileDoctorData;
   isLoggedIn?: boolean;
+  /** The signed-in patient, for the phone header's menu. Null for a doctor looking at a profile. */
+  viewer?: { name: string | null; email: string | null } | null;
   showPatientDock?: boolean;
   isDoctorView?: boolean;
   onEditProfile?: () => void;
@@ -132,6 +134,7 @@ function getSlotHour(iso: string) {
 export function DoctorProfileClient({
   doctor,
   isLoggedIn = false,
+  viewer = null,
   showPatientDock = true,
   isDoctorView = false,
   onEditProfile,
@@ -250,34 +253,23 @@ export function DoctorProfileClient({
 
   return (
     <div className="bg-background font-body-md text-on-surface antialiased min-h-screen">
-      {/* Mobile Sticky Header for Phone View */}
+      {/* Phones: the blue bar, with Book in reach while scrolling */}
       {!isDoctorView && (
-        <header className="md:hidden sticky top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] px-3 flex items-center justify-between gap-2 shadow-xs">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <Link
-              href={findUrl}
-              aria-label="Back to Doctor Directory"
-              className="w-10 h-10 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 active:scale-95 transition-all shrink-0"
-            >
-              <ArrowLeft className="w-5 h-5" />
+        <PhoneBar
+          title={`Dr. ${rawName}`}
+          subtitle={specialty}
+          backHref={findUrl}
+          backLabel="Back to Doctor Directory"
+          isSignedIn={isLoggedIn}
+          name={viewer?.name}
+          email={viewer?.email}
+          menu={!isLoggedIn || !!viewer}
+          action={
+            <Link href={bookUrl} className={barActionClass}>
+              <Calendar className="w-3.5 h-3.5" /> Book
             </Link>
-            <div className="min-w-0">
-              <h1 className="font-headline-lg text-[16px] font-bold text-slate-900 tracking-tight truncate">
-                Dr. {rawName}
-              </h1>
-              <p className="text-[11px] text-primary font-semibold truncate leading-none mt-0.5">
-                {specialty}
-              </p>
-            </div>
-          </div>
-          <Link
-            href={bookUrl}
-            className="h-10 px-4 rounded-full bg-vibrant-blue hover:bg-primary text-white text-[13px] font-bold shadow-xs active:scale-[0.97] transition-all flex items-center gap-1.5 shrink-0"
-          >
-            <Calendar className="w-3.5 h-3.5" />
-            <span>Book</span>
-          </Link>
-        </header>
+          }
+        />
       )}
       <main className="w-full bg-background pb-dock">
         <div className="flex flex-col w-full">

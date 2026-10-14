@@ -62,9 +62,12 @@ export function ConfirmationClient({ data }: { data: ConfirmationData }) {
         name={data.patientName}
         backHref="/patient/appointments"
         container="max-w-[1080px] px-margin-x-mobile lg:px-margin-x-desktop"
+        eyebrow={data.isConsultation ? 'Appointment' : 'Lab booking'}
+        title={isPaid ? 'Booking Confirmed' : isFailed ? 'Payment Failed' : 'Awaiting Payment'}
+        subtitle={[cleanDoctorName, data.dateTime].filter(Boolean).join(' • ')}
       />
 
-      <main className="max-w-[1080px] mx-auto px-4 sm:px-6 pt-6 pb-dock">
+      <main className="max-w-[1080px] mx-auto px-4 sm:px-6 pt-5 md:pt-6 pb-dock">
         
         {/* Minimalist Card Container (Matches Image 1) */}
         <div className="bg-white rounded-3xl border border-gray-200/80 shadow-xl overflow-hidden max-w-[500px] mx-auto p-6 sm:p-8 print:shadow-none print:border-none print:p-0">

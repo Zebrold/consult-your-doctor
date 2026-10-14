@@ -9,8 +9,17 @@ import { formatINR } from "@/components/patient/format";
 export function CheckoutShell({ name, email, children }: { name: string | null; email: string | null; children: ReactNode }) {
   return (
     <div className="bg-background text-on-surface antialiased min-h-screen">
-      <PatientNavHeader name={name} email={email} isSignedIn backHref="/patient/appointments" container="max-w-[1080px] px-margin-x-mobile lg:px-margin-x-desktop" />
-      <main className="w-full px-margin-x-mobile lg:px-margin-x-desktop pt-6 md:pt-8 pb-dock">
+      <PatientNavHeader
+        name={name}
+        email={email}
+        isSignedIn
+        backHref="/patient/appointments"
+        container="max-w-[1080px] px-margin-x-mobile lg:px-margin-x-desktop"
+        eyebrow="Secure payment"
+        title="Checkout"
+        subtitle="Paid securely through PayU."
+      />
+      <main className="w-full px-margin-x-mobile lg:px-margin-x-desktop pt-5 md:pt-8 pb-dock">
         <div className="max-w-[1080px] mx-auto flex flex-col gap-6">
           <Link href="/patient/appointments" className="hidden md:inline-flex items-center gap-1.5 self-start text-sm font-semibold text-on-surface-variant hover:text-primary transition-colors">
             <ArrowLeft className="w-4 h-4" /> My appointments

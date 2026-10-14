@@ -113,7 +113,7 @@ export function AssistantPage({ role, viewer }: { role: string | null; viewer: s
     <div className="grid lg:grid-cols-[minmax(0,1fr)_320px] gap-4 lg:gap-6 items-start">
       <section
         aria-label="Zebrold AI"
-        className="flex flex-col rounded-3xl bg-surface-container-lowest border border-outline-variant/30 shadow-[0_4px_24px_rgba(15,23,42,0.04)] overflow-hidden h-[calc(100dvh-12rem-env(safe-area-inset-bottom))] md:h-[calc(100dvh-14rem)] min-h-[440px] max-h-[920px]"
+        className="flex flex-col rounded-3xl bg-surface-container-lowest border border-outline-variant/30 shadow-[0_4px_24px_rgba(15,23,42,0.04)] overflow-hidden h-[calc(100dvh-13.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] md:h-[calc(100dvh-14rem)] min-h-[440px] max-h-[920px]"
       >
         <header className="shrink-0 flex items-center justify-between gap-3 px-4 md:px-6 py-3 md:py-3.5 border-b border-outline-variant/30 bg-gradient-to-r from-primary-fixed/30 to-transparent">
           <div className="flex items-center gap-3 min-w-0">

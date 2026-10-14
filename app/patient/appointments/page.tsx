@@ -8,6 +8,7 @@ import { PatientNavHeader } from '@/components/PatientNavHeader'
 import { PatientDock } from '@/components/PatientDock'
 import { ConsultationsList, DiagnosticBookingsList, RecordsAndMedicationsList } from '@/components/PatientDashboardLists'
 import { PatientDashboardActions } from '@/components/PatientDashboardActions'
+import { HeroStat, HeroStats } from '@/components/patient/PhoneHeader'
 
 export default async function PatientAppointments() {
   const supabase = await createClient()
@@ -96,17 +97,33 @@ export default async function PatientAppointments() {
   // Record files are private; the list gets short-lived signed links.
   const prescriptions = await withSignedFiles(createAdminClient(), fetchedPrescriptions)
 
-  const upcomingAppointments = appointments?.filter(a => a.status === 'scheduled' || a.status === 'confirmed') || []
+  // Counted like the Upcoming tab of the consultations list below.
+  const upcomingCount = appointments.filter((a) => ['scheduled', 'confirmed', 'pending_payment', 'pending'].includes(a.status)).length
 
   return (
     <div className="bg-background font-body-md text-body-md text-on-surface antialiased min-h-screen">
-      <PatientNavHeader name={profile?.full_name} email={profile?.email || user.email} isSignedIn container="max-w-[1080px] px-margin-x-mobile lg:px-margin-x-desktop" />
+      <PatientNavHeader
+        name={profile?.full_name}
+        email={profile?.email || user.email}
+        isSignedIn
+        container="max-w-[1080px] px-margin-x-mobile lg:px-margin-x-desktop"
+        eyebrow="Your bookings"
+        title="Appointments & History"
+        subtitle="Consultations, lab tests and prescriptions."
+        hero={
+          <HeroStats>
+            <HeroStat href="#consultations" value={upcomingCount} label="Upcoming visits" />
+            <HeroStat href="#labs" value={diagnosticBookings.length} label="Lab bookings" />
+            <HeroStat href="#records" value={prescriptions.length} label="Records" />
+          </HeroStats>
+        }
+      />
       <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-dock">
-        <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-8">
+        <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-5 md:pt-8">
           <div className="max-w-[1080px] mx-auto flex flex-col gap-6">
 
             {/* Header with Title and View Profile action */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-outline-variant/20">
+            <div className="hidden md:flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-outline-variant/20">
               <div>
                 <h1 className="font-display-lg text-2xl md:text-3xl font-bold text-on-surface tracking-tight">
                   My Appointments &amp; History
@@ -127,20 +144,20 @@ export default async function PatientAppointments() {
             <PatientDashboardActions />
 
             {/* Consultations List */}
-            <section className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/20">
-              <h3 className="font-title-md text-lg font-bold text-on-surface mb-6">Recent Consultations</h3>
+            <section id="consultations" className="scroll-mt-24 bg-surface-container-lowest rounded-[20px] md:rounded-2xl p-4 md:p-6 shadow-[0_4px_16px_rgba(15,23,42,0.05)] md:shadow-sm border border-[#edf1f7] md:border-outline-variant/20">
+              <h3 className="font-title-md text-[19px] md:text-lg font-extrabold md:font-bold tracking-tight text-on-surface mb-4 md:mb-6">Recent Consultations</h3>
               <ConsultationsList appointments={appointments || []} reviews={reviews} />
             </section>
 
             {/* Diagnostic Bookings List */}
-            <section className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/20">
-              <h3 className="font-title-md text-lg font-bold text-on-surface mb-6">Lab &amp; Diagnostics</h3>
+            <section id="labs" className="scroll-mt-24 bg-surface-container-lowest rounded-[20px] md:rounded-2xl p-4 md:p-6 shadow-[0_4px_16px_rgba(15,23,42,0.05)] md:shadow-sm border border-[#edf1f7] md:border-outline-variant/20">
+              <h3 className="font-title-md text-[19px] md:text-lg font-extrabold md:font-bold tracking-tight text-on-surface mb-4 md:mb-6">Lab &amp; Diagnostics</h3>
               <DiagnosticBookingsList diagnosticBookings={diagnosticBookings || []} />
             </section>
 
             {/* Records & Prescriptions */}
-            <section className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/20">
-              <h3 className="font-title-md text-lg font-bold text-on-surface mb-6">Medical Records &amp; Prescriptions</h3>
+            <section id="records" className="scroll-mt-24 bg-surface-container-lowest rounded-[20px] md:rounded-2xl p-4 md:p-6 shadow-[0_4px_16px_rgba(15,23,42,0.05)] md:shadow-sm border border-[#edf1f7] md:border-outline-variant/20">
+              <h3 className="font-title-md text-[19px] md:text-lg font-extrabold md:font-bold tracking-tight text-on-surface mb-4 md:mb-6">Medical Records &amp; Prescriptions</h3>
               <RecordsAndMedicationsList prescriptions={prescriptions} />
             </section>
 

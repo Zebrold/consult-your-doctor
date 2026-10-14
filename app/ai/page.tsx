@@ -22,8 +22,8 @@ export default async function AiPage() {
 
   return (
     <div className="bg-surface text-on-surface antialiased min-h-screen">
-      <PatientNavHeader name={name} email={user?.email ?? null} isSignedIn={!!user} />
-      <main className="w-full max-w-[1240px] mx-auto px-margin-x-mobile lg:px-12 pt-2 md:pt-6 pb-dock">
+      <PatientNavHeader name={name} email={user?.email ?? null} isSignedIn={!!user} blue />
+      <main className="w-full max-w-[1240px] mx-auto px-margin-x-mobile lg:px-12 pt-4 md:pt-6 pb-dock">
         <AssistantPage role={user ? 'patient' : null} viewer={user?.id ?? null} />
       </main>
       <PatientDock activeTab="ai" isSignedIn={!!user} name={name} />

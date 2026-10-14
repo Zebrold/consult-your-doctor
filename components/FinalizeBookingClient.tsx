@@ -130,10 +130,19 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, pl
 
   return (
     <div className="bg-background text-on-surface antialiased min-h-screen">
-      <PatientNavHeader isSignedIn={!!patient} name={patient?.name} email={patient?.email} backHref="/find" container="max-w-[1280px] px-margin-x-mobile lg:px-margin-x-desktop" />
+      <PatientNavHeader
+        isSignedIn={!!patient}
+        name={patient?.name}
+        email={patient?.email}
+        backHref="/find"
+        container="max-w-[1280px] px-margin-x-mobile lg:px-margin-x-desktop"
+        eyebrow="Book appointment"
+        title="Finalize Consultation"
+        subtitle="Pick a time, then pay to confirm your visit."
+      />
 
       <main className="relative w-full overflow-hidden pb-dock md:pt-8">
-        <div className="relative max-w-[1280px] mx-auto px-margin-x-mobile lg:px-margin-x-desktop pt-2 md:py-8">
+        <div className="relative max-w-[1280px] mx-auto px-margin-x-mobile lg:px-margin-x-desktop pt-5 md:py-8">
           {/* Breadcrumb & heading */}
           <div className="hidden md:flex flex-col md:flex-row md:items-center justify-between gap-4 pb-8">
             <div>
@@ -175,7 +184,7 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, pl
                     <span className="hidden md:inline-block px-2.5 py-0.5 mb-1 rounded-full bg-primary-fixed text-on-primary-fixed-variant font-label-sm text-label-sm font-semibold">
                       {doctor.specialty || "Specialist"}
                     </span>
-                    <h1 className="md:hidden font-headline-lg-mobile text-headline-lg-mobile text-on-surface truncate">{name}</h1>
+                    <h2 className="md:hidden font-headline-lg-mobile text-headline-lg-mobile text-on-surface truncate">{name}</h2>
                     <h2 className="hidden md:block font-title-md text-title-md text-on-surface truncate">{name}</h2>
                     <p className="font-body-md text-body-md text-on-surface-variant md:text-indigo-gray-600 mt-0.5 line-clamp-2">
                       <span className="md:hidden">{doctor.specialty || "Specialist"}</span>

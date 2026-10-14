@@ -162,7 +162,12 @@ export async function sendOTP(prevState: any, formData: FormData) {
     return { error: 'Full name is required for registration.', success: false, phone, fullName, role, isRegister }
   }
 
-  phone = formatPhoneNumber(phone, countryCode)
+  const rawDigits = phone.replace(/\D/g, '')
+  if (rawDigits.length === 10 && /^[6-9]\d{9}$/.test(rawDigits)) {
+    phone = `+91${rawDigits}`
+  } else {
+    phone = formatPhoneNumber(phone, countryCode)
+  }
 
   // The demo patient signs in without a text where demo sign-in is switched on; elsewhere the number is refused so
   // no real person at that number is sent codes.

@@ -18,7 +18,10 @@ declare global {
 
 type Mode = 'signin' | 'register'
 
-const countryCodes = [...COUNTRY_CODES].sort((a, b) => a.code.localeCompare(b.code))
+const countryCodes = [
+  ...COUNTRY_CODES.filter((c) => c.code === 'IN'),
+  ...COUNTRY_CODES.filter((c) => c.code !== 'IN').sort((a, b) => a.code.localeCompare(b.code)),
+]
 const RESEND_SECONDS = 30
 
 const inputClass =
@@ -270,6 +273,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
             {googleEnabled && (
               <>
                 <div className="w-full flex flex-col items-center">
+                  <div ref={googleBtnContainerRef} className="hidden" aria-hidden="true" />
                   <button
                     type="button"
                     onClick={handleGoogle}
@@ -375,7 +379,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
                 </div>
                 <p className="text-[12px] text-on-surface-variant/80 pl-1 mt-1.5 flex items-center gap-1.5 font-medium">
                   <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
-                  We&apos;ll send a 6-digit verification code to your mobile number
+                  We&apos;ll send a 6-digit verification code to your WhatsApp / mobile number
                 </p>
               </div>
 
@@ -421,7 +425,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
                 Verification Code Sent
               </div>
               <p className="text-[14px] text-on-surface-variant">
-                Enter the 6-digit verification code sent to <span className="font-semibold text-on-surface">{sentTo}</span>
+                Enter the 6-digit verification code sent to your WhatsApp at <span className="font-semibold text-on-surface">{sentTo}</span>
               </p>
               <button
                 type="button"

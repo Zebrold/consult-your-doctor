@@ -38,7 +38,12 @@ const since = (ms: number) => new Date(Date.now() - ms).toISOString()
 /** Whether another code may be sent to this number from this address right now. */
 export async function otpSendAllowed(admin: Admin, phone: string, ip: string | null): Promise<{ ok: true } | { ok: false; error: string }> {
   const count = async (column: 'phone' | 'ip', value: string, windowMs: number) => {
-    const { count, error } = await admin.from(TABLE).select('id', { count: 'exact', head: true }).eq(column, value).gte('created_at', since(windowMs))
+    const { count, error } = await admin
+      .from(TABLE)
+      .select('id', { count: 'exact' })
+      .eq(column, value)
+      .gte('created_at', since(windowMs))
+      .limit(1)
     if (missingTable(error)) {
       warnMissing()
       return 0
@@ -111,10 +116,10 @@ export async function checkOtpChallenge(
 
 /** Whether the table exists (so a cookie without a challenge id is refused rather than trusted). */
 export async function otpTableReady(admin: Admin): Promise<boolean> {
-  const { error } = await admin.from(TABLE).select('id', { head: true }).limit(1)
+  const { error } = await admin.from(TABLE).select('id').limit(1)
   if (missingTable(error)) {
     warnMissing()
     return false
   }
-  return true
+  return !error
 }

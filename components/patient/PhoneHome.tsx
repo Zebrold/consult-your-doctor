@@ -38,7 +38,7 @@ export function PhoneHome({ name, email, isSignedIn, now, visitLine, doctors, sp
 
   return (
     <div className="md:hidden">
-      <PhoneHeader name={name} email={email} isSignedIn={isSignedIn} />
+      <PhoneHeader name={name} email={email} isSignedIn={isSignedIn} now={now} />
 
       <div className="px-4 pt-2 pb-8 flex flex-col gap-5">
         <h1 className="sr-only">Find a specialist and book a visit</h1>
@@ -98,12 +98,66 @@ export function PhoneHome({ name, email, isSignedIn, now, visitLine, doctors, sp
   );
 }
 
-function PhoneHeader({ name, email, isSignedIn }: { name: string | null; email: string | null; isSignedIn: boolean }) {
+function getSalutation(date: Date = new Date()): string {
+  const hour = date.getHours();
+  if (hour >= 5 && hour < 12) return "Good morning";
+  if (hour >= 12 && hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function getGreeting(name: string | null | undefined, date: Date = new Date()): string {
+  const salutation = getSalutation(date);
+  const trimmed = name?.trim();
+  if (!trimmed) return salutation;
+
+  // Don't greet with phone numbers or raw digit sequences
+  if (/^(\+?\d[\d\s-]{6,}\d|\d+)$/.test(trimmed)) {
+    return salutation;
+  }
+
+  // If name looks like an email, use the username part
+  let cleanName = trimmed;
+  if (cleanName.includes("@")) {
+    cleanName = cleanName.split("@")[0];
+  }
+
+  let displayName = cleanName;
+  if (/^dr\.?\s+/i.test(cleanName)) {
+    const parts = cleanName.split(/\s+/);
+    displayName = `${parts[0]} ${parts[1] || ""}`.trim();
+  } else {
+    displayName = cleanName.split(/\s+/)[0];
+  }
+
+  if (displayName) {
+    displayName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+  }
+
+  return displayName ? `${salutation}, ${displayName}` : salutation;
+}
+
+function PhoneHeader({
+  name,
+  email,
+  isSignedIn,
+  now,
+}: {
+  name: string | null;
+  email: string | null;
+  isSignedIn: boolean;
+  now: number;
+}) {
   const pathname = usePathname();
   // The menu belongs to the page it was opened on, so navigating closes it.
   const [menuPath, setMenuPath] = useState<string | null>(null);
   const open = menuPath === pathname;
   const close = () => setMenuPath(null);
+
+  const [greeting, setGreeting] = useState(() => getGreeting(name, new Date(now)));
+
+  useEffect(() => {
+    setGreeting(getGreeting(name, new Date()));
+  }, [name]);
 
   useEffect(() => {
     if (!open) return;
@@ -138,13 +192,10 @@ function PhoneHeader({ name, email, isSignedIn }: { name: string | null; email: 
             <Image src="/logo-icon.png" alt="" width={96} height={96} sizes="40px" priority className="w-10 h-10 object-contain shrink-0" />
             <span className="min-w-0 leading-tight">
               <span className="block font-title-md text-[15px] min-[360px]:text-[17px] font-extrabold tracking-tight text-indigo-gray-900 truncate">Consult your Doctor</span>
-              <span className="block text-[12.5px] text-slate-500 truncate">Trusted by Patients</span>
+              <span suppressHydrationWarning className="block text-[12.5px] font-medium text-slate-500 truncate">{greeting}</span>
             </span>
           </Link>
-          <div className="flex items-center gap-2 shrink-0">
-            <Link href="/find" aria-label="Search" className="w-10 h-10 rounded-full bg-[#eef3fb] flex items-center justify-center text-indigo-gray-900 active:scale-95 transition-transform">
-              <Search className="w-5 h-5" />
-            </Link>
+          <div className="flex items-center shrink-0">
             <button
               type="button"
               onClick={() => (open ? close() : setMenuPath(pathname))}

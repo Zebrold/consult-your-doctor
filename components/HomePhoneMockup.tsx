@@ -98,15 +98,13 @@ function Screen() {
             <Image src="/logo-icon.png" alt="" width={96} height={96} sizes="48px" className="w-[3em] h-[3em] object-contain shrink-0" />
             <div className="min-w-0 leading-tight">
               <p className="font-title-md font-extrabold text-[1.1875em] tracking-tight whitespace-nowrap">Consult your Doctor</p>
-              <p className="mt-[0.125em] text-[0.8125em] text-slate-500">Trusted by Patients</p>
+              <p className="mt-[0.125em] text-[0.8125em] text-slate-500">Good morning</p>
             </div>
           </div>
-          <div className="flex items-center gap-[0.5em] shrink-0">
-            {[Search, Menu].map((Glyph, i) => (
-              <span key={i} className="w-[2.5em] h-[2.5em] rounded-full bg-[#eef3fb] flex items-center justify-center">
-                <Glyph className="w-[1.25em] h-[1.25em] text-indigo-gray-900" strokeWidth={2} />
-              </span>
-            ))}
+          <div className="flex items-center shrink-0">
+            <span className="w-[2.5em] h-[2.5em] rounded-full bg-[#eef3fb] flex items-center justify-center">
+              <Menu className="w-[1.25em] h-[1.25em] text-indigo-gray-900" strokeWidth={2} />
+            </span>
           </div>
         </div>
 

@@ -1,10 +1,7 @@
 import { consumeOAuthState } from '@/lib/oauth-state'
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
-import { ROLE_COOKIE, ROLE_COOKIE_OPTIONS, roleCookieValue } from '@/lib/role-cookie'
 import { getGoogleClientId, getGoogleClientSecret } from '@/lib/google-auth'
+import { afterGoogleSignIn, signInWithGoogleIdentity } from '@/lib/google-signin'
 
 const GOOGLE_CLIENT_ID = getGoogleClientId()
 const GOOGLE_CLIENT_SECRET = getGoogleClientSecret()
@@ -39,13 +36,11 @@ export async function GET(request: Request) {
     })
 
     if (!tokenRes.ok) {
-      const errBody = await tokenRes.text()
-      console.error('[Google OAuth Token Error]:', errBody)
+      console.error('[Google OAuth Token Error]:', await tokenRes.text())
       return NextResponse.redirect(`${origin}/login/patient?error=google`)
     }
 
-    const tokenData = await tokenRes.json()
-    const { id_token, access_token } = tokenData
+    const { access_token } = await tokenRes.json()
 
     // Fetch user info from Google
     const userinfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -58,95 +53,16 @@ export async function GET(request: Request) {
     }
 
     const googleUser = await userinfoRes.json()
-    const email = googleUser.email?.toLowerCase().trim()
-    const name = googleUser.name || email.split('@')[0]
-    const picture = googleUser.picture || null
-
-    // An address Google hasn't verified could belong to anyone, and accounts are matched by email.
-    if (!email || googleUser.email_verified !== true) {
-      return NextResponse.redirect(`${origin}/login/patient?error=google`)
-    }
-
-    const admin = createAdminClient()
-
-    // 1. Locate or create Supabase user
-    let userId: string
-    const { data: usersData } = await admin.auth.admin.listUsers()
-    const existingUser = usersData?.users?.find((u) => u.email?.toLowerCase() === email)
-
-    if (existingUser) {
-      userId = existingUser.id
-      if (picture && !existingUser.user_metadata?.avatar_url) {
-        await admin.auth.admin.updateUserById(userId, {
-          user_metadata: { ...existingUser.user_metadata, avatar_url: picture, full_name: name },
-        })
-      }
-    } else {
-      const { data: newUser, error: createError } = await admin.auth.admin.createUser({
-        email,
-        email_confirm: true,
-        user_metadata: {
-          full_name: name,
-          name,
-          avatar_url: picture,
-          google_sub: googleUser.sub,
-        },
-      })
-
-      if (createError || !newUser?.user) {
-        console.error('[Google Callback] Error creating user:', createError)
-        return NextResponse.redirect(`${origin}/login/patient?error=google`)
-      }
-      userId = newUser.user.id
-    }
-
-    // 2. Ensure profile exists in public.profiles
-    const { data: profile } = await admin.from('profiles').select('id, role, phone_number').eq('id', userId).maybeSingle()
-    const userRole = profile?.role || 'patient'
-    const isNew = !profile
-    const isMissingPhone = !profile?.phone_number
-
-    if (!profile) {
-      await admin.from('profiles').insert({
-        id: userId,
-        full_name: name,
-        email,
-        role: 'patient',
-      })
-    }
-
-    // 3. Generate session link and verify OTP to set HTTP-only cookies
-    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-      type: 'magiclink',
-      email,
+    const result = await signInWithGoogleIdentity({
+      email: googleUser.email ?? '',
+      emailVerified: googleUser.email_verified === true,
+      name: googleUser.name,
+      picture: googleUser.picture,
+      sub: googleUser.sub,
     })
+    if (!result.ok) return NextResponse.redirect(`${origin}/login/patient?error=google`)
 
-    if (linkError || !linkData?.properties?.hashed_token) {
-      console.error('[Google Callback] Link gen error:', linkError)
-      return NextResponse.redirect(`${origin}/login/patient?error=google`)
-    }
-
-    const supabase = await createClient()
-    const { error: otpError } = await supabase.auth.verifyOtp({
-      token_hash: linkData.properties.hashed_token,
-      type: 'email',
-    })
-
-    if (otpError) {
-      console.error('[Google Callback] Verify OTP error:', otpError)
-      return NextResponse.redirect(`${origin}/login/patient?error=google`)
-    }
-
-    // 4. Set role cookie
-    const cookieStore = await cookies()
-    cookieStore.set(ROLE_COOKIE, roleCookieValue(userId, userRole), ROLE_COOKIE_OPTIONS)
-
-    // For new accounts or patient accounts without a phone number, mandate profile setup
-    if (userRole === 'patient' && (isNew || isMissingPhone)) {
-      return NextResponse.redirect(`${origin}/patient/profile?setup=mandatory${safeNext && safeNext !== '/' ? `&next=${encodeURIComponent(safeNext)}` : ''}`)
-    }
-
-    return NextResponse.redirect(`${origin}${safeNext}`)
+    return NextResponse.redirect(`${origin}${afterGoogleSignIn(result, safeNext)}`)
   } catch (err) {
     console.error('[Google Callback Error]:', err)
     return NextResponse.redirect(`${origin}/login/patient?error=google`)

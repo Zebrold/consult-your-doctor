@@ -239,7 +239,14 @@ export async function processPaymentRefund(
     return { success: false, error: 'Payment transaction not found' }
   }
 
-  const refundAmt = amount > 0 ? amount : Number(currentPayment.amount)
+  if (currentPayment.status !== 'success') {
+    return { success: false, error: 'Only a successful payment can be refunded.' }
+  }
+  const paid = Number(currentPayment.amount) || 0
+  const refundAmt = Number.isFinite(amount) && amount > 0 ? Math.round(amount * 100) / 100 : paid
+  if (refundAmt > paid) {
+    return { success: false, error: `The refund can't be more than the ₹${paid.toLocaleString('en-IN')} paid.` }
+  }
 
   // 1. Update payment record
   const { error: updateErr } = await admin
@@ -287,6 +294,10 @@ export async function adjustPaymentStatus(
   reason: string
 ): Promise<{ success: boolean; error?: string }> {
   const { user, profile } = await requireExecutiveCaller()
+  // Server actions take any value from the browser, so the status is checked here, not only in the menu.
+  if (!(['success', 'failed', 'pending', 'refunded'] as string[]).includes(newStatus)) {
+    return { success: false, error: 'Choose a valid status.' }
+  }
   if (!reason || reason.trim().length < 5) {
     return { success: false, error: 'A valid reason is required for status adjustment.' }
   }

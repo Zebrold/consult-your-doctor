@@ -20,6 +20,8 @@ function supabaseKeyRole(key: string | undefined): string | null {
   const unusedRole = name === "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" ? supabaseKeyRole(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) : null;
   if (role === "service_role" || role === "secret") {
     const message = `${name} holds a Supabase ${role} key, which would be shipped to every browser. Put the publishable (anon) key there and keep the service key in SUPABASE_SERVICE_ROLE_KEY only.`;
+    // A production build would bake the key into the JavaScript every visitor downloads, so refuse to make one.
+    if (process.env.NODE_ENV === "production") throw new Error(message);
     console.warn(`\n⚠  ${message}\n`);
   } else if (unusedRole === "service_role" || unusedRole === "secret") {
     console.warn("\n⚠  NEXT_PUBLIC_SUPABASE_ANON_KEY holds a Supabase service-role key. It isn't used while the publishable key is set, but remove it.\n");

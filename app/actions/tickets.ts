@@ -7,6 +7,8 @@ import { sendTicketUpdateSms } from '@/lib/notify/sms'
 import { notifyTicketWhatsApp } from '@/lib/notify/patient'
 import { revalidatePath } from 'next/cache'
 import { siteUrl } from '@/lib/site-url'
+import { clientIp } from '@/lib/otp-guard'
+import { overLimit } from '@/lib/rate-limit'
 
 export type TicketPriority = 'low' | 'medium' | 'high' | 'urgent'
 export type TicketStatus = 'open' | 'in_progress' | 'awaiting_response' | 'resolved' | 'closed'
@@ -74,10 +76,21 @@ export async function createSupportTicket(input: {
 
   const admin = createAdminClient()
 
-  let requesterName = input.guestName?.trim() || 'User'
-  let requesterEmail = input.guestEmail?.trim() || null
-  let requesterPhone = input.guestPhone?.trim() || null
-  let requesterRole = input.role || 'patient'
+  // Every ticket sends a confirmation to the address and number given, so cap how often one network, account or
+  // contact can raise one; otherwise the form would send messages to anyone, as often as anyone likes.
+  const ip = (await clientIp()) ?? 'unknown'
+  const contactKey = (user?.id || input.guestEmail?.trim().toLowerCase() || input.guestPhone?.replace(/\D/g, '') || '').slice(0, 120)
+  if (overLimit(`ticket:ip:${ip}`, user ? 10 : 5, 60 * 60_000) || (contactKey && overLimit(`ticket:contact:${contactKey}`, 5, 24 * 60 * 60_000))) {
+    return { ok: false, error: 'You have raised several tickets recently. Our team will reply to those first; please try again later.' }
+  }
+
+  let requesterName = input.guestName?.trim().slice(0, 120) || 'User'
+  let requesterEmail = input.guestEmail?.trim().slice(0, 200) || null
+  let requesterPhone = input.guestPhone?.trim().slice(0, 20) || null
+  if (requesterEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(requesterEmail)) requesterEmail = null
+  if (requesterPhone && !/^\+?[\d\s-]{10,16}$/.test(requesterPhone)) requesterPhone = null
+  // Signed-in requesters get their role from their profile below; a visitor can't claim one.
+  let requesterRole = user ? 'patient' : 'visitor'
   const userId = user?.id || null
 
   if (user) {
@@ -90,16 +103,17 @@ export async function createSupportTicket(input: {
     }
   }
 
-  const category = input.category?.trim() || 'General Inquiry'
-  const subject = input.subject?.trim() || `${category} - ${requesterName}`
-  const description = input.description?.trim()
+  const category = input.category?.trim().slice(0, 80) || 'General Inquiry'
+  const subject = input.subject?.trim().slice(0, 200) || `${category} - ${requesterName}`
+  const description = input.description?.trim().slice(0, 5000)
   if (!description || description.length < 5) {
     return { ok: false, error: 'Please describe the issue in detail (at least 5 characters).' }
   }
 
   const bookingId = input.bookingId?.trim().toUpperCase().slice(0, 30) || null
   const paymentId = input.paymentId?.trim().slice(0, 50) || null
-  const priority = input.priority || 'medium'
+  // Only the support team sets urgency; a requester's choice is kept within the normal range.
+  const priority: TicketPriority = input.priority === 'low' || input.priority === 'high' ? input.priority : 'medium'
 
   // Generate unique ticket code
   let ticketCode = `CYD-TICK-${Date.now().toString().slice(-6)}`

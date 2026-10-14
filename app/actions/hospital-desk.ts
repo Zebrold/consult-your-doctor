@@ -8,6 +8,7 @@ import { vitalsSentence } from '@/lib/vitals'
 import { RECORD_MAX_BYTES, RECORD_TYPES, storeRecordFile } from '@/lib/records'
 import { issuePatientToken, readPatientToken } from '@/lib/desk-token'
 import { ensurePatientProfile, indianMobile, sendPatientOtp, verifyPatientOtp } from '@/lib/patient-onboarding'
+import { findAuthUserId } from '@/lib/auth-users'
 import { migrationHint, recordDeskPayment, upiQr, validUpiReference, type DeskMethod } from '@/lib/desk-payments'
 import { notifyBookingConfirmed, notifyHealthUpdate } from '@/lib/notify/patient'
 import type { DeskPayment, DeskResult } from '@/components/portal/desk-types'
@@ -46,7 +47,7 @@ export async function sendHospitalPatientOtp(rawPhone: string): Promise<DeskResu
   if (!ctx) return fail(NOT_SIGNED_IN)
   const phone = indianMobile(rawPhone)
   if (!phone) return fail('Enter the patient’s 10-digit Indian mobile number.')
-  return sendPatientOtp(phone)
+  return sendPatientOtp(ctx.admin, phone, ctx.scope)
 }
 
 /** Checks the code the patient received; their account is created if this is a new number. */
@@ -160,6 +161,9 @@ export async function registerHospitalPatient(formData: FormData): Promise<DeskR
     .in('phone_number', [phone, phone.replace('+', '')])
     .maybeSingle()
 
+  if (existingProfile && existingProfile.role && existingProfile.role !== 'patient') {
+    return fail('This number belongs to a staff account, not a patient.')
+  }
   if (existingProfile) {
     patientId = existingProfile.id
     if (email && (!existingProfile.email || existingProfile.email.endsWith('.internal'))) {
@@ -168,16 +172,10 @@ export async function registerHospitalPatient(formData: FormData): Promise<DeskR
   } else {
     const cleanPhone = phone.replace('+', '')
     const authEmail = email || `${cleanPhone}@patient.internal`
-    let authUserId: string | null = null
+    let authUserId: string | null =
+      (await findAuthUserId(ctx.admin, { phone })) ?? (email ? await findAuthUserId(ctx.admin, { email }) : null)
 
-    const { data: usersData } = await ctx.admin.auth.admin.listUsers()
-    const found = usersData?.users?.find(
-      (u) => u.phone === cleanPhone || u.phone === phone || (email && u.email === email)
-    )
-
-    if (found) {
-      authUserId = found.id
-    } else {
+    if (!authUserId) {
       const { data: created, error: createErr } = await ctx.admin.auth.admin.createUser({
         phone,
         email: authEmail,

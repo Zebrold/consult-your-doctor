@@ -4,6 +4,7 @@ import { Metadata } from "next";
 import { FinalizeBookingClient, type BookingDoctor, type BookingSlot } from "@/components/FinalizeBookingClient";
 import { currentTime, loadPatientDefaults, one } from "@/components/patient/data";
 import { doctorName } from "@/components/patient/format";
+import { getPlatformFees } from "@/lib/platform-fees";
 
 interface BookDoctorPageProps {
   params: Promise<{ doctorId: string }>;
@@ -43,7 +44,7 @@ export default async function BookDoctorPage({ params }: BookDoctorPageProps) {
   const supabase = await createClient();
   const now = currentTime();
 
-  const [{ data: row }, { data: schedules }, patient] = await Promise.all([
+  const [{ data: row }, { data: schedules }, patient, fees] = await Promise.all([
     supabase.from("doctors").select(DOCTOR_FIELDS).eq("id", doctorId).maybeSingle(),
     supabase
       .from("schedules")
@@ -53,6 +54,7 @@ export default async function BookDoctorPage({ params }: BookDoctorPageProps) {
       .lt("start_time", new Date(now + 60 * 86_400_000).toISOString())
       .order("start_time", { ascending: true }),
     loadPatientDefaults(supabase),
+    getPlatformFees(),
   ]);
 
   if (!row) notFound();
@@ -82,6 +84,7 @@ export default async function BookDoctorPage({ params }: BookDoctorPageProps) {
       slots={slots}
       patient={patient}
       now={now}
+      platformFee={fees.consultation}
       payuKey={process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY || "jwoG24"}
     />
   );

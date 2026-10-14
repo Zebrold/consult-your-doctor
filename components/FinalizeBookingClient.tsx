@@ -41,13 +41,15 @@ interface FinalizeBookingClientProps {
   patient: PatientDetails | null;
   now: number;
   payuKey: string;
+  /** The platform fee /api/payu/hash will charge (lib/platform-fees.ts). */
+  platformFee?: number;
 }
 
-export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey }: FinalizeBookingClientProps) {
+export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, platformFee = CONSULTATION_PLATFORM_FEE }: FinalizeBookingClientProps) {
   const router = useRouter();
   const name = doctorName(doctor.name);
   const fee = doctor.fee ?? 0;
-  const total = fee + CONSULTATION_PLATFORM_FEE;
+  const total = fee + platformFee;
   const days = useMemo(() => upcomingDays(now, 6), [now]);
   const today = days[0].key;
 
@@ -356,7 +358,7 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey }: 
                 </div>
                 <div className="py-4 flex flex-col gap-3 font-body-md text-body-md">
                   <SummaryRow label={`${doctor.specialty || "Specialist"} clinic visit`} value={fee ? formatINR(fee) : "—"} />
-                  <SummaryRow label="Platform fee" value={formatINR(CONSULTATION_PLATFORM_FEE)} />
+                  <SummaryRow label="Platform fee" value={formatINR(platformFee)} />
                   <div className="flex items-center justify-between gap-2 text-sm py-2.5 px-3 rounded-lg bg-surface-container-low md:bg-surface-container-low">
                     <span className="text-indigo-gray-600 font-medium flex items-center gap-1.5">
                       <CalendarDays className="w-4 h-4 text-vibrant-blue" /> Slot

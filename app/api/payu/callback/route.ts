@@ -205,8 +205,8 @@ export async function POST(request: Request) {
     }
     return NextResponse.redirect(`${baseUrl}/book/confirmation/${txnid}?payment=failed&reason=${encodeURIComponent(failureReason)}`, 303);
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('PayU Callback Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'The payment could not be processed. If you were charged, contact support with your transaction ID.' }, { status: 500 });
   }
 }

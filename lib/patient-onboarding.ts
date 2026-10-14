@@ -1,14 +1,18 @@
-import { randomInt } from 'node:crypto'
-import { createClient } from '@supabase/supabase-js'
+import { createHmac, randomInt, timingSafeEqual } from 'node:crypto'
+import { cookies } from 'next/headers'
 import type { createAdminClient } from '@/lib/supabase/admin'
+import { findAuthUserId } from '@/lib/auth-users'
 import { DEMO_CODE, DEMO_PATIENT_EMAIL, DEMO_PHONE, demoLoginEnabled, demoPatientPassword } from '@/lib/demo-login'
+import { checkOtpChallenge, otpSendAllowed, otpTableReady, recordOtpChallenge } from '@/lib/otp-guard'
+import { overLimit } from '@/lib/rate-limit'
+import { sendWhatsAppOtp } from '@/lib/notify/whatsapp'
+import { sendOtpSms } from '@/lib/notify/sms'
 
 type Admin = ReturnType<typeof createAdminClient>
 
-// Registering a patient at a hospital or diagnostic centre desk: staff enter the patient's mobile number, Supabase
-// texts the patient a one-time code (through the same send-otp hook as patient sign-in), the patient reads it out,
-// and once it checks out the patient's account exists. The code is checked on a throwaway client that keeps no
-// session, so the staff member stays signed in as themselves.
+// Registering a patient at a hospital or diagnostic centre desk: staff enter the patient's mobile number, the site
+// sends the patient a one-time code, the patient reads it out, and once it checks out the patient's account exists.
+// Nothing here signs anyone in, so the staff member stays signed in as themselves.
 
 
 /** A 10-digit Indian mobile number (with or without +91 / 0) as "+91XXXXXXXXXX", or null. */
@@ -19,33 +23,66 @@ export function indianMobile(raw: string | null | undefined) {
   return /^[6-9]\d{9}$/.test(digits) ? `+91${digits}` : null
 }
 
-function otpClient() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  })
-}
-
 type Outcome<T = object> = ({ ok: true } & T) | { ok: false; error: string }
 
-/** Texts the patient a sign-in code. New numbers get an account when the code is confirmed. */
-export async function sendPatientOtp(phone: string): Promise<Outcome> {
+// The code is this site's own, as for patient sign-in (app/actions/auth.ts): sent on WhatsApp, then by text, and kept
+// as a challenge (lib/otp-guard.ts) that allows a few guesses and works once. Its id rides in a cookie on the staff
+// member's browser, one per patient number, so only the desk that sent the code can check it.
+//
+// There is deliberately no fallback code. A fixed code accepted when delivery failed let any desk "verify" any
+// number, and that verification is what lets a desk issue the patient a new password.
+const deskCookie = (phone: string) => `cyd_desk_otp_${phone.replace(/\D/g, '')}`
+const CODE_TTL_MS = 10 * 60_000
+
+function deskCodeHash(phone: string, code: string, expiresAt: number) {
+  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!secret) throw new Error('Verification codes are not configured on this server.')
+  return createHmac('sha256', secret).update(`desk:${phone}:${code}:${expiresAt}`).digest('hex')
+}
+
+function sameHex(a: string, b: string) {
+  const x = Buffer.from(a, 'hex')
+  const y = Buffer.from(b, 'hex')
+  return x.length === y.length && x.length > 0 && timingSafeEqual(x, y)
+}
+
+/**
+ * Sends the patient a verification code. New numbers get an account when the code is confirmed. `deskScope` names the
+ * staff member sending it (their desk token scope), who may send a limited number of codes an hour.
+ */
+export async function sendPatientOtp(admin: Admin, phone: string, deskScope: string): Promise<Outcome> {
   // The demo number and code used for patient sign-in work here too where demo sign-in is on (lib/demo-login.ts).
   if (phone === DEMO_PHONE && demoLoginEnabled()) return { ok: true }
-  const { error } = await otpClient().auth.signInWithOtp({ phone, options: { shouldCreateUser: true } })
-  if (!error) return { ok: true }
-  console.error('sendPatientOtp:', error)
-  if (/rate|seconds|too many/i.test(error.message)) return { ok: false, error: 'A code was sent a moment ago. Wait a minute before sending another.' }
-  if (/unexpected status code|hook|unexpected_failure|sms provider|balance|fast2sms|500|502/i.test(error.message)) {
-    // Fast2SMS balance is 0 or hook error: allow verification with fallback code 123456
-    return { ok: true }
+
+  if (overLimit(`desk-otp:${deskScope}`, 60, 60 * 60_000)) {
+    return { ok: false, error: 'This desk has sent a lot of codes in the last hour. Please wait a little before sending more.' }
   }
-  return { ok: false, error: 'We couldn’t text the code just now. Check the number and try again in a minute.' }
+  // The per-number caps apply as for sign-in. The per-network cap doesn't: a busy desk sends many codes from one
+  // connection, and counting them would block patients signing in on the hospital's Wi-Fi. So no address is kept.
+  const ip = null
+  const allowed = await otpSendAllowed(admin, phone, ip)
+  if (!allowed.ok) return allowed
+  if (!(await otpTableReady(admin))) {
+    return { ok: false, error: 'Patient verification needs a database update (supabase/migrations/20261013_auth_otp_challenges.sql).' }
+  }
+
+  const code = randomInt(100000, 1000000).toString()
+  const expiresAt = Date.now() + CODE_TTL_MS
+  const id = await recordOtpChallenge(admin, { phone, hash: deskCodeHash(phone, code, expiresAt), expiresAt, ip })
+  if (!id) return { ok: false, error: 'We couldn’t send the code just now. Please try again in a minute.' }
+
+  if (!(await sendWhatsAppOtp(phone, code)) && !(await sendOtpSms(phone, code))) {
+    return { ok: false, error: 'We couldn’t send the code to this number. Check it and try again in a minute.' }
+  }
+  const store = await cookies()
+  store.set(deskCookie(phone), id, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: CODE_TTL_MS / 1000, path: '/' })
+  return { ok: true }
 }
 
 /** Checks the code the patient read out. Returns the patient's user id. */
 export async function verifyPatientOtp(admin: Admin, phone: string, code: string): Promise<Outcome<{ userId: string }>> {
   const token = code.replace(/\D/g, '')
-  if (token.length < 4) return { ok: false, error: 'Enter the code the patient received.' }
+  if (token.length !== 6) return { ok: false, error: 'Enter the 6-digit code the patient received.' }
 
   if (phone === DEMO_PHONE && demoLoginEnabled()) {
     if (token !== DEMO_CODE) return { ok: false, error: 'That code is wrong or has expired. Send a new one.' }
@@ -53,31 +90,28 @@ export async function verifyPatientOtp(admin: Admin, phone: string, code: string
     return data ? { ok: true, userId: data.id } : { ok: false, error: 'The demo patient account isn’t set up.' }
   }
 
-  const client = otpClient()
-  const { data, error } = await client.auth.verifyOtp({ phone, token, type: 'sms' })
-  if (error && token === '123456') {
-    const { data: usersData } = await admin.auth.admin.listUsers()
-    const cleanPhone = phone.replace('+', '')
-    let authUser = usersData?.users?.find(u => u.phone === cleanPhone || u.phone === phone)
-    if (!authUser) {
-      const { data: created } = await admin.auth.admin.createUser({
-        phone,
-        phone_confirm: true,
-        user_metadata: { role: 'patient' }
-      })
-      if (created?.user) authUser = created.user
-    }
-    if (authUser) {
-      return { ok: true, userId: authUser.id }
-    }
+  const store = await cookies()
+  const challengeId = store.get(deskCookie(phone))?.value
+  if (!challengeId) return { ok: false, error: 'That code has expired. Send the patient a new one.' }
+  const verdict = await checkOtpChallenge(admin, challengeId, phone, (hash, expiresAt) => sameHex(hash, deskCodeHash(phone, token, expiresAt)))
+  if (verdict === 'locked') {
+    store.delete(deskCookie(phone))
+    return { ok: false, error: 'Too many wrong codes. Send the patient a new one.' }
   }
+  if (verdict !== 'valid') return { ok: false, error: 'That code is wrong or has expired. Send a new one.' }
+  store.delete(deskCookie(phone))
 
-  if (error || !data.user) {
-    return { ok: false, error: /expired|invalid/i.test(error?.message ?? '') ? 'That code is wrong or has expired. Send a new one.' : 'We couldn’t check the code. Please try again.' }
+  // The patient has proved the number: find its account, or open one.
+  let userId = await findAuthUserId(admin, { phone })
+  if (!userId) {
+    const { data: created, error } = await admin.auth.admin.createUser({ phone, phone_confirm: true, user_metadata: { role: 'patient' } })
+    userId = created?.user?.id ?? (error ? await findAuthUserId(admin, { phone }) : null)
+    if (!userId) {
+      console.error('verifyPatientOtp createUser:', error)
+      return { ok: false, error: 'We couldn’t open an account for this number. Please try again.' }
+    }
   }
-  // The check signed the patient in on this throwaway client; end that session straight away.
-  await client.auth.signOut({ scope: 'local' }).catch(() => {})
-  return { ok: true, userId: data.user.id }
+  return { ok: true, userId }
 }
 
 /**

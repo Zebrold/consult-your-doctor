@@ -6,6 +6,7 @@ import { ROLE_COOKIE, ROLE_COOKIE_OPTIONS, roleCookieValue } from '@/lib/role-co
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getGoogleClientId, getGoogleClientSecret } from '@/lib/google-auth'
+import { afterGoogleSignIn, signInWithGoogleIdentity } from '@/lib/google-signin'
 
 const GOOGLE_CLIENT_ID = getGoogleClientId()
 const GOOGLE_CLIENT_SECRET = getGoogleClientSecret()
@@ -158,49 +159,17 @@ export async function GET(request: Request) {
 
           if (userinfoRes.ok) {
             const googleUser = await userinfoRes.json()
-            const email = googleUser.email?.toLowerCase().trim()
-            const name = googleUser.name || email?.split('@')[0] || 'Patient'
-            const picture = googleUser.picture || null
-
-            if (email && googleUser.email_verified === true) {
-              const admin = createAdminClient()
-              let userId: string
-              const { data: usersData } = await admin.auth.admin.listUsers()
-              const existingUser = usersData?.users?.find((u) => u.email?.toLowerCase() === email)
-
-              if (existingUser) {
-                userId = existingUser.id
-                if (picture && !existingUser.user_metadata?.avatar_url) {
-                  await admin.auth.admin.updateUserById(userId, {
-                    user_metadata: { ...existingUser.user_metadata, avatar_url: picture, full_name: name },
-                  })
-                }
-              } else {
-                const { data: newUser } = await admin.auth.admin.createUser({
-                  email,
-                  email_confirm: true,
-                  user_metadata: { full_name: name, avatar_url: picture },
-                })
-                userId = newUser?.user?.id || ''
-              }
-
-              if (userId) {
-                const { data: profile } = await admin.from('profiles').select('id, role').eq('id', userId).maybeSingle()
-                const userRole = profile?.role || 'patient'
-                if (!profile) {
-                  await admin.from('profiles').insert({ id: userId, full_name: name, email, role: 'patient' })
-                }
-
-                const { data: linkData } = await admin.auth.admin.generateLink({ type: 'magiclink', email })
-                if (linkData?.properties?.hashed_token) {
-                  await supabase.auth.verifyOtp({ token_hash: linkData.properties.hashed_token, type: 'email' })
-                  const cookieStore = await cookies()
-                  cookieStore.set(ROLE_COOKIE, roleCookieValue(userId, userRole), ROLE_COOKIE_OPTIONS)
-                  const response = NextResponse.redirect(`${redirectOrigin}${started.next}`)
-                  response.cookies.set(ROLE_COOKIE, roleCookieValue(userId, userRole), ROLE_COOKIE_OPTIONS)
-                  return response
-                }
-              }
+            const result = await signInWithGoogleIdentity({
+              email: googleUser.email ?? '',
+              emailVerified: googleUser.email_verified === true,
+              name: googleUser.name,
+              picture: googleUser.picture,
+              sub: googleUser.sub,
+            })
+            if (result.ok) {
+              const response = NextResponse.redirect(`${redirectOrigin}${afterGoogleSignIn(result, started.next)}`)
+              response.cookies.set(ROLE_COOKIE, roleCookieValue(result.userId, result.role), ROLE_COOKIE_OPTIONS)
+              return response
             }
           }
         } else {

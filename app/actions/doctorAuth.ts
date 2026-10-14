@@ -5,6 +5,8 @@ import { siteUrl as publicSiteUrl } from '@/lib/site-url'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { randomInt } from 'node:crypto'
 import { sendDoctorRegistrationReceivedEmail, sendDoctorActivationEmail } from '@/lib/notify/email'
+import { clientIp } from '@/lib/otp-guard'
+import { overLimit } from '@/lib/rate-limit'
 
 export async function getHospitals() {
   const supabase = await createClient()
@@ -39,6 +41,13 @@ export async function submitDoctorSignup(prevState: any, formData: FormData) {
 
   if (!field('firstName') || !field('lastName') || !email || !phone || !hospitalId) {
     return { error: 'Name, email, mobile number, and hospital selection are required.', success: false }
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200 || fullName.length > 160) {
+    return { error: 'Please check your name and email address.', success: false }
+  }
+  // Each application emails the address given, so limit how many one network can send.
+  if (overLimit(`doctor-signup:${(await clientIp()) ?? 'unknown'}`, 5, 60 * 60_000)) {
+    return { error: 'Several applications have been sent from this network. Please try again in an hour.', success: false }
   }
 
   if (!council || !registrationNumber || !specialty || !qualificationsRaw) {
@@ -86,7 +95,8 @@ export async function submitDoctorSignup(prevState: any, formData: FormData) {
     if (error.message.includes('unique constraint') || error.code === '23505') {
       return { error: 'An application with this email already exists.', success: false }
     }
-    return { error: error.message || 'An error occurred while submitting your application.', success: false }
+    console.error('submitDoctorSignup:', error)
+    return { error: 'An error occurred while submitting your application. Please try again.', success: false }
   }
 
   // Trigger confirmation email notification

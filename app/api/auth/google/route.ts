@@ -1,10 +1,7 @@
 import { safeNextPath } from '@/lib/safe-redirect'
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
-import { ROLE_COOKIE, ROLE_COOKIE_OPTIONS, roleCookieValue } from '@/lib/role-cookie'
 import { getGoogleClientId } from '@/lib/google-auth'
+import { afterGoogleSignIn, signInWithGoogleIdentity } from '@/lib/google-signin'
 
 const GOOGLE_CLIENT_ID = getGoogleClientId()
 
@@ -15,8 +12,6 @@ interface GoogleTokenInfo {
   name?: string
   picture?: string
   sub?: string
-  error?: string
-  error_description?: string
 }
 
 /**
@@ -26,11 +21,18 @@ interface GoogleTokenInfo {
  * and returns the authenticated user status and redirect URL.
  */
 export async function POST(request: Request) {
-  try {
-    const body = await request.json()
-    const { credential, next } = body
+  // Only this site's pages may sign someone in here. Without this, another site could post its own Google token
+  // from a visitor's browser and sign them into the attacker's account.
+  const origin = request.headers.get('origin')
+  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host')
+  if (origin && host && new URL(origin).host !== host) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+  }
 
-    if (!credential || typeof credential !== 'string') {
+  try {
+    const body = await request.json().catch(() => null)
+    const credential = body?.credential
+    if (!credential || typeof credential !== 'string' || credential.length > 4096) {
       return NextResponse.json({ error: 'Missing Google credential token' }, { status: 400 })
     }
 
@@ -39,145 +41,38 @@ export async function POST(request: Request) {
       `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`,
       { cache: 'no-store' }
     )
-
     if (!verifyRes.ok) {
-      const errText = await verifyRes.text()
-      return NextResponse.json({ error: 'Invalid Google token: ' + errText }, { status: 401 })
+      console.error('[Google Auth] tokeninfo rejected the credential:', verifyRes.status, await verifyRes.text())
+      return NextResponse.json({ error: 'Google could not verify this sign-in. Please try again.' }, { status: 401 })
     }
 
     const tokenInfo: GoogleTokenInfo = await verifyRes.json()
 
     // Verify audience matches our Client ID
-    const audMatches = Boolean(GOOGLE_CLIENT_ID && tokenInfo.aud === GOOGLE_CLIENT_ID)
-
-    if (!audMatches) {
+    if (!GOOGLE_CLIENT_ID || tokenInfo.aud !== GOOGLE_CLIENT_ID) {
       return NextResponse.json(
         { error: 'Google Client ID mismatch. Token audience does not match configured client.' },
         { status: 403 }
       )
     }
 
-    const email = tokenInfo.email?.toLowerCase().trim()
-    // Accounts are matched by email, so only an address Google has verified (tokeninfo reports it as a string).
-    if (!email || String(tokenInfo.email_verified) !== 'true') {
-      return NextResponse.json({ error: 'Google account has no associated email' }, { status: 400 })
-    }
-
-    const name = tokenInfo.name || email.split('@')[0]
-    const picture = tokenInfo.picture || null
-
-    const admin = createAdminClient()
-
-    // 1. Locate or create the Supabase auth user
-    let userId: string
-
-    // Query existing users by email
-    const { data: usersData, error: listError } = await admin.auth.admin.listUsers()
-    if (listError) {
-      console.error('[Google Auth] Error listing users:', listError)
-    }
-
-    const existingUser = usersData?.users?.find((u) => u.email?.toLowerCase() === email)
-
-    if (existingUser) {
-      userId = existingUser.id
-      // Update metadata with avatar if not present
-      if (picture && !existingUser.user_metadata?.avatar_url) {
-        await admin.auth.admin.updateUserById(userId, {
-          user_metadata: { ...existingUser.user_metadata, avatar_url: picture, full_name: name },
-        })
-      }
-    } else {
-      const { data: newUser, error: createError } = await admin.auth.admin.createUser({
-        email,
-        email_confirm: true,
-        user_metadata: {
-          full_name: name,
-          name,
-          avatar_url: picture,
-          google_sub: tokenInfo.sub,
-        },
-      })
-
-      if (createError || !newUser?.user) {
-        console.error('[Google Auth] Error creating user:', createError)
-        return NextResponse.json(
-          { error: createError?.message || 'Failed to create user account' },
-          { status: 500 }
-        )
-      }
-      userId = newUser.user.id
-    }
-
-    // 2. Ensure public profile exists
-    const { data: profile } = await admin.from('profiles').select('id, role, phone_number').eq('id', userId).maybeSingle()
-    const userRole = profile?.role || 'patient'
-    const isNew = !profile
-    const isMissingPhone = !profile?.phone_number
-
-    if (!profile) {
-      const { error: profileError } = await admin.from('profiles').insert({
-        id: userId,
-        full_name: name,
-        email,
-        role: 'patient',
-      })
-      if (profileError) {
-        console.error('[Google Auth] Error inserting profile:', profileError)
-      }
-    }
-
-    // 3. Generate a magiclink token to establish valid Supabase session cookies
-    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-      type: 'magiclink',
-      email,
+    // tokeninfo reports email_verified as a string.
+    const result = await signInWithGoogleIdentity({
+      email: tokenInfo.email ?? '',
+      emailVerified: String(tokenInfo.email_verified) === 'true',
+      name: tokenInfo.name,
+      picture: tokenInfo.picture,
+      sub: tokenInfo.sub,
     })
-
-    if (linkError || !linkData?.properties?.hashed_token) {
-      console.error('[Google Auth] Error generating session link:', linkError)
-      return NextResponse.json(
-        { error: 'Could not generate Supabase authentication session' },
-        { status: 500 }
-      )
-    }
-
-    // 4. Verify OTP using the server Supabase client to write HTTP-only session cookies
-    const supabase = await createClient()
-    const { data: authData, error: otpError } = await supabase.auth.verifyOtp({
-      token_hash: linkData.properties.hashed_token,
-      type: 'email',
-    })
-
-    if (otpError) {
-      console.error('[Google Auth] OTP verification error:', otpError)
-      return NextResponse.json({ error: otpError.message }, { status: 500 })
-    }
-
-    // 5. Set user-role cookie
-    const cookieStore = await cookies()
-    cookieStore.set(ROLE_COOKIE, roleCookieValue(userId, userRole), ROLE_COOKIE_OPTIONS)
-
-    const safeNext = safeNextPath(next)
-
-    // For new accounts or patient accounts without a phone number, mandate profile setup
-    let finalRedirect = safeNext
-    if (userRole === 'patient' && (isNew || isMissingPhone)) {
-      finalRedirect = `/patient/profile?setup=mandatory${safeNext && safeNext !== '/' ? `&next=${encodeURIComponent(safeNext)}` : ''}`
-    }
+    if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 })
 
     return NextResponse.json({
       success: true,
-      redirect: finalRedirect,
-      user: {
-        id: userId,
-        email,
-        name,
-        role: userRole,
-      },
+      redirect: afterGoogleSignIn(result, safeNextPath(body?.next)),
+      user: { id: result.userId, email: result.email, name: result.name, role: result.role },
     })
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown server error'
     console.error('[Google Auth API Error]:', err)
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'Google sign-in failed. Please try again.' }, { status: 500 })
   }
 }

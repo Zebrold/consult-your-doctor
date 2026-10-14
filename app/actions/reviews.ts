@@ -48,7 +48,8 @@ export async function submitAppointmentFeedback(input: AppointmentFeedbackInput)
   }
 
   const doctorObj = Array.isArray(visit.doctors) ? visit.doctors[0] : visit.doctors
-  const effectiveHospitalId = visit.hospital_id || doctorObj?.hospital_id || parsed.data.hospitalId || null
+  // The hospital comes from the visit, never from the browser, so a review can only be about where the visit was.
+  const effectiveHospitalId = visit.hospital_id || doctorObj?.hospital_id || null
 
   const docRating = parsed.data.doctorRating ?? parsed.data.rating ?? 5
   const docComment = parsed.data.doctorComment ?? parsed.data.comment ?? null

@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { matchBookedTests, pricedTests } from '@/lib/pricing'
+import { labDoorstepFee, matchBookedTests, pricedTests } from '@/lib/pricing'
 import { redirect } from 'next/navigation'
 
 export async function createAppointment(formData: FormData) {
@@ -80,6 +80,17 @@ export async function createDiagnosticBooking(formData: FormData) {
   if (!centerId || !testName || !preferredDate) {
     return { error: 'Please select a center, a test, and a preferred date.' }
   }
+  // The older single-test form sends test_name directly; hold it to the same checks as the lab booking page.
+  if (selectedTests.length === 0) {
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(preferredDate) || preferredDate < today) {
+      return { error: 'Please choose a visit date from today onwards.' }
+    }
+    const { data: center } = await supabase.from('diagnostic_centers').select('test_prices').eq('id', centerId).maybeSingle()
+    if (!center || !matchBookedTests(testName, center.test_prices)) {
+      return { error: 'This test is not offered by the selected lab. Please choose another.' }
+    }
+  }
 
   const reqBookingType = (formData.get('booking_type') as string) === 'doorstep' ? 'doorstep' : 'walk_in'
   let doorstepFee = 0
@@ -91,14 +102,16 @@ export async function createDiagnosticBooking(formData: FormData) {
       .eq('id', centerId)
       .maybeSingle()
 
-    if (centerSettings?.doorstep_enabled === false) {
+    if (!centerSettings || centerSettings.doorstep_enabled === false) {
       return { error: 'Doorstep home collection is currently unavailable at this diagnostic center.' }
     }
-    doorstepFee = Math.max(0, Number(centerSettings?.doorstep_fee) || 100)
+    doorstepFee = labDoorstepFee(centerSettings)
   }
 
-  // 3. Insert Booking with doorstep details
-  let { data: booking, error } = await supabase
+  // 3. Insert Booking with doorstep details. The server writes it (patients can't insert booking rows themselves,
+  // see supabase/migrations/20261016_audit_hardening.sql), after the checks above.
+  const admin = createAdminClient()
+  let { data: booking, error } = await admin
     .from('diagnostic_bookings')
     .insert({
       patient_id: user.id,
@@ -114,7 +127,7 @@ export async function createDiagnosticBooking(formData: FormData) {
 
   // Fallback if DB columns haven't been migrated yet
   if (error && /booking_type|doorstep_fee/.test(error.message)) {
-    const fallbackRes = await supabase
+    const fallbackRes = await admin
       .from('diagnostic_bookings')
       .insert({
         patient_id: user.id,
@@ -220,6 +233,33 @@ export async function finalizeConsultationAppointment(formData: FormData) {
   return { success: true, appointmentId: result.appointmentId }
 }
 
+// An unpaid booking holds its slot until it is paid. Without a cap, one account could hold every open slot of every
+// doctor. Patients can't cancel an unpaid booking themselves, so their own holds older than STALE_HOLD_MS are
+// released to make room for a new one.
+const HOLD_LIMIT = 3
+const STALE_HOLD_MS = 30 * 60_000
+
+/** True when the patient may hold one more unpaid slot (after releasing their own stale holds if needed). */
+async function makeRoomForHold(admin: ReturnType<typeof createAdminClient>, patientId: string): Promise<boolean> {
+  const { data } = await admin
+    .from('appointments')
+    .select('id, schedule_id, created_at')
+    .eq('patient_id', patientId)
+    .eq('status', 'pending_payment')
+    .order('created_at', { ascending: true })
+  const holds = (data ?? []) as { id: string; schedule_id: string | null; created_at: string }[]
+  if (holds.length < HOLD_LIMIT) return true
+
+  const cutoff = Date.now() - STALE_HOLD_MS
+  const stale = holds.filter((h) => Date.parse(h.created_at) < cutoff).slice(0, holds.length - HOLD_LIMIT + 1)
+  if (holds.length - stale.length >= HOLD_LIMIT) return false
+  for (const hold of stale) {
+    const { data: released } = await admin.from('appointments').update({ status: 'cancelled' }).eq('id', hold.id).eq('status', 'pending_payment').select('id')
+    if (released?.length && hold.schedule_id) await admin.from('schedules').update({ is_booked: false }).eq('id', hold.schedule_id)
+  }
+  return true
+}
+
 /**
  * Claims a free, future slot for the doctor and creates a pending-payment appointment for the patient.
  * The slot is released again if the appointment can't be created.
@@ -240,6 +280,9 @@ async function claimSlotAndCreateAppointment(
     if (!doctor) return { error: 'This doctor is no longer available for booking.' }
     if (!Number(doctor.consultation_fee)) {
       return { error: "This doctor's consultation fee hasn't been set yet, so they can't be booked online." }
+    }
+    if (!(await makeRoomForHold(admin, patientId))) {
+      return { error: 'You already have unpaid bookings waiting. Please pay for one of them from My Appointments, or try again in 30 minutes.' }
     }
 
     // Claim the slot only while it is still free and in the future, so two patients can't book the same time.

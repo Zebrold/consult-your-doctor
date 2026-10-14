@@ -48,7 +48,7 @@ export async function sendLabPatientOtp(rawPhone: string): Promise<DeskResult> {
   if (!ctx) return fail(NOT_SIGNED_IN)
   const phone = indianMobile(rawPhone)
   if (!phone) return fail('Enter the patient’s 10-digit Indian mobile number.')
-  return sendPatientOtp(phone)
+  return sendPatientOtp(ctx.admin, phone, ctx.scope)
 }
 
 type Credentials = { patientCode: string; password: string | null }

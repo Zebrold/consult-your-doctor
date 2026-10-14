@@ -10,7 +10,7 @@ import { PatientDock } from "@/components/PatientDock";
 import { PatientNavHeader } from "@/components/PatientNavHeader";
 import { createDiagnosticBooking } from "@/app/actions/booking";
 import { startPayuPayment } from "@/lib/payu-client";
-import { DIAGNOSTIC_PLATFORM_FEE, type BookedTest } from "@/lib/pricing";
+import { DEFAULT_DOORSTEP_FEE, DIAGNOSTIC_PLATFORM_FEE, type BookedTest } from "@/lib/pricing";
 import {
   appendPatientDetails, Breadcrumbs, DayStrip, FormError, PatientDetailsFields, PayuNote, patientDetailsError,
   SignInToBook, StepCard, SummaryRow, type PatientDetails,
@@ -34,15 +34,17 @@ interface DiagnosticBookingClientProps {
   patient: PatientDetails | null;
   now: number;
   payuKey: string;
+  /** The platform fee /api/payu/hash will charge (lib/platform-fees.ts). */
+  platformFee?: number;
 }
 
 const COLLAPSED = 8;
 
-export function DiagnosticBookingClient({ center, tests, patient, now, payuKey }: DiagnosticBookingClientProps) {
+export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, platformFee = DIAGNOSTIC_PLATFORM_FEE }: DiagnosticBookingClientProps) {
   const days = useMemo(() => upcomingDays(now, 6), [now]);
   const today = days[0].key;
   const doorstepEnabled = center.doorstepEnabled !== false;
-  const doorstepFee = Number(center.doorstepFee) || 100;
+  const doorstepFee = center.doorstepFee ?? DEFAULT_DOORSTEP_FEE;
   const [bookingType, setBookingType] = useState<'walk_in' | 'doorstep'>('walk_in');
   const isDoorstep = bookingType === 'doorstep' && doorstepEnabled;
   const currentDoorstepFee = isDoorstep ? doorstepFee : 0;
@@ -61,7 +63,7 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey }
 
   const selectedTests = tests.filter((t) => chosen.includes(t.name));
   const testsTotal = selectedTests.reduce((sum, t) => sum + t.price, 0);
-  const total = testsTotal + currentDoorstepFee + DIAGNOSTIC_PLATFORM_FEE;
+  const total = testsTotal + currentDoorstepFee + platformFee;
   const cheapest = tests.length ? Math.min(...tests.map((t) => t.price)) : null;
 
   const q = filter.trim().toLowerCase();
@@ -388,7 +390,7 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey }
                   ) : (
                     selectedTests.map((t) => <SummaryRow key={t.name} label={t.name} value={formatINR(t.price)} />)
                   )}
-                  <SummaryRow label="Platform fee" value={formatINR(DIAGNOSTIC_PLATFORM_FEE)} />
+                  <SummaryRow label="Platform fee" value={formatINR(platformFee)} />
                   {isDoorstep ? (
                     <SummaryRow label="Doorstep home visit" sub="Phlebotomist collection" value={formatINR(doorstepFee)} />
                   ) : (

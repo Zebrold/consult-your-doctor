@@ -40,6 +40,23 @@ export function matchBookedTests(testName: string, prices: PriceList): BookedTes
 
 export const sumPrices = (tests: BookedTest[]) => tests.reduce((sum, t) => sum + t.price, 0)
 
+/** What a lab charges to collect samples at home when it hasn't set its own fee. */
+export const DEFAULT_DOORSTEP_FEE = 100
+
+/** The lab's listed home-collection fee: its own (0 means free), or the default when it hasn't set one. */
+export function labDoorstepFee(center: { doorstep_fee?: number | string | null } | null | undefined): number {
+  const fee = Number(center?.doorstep_fee)
+  return center?.doorstep_fee != null && Number.isFinite(fee) ? Math.max(0, Math.round(fee)) : DEFAULT_DOORSTEP_FEE
+}
+
+/**
+ * The home-collection charge on a patient's own online booking. It comes from the lab's listed fee, never from the
+ * booking row: a patient can write their own booking rows, and a negative or zero fee there would lower the price.
+ */
+export function onlineDoorstepCharge(bookingType: string | null | undefined, center: { doorstep_fee?: number | string | null } | null | undefined) {
+  return bookingType === 'doorstep' ? labDoorstepFee(center) : 0
+}
+
 /**
  * A price list in its own order: `order` (available_tests) gives the order, `prices` (test_prices) the amounts.
  * Tests without a valid amount come back with price null.

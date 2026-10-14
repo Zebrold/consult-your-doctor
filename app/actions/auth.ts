@@ -35,6 +35,8 @@ import { sendWhatsAppOtp } from '@/lib/notify/whatsapp'
 import { sendOtpSms } from '@/lib/notify/sms'
 import { siteUrl } from '@/lib/site-url'
 import { checkOtpChallenge, clientIp, otpSendAllowed, otpTableReady, recordOtpChallenge, type OtpVerdict } from '@/lib/otp-guard'
+import { findAuthUserId } from '@/lib/auth-users'
+import { clearAttempts, overLimit } from '@/lib/rate-limit'
 
 function computeOtpHmac(phone: string, otp: string, expiresAt: number): string {
   // A guessable fallback secret would let anyone mint a valid code for any number, so refuse to run without one.
@@ -81,17 +83,16 @@ async function checkOtp(phone: string, token: string, cookieValue: string | unde
 /** Authenticates or creates the patient user in Supabase auth, setting cookies and profiles */
 async function authenticatePatientSession(phone: string, fullName: string | null, isRegister: boolean) {
   const admin = createAdminClient()
-  const cleanPhone = phone.replace('+', '')
 
-  let authUserId: string | null = null
-  const { data: profile } = await admin.from('profiles').select('id, role').eq('phone_number', phone).maybeSingle()
-  if (profile?.id) {
-    authUserId = profile.id
-  } else {
-    const { data: usersData } = await admin.auth.admin.listUsers()
-    const found = usersData?.users?.find(u => u.phone === cleanPhone || u.phone === phone)
-    if (found) {
-      authUserId = found.id
+  // The account is the one whose sign-in phone is this number (proved by the code). Not profiles.phone_number: anyone
+  // can type any number into their own profile, which would point someone else's sign-in at their account.
+  let authUserId = await findAuthUserId(admin, { phone })
+
+  if (authUserId) {
+    // Staff sign in with their Staff ID. Going on would replace their password with the temporary one below.
+    const { data: existing } = await admin.from('profiles').select('role').eq('id', authUserId).maybeSingle()
+    if (existing?.role && existing.role !== 'patient') {
+      return { error: 'This number belongs to a staff account. Please sign in with your Staff ID instead.' }
     }
   }
 
@@ -105,7 +106,8 @@ async function authenticatePatientSession(phone: string, fullName: string | null
       user_metadata: { full_name: fullName?.trim() || 'Patient', role: 'patient' },
     })
     if (createErr || !created?.user) {
-      return { error: createErr?.message || 'Could not create account.' }
+      console.error('[authenticatePatientSession] createUser:', createErr)
+      return { error: 'Could not create your account. Please try again.' }
     }
     authUserId = created.user.id
   }
@@ -114,7 +116,8 @@ async function authenticatePatientSession(phone: string, fullName: string | null
   const tempPass = `cyd_wa_${crypto.randomUUID()}`
   const { error: passErr } = await admin.auth.admin.updateUserById(authUserId, { password: tempPass })
   if (passErr) {
-    return { error: passErr.message || 'Could not prepare login session.' }
+    console.error('[authenticatePatientSession] updateUserById:', passErr)
+    return { error: 'Could not sign you in. Please try again.' }
   }
 
   // Sign in via server client to set standard session cookies
@@ -124,21 +127,20 @@ async function authenticatePatientSession(phone: string, fullName: string | null
     password: tempPass,
   })
   if (signInErr || !signInData?.user) {
-    return { error: signInErr?.message || 'Sign in failed.' }
+    console.error('[authenticatePatientSession] signInWithPassword:', signInErr)
+    return { error: 'Could not sign you in. Please try again.' }
   }
 
-  // Upsert profile
-  if (isRegister || fullName) {
-    await admin.from('profiles').upsert(
-      {
-        id: authUserId,
-        full_name: fullName?.trim() || undefined,
-        phone_number: phone,
-        role: 'patient',
-      },
-      { onConflict: 'id', ignoreDuplicates: !isRegister }
-    )
-  }
+  // A registration saves the name; a sign-in only fills in a profile the account doesn't have yet.
+  await admin.from('profiles').upsert(
+    {
+      id: authUserId,
+      full_name: fullName?.trim() || undefined,
+      phone_number: phone,
+      role: 'patient',
+    },
+    { onConflict: 'id', ignoreDuplicates: !isRegister }
+  )
 
   const { data: userProfile } = await admin.from('profiles').select('role').eq('id', authUserId).maybeSingle()
   const cookieStore = await cookies()
@@ -185,14 +187,7 @@ export async function sendOTP(prevState: any, formData: FormData) {
 
   // If signing in, ensure user exists
   if (!isRegister) {
-    const admin = createAdminClient()
-    const cleanPhone = phone.replace('+', '')
-    const { data: profile } = await admin.from('profiles').select('id').eq('phone_number', phone).maybeSingle()
-    let exists = Boolean(profile)
-    if (!exists) {
-      const { data: usersData } = await admin.auth.admin.listUsers()
-      exists = Boolean(usersData?.users?.some(u => u.phone === cleanPhone || u.phone === phone))
-    }
+    const exists = Boolean(await findAuthUserId(createAdminClient(), { phone }))
     if (!exists) {
       return {
         error: 'No account found for this number. Switch to "Create Account" to register.',
@@ -279,7 +274,7 @@ export async function verifyOTP(prevState: any, formData: FormData) {
       email: DEMO_PATIENT_EMAIL,
       password: demoPassword,
     })
-    if (authErr) return { error: authErr.message, success: false, phone, fullName, role, isRegister }
+    if (authErr) return { error: 'The demo account could not sign in.', success: false, phone, fullName, role, isRegister }
     cookieStore.set(ROLE_COOKIE, roleCookieValue(authData.user.id, 'patient'), ROLE_COOKIE_OPTIONS)
     const next = String(formData.get('next') || '')
     redirect(safeNextPath(next))
@@ -316,7 +311,7 @@ export async function verifyOTP(prevState: any, formData: FormData) {
     }
     console.error('[verifyOTP error]:', err)
     return {
-      error: err?.message || 'Verification failed. Please try again.',
+      error: 'Verification failed. Please try again.',
       success: false,
       phone,
       fullName,
@@ -350,7 +345,7 @@ export async function verifyOTPInline(prevState: any, formData: FormData) {
       email: DEMO_PATIENT_EMAIL,
       password: demoPassword,
     })
-    if (authErr) return { error: authErr.message, success: false, phone, fullName, role, isRegister }
+    if (authErr) return { error: 'The demo account could not sign in.', success: false, phone, fullName, role, isRegister }
     cookieStore.set(ROLE_COOKIE, roleCookieValue(authData.user.id, 'patient'), ROLE_COOKIE_OPTIONS)
     return { success: true, user: authData.user }
   }
@@ -382,7 +377,7 @@ export async function verifyOTPInline(prevState: any, formData: FormData) {
   } catch (err: any) {
     console.error('[verifyOTPInline error]:', err)
     return {
-      error: err?.message || 'Verification failed. Please try again.',
+      error: 'Verification failed. Please try again.',
       success: false,
       phone,
       fullName,
@@ -410,6 +405,11 @@ export async function staffLogin(prevState: any, formData: FormData) {
 
   if (!staffId || !password) {
     return { error: 'Staff ID and password are required.' }
+  }
+
+  const ip = (await clientIp()) ?? 'unknown'
+  if (overLimit(`staff-login:ip:${ip}`, 30, 15 * 60_000) || overLimit(`staff-login:id:${staffId}`, 8, 15 * 60_000)) {
+    return { error: 'Too many sign-in attempts. Please wait 15 minutes and try again.' }
   }
 
   // The email in Supabase is the ID lowercased + @cyd.internal OR their real email if updated
@@ -444,8 +444,9 @@ export async function staffLogin(prevState: any, formData: FormData) {
   
   if (roleProfile?.role !== expectedRole) {
     await supabase.auth.signOut()
-    return { error: `Unauthorized. You are not a ${expectedRole.replace('_', ' ')}.` }
+    return { error: `Unauthorized. You are not a ${String(expectedRole).replace('_', ' ')}.` }
   }
+  clearAttempts(`staff-login:id:${staffId}`)
 
   const cookieStore = await cookies()
   cookieStore.set(ROLE_COOKIE, roleCookieValue(data.user.id, expectedRole), ROLE_COOKIE_OPTIONS)
@@ -463,6 +464,10 @@ export async function staffLogin(prevState: any, formData: FormData) {
 
 export async function sendPasswordResetOTP(staffId: string) {
   if (!staffId) return { error: 'Staff ID is required.' }
+  const ip = (await clientIp()) ?? 'unknown'
+  if (overLimit(`staff-reset:ip:${ip}`, 5, 15 * 60_000) || overLimit(`staff-reset:id:${staffId.trim().toUpperCase()}`, 3, 60 * 60_000)) {
+    return { error: 'Too many reset requests. Please wait a while and try again.' }
+  }
 
   const { createAdminClient } = await import('@/lib/supabase/admin')
   const adminClient = createAdminClient()
@@ -484,7 +489,7 @@ export async function sendPasswordResetOTP(staffId: string) {
 
   if (error) {
     console.error('Password reset error:', error)
-    return { error: error.message }
+    return { error: /rate|seconds/i.test(error.message) ? 'A reset email was sent a moment ago. Please wait a minute.' : 'We could not send the reset email. Please try again.' }
   }
 
   return { success: true, email: maskEmail(profile.email) }
@@ -498,6 +503,9 @@ function maskEmail(email: string) {
 }
 
 export async function verifyOTPAndUpdatePassword(email: string, token: string, newPassword: string) {
+  if (typeof newPassword !== 'string' || newPassword.length < 8 || !/[A-Za-z]/.test(newPassword) || !/\d/.test(newPassword)) {
+    return { error: 'Use a password of at least 8 characters with letters and at least one number.' }
+  }
   const supabase = await createClient()
 
   // Verify the OTP
@@ -509,7 +517,7 @@ export async function verifyOTPAndUpdatePassword(email: string, token: string, n
 
   if (verifyError) {
     console.error('Verify OTP error:', verifyError)
-    return { error: verifyError.message }
+    return { error: 'That code is wrong or has expired. Request a new one.' }
   }
 
   // Update the password
@@ -519,7 +527,7 @@ export async function verifyOTPAndUpdatePassword(email: string, token: string, n
 
   if (updateError) {
     console.error('Update password error:', updateError)
-    return { error: updateError.message }
+    return { error: /weak|short|password/i.test(updateError.message) ? updateError.message : 'Could not update your password. Please try again.' }
   }
 
   return { success: true }
@@ -533,6 +541,10 @@ export async function patientIdLogin(prevState: { error?: string } | null, formD
   const patientCode = String(formData.get('patientId') || '').trim().toUpperCase()
   const password = String(formData.get('password') || '')
   if (!/^PT\d{6}$/.test(patientCode) || !password) return { error: 'Enter your Patient ID (like PT482193) and password.' }
+  const ip = (await clientIp()) ?? 'unknown'
+  if (overLimit(`patient-id-login:ip:${ip}`, 30, 15 * 60_000) || overLimit(`patient-id-login:id:${patientCode}`, 8, 15 * 60_000)) {
+    return { error: 'Too many sign-in attempts. Please wait 15 minutes and try again.' }
+  }
 
   const { createAdminClient } = await import('@/lib/supabase/admin')
   const admin = createAdminClient()

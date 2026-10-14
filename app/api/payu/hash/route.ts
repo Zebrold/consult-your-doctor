@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { matchBookedTests, sumPrices } from '@/lib/pricing';
+import { matchBookedTests, onlineDoorstepCharge, sumPrices } from '@/lib/pricing';
 import { getPlatformFees } from '@/lib/platform-fees';
 
 type Priced = { amount: number; desk: boolean } | { error: string; status: number };
@@ -39,17 +39,16 @@ async function amountFor(txnid: string, productinfo: string): Promise<Priced> {
   if (productinfo === 'Diagnostic') {
     const { data } = await supabase
       .from('diagnostic_bookings')
-      .select('status, test_name, booking_type, doorstep_fee, diagnostic_centers ( test_prices )')
+      .select('status, test_name, booking_type, diagnostic_centers ( test_prices, doorstep_fee )')
       .eq('id', txnid)
       .eq('patient_id', user.id)
       .maybeSingle();
     if (!data) return { error: 'Booking not found.', status: 404 };
     if (data.status !== 'pending_payment') return { error: 'This booking is already paid.', status: 409 };
-    const center = (Array.isArray(data.diagnostic_centers) ? data.diagnostic_centers[0] : data.diagnostic_centers) as { test_prices: Record<string, number> | null } | null;
+    const center = (Array.isArray(data.diagnostic_centers) ? data.diagnostic_centers[0] : data.diagnostic_centers) as { test_prices: Record<string, number> | null; doorstep_fee: number | null } | null;
     const tests = matchBookedTests(data.test_name || '', center?.test_prices);
     if (!tests) return { error: "We couldn't price this booking. Please contact support.", status: 422 };
-    const doorstepFee = (data as any).booking_type === 'doorstep' ? (Number((data as any).doorstep_fee) || 0) : 0;
-    return { amount: sumPrices(tests) + doorstepFee + fees.diagnostic, desk: false };
+    return { amount: sumPrices(tests) + onlineDoorstepCharge(data.booking_type, center) + fees.diagnostic, desk: false };
   }
 
   return { error: 'Unknown product.', status: 400 };
@@ -77,7 +76,8 @@ async function deskAmount(admin: ReturnType<typeof createAdminClient>, staff: St
     const center = (Array.isArray(data.diagnostic_centers) ? data.diagnostic_centers[0] : data.diagnostic_centers) as { test_prices: Record<string, number> | null } | null;
     const tests = matchBookedTests(data.test_name || '', center?.test_prices);
     if (!tests) return { error: "We couldn't price this booking.", status: 422 };
-    const doorstepFee = (data as any).booking_type === 'doorstep' ? (Number((data as any).doorstep_fee) || 0) : 0;
+    // The desk sets the home-collection fee when it books for the patient (app/actions/lab-desk.ts).
+    const doorstepFee = data.booking_type === 'doorstep' ? Math.max(0, Number(data.doorstep_fee) || 0) : 0;
     return { amount: sumPrices(tests) + doorstepFee + fees.diagnostic, desk: true };
   }
   return { error: 'You can only take payment for bookings at your own hospital or centre.', status: 403 };
@@ -122,6 +122,7 @@ export async function POST(request: Request) {
     // The form posted to PayU must carry exactly this amount and udf1, or PayU rejects the hash.
     return NextResponse.json({ hash, amount, udf1 });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Payment setup failed' }, { status: 500 });
+    console.error('PayU hash error:', error);
+    return NextResponse.json({ error: 'Could not start the payment. Please try again.' }, { status: 500 });
   }
 }

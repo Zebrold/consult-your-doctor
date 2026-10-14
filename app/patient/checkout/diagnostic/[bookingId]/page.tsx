@@ -4,7 +4,7 @@ import { Building2, CalendarDays, CircleCheck, CircleX, FlaskConical, Home, Sear
 import { PayUCheckoutForm } from '@/components/PayUCheckoutForm'
 import { CheckoutCard, CheckoutGrid, CheckoutHeading, CheckoutMessage, CheckoutShell, DetailRow, PaymentSummary } from '@/components/patient/CheckoutShell'
 import { formatLongDate } from '@/components/patient/format'
-import { matchBookedTests, sumPrices } from '@/lib/pricing'
+import { matchBookedTests, onlineDoorstepCharge, sumPrices } from '@/lib/pricing'
 import { getPlatformFees } from '@/lib/platform-fees'
 
 type Joined<T> = T | T[] | null
@@ -21,7 +21,7 @@ export default async function DiagnosticCheckoutPage({ params }: { params: Promi
   const [{ data: booking }, { data: profile }] = await Promise.all([
     supabase
       .from('diagnostic_bookings')
-      .select('id, status, test_name, preferred_date, booking_type, doorstep_fee, diagnostic_centers ( name, address, city, test_prices )')
+      .select('id, status, test_name, preferred_date, booking_type, diagnostic_centers ( name, address, city, test_prices, doorstep_fee )')
       .eq('id', bookingId)
       .eq('patient_id', user.id)
       .maybeSingle(),
@@ -54,12 +54,13 @@ export default async function DiagnosticCheckoutPage({ params }: { params: Promi
     )
   }
 
-  type Center = { name: string; address: string | null; city: string | null; test_prices: Record<string, number> | null }
+  type Center = { name: string; address: string | null; city: string | null; test_prices: Record<string, number> | null; doorstep_fee: number | null }
   const center = one(booking.diagnostic_centers as Joined<Center>)
   // Price each booked test from the lab's price list (a booking can hold several tests).
   const bookedTests = matchBookedTests(booking.test_name || '', center?.test_prices)
-  const isDoorstep = (booking as any).booking_type === 'doorstep'
-  const doorstepFee = isDoorstep ? (Number((booking as any).doorstep_fee) || 0) : 0
+  const isDoorstep = booking.booking_type === 'doorstep'
+  // The same amount /api/payu/hash charges.
+  const doorstepFee = onlineDoorstepCharge(booking.booking_type, center)
   const total = (bookedTests ? sumPrices(bookedTests) : 0) + doorstepFee + fees.diagnostic
 
   return (

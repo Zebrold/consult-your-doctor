@@ -10,16 +10,15 @@ import { createClient } from "@/lib/supabase/client";
 import { AppComingSoon } from "./AppComingSoon";
 
 const navLinks = [
+  { name: "Find a doctor", href: "/doctors" },
+  { name: "Hospitals", href: "/hospitals" },
+  { name: "Lab tests", href: "/diagnostics" },
   { name: "How it works", href: "/how-it-works" },
   { name: "What we treat", href: "/what-we-treat" },
-  { name: "Book a doctor", href: "/online-doctor" },
-  { name: "Prices", href: "/prices" },
 ];
 
 // Phones have no other navigation above the footer, so the menu also offers these.
 const moreLinks = [
-  { name: "Hospitals", href: "/hospitals" },
-  { name: "Lab tests", href: "/diagnostics" },
   { name: "About us", href: "/about" },
   { name: "Contact us", href: "/contact" },
 ];
@@ -83,7 +82,7 @@ export function ClientHeader({ user }: { user: User | null }) {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-8">
+          <nav className="hidden lg:flex items-center gap-6 xl:gap-8">
             {navLinks.map((link) => {
               const isActive = isLinkActive(link.href);
               return (

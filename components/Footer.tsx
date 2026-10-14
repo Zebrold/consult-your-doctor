@@ -8,7 +8,6 @@ const ourServices = [
   { label: "Hospitals", href: "/hospitals" },
   { label: "Lab tests", href: "/diagnostics" },
   { label: "What we treat", href: "/what-we-treat" },
-  { label: "Prices", href: "/prices" },
   { label: "Join as a doctor", href: "/signup/doctor" },
 ];
 

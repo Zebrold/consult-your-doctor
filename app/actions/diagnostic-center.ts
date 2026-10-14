@@ -1,5 +1,6 @@
 'use server'
 
+import { parseLatLng } from '@/lib/geo'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -168,7 +169,16 @@ export async function updateLabProfile(formData: FormData): Promise<Result> {
   if (name.length < 2) return fail('Enter the center’s name.')
   if (city.length < 2) return fail('Enter the city.')
 
-  const updates: Record<string, string | null> = { name, city, address: address || null }
+  const updates: Record<string, string | number | null> = { name, city, address: address || null }
+
+  // The map pin patients' distances are measured from; blank clears it.
+  const pin = parseLatLng(formData.get('latitude'), formData.get('longitude'))
+  if (pin === 'invalid') return fail('That map pin is not a valid location. Place it again on the map.')
+  const hasPinFields = formData.has('latitude')
+  if (hasPinFields) {
+    updates.latitude = pin?.lat ?? null
+    updates.longitude = pin?.lng ?? null
+  }
 
   const image = formData.get('image')
   if (image instanceof File && image.size > 0) {
@@ -185,6 +195,15 @@ export async function updateLabProfile(formData: FormData): Promise<Result> {
   }
 
   const { error } = await ctx.admin.from('diagnostic_centers').update(updates).eq('id', ctx.centerId)
+  if (error && hasPinFields && /latitude|longitude/.test(error.message ?? '')) {
+    // The location columns aren't in the database yet: save everything else, and say why the pin wasn't kept.
+    delete updates.latitude
+    delete updates.longitude
+    const retry = await ctx.admin.from('diagnostic_centers').update(updates).eq('id', ctx.centerId)
+    if (retry.error) return fail('Could not save your details. Please try again.')
+    revalidateLabPages()
+    return fail('Your details were saved, but the map pin needs the latest database update (supabase/migrations/20261014_facility_locations.sql).')
+  }
   if (error) {
     console.error('updateLabProfile:', error)
     return fail('Could not save your details. Please try again.')

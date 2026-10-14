@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { toLatLng } from '@/lib/geo'
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import {
@@ -22,10 +23,12 @@ export default async function HospitalProfilePage() {
   const { admin, user, hospital, staff } = await requireHospital()
   const now = currentTime()
   const doctors = await loadHospitalDoctors(admin, hospital.id)
-  const [visits, beds, { data: me }] = await Promise.all([
+  const [visits, beds, { data: me }, { data: pin }] = await Promise.all([
     loadHospitalVisits(admin, hospital.id, doctors.map((d) => d.id)),
     loadHospitalBeds(admin, hospital.id),
     admin.from('profiles').select('full_name, phone_number, staff_id').eq('id', user.id).maybeSingle(),
+    // The map pin (20261014_facility_locations.sql); null until that migration has run.
+    admin.from('hospitals').select('latitude, longitude').eq('id', hospital.id).maybeSingle(),
   ])
   const bedSummary = summarizeBeds(beds.data)
   const paid = visits.filter(isPaidVisit)
@@ -124,7 +127,7 @@ export default async function HospitalProfilePage() {
             >
               <ExternalLink className="w-[18px] h-[18px]" /> <span className="truncate">View Patient Page</span>
             </Link>
-            <HospitalProfileEditor hospital={editable} className={editButton} />
+            <HospitalProfileEditor hospital={editable} location={toLatLng(pin?.latitude, pin?.longitude)} className={editButton} />
           </div>
         </div>
         <div className="hidden md:flex relative bg-surface-container-low px-6 py-3.5 flex-wrap items-center gap-x-6 gap-y-2">

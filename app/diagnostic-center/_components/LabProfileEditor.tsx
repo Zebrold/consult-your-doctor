@@ -4,6 +4,8 @@ import { useState, useTransition, type FormEvent, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { LoaderCircle, SlidersHorizontal, X } from 'lucide-react'
 import { updateLabProfile } from '@/app/actions/diagnostic-center'
+import { LocationPicker } from '@/components/portal/LocationPicker'
+import type { LatLng } from '@/lib/geo'
 
 const input =
   'w-full rounded-lg bg-surface-container-low px-3.5 py-2.5 text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-vibrant-blue/30'
@@ -18,7 +20,7 @@ function Field({ label, children, className = '' }: { label: string; children: R
 }
 
 /** Edits the center details patients see when they find and book the lab. */
-export function LabProfileEditor({ name, city, address, className, label = 'Edit Details' }: { name: string; city: string | null; address: string | null; className: string; label?: string }) {
+export function LabProfileEditor({ name, city, address, location, className, label = 'Edit Details' }: { name: string; city: string | null; address: string | null; location?: LatLng | null; className: string; label?: string }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -68,6 +70,11 @@ export function LabProfileEditor({ name, city, address, className, label = 'Edit
               <Field label="Address">
                 <input name="address" defaultValue={address ?? ''} placeholder="Street, area, landmark" className={input} />
               </Field>
+              <div className="sm:col-span-2 flex flex-col gap-1.5">
+                <span className="text-sm font-semibold text-indigo-gray-900">Location on the map</span>
+                <span className="text-[12px] text-indigo-gray-600">Patients nearby see your centre first, with the distance.</span>
+                <LocationPicker initial={location ?? null} />
+              </div>
               <Field label="Photo of the center (optional, up to 5 MB)" className="sm:col-span-2">
                 <input
                   name="image"

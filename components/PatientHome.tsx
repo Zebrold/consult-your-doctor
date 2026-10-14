@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -12,6 +12,8 @@ import { PatientNavHeader } from "@/components/PatientNavHeader";
 import { doctorName, formatDayLabel, formatINR, formatSlot, formatTime, initials } from "@/components/patient/format";
 import { specialtyMeta } from "@/components/patient/specialties";
 import { PhoneHome } from "@/components/patient/PhoneHome";
+import { byNearness, usePatientLocation } from "@/components/patient/location";
+import { formatDistance } from "@/lib/geo";
 
 export type HomeDoctor = {
   id: string;
@@ -29,6 +31,9 @@ export type HomeDoctor = {
   /** Average of published patient ratings, or null when there are none. */
   rating: number | null;
   reviewCount: number;
+  /** Their hospital's map pin, for the distance to the patient. */
+  lat: number | null;
+  lng: number | null;
 };
 
 export type HomeFacility = {
@@ -40,6 +45,9 @@ export type HomeFacility = {
   image: string | null;
   /** Doctors at a hospital, or priced tests at a lab. */
   count: number;
+  /** The map pin its staff set (null until they do). */
+  lat: number | null;
+  lng: number | null;
 };
 
 interface PatientHomeProps {
@@ -49,7 +57,10 @@ interface PatientHomeProps {
   now: number;
   nextVisit: { doctor: string | null; at: string; status: string } | null;
   doctors: HomeDoctor[];
+  /** Every bookable doctor, for the phone list ordered by distance. */
+  nearbyDoctors: HomeDoctor[];
   specialties: { name: string; count: number }[];
+  /** All partner hospitals and labs; the section shows the nearest (or a few featured ones). */
   facilities: HomeFacility[];
   cities: string[];
   /** Patient reviews (a server component), shown after the care network. */
@@ -59,8 +70,16 @@ interface PatientHomeProps {
 const facilityHref = (f: HomeFacility) => (f.kind === "lab" ? `/book/diagnostic/${f.id}` : `/hospitals/${f.id}`);
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, specialties, facilities, cities, reviews }: PatientHomeProps) {
+export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, nearbyDoctors, specialties, facilities, cities, reviews }: PatientHomeProps) {
   const router = useRouter();
+  const place = usePatientLocation();
+  // Nearest first once the patient shares a location; otherwise four hospitals and two labs, as before.
+  const shownFacilities = useMemo(() => {
+    if (place.location) return byNearness(facilities, place.location).slice(0, 8);
+    const hospitals = facilities.filter((f) => f.kind === "hospital");
+    const labs = facilities.filter((f) => f.kind === "lab");
+    return [...hospitals.slice(0, labs.length ? 4 : 6), ...labs.slice(0, 2)].map((item) => ({ item, km: null as number | null, inArea: true }));
+  }, [facilities, place.location]);
   const [query, setQuery] = useState("");
   const [city, setCity] = useState("");
   const doctorRow = useRef<HTMLDivElement>(null);
@@ -101,8 +120,10 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
           isSignedIn={isSignedIn}
           now={now}
           visitLine={isSignedIn && nextVisit ? visitLine : null}
-          doctors={doctors}
+          doctors={nearbyDoctors}
           specialties={specialties}
+          cities={cities}
+          place={place}
         />
 
         {/* Tablet & desktop: hero, greeting & search */}
@@ -296,7 +317,7 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
                 <div>
                   <span className="hidden md:block font-label-sm text-label-sm uppercase tracking-wider text-vibrant-blue font-bold">Network Centers</span>
                   <h2 className="font-title-md text-title-md md:font-headline-lg md:text-headline-lg text-on-surface tracking-tight md:mt-1">
-                    <span className="md:hidden">Featured Hospitals &amp; Labs</span>
+                    <span className="md:hidden">{place.location ? "Hospitals & Labs Near You" : "Featured Hospitals & Labs"}</span>
                     <span className="hidden md:inline">Partner Hospitals &amp; Diagnostics</span>
                   </h2>
                 </div>
@@ -305,8 +326,8 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
                     <span className="md:hidden">Explore All</span>
                     <span className="hidden md:inline">View Hospital Directory</span>
                   </Link>
-                  {facilities.length > 2 && (
-                    <CarouselButtons label="hospitals and labs" className={facilities.length <= 3 ? "lg:hidden" : ""} onScroll={(d) => scrollRow(facilityRow.current, d)} />
+                  {shownFacilities.length > 2 && (
+                    <CarouselButtons label="hospitals and labs" className={shownFacilities.length <= 3 ? "lg:hidden" : ""} onScroll={(d) => scrollRow(facilityRow.current, d)} />
                   )}
                 </div>
               </div>
@@ -315,8 +336,9 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
                 ref={facilityRow}
                 className="flex gap-4 md:gap-6 overflow-x-auto snap-x scroll-smooth pb-2 md:pb-4 pt-1 -mx-margin-x-mobile px-margin-x-mobile scroll-px-margin-x-mobile md:mx-0 md:px-0 md:scroll-px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >
-                {facilities.map((f) => {
+                {shownFacilities.map(({ item: f, km }) => {
                   const Icon = f.kind === "lab" ? Microscope : Building2;
+                  const where = [km != null ? formatDistance(km) : null, f.city].filter(Boolean).join(" · ");
                   return (
                     <article key={`${f.kind}-${f.id}`} className="snap-start shrink-0 w-[260px] md:w-[calc((100%-24px)/2)] lg:w-[calc((100%-48px)/3)] bg-surface-container-lowest rounded-xl overflow-hidden shadow-[0_4px_20px_rgb(0,80,203,0.04)] md:shadow-sm hover:shadow-md transition-all flex flex-col">
                       <Link href={facilityHref(f)} className="h-32 md:h-48 w-full relative bg-surface-container block">
@@ -334,14 +356,14 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
                       </Link>
                       <div className="p-4 md:p-6 flex flex-col justify-between flex-1 gap-1 md:gap-4">
                         <div>
-                          {f.city && (
+                          {where && (
                             <span className="hidden md:flex font-label-sm text-label-sm text-indigo-gray-600 mb-1 items-center gap-1">
-                              <MapPin className="w-3.5 h-3.5" /> {f.city}
+                              <MapPin className="w-3.5 h-3.5" /> {where}
                             </span>
                           )}
                           <h3 className="font-title-md text-body-lg md:text-title-md font-semibold md:font-bold text-on-surface truncate" title={f.name}>{f.name}</h3>
                           <p className="md:hidden text-sm text-outline flex items-center gap-1 truncate">
-                            <MapPin className="w-4 h-4 shrink-0" /> {f.city || f.address || "Partner facility"}
+                            <MapPin className="w-4 h-4 shrink-0" /> {where || f.address || "Partner facility"}
                           </p>
                           {f.address && <p className="hidden md:block font-body-md text-body-md text-indigo-gray-600 mt-2 line-clamp-2">{f.address}</p>}
                         </div>

@@ -8,6 +8,8 @@ import { ChipPicker } from '@/components/portal/ChipPicker'
 import { DeskDialog, ErrorNote, Field, PrimaryButton, QuietButton, deskInput } from '@/components/portal/desk'
 import { ACCREDITATIONS, FACILITIES, INSURERS } from '@/lib/profile-lists'
 import type { HospitalInfo } from '../_lib/hospital'
+import { LocationPicker } from '@/components/portal/LocationPicker'
+import type { LatLng } from '@/lib/geo'
 
 export type EditableHospital = Pick<
   HospitalInfo,
@@ -15,7 +17,7 @@ export type EditableHospital = Pick<
 >
 
 /** Edits everything patients see on the hospital's public page. */
-export function HospitalProfileEditor({ hospital, className, label = 'Edit Profile' }: { hospital: EditableHospital; className: string; label?: string }) {
+export function HospitalProfileEditor({ hospital, location, className, label = 'Edit Profile' }: { hospital: EditableHospital; location?: LatLng | null; className: string; label?: string }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -53,6 +55,11 @@ export function HospitalProfileEditor({ hospital, className, label = 'Edit Profi
               <Field label="City">
                 <input name="city" required minLength={2} maxLength={80} defaultValue={hospital.city ?? ''} className={deskInput} />
               </Field>
+              <div className="sm:col-span-2 flex flex-col gap-1.5">
+                <span className="font-label-sm text-label-sm text-indigo-gray-600">Location on the map</span>
+                <span className="text-[12px] text-indigo-gray-600 -mt-1">Patients nearby see your hospital and doctors first, with the distance.</span>
+                <LocationPicker initial={location ?? null} />
+              </div>
               <Field label="Founded in (year)">
                 <input name="established_year" inputMode="numeric" maxLength={4} defaultValue={hospital.establishedYear ?? ''} placeholder="1998" className={deskInput} />
               </Field>

@@ -1,5 +1,6 @@
 import { createClient, getCurrentUser } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { toLatLng } from '@/lib/geo';
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, CircleCheck } from "lucide-react";
@@ -62,6 +63,12 @@ export default async function Home(props: {
   if (isPatient) {
     const now = currentTime();
 
+    // Map pins arrive with supabase/migrations/20261014_facility_locations.sql; until then the same lists load without them.
+    const withPins = async <T extends { error: { message?: string } | null }>(query: (pin: string) => PromiseLike<T>): Promise<T> => {
+      const result = await query(', latitude, longitude');
+      return result.error && /latitude|longitude/.test(result.error.message ?? '') ? query('') : result;
+    };
+
     const [{ data: dbDoctors }, { data: dbHospitals }, { data: dbLabs }, availability, { data: myVisits }] = await Promise.all([
       supabase
         .from('doctors')
@@ -71,16 +78,20 @@ export default async function Home(props: {
           hospitals ( id, name, city )
         `)
         .limit(500),
-      supabase
-        .from('hospitals')
-        .select('id, name, city, address, image_url, doctors ( id )')
-        .eq('status', 'active')
-        .order('image_url', { ascending: false, nullsFirst: false }),
-      supabase
-        .from('diagnostic_centers')
-        .select('id, name, city, address, image_url, test_prices')
-        .eq('status', 'active')
-        .order('image_url', { ascending: false, nullsFirst: false }),
+      withPins((pin) =>
+        supabase
+          .from('hospitals')
+          .select(`id, name, city, address, image_url, doctors ( id )${pin}`)
+          .eq('status', 'active')
+          .order('image_url', { ascending: false, nullsFirst: false }),
+      ),
+      withPins((pin) =>
+        supabase
+          .from('diagnostic_centers')
+          .select(`id, name, city, address, image_url, test_prices${pin}`)
+          .eq('status', 'active')
+          .order('image_url', { ascending: false, nullsFirst: false }),
+      ),
       loadAvailability(supabase, now),
       user
         ? supabase
@@ -91,6 +102,18 @@ export default async function Home(props: {
         : Promise.resolve({ data: [] }),
     ]);
 
+    type Pin = { latitude?: number | null; longitude?: number | null };
+    type HospitalRow = { id: string; name: string; city: string | null; address: string | null; image_url: string | null; doctors: { id: string }[] | null } & Pin;
+    type LabRow = { id: string; name: string; city: string | null; address: string | null; image_url: string | null; test_prices: Record<string, number> | null } & Pin;
+    const hospitals = (dbHospitals ?? []) as unknown as HospitalRow[];
+    const labs = (dbLabs ?? []) as unknown as LabRow[];
+    const pinOf = (p: Pin) => {
+      const pin = toLatLng(p.latitude, p.longitude);
+      return { lat: pin?.lat ?? null, lng: pin?.lng ?? null };
+    };
+    // Doctors are seen at their hospital, so they are as near as its pin.
+    const hospitalPins = new Map(hospitals.map((h) => [h.id, toLatLng(h.latitude, h.longitude)]));
+
     type DoctorRow = {
       id: string; specialty: string | null; experience_years: number | null; consultation_fee: number | null; image_url: string | null; qualifications: string | null;
       profiles: { full_name: string | null } | { full_name: string | null }[] | null;
@@ -98,6 +121,7 @@ export default async function Home(props: {
     };
     const doctors: HomeDoctor[] = ((dbDoctors ?? []) as DoctorRow[]).map((d) => {
       const hospital = one(d.hospitals);
+      const pin = hospital ? hospitalPins.get(hospital.id) ?? null : null;
       return {
         id: d.id,
         name: one(d.profiles)?.full_name ?? null,
@@ -112,6 +136,8 @@ export default async function Home(props: {
         openToday: availability[d.id]?.openToday ?? 0,
         rating: null,
         reviewCount: 0,
+        lat: pin?.lat ?? null,
+        lng: pin?.lng ?? null,
       };
     });
 
@@ -120,22 +146,24 @@ export default async function Home(props: {
     for (const d of doctors) if (d.specialty) specialtyCounts.set(d.specialty, (specialtyCounts.get(d.specialty) ?? 0) + 1);
     const specialties = Array.from(specialtyCounts, ([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
 
-    // Doctors who can be booked soonest come first; photos break ties.
-    const recommended = doctors
+    // Every bookable doctor, soonest available first (photos break ties). Wide screens show the first eight; phones
+    // re-order the whole list by distance once the patient shares a location.
+    const bookable = doctors
       .filter((d) => d.fee)
       .sort((a, b) => (a.nextSlot ?? '￿').localeCompare(b.nextSlot ?? '￿') || Number(!!b.image) - Number(!!a.image))
-      .slice(0, 8);
+      .slice(0, 150);
+    const recommended = bookable.slice(0, 8);
 
-    // Published patient ratings for the doctors shown; doctors without any show their availability instead.
-    if (recommended.length) {
+    // Published patient ratings; doctors without any show their availability instead.
+    if (bookable.length) {
       const { data: ratingRows } = await createAdminClient()
         .from('doctor_reviews')
         .select('doctor_id, rating')
-        .in('doctor_id', recommended.map((d) => d.id))
+        .in('doctor_id', bookable.map((d) => d.id))
         .eq('is_published', true);
       const byDoctor = new Map<string, number[]>();
       for (const r of (ratingRows ?? []) as { doctor_id: string; rating: number }[]) byDoctor.set(r.doctor_id, [...(byDoctor.get(r.doctor_id) ?? []), r.rating]);
-      for (const d of recommended) {
+      for (const d of bookable) {
         const ratings = byDoctor.get(d.id);
         if (ratings?.length) {
           d.reviewCount = ratings.length;
@@ -144,16 +172,15 @@ export default async function Home(props: {
       }
     }
 
-    type HospitalRow = { id: string; name: string; city: string | null; address: string | null; image_url: string | null; doctors: { id: string }[] | null };
-    type LabRow = { id: string; name: string; city: string | null; address: string | null; image_url: string | null; test_prices: Record<string, number> | null };
-    const hospitals = (dbHospitals ?? []) as HospitalRow[];
-    const labs = (dbLabs ?? []) as LabRow[];
+    // All partner hospitals and labs (PatientHome picks which to show: nearest first when it knows where the patient is).
     const facilities: HomeFacility[] = [
-      ...hospitals.slice(0, labs.length ? 4 : 6).map((h) => ({
+      ...hospitals.slice(0, 60).map((h) => ({
         id: h.id, kind: 'hospital' as const, name: h.name, city: h.city, address: h.address, image: h.image_url, count: h.doctors?.length ?? 0,
+        ...pinOf(h),
       })),
-      ...labs.slice(0, 2).map((l) => ({
+      ...labs.slice(0, 60).map((l) => ({
         id: l.id, kind: 'lab' as const, name: l.name, city: l.city, address: l.address, image: l.image_url, count: pricedTests(l.test_prices).length,
+        ...pinOf(l),
       })),
     ];
 
@@ -177,6 +204,7 @@ export default async function Home(props: {
         now={now}
         nextVisit={nextVisit}
         doctors={recommended}
+        nearbyDoctors={bookable}
         specialties={specialties}
         facilities={facilities}
         cities={cities}

@@ -1,3 +1,4 @@
+import { toLatLng } from '@/lib/geo'
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import Link from 'next/link'
@@ -21,9 +22,11 @@ export default async function LabProfilePage() {
   const month = istDateKey(now).slice(0, 7)
   const lastMonth = shiftDay(`${month}-01`, -1).slice(0, 7)
 
-  const [bookings, { data: logins }] = await Promise.all([
+  const [bookings, { data: logins }, { data: pin }] = await Promise.all([
     loadLabBookings(admin, lab),
     admin.from('profiles').select('id, full_name, email').eq('diagnostic_center_id', lab.id).eq('role', 'diagnostic_admin'),
+    // The map pin (20261014_facility_locations.sql); null until that migration has run.
+    admin.from('diagnostic_centers').select('latitude, longitude').eq('id', lab.id).maybeSingle(),
   ])
   const paid = bookings.filter(isPaid)
   const patients = new Set(paid.map((b) => b.patient?.id).filter(Boolean)).size
@@ -125,6 +128,7 @@ export default async function LabProfilePage() {
               name={lab.name}
               city={lab.city}
               address={lab.address}
+              location={toLatLng(pin?.latitude, pin?.longitude)}
               label="Edit Details"
               className="lg:flex-initial min-h-[44px] inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface font-label-sm text-label-sm font-semibold transition-colors"
             />

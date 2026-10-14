@@ -1,5 +1,6 @@
 'use server'
 
+import { parseLatLng } from '@/lib/geo'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -63,6 +64,15 @@ export async function updateHospitalProfile(formData: FormData): Promise<Result>
   // contact_email is required on the table, so it only changes when a new one is given.
   if (email) updates.contact_email = email
 
+  // The map pin patients' distances are measured from; blank clears it.
+  const pin = parseLatLng(formData.get('latitude'), formData.get('longitude'))
+  if (pin === 'invalid') return fail('That map pin is not a valid location. Place it again on the map.')
+  const hasPinFields = formData.has('latitude')
+  if (hasPinFields) {
+    updates.latitude = pin?.lat ?? null
+    updates.longitude = pin?.lng ?? null
+  }
+
   const image = formData.get('image')
   if (image instanceof File && image.size > 0) {
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(image.type)) return fail('The photo must be a JPG, PNG or WebP image.')
@@ -78,11 +88,21 @@ export async function updateHospitalProfile(formData: FormData): Promise<Result>
   }
 
   const { error } = await ctx.admin.from('hospitals').update(updates).eq('id', ctx.hospitalId)
+  if (error && hasPinFields && /latitude|longitude/.test(error.message ?? '')) {
+    // The location columns aren't in the database yet: save everything else, and say why the pin wasn't kept.
+    delete updates.latitude
+    delete updates.longitude
+    const retry = await ctx.admin.from('hospitals').update(updates).eq('id', ctx.hospitalId)
+    if (retry.error) return fail(migrationHint(retry.error) ?? 'Could not save the hospital details. Please try again.')
+    revalidateHospitalPages(ctx.hospitalId)
+    return fail('Your details were saved, but the map pin needs the latest database update (supabase/migrations/20261014_facility_locations.sql).')
+  }
   if (error) {
     console.error('updateHospitalProfile:', error)
     return fail(migrationHint(error) ?? 'Could not save the hospital details. Please try again.')
   }
   revalidateHospitalPages(ctx.hospitalId)
+  revalidatePath('/')
   return { success: true }
 }
 

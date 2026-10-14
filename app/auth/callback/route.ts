@@ -79,24 +79,21 @@ export async function GET(request: Request) {
 
         if (profileById) {
           profile = profileById
-        } else if (email) {
-          // If profile exists by email under a different id (e.g. from previous phone sign-in), link/reuse it
-          const { data: profileByEmail } = await admin
-            .from('profiles')
-            .select('id, role, full_name, email, phone_number')
-            .ilike('email', email)
-            .maybeSingle()
+        } else {
+          // Profile does not exist for data.user.id yet
+          if (email) {
+            // If another non-staff profile mistakenly holds this email, clear it to avoid 23505 unique constraint violation
+            const { data: profileByEmail } = await admin
+              .from('profiles')
+              .select('id, staff_id')
+              .ilike('email', email)
+              .maybeSingle()
 
-          if (profileByEmail) {
-            profile = profileByEmail
+            if (profileByEmail && !profileByEmail.staff_id) {
+              await admin.from('profiles').update({ email: null }).eq('id', profileByEmail.id)
+            }
           }
-        }
 
-        const userRole = profile?.role || 'patient'
-        const isNew = !profile
-        const isMissingPhone = !profile?.phone_number
-
-        if (!profile) {
           const { data: newProfile, error: profileError } = await admin
             .from('profiles')
             .insert({
@@ -113,7 +110,13 @@ export async function GET(request: Request) {
           } else if (newProfile) {
             profile = newProfile
           }
-        } else if (name && !profile.full_name) {
+        }
+
+        const userRole = profile?.role || 'patient'
+        const isNew = !profileById
+        const isMissingPhone = !profile?.phone_number
+
+        if (profile && name && !profile.full_name) {
           await admin.from('profiles').update({ full_name: name }).eq('id', profile.id)
         }
 

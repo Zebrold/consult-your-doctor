@@ -106,7 +106,7 @@ export default function HowItWorksPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <Link
-                href="/doctors"
+                href="/online-doctor"
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-vibrant-blue px-6 py-3 text-[15px] font-semibold text-white hover:bg-primary transition-colors"
               >
                 Find a doctor <ArrowRight className="w-4 h-4" />

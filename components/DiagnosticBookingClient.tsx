@@ -136,12 +136,8 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, 
 
       <main className="w-full pb-dock">
         <div className="max-w-container-max mx-auto px-margin-x-mobile md:px-margin-x-desktop pt-5 md:pt-4">
-          <div className="hidden md:block py-4">
+          <div className="hidden md:block pb-6">
             <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Diagnostics", href: "/diagnostics" }, { label: center.name }, { label: "Book Diagnostic Test" }]} />
-          </div>
-          <div className="hidden md:block pb-8">
-            <span className="font-label-sm text-label-sm text-primary uppercase tracking-wider font-semibold">Lab Test Booking</span>
-            <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight mt-1">Finalize Diagnostic Booking</h1>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">

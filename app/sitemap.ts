@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { PUBLIC_DOCS, docHref } from '@/lib/legal-docs';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://consultyourdoctor.de';
@@ -37,7 +38,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'yearly',
       priority: 1,
     },
-    ...['/how-it-works', '/what-we-treat', '/online-doctor'].map((path) => ({
+    ...['/how-it-works', '/what-we-treat', '/online-doctor', '/prices'].map((path) => ({
       url: `${baseUrl}${path}`,
       lastModified: new Date(),
       changeFrequency: 'monthly' as const,
@@ -55,11 +56,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'yearly',
       priority: 0.5,
     },
-    ...['/terms-of-use', '/privacy-policy'].map((path) => ({
+    ...['/terms-of-use', '/privacy-policy', '/legal', ...PUBLIC_DOCS.map(docHref)].map((path) => ({
       url: `${baseUrl}${path}`,
       lastModified: new Date(),
       changeFrequency: 'yearly' as const,
       priority: 0.3,
+    })),
+    ...['/signup/doctor', '/signup/hospital', '/signup/diagnostic-centre'].map((path) => ({
+      url: `${baseUrl}${path}`,
+      lastModified: new Date(),
+      changeFrequency: 'yearly' as const,
+      priority: 0.4,
     })),
     {
       url: `${baseUrl}/search`,

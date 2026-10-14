@@ -10,7 +10,7 @@ import { initials } from '@/components/patient/format'
 export type TopBarLink = { href: string; label: string; icon: ReactNode }
 
 /** `detail` (such as an email address) replaces the role in the account menu's heading. */
-type Person = { name: string; role: string; image?: string | null; detail?: string | null }
+export type Person = { name: string; role: string; image?: string | null; detail?: string | null }
 
 /**
  * The bar across the top of every part of the site that has the navigation pill: the logo and company name on the
@@ -86,9 +86,9 @@ export function TopBar({
   )
 }
 
-function Avatar({ person, size = 'w-9 h-9' }: { person: Person; size?: string }) {
+function Avatar({ person, size = 'w-9 h-9', tone = 'light' }: { person: Person; size?: string; tone?: 'light' | 'blue' }) {
   return (
-    <span className={`${size} rounded-full overflow-hidden bg-vibrant-blue text-on-primary flex items-center justify-center font-bold text-xs shrink-0`}>
+    <span className={`${size} rounded-full overflow-hidden flex items-center justify-center font-bold text-xs shrink-0 ${tone === 'blue' ? 'bg-white text-vibrant-blue ring-2 ring-white/40' : 'bg-vibrant-blue text-on-primary'}`}>
       {person.image ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={person.image} alt="" className="w-full h-full object-cover" />
@@ -101,16 +101,16 @@ function Avatar({ person, size = 'w-9 h-9' }: { person: Person; size?: string })
   )
 }
 
-function NameAndRole({ person }: { person: Person }) {
+function NameAndRole({ person, tone = 'light' }: { person: Person; tone?: 'light' | 'blue' }) {
   return (
     <span className="hidden sm:flex items-center leading-tight text-left min-w-0 max-w-[180px]">
-      <span className="font-label-sm text-label-sm font-bold text-indigo-gray-900 truncate">{person.name || 'My account'}</span>
+      <span className={`font-label-sm text-label-sm font-bold truncate ${tone === 'blue' ? 'text-white' : 'text-indigo-gray-900'}`}>{person.name || 'My account'}</span>
     </span>
   )
 }
 
-/** The avatar as a button that opens the account's links and Sign out. */
-function AccountMenu({ person, links }: { person: Person; links: TopBarLink[] }) {
+/** The avatar as a button that opens the account's links and Sign out. `tone="blue"` is for the blue patient header. */
+export function AccountMenu({ person, links, tone = 'light' }: { person: Person; links: TopBarLink[]; tone?: 'light' | 'blue' }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -136,14 +136,14 @@ function AccountMenu({ person, links }: { person: Person; links: TopBarLink[] })
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Account menu"
-        className="flex items-center gap-2.5 rounded-full p-0.5 sm:pr-2 hover:bg-surface-container-low transition-colors"
+        className={`flex items-center gap-2.5 rounded-full p-0.5 sm:pr-2 transition-colors ${tone === 'blue' ? 'hover:bg-white/15' : 'hover:bg-surface-container-low'}`}
       >
-        <Avatar person={person} />
-        <NameAndRole person={person} />
-        <ChevronDown className={`hidden sm:block w-4 h-4 text-indigo-gray-600 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <Avatar person={person} tone={tone} />
+        <NameAndRole person={person} tone={tone} />
+        <ChevronDown className={`hidden sm:block w-4 h-4 transition-transform ${tone === 'blue' ? 'text-white/80' : 'text-indigo-gray-600'} ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-surface-container-lowest border border-outline-variant/40 shadow-[0_12px_32px_rgba(15,23,42,0.06)] p-2 z-50">
+        <div role="menu" className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-surface-container-lowest border border-outline-variant/40 shadow-[0_12px_32px_rgba(15,23,42,0.06)] p-2 z-50 text-on-surface">
           <div className="flex items-center gap-3 px-2.5 py-2.5 mb-1 border-b border-surface-container">
             <Avatar person={person} size="w-10 h-10" />
             <span className="min-w-0">
@@ -174,13 +174,16 @@ function AccountMenu({ person, links }: { person: Person; links: TopBarLink[] })
               <LogOut className="w-[18px] h-[18px]" /> Sign out
             </button>
           </form>
-          {/* The legal pages are open to every portal (see SHARED_PAGES in the middleware). */}
+          {/* The legal pages are open to every portal (see isSharedPage in proxy.ts). */}
           <div className="mt-1 pt-2 px-2.5 pb-1 border-t border-surface-container flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-on-surface-variant">
             <Link href="/terms-of-use" role="menuitem" onClick={() => setOpen(false)} className="hover:text-primary hover:underline">
               Terms &amp; Conditions
             </Link>
             <Link href="/privacy-policy" role="menuitem" onClick={() => setOpen(false)} className="hover:text-primary hover:underline">
               Privacy Policy
+            </Link>
+            <Link href="/legal" role="menuitem" onClick={() => setOpen(false)} className="hover:text-primary hover:underline">
+              Legal
             </Link>
           </div>
         </div>

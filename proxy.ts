@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { ROLE_COOKIE, ROLE_COOKIE_OPTIONS, readRoleCookie, roleCookieValue } from '@/lib/role-cookie'
 
-const AUTH_PAGES = ['/login', '/signup', '/signup/doctor', '/login/patient', '/login/doctor', '/login/hospital', '/login/executive', '/login/diagnostic']
+const AUTH_PAGES = ['/login', '/signup', '/signup/doctor', '/signup/hospital', '/signup/diagnostic-centre', '/login/patient', '/login/doctor', '/login/hospital', '/login/executive', '/login/diagnostic']
 
 /** Pages every account can open after signing in, whatever portal it belongs to. */
 const SHARED_PAGES = [
@@ -12,6 +12,9 @@ const SHARED_PAGES = [
   '/privacy-policy',
   '/privacy',
 ]
+
+/** The legal and policy documents (/legal and /legal/<document>, with their PDFs) are open to every account too. */
+const isSharedPage = (path: string) => SHARED_PAGES.includes(path) || path === '/legal' || path.startsWith('/legal/')
 
 /** The roles that have a part of the site; an account with any other role (a retired one) is signed out. */
 const PORTAL_ROLES = new Set(['patient', 'doctor', 'executive', 'hospital_admin', 'diagnostic_admin'])
@@ -117,13 +120,13 @@ export async function proxy(request: NextRequest) {
     // STRICT CONFINEMENT: If they are not a patient, they can ONLY visit their allowedPrefix. API routes are left to
     // check the session themselves: portals call them (the chat assistant, and /api/payu/hash when a hospital or lab
     // desk takes a PayU payment), and redirecting those calls to a dashboard page broke them. The Terms & Conditions
-    // and Privacy Policy stay open to everyone.
+    // and Privacy Policy, and the documents under /legal, stay open to everyone.
     } else if (
       role !== 'patient' &&
       !path.startsWith(allowedPrefix) &&
       !path.startsWith('/auth/signout') &&
       !path.startsWith('/api/') &&
-      !SHARED_PAGES.includes(path)
+      !isSharedPage(path)
     ) {
       target = dashboardPath
     // Role-based protection for patients trying to access staff routes

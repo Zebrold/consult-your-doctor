@@ -592,3 +592,46 @@ export async function sendDoctorActivationEmail(args: {
     button: { text: 'Activate Doctor Account', url: args.activationLink },
   })
 }
+
+const partnerNoun = (kind: 'hospital' | 'diagnostic_center') => (kind === 'hospital' ? 'hospital' : 'diagnostic centre')
+
+/** Sent when a hospital or diagnostic centre applies to join the network. */
+export async function sendPartnerApplicationReceivedEmail(args: {
+  to: string
+  contactName: string
+  organizationName: string
+  kind: 'hospital' | 'diagnostic_center'
+}) {
+  const noun = partnerNoun(args.kind)
+  return sendEmail({
+    to: args.to,
+    subject: `Consult Your Doctor: ${args.kind === 'hospital' ? 'Hospital' : 'Diagnostic centre'} application received`,
+    paragraphs: [
+      `Dear ${args.contactName},`,
+      `Thank you for applying to list ${args.organizationName} as a partner ${noun} on Consult Your Doctor.`,
+      `Our operations team will check the registration and accreditation details you sent and contact you on this email address or your phone number. Once your ${noun} is approved, we will set up the staff sign-in your team uses to manage its listing, bookings and payments.`,
+    ],
+  })
+}
+
+/** Sent when an executive approves a hospital or diagnostic centre application. The password is shared separately. */
+export async function sendPartnerApprovedEmail(args: {
+  to: string
+  contactName: string
+  organizationName: string
+  kind: 'hospital' | 'diagnostic_center'
+  staffId: string
+  signInUrl: string
+}) {
+  const noun = partnerNoun(args.kind)
+  return sendEmail({
+    to: args.to,
+    subject: `Consult Your Doctor: ${args.organizationName} is approved`,
+    paragraphs: [
+      `Dear ${args.contactName},`,
+      `${args.organizationName} is now a partner ${noun} on Consult Your Doctor.`,
+      `Your team signs in with the staff ID ${args.staffId}. Our operations team will give you the password separately; we never send passwords by email.`,
+    ],
+    button: { text: 'Go to the staff sign-in', url: args.signInUrl },
+  })
+}

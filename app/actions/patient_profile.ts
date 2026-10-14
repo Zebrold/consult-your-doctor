@@ -41,23 +41,104 @@ export async function updatePatientProfile(formData: FormData) {
 
   const admin = createAdminClient()
 
-  // Update full name and phone number in profiles table
-  const { error: profileError } = await admin
+  // 1. Check if another profile already claims this phone number
+  const { data: phoneConflict } = await admin
     .from('profiles')
-    .update({ 
-      full_name: fullName,
-      phone_number: cleanPhone,
-    })
-    .eq('id', user.id)
+    .select('id, role, full_name, email')
+    .eq('phone_number', cleanPhone)
+    .neq('id', user.id)
+    .maybeSingle()
 
-  if (profileError) {
-    console.error('Error updating profile:', profileError)
-    return { success: false, error: profileError.message }
+  if (phoneConflict) {
+    // If the conflicting profile is an unlinked phone profile (no email or same email) for a patient,
+    // merge its records (appointments, bookings, details) into the current user's profile
+    const canMerge = phoneConflict.role === 'patient' && (!phoneConflict.email || phoneConflict.email.toLowerCase() === (user.email || '').toLowerCase())
+    if (canMerge) {
+      console.log(`[updatePatientProfile] Merging unlinked phone profile ${phoneConflict.id} into ${user.id}`)
+      // Reassign appointments
+      await admin.from('appointments').update({ patient_id: user.id }).eq('patient_id', phoneConflict.id)
+      // Reassign diagnostic bookings
+      await admin.from('diagnostic_bookings').update({ patient_id: user.id }).eq('patient_id', phoneConflict.id)
+      // Copy over patient_details if existing details had info and current doesn't
+      const { data: oldDetails } = await admin.from('patient_details').select('*').eq('id', phoneConflict.id).maybeSingle()
+      if (oldDetails) {
+        await admin.from('patient_details').delete().eq('id', phoneConflict.id)
+      }
+      // Release phone from conflicting profile so unique constraint allows updating user.id
+      await admin.from('profiles').update({ phone_number: null }).eq('id', phoneConflict.id)
+      // Clean up the orphan phone auth user if it exists
+      try {
+        await admin.auth.admin.deleteUser(phoneConflict.id)
+      } catch (delErr) {
+        console.warn('Could not delete old phone auth user:', delErr)
+      }
+    } else {
+      return { success: false, error: 'This mobile number is already registered to another account. Please use a different number or sign in with that account.' }
+    }
+  }
+
+  // 2. Ensure current user's profile exists in profiles table
+  const { data: existingProfile } = await admin
+    .from('profiles')
+    .select('id, role, full_name, email')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (existingProfile) {
+    const { error: profileError } = await admin
+      .from('profiles')
+      .update({ 
+        full_name: fullName,
+        phone_number: cleanPhone,
+      })
+      .eq('id', user.id)
+
+    if (profileError) {
+      console.error('Error updating profile:', profileError)
+      return { 
+        success: false, 
+        error: profileError.code === '23505' ? 'This mobile number is already registered to another account.' : profileError.message 
+      }
+    }
+  } else {
+    // If another non-staff profile mistakenly holds this user's email, clear it
+    if (user.email) {
+      const emailLower = user.email.toLowerCase().trim()
+      const { data: emailConflict } = await admin
+        .from('profiles')
+        .select('id, staff_id')
+        .ilike('email', emailLower)
+        .neq('id', user.id)
+        .maybeSingle()
+
+      if (emailConflict && !emailConflict.staff_id) {
+        await admin.from('profiles').update({ email: null }).eq('id', emailConflict.id)
+      }
+    }
+
+    const { error: insertError } = await admin
+      .from('profiles')
+      .insert({
+        id: user.id,
+        full_name: fullName,
+        phone_number: cleanPhone,
+        email: user.email ? user.email.toLowerCase().trim() : null,
+        role: 'patient',
+      })
+
+    if (insertError) {
+      console.error('Error creating profile for user:', insertError)
+      return { 
+        success: false, 
+        error: insertError.code === '23505' ? 'This mobile number or email is already registered.' : insertError.message 
+      }
+    }
   }
 
   // Also sync to auth.users metadata so session context stays up-to-date
   try {
     await admin.auth.admin.updateUserById(user.id, {
+      ...(user.phone ? {} : { phone: cleanPhone }),
       user_metadata: {
         ...user.user_metadata,
         full_name: fullName,

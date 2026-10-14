@@ -1,14 +1,12 @@
 "use client";
 
-import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useMemo, useRef, type ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   ArrowRight, Building2, CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin,
-  Microscope, Search, Stethoscope, type LucideIcon,
+  Microscope, Stethoscope,
 } from "lucide-react";
 import { PatientDock } from "@/components/PatientDock";
-import { PatientNavHeader } from "@/components/PatientNavHeader";
 import { doctorName, formatDayLabel, formatINR, formatSlot, formatTime, initials } from "@/components/patient/format";
 import { specialtyMeta } from "@/components/patient/specialties";
 import { PhoneHome } from "@/components/patient/PhoneHome";
@@ -71,7 +69,6 @@ const facilityHref = (f: HomeFacility) => (f.kind === "lab" ? `/book/diagnostic/
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, nearbyDoctors, specialties, facilities, cities, reviews }: PatientHomeProps) {
-  const router = useRouter();
   const place = usePatientLocation();
   // Nearest first once the patient shares a location; otherwise four hospitals and two labs, as before.
   const shownFacilities = useMemo(() => {
@@ -80,18 +77,8 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
     const labs = facilities.filter((f) => f.kind === "lab");
     return [...hospitals.slice(0, labs.length ? 4 : 6), ...labs.slice(0, 2)].map((item) => ({ item, km: null as number | null, inArea: true }));
   }, [facilities, place.location]);
-  const [query, setQuery] = useState("");
-  const [city, setCity] = useState("");
   const doctorRow = useRef<HTMLDivElement>(null);
   const facilityRow = useRef<HTMLDivElement>(null);
-
-  const search = (e: FormEvent) => {
-    e.preventDefault();
-    const params = new URLSearchParams();
-    if (query.trim()) params.set("q", query.trim());
-    if (city) params.set("city", city);
-    router.push(`/find${params.size ? `?${params}` : ""}`);
-  };
 
   // Moves a card row along by one card, wrapping round at either end.
   const scrollRow = (el: HTMLDivElement | null, direction: 1 | -1) => {
@@ -110,9 +97,6 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
 
   return (
     <div className="bg-background text-on-surface antialiased min-h-screen">
-      {/* Phones have their own app-style header in PhoneHome. */}
-      <PatientNavHeader name={name} email={email} isSignedIn={isSignedIn} container="max-w-[1296px] px-margin-x-mobile lg:px-margin-x-desktop" className="hidden md:block" />
-
       <main className="w-full pb-dock">
         <PhoneHome
           name={name}
@@ -125,73 +109,6 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
           cities={cities}
           place={place}
         />
-
-        {/* Tablet & desktop: hero, greeting & search */}
-        <section className="hidden md:block relative w-full overflow-hidden bg-white px-margin-x-mobile lg:px-margin-x-desktop pt-2 md:pt-10 pb-8 md:pb-7">
-          <div className="relative max-w-container-max mx-auto flex flex-col gap-stack-md md:gap-8">
-            {/* Desktop greeting */}
-            <div className="hidden md:flex items-center gap-3">
-              <div className="flex flex-col">
-                <span className="font-title-md text-title-md text-on-surface">{name ? `Welcome back, ${name}` : "Welcome to Consult Your Doctor"}</span>
-                <span className="font-body-md text-body-md text-indigo-gray-600">{isSignedIn ? visitLine : "Sign in to book appointments and lab tests."}</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2 md:gap-4 md:pt-2">
-              <span className="font-label-sm text-label-sm uppercase tracking-wider text-vibrant-blue font-bold">Verified Doctors &amp; Partner Labs</span>
-              <h1 className="font-display-lg text-display-lg text-on-surface tracking-tight leading-[1.08]">Find a specialist and book a visit near you</h1>
-              <p className="hidden md:block font-body-lg text-body-lg text-indigo-gray-600 max-w-2xl">
-                Search verified doctors, partner hospitals and diagnostic labs, see their real open slots, and book in a few taps.
-              </p>
-            </div>
-
-            <form
-              onSubmit={search}
-              className="w-full bg-surface-container-lowest p-2 md:p-3 lg:p-4 rounded-full md:rounded-3xl lg:rounded-full shadow-[0_8px_30px_rgb(0,80,203,0.06)] md:shadow-xl flex items-center md:flex-col lg:flex-row md:items-stretch lg:items-center gap-2"
-            >
-              <label className="flex-1 w-full flex items-center gap-3 pl-3 md:px-4 md:py-2 min-w-0">
-                <Search className="w-5 h-5 md:w-6 md:h-6 text-outline md:text-vibrant-blue shrink-0" />
-                <span className="sr-only">Search doctors</span>
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  className="w-full min-w-0 bg-transparent font-body-md text-body-md text-on-surface placeholder:text-outline focus:outline-none"
-                  placeholder="Search doctors, specialties or hospitals..."
-                  type="text"
-                />
-              </label>
-              <div className="hidden lg:block h-8 w-px bg-surface-variant" />
-              <label className="hidden md:flex w-full lg:w-72 items-center gap-3 px-4 py-2">
-                <MapPin className="w-[22px] h-[22px] text-vibrant-blue shrink-0" />
-                <span className="sr-only">City</span>
-                <select
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className="w-full bg-transparent font-body-md text-body-md text-on-surface focus:outline-none cursor-pointer"
-                >
-                  <option value="">All cities</option>
-                  {cities.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </label>
-              <button
-                type="submit"
-                className="shrink-0 px-6 md:px-8 py-3 md:py-3.5 rounded-full bg-primary md:bg-vibrant-blue text-on-primary font-label-sm md:font-title-md text-sm md:text-body-lg font-bold shadow-md md:hover:scale-100 md:hover:opacity-95 transition-all flex items-center justify-center gap-2"
-              >
-                <span className="md:hidden">Search</span>
-                <span className="hidden md:inline">Search Doctors</span>
-                <ArrowRight className="hidden md:block w-5 h-5" />
-              </button>
-            </form>
-
-            <div className="hidden md:flex flex-wrap items-center gap-2 pt-1">
-              <span className="font-label-sm text-label-sm text-indigo-gray-600 mr-2">Quick Filters:</span>
-              <QuickFilter href="#care-network" icon={Microscope}>Lab tests</QuickFilter>
-              <QuickFilter href="/hospitals" icon={Building2}>Hospitals</QuickFilter>
-            </div>
-          </div>
-        </section>
 
         {/* Popular specialties */}
         {specialties.length > 0 && (
@@ -412,15 +329,6 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
 
       <PatientDock activeTab="home" isSignedIn={isSignedIn} name={name} />
     </div>
-  );
-}
-
-function QuickFilter({ href, icon: Icon, children }: { href: string; icon: LucideIcon; children: ReactNode }) {
-  return (
-    <Link href={href} className="px-4 py-1.5 rounded-full bg-surface-container-lowest text-on-surface font-body-md text-body-md hover:bg-primary-container hover:text-on-primary-container transition-all flex items-center gap-1.5 shadow-sm">
-      <Icon className="w-[18px] h-[18px]" />
-      {children}
-    </Link>
   );
 }
 

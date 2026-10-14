@@ -190,7 +190,7 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
         title="Find a Doctor"
         subtitle={`${filtered.length} verified ${filtered.length === 1 ? "doctor" : "doctors"} ${city ? `in ${city}` : "across all cities"}`}
         hero={
-          <form onSubmit={submitSearch} role="search" className="flex items-center gap-2.5 h-[54px] pl-4 pr-1.5 rounded-full bg-white/15 border border-white/25 backdrop-blur-sm focus-within:bg-white/25 transition-colors">
+          <form onSubmit={submitSearch} role="search" className="flex items-center gap-2.5 h-[54px] md:h-[60px] pl-4 md:pl-5 pr-1.5 rounded-full bg-white/15 border border-white/25 backdrop-blur-sm focus-within:bg-white/25 transition-colors md:max-w-4xl">
             <Search className="w-5 h-5 text-white/90 shrink-0" />
             <label className="sr-only" htmlFor="find-phone-search">Search doctors or specialties</label>
             <input
@@ -203,14 +203,37 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
                 setVisible(PAGE);
               }}
               placeholder="Search doctors or specialties…"
-              className="flex-1 min-w-0 bg-transparent text-white placeholder:text-white/70 focus:outline-none [&::-webkit-search-cancel-button]:hidden"
+              className="flex-1 min-w-0 bg-transparent text-white placeholder:text-white/70 focus:outline-none [&::-webkit-search-cancel-button]:hidden md:text-[16px]"
             />
+            <label className="hidden md:flex items-center gap-2 h-11 pl-3 pr-2 border-l border-white/25 shrink-0">
+              <MapPin className="w-[18px] h-[18px] text-white/90" />
+              <span className="sr-only">City</span>
+              <select
+                value={city}
+                onChange={(e) => {
+                  setCity(e.target.value);
+                  setVisible(PAGE);
+                }}
+                className="bg-transparent text-white font-semibold focus:outline-none cursor-pointer [&>option]:text-on-surface"
+              >
+                <option value="">All cities</option>
+                {cities.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="submit"
+              className="hidden md:flex items-center gap-2 h-11 px-6 rounded-full bg-white text-vibrant-blue font-bold shadow-sm hover:bg-white/90 transition-colors shrink-0"
+            >
+              Find Care <ArrowRight className="w-[18px] h-[18px]" />
+            </button>
             <button
               type="button"
               onClick={() => setFiltersOpen((o) => !o)}
               aria-label="Filters"
               aria-expanded={filtersOpen}
-              className="relative w-11 h-11 rounded-full bg-white text-indigo-gray-900 flex items-center justify-center shrink-0 shadow-sm active:scale-95 transition-transform"
+              className="md:hidden relative w-11 h-11 rounded-full bg-white text-indigo-gray-900 flex items-center justify-center shrink-0 shadow-sm active:scale-95 transition-transform"
             >
               <SlidersHorizontal className="w-[18px] h-[18px]" />
               {(city || availableToday || sort !== "soonest") && <span aria-hidden className="absolute top-2 right-2 w-2 h-2 rounded-full bg-vibrant-blue" />}
@@ -220,51 +243,9 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
       />
 
       <main className="w-full pb-dock">
-        {/* Search & filters */}
+        {/* Filters (the search is in the blue header) */}
         <section className="w-full md:bg-surface-container-low/70 md:backdrop-blur-md px-margin-x-mobile lg:px-margin-x-desktop pt-5 pb-4 md:py-8">
           <div className="max-w-[1536px] mx-auto flex flex-col gap-3 md:gap-6">
-            {/* Phones search in the blue header. */}
-            <div className="hidden md:flex flex-col lg:flex-row items-stretch lg:items-center gap-3 lg:gap-4">
-              <form onSubmit={submitSearch} className="relative flex-1 group" role="search">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-on-surface-variant md:text-outline group-focus-within:text-vibrant-blue transition-colors pointer-events-none" />
-                <input
-                  className="w-full h-14 md:h-auto pl-12 pr-14 md:pr-40 md:py-3.5 bg-surface-container-lowest rounded-xl md:rounded-full font-body-md text-body-md text-on-surface shadow-sm focus:outline-none focus:ring-2 focus:ring-vibrant-blue/30 transition-all placeholder:text-on-surface-variant md:placeholder:text-outline"
-                  placeholder="Search doctors, specialties or hospitals..."
-                  aria-label="Search doctors"
-                  type="search"
-                  value={query}
-                  onChange={(e) => {
-                    setQuery(e.target.value);
-                    setVisible(PAGE);
-                  }}
-                />
-                <button
-                  type="submit"
-                  className="hidden md:flex absolute inset-y-1.5 right-1.5 px-6 rounded-full bg-vibrant-blue text-on-primary font-title-md text-body-md font-semibold hover:bg-primary transition-all items-center gap-2 shadow-sm"
-                >
-                  Find Care <ArrowRight className="w-[18px] h-[18px]" />
-                </button>
-              </form>
-
-              <label className="hidden md:flex items-center gap-2 px-4 py-3 bg-surface-container-lowest rounded-full shadow-sm self-end lg:self-auto">
-                <MapPin className="w-5 h-5 text-vibrant-blue" />
-                <span className="sr-only">City</span>
-                <select
-                  value={city}
-                  onChange={(e) => {
-                    setCity(e.target.value);
-                    setVisible(PAGE);
-                  }}
-                  className="bg-transparent font-body-md text-body-md text-on-surface font-medium focus:outline-none cursor-pointer"
-                >
-                  <option value="">All cities</option>
-                  {cities.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
             {/* Phone filter panel */}
             {filtersOpen && (
               <div className="md:hidden p-4 bg-surface-container-lowest rounded-2xl shadow-sm flex flex-col gap-3">

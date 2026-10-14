@@ -18,6 +18,7 @@ import {
   currentTime,
   formatINR,
   loadApplications,
+  loadPartnerApplications,
   loadAppointments,
   loadLabBookings,
   loadNetworkCounts,
@@ -30,20 +31,23 @@ import { AttentionBoard } from '../_components/AttentionBoard'
 
 export default async function ExecutiveCommandPage() {
   const { admin } = await requireExecutive()
-  const [appointments, labBookings, applications, payments, network] = await Promise.all([
+  const [appointments, labBookings, applications, payments, network, hospitalApplications, labApplications] = await Promise.all([
     loadAppointments(admin),
     loadLabBookings(admin),
     loadApplications(admin),
     loadPayments(admin),
     loadNetworkCounts(admin),
+    loadPartnerApplications(admin, 'hospital'),
+    loadPartnerApplications(admin, 'diagnostic_center'),
   ])
+  const partnerApplications = [...hospitalApplications, ...labApplications]
 
   const now = currentTime()
   const today = new Date(now)
   today.setHours(0, 0, 0, 0)
   const isToday = (iso: string | null) => Boolean(iso) && new Date(iso!) >= today && new Date(iso!).getTime() < today.getTime() + 86_400_000
 
-  const attention = buildAttentionItems({ appointments, labBookings, applications }, now)
+  const attention = buildAttentionItems({ appointments, labBookings, applications, partnerApplications }, now)
   const highCount = attention.filter((i) => i.severity === 'high').length
 
   const todaysAppointments = appointments.filter((a) => isToday(a.startTime) && a.status !== 'cancelled')
@@ -73,6 +77,13 @@ export default async function ExecutiveCommandPage() {
       tone: 'teal' as const,
       label: 'LAB TEST BOOKED',
       text: `${b.patient?.name ?? 'A patient'} booked ${b.testName}${b.center ? ` at ${b.center.name}` : ''}.`,
+    })),
+    ...partnerApplications.slice(0, 8).map((a) => ({
+      id: `p-${a.id}`,
+      at: a.createdAt,
+      tone: 'neutral' as const,
+      label: `${a.kind === 'hospital' ? 'HOSPITAL' : 'DIAGNOSTIC CENTRE'} APPLICATION · ${a.status.toUpperCase()}`,
+      text: `${a.organizationName}, ${a.city} applied to join the network.`,
     })),
     ...applications.slice(0, 8).map((a) => ({
       id: `d-${a.id}`,
@@ -219,12 +230,12 @@ export default async function ExecutiveCommandPage() {
       <Panel
         title="Needs Attention"
         icon={AlertTriangle}
-        description="Unpaid bookings older than a day, appointments never checked in, overdue lab visits, reports not sent, and doctor applications awaiting review."
+        description="Unpaid bookings older than a day, appointments never checked in, overdue lab visits, reports not sent, and doctor, hospital and lab applications awaiting review."
       >
         <AttentionBoard items={attention} />
       </Panel>
 
-      <Panel title="Recent Platform Activity" icon={History} description="The latest bookings and doctor applications across the network.">
+      <Panel title="Recent Platform Activity" icon={History} description="The latest bookings and doctor, hospital and lab applications across the network.">
         {activity.length === 0 ? (
           <p className="text-sm text-indigo-gray-600">No activity yet.</p>
         ) : (

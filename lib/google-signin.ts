@@ -52,6 +52,18 @@ export async function signInWithGoogleIdentity(identity: GoogleIdentity): Promis
   const { data: profile } = await admin.from('profiles').select('role, phone_number').eq('id', userId).maybeSingle()
   const role: string = profile?.role || 'patient'
   if (!profile) {
+    // If another non-staff profile mistakenly holds this verified Google email (e.g. stale demo or old profile), free it up
+    const { data: conflict } = await admin
+      .from('profiles')
+      .select('id, staff_id')
+      .ilike('email', email)
+      .neq('id', userId)
+      .maybeSingle()
+
+    if (conflict && !conflict.staff_id) {
+      await admin.from('profiles').update({ email: null }).eq('id', conflict.id)
+    }
+
     const { error: profileError } = await admin.from('profiles').insert({ id: userId, full_name: name, email, role: 'patient' })
     if (profileError) console.error('[Google sign-in] Could not create the profile:', profileError)
   }

@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNo
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowRight, CalendarClock, CalendarDays, ChevronDown, ChevronRight, Ellipsis, Globe2,
-  LoaderCircle, LocateFixed, MapPin, Search, SlidersHorizontal, Star, Stethoscope, type LucideIcon,
+  ArrowRight, Building2, CalendarClock, CalendarDays, ChevronDown, ChevronRight, Ellipsis, Globe2,
+  LoaderCircle, LocateFixed, MapPin, Microscope, Search, SlidersHorizontal, Star, Stethoscope, type LucideIcon,
 } from "lucide-react";
 import type { HomeDoctor } from "@/components/PatientHome";
 import { doctorName, formatDayLabel, formatINR, initials } from "@/components/patient/format";
@@ -15,9 +15,12 @@ import { BlueHeader, BrandRow } from "@/components/patient/PhoneHeader";
 import { MenuSheet, Sheet } from "@/components/patient/PhoneSheet";
 import { formatDistance } from "@/lib/geo";
 
-// The patient home on phones: the blue header with the greeting, location and search, the specialty shortcuts and
-// the doctors nearest the patient. Tablets and desktops keep the wider layout in PatientHome; the sections after
-// this (hospitals near you, reviews) are shared.
+// The patient home's blue header with the greeting, location and search (at every screen size), then on phones the
+// specialty shortcuts and the doctors nearest the patient. Tablets and desktops show the wider sections in
+// PatientHome under the same header; the sections after these (hospitals near you, reviews) are shared.
+
+/** The width of PatientHome's desktop sections, so the header lines up with them. */
+const HOME_CONTAINER = "max-w-container-max px-margin-x-mobile lg:px-margin-x-desktop";
 
 type Place = ReturnType<typeof usePatientLocation>;
 
@@ -59,27 +62,46 @@ export function PhoneHome({ name, email, isSignedIn, now, visitLine, doctors, sp
   };
 
   return (
-    <div className="md:hidden">
+    <div>
       <h1 className="sr-only">Find doctors and hospitals near you</h1>
 
       {/* Blue header: brand, greeting, location and search */}
-      <BlueHeader>
-        <BrandRow isSignedIn={isSignedIn} dot={!!visitLine} bellLabel={visitLine ? `Bookings: ${visitLine}` : "Bookings"} onMenu={() => setSheet("menu")} />
+      <BlueHeader container={HOME_CONTAINER}>
+        <BrandRow
+          isSignedIn={isSignedIn}
+          dot={!!visitLine}
+          bellLabel={visitLine ? `Bookings: ${visitLine}` : "Bookings"}
+          onMenu={() => setSheet("menu")}
+          name={name}
+          email={email}
+        />
 
         <Greeting name={name} now={now} />
+
+        {/* Wider screens show the next visit here; phones show it as a card under the header. */}
+        {isSignedIn && visitLine && (
+          <Link
+            href="/patient/appointments"
+            className="relative mt-3 hidden md:inline-flex items-center gap-2 max-w-full px-4 py-2 rounded-full bg-white/15 border border-white/20 text-[14px] font-medium hover:bg-white/25 transition-colors"
+          >
+            <CalendarClock className="w-4 h-4 shrink-0" />
+            <span className="truncate">{visitLine}</span>
+            <ChevronRight className="w-4 h-4 shrink-0 opacity-80" />
+          </Link>
+        )}
 
         <button
           type="button"
           onClick={() => setSheet("location")}
           aria-haspopup="dialog"
-          className="relative mt-2 inline-flex items-center gap-1.5 max-w-full -ml-1 px-1 py-1 rounded-lg text-[15px] font-semibold active:bg-white/10"
+          className="relative mt-2 md:mt-3 inline-flex md:flex md:w-fit items-center gap-1.5 max-w-full -ml-1 px-1 py-1 rounded-lg text-[15px] md:text-[16px] font-semibold active:bg-white/10 md:hover:bg-white/10"
         >
           <MapPin className="w-[18px] h-[18px] shrink-0 fill-white/20" />
           <span className="truncate">{place.status === "locating" ? "Finding your location…" : location?.label ?? "Set your location"}</span>
           <ChevronDown className="w-4 h-4 shrink-0 opacity-80" />
         </button>
 
-        <form onSubmit={search} role="search" className="relative mt-4 flex items-center gap-2.5 h-[54px] pl-4 pr-1.5 rounded-full bg-white/15 border border-white/25 backdrop-blur-sm focus-within:bg-white/25 transition-colors">
+        <form onSubmit={search} role="search" className="relative mt-4 md:mt-5 flex items-center gap-2.5 h-[54px] md:h-[60px] pl-4 md:pl-5 pr-1.5 rounded-full bg-white/15 border border-white/25 backdrop-blur-sm focus-within:bg-white/25 transition-colors md:max-w-3xl">
           <Search className="w-5 h-5 text-white/90 shrink-0" />
           <label className="sr-only" htmlFor="phone-home-search">Search doctors or specialties</label>
           <input
@@ -89,15 +111,31 @@ export function PhoneHome({ name, email, isSignedIn, now, visitLine, doctors, sp
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search doctors or specialties…"
-            className="flex-1 min-w-0 bg-transparent text-white placeholder:text-white/70 focus:outline-none [&::-webkit-search-cancel-button]:hidden"
+            className="flex-1 min-w-0 bg-transparent text-white placeholder:text-white/70 focus:outline-none [&::-webkit-search-cancel-button]:hidden md:text-[16px]"
           />
+          <button type="submit" className="hidden md:flex items-center gap-2 h-11 px-6 rounded-full bg-white text-vibrant-blue font-bold shadow-sm hover:bg-white/90 transition-colors shrink-0">
+            Search Doctors <ArrowRight className="w-[18px] h-[18px]" />
+          </button>
           <Link href={findHref} aria-label="Filters" className="w-11 h-11 rounded-full bg-white text-indigo-gray-900 flex items-center justify-center shrink-0 shadow-sm active:scale-95 transition-transform">
             <SlidersHorizontal className="w-[18px] h-[18px]" />
           </Link>
         </form>
+
+        <div className="relative mt-5 hidden md:flex flex-wrap items-center gap-2">
+          <span className="text-[13px] text-white/80 mr-1">Quick filters:</span>
+          {[
+            { href: findHref, label: "All doctors", icon: Stethoscope },
+            { href: "/hospitals", label: "Hospitals", icon: Building2 },
+            { href: "#care-network", label: "Lab tests", icon: Microscope },
+          ].map(({ href, label, icon: Icon }) => (
+            <Link key={label} href={href} className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full bg-white/15 border border-white/20 text-[13.5px] font-semibold hover:bg-white/25 transition-colors">
+              <Icon className="w-4 h-4" /> {label}
+            </Link>
+          ))}
+        </div>
       </BlueHeader>
 
-      <div className="px-4 pt-5 pb-8 flex flex-col gap-6">
+      <div className="md:hidden px-4 pt-5 pb-8 flex flex-col gap-6">
         {isSignedIn && visitLine && (
           <Link href="/patient/appointments" className="flex items-center gap-3 p-3.5 rounded-2xl bg-primary-fixed/60 active:bg-primary-fixed transition-colors">
             <span className="w-10 h-10 rounded-full bg-white text-primary flex items-center justify-center shrink-0">
@@ -175,9 +213,9 @@ function Greeting({ name, now }: { name: string | null; now: number }) {
   }, []);
   const display = greetingName(name);
   return (
-    <div className="relative mt-5">
-      <p suppressHydrationWarning className="text-[17px] text-white/90">{salutation},</p>
-      <p className="font-title-md text-[32px] min-[380px]:text-[36px] font-extrabold leading-[1.1] tracking-tight truncate">{display ?? "Welcome"}</p>
+    <div className="relative mt-5 md:mt-9">
+      <p suppressHydrationWarning className="text-[17px] md:text-[19px] text-white/90">{salutation},</p>
+      <p className="font-title-md text-[32px] min-[380px]:text-[36px] md:text-[48px] font-extrabold leading-[1.1] tracking-tight truncate">{display ?? "Welcome"}</p>
     </div>
   );
 }

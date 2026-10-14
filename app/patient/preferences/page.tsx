@@ -46,10 +46,6 @@ export default async function PatientPreferences() {
                 {/* ==================== RIGHT COLUMN (70% -> 8 cols) ==================== */}
                 <div className="lg:col-span-8 flex flex-col gap-6">
                   <AccountShortcuts />
-                  <div className="hidden md:block mb-2">
-                    <h2 className="font-display-lg text-headline-lg font-bold text-on-surface">App Preferences &amp; Notifications</h2>
-                    <p className="font-body-md text-body-lg text-on-surface-variant mt-2">Manage your communication channels and application settings.</p>
-                  </div>
 
                   {/* Notification Channels */}
                   <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant/30">

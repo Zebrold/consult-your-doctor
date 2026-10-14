@@ -1,28 +1,35 @@
 import type { Metadata } from 'next'
-import { AlertTriangle, Building2, CircleCheck, FileCheck, FlaskConical, GitBranch, KeyRound, Microscope, Phone, Receipt, Wallet } from 'lucide-react'
+import { AlertTriangle, Building2, CircleCheck, ClipboardList, FileCheck, FlaskConical, GitBranch, KeyRound, Microscope, Phone, Receipt, Wallet } from 'lucide-react'
 import {
   LAB_STATUS_LABELS,
   buildAttentionItems,
   currentTime,
   loadLabBookings,
   loadLabs,
+  loadPartnerApplications,
   requireExecutive,
+  timeAgo,
 } from '../_lib/ops'
 import { BarList, Chip, EmptyState, MetricCard, PageHeader, Panel } from '../_components/ui'
 import { AddDiagnosticCenterButton, AddLoginButton } from '../_components/NetworkForms'
+import { PartnerQueue } from '../_components/PartnerQueue'
 
 export const metadata: Metadata = { title: 'Diagnostic Centers & Lab Operations' }
 
 export default async function ExecutiveDiagnosticsPage() {
   const { admin } = await requireExecutive()
-  const [labs, bookings, { data: labLogins }] = await Promise.all([
+  const [labs, bookings, { data: labLogins }, applications] = await Promise.all([
     loadLabs(admin),
     loadLabBookings(admin),
     admin.from('profiles').select('diagnostic_center_id').eq('role', 'diagnostic_admin'),
+    loadPartnerApplications(admin, 'diagnostic_center'),
   ])
   const hasLogin = new Set(((labLogins ?? []) as { diagnostic_center_id: string | null }[]).map((p) => p.diagnostic_center_id))
   const labsWithoutLogin = labs.filter((l) => !hasLogin.has(l.id))
   const now = currentTime()
+  // Oldest first, so the longest wait is reviewed first.
+  const pendingApplications = applications.filter((a) => a.status === 'pending').reverse()
+  const appliedLabels = Object.fromEntries(pendingApplications.map((a) => [a.id, timeAgo(a.createdAt, now)]))
 
   const today = new Date(now)
   today.setHours(0, 0, 0, 0)
@@ -109,6 +116,16 @@ export default async function ExecutiveDiagnosticsPage() {
           footer={<span>Of {collected.length} samples collected</span>}
         />
       </section>
+
+      <Panel
+        id="applications"
+        title="Diagnostic Centre Applications"
+        icon={ClipboardList}
+        description="Centres that applied to join at /signup/diagnostic-centre. Approving adds the centre and its staff sign-in, and emails the applicant their staff ID."
+        aside={<Chip tone={pendingApplications.length ? 'coral' : 'teal'} dot>{pendingApplications.length} pending</Chip>}
+      >
+        <PartnerQueue applications={pendingApplications} submittedLabels={appliedLabels} />
+      </Panel>
 
       {labsWithoutLogin.length > 0 && (
         <Panel title="Centres Without a Staff Login" icon={KeyRound} description="These centres can't manage their tests, bookings or reports until their staff have a sign-in.">

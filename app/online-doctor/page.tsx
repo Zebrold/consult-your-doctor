@@ -107,12 +107,12 @@ export default async function OnlineDoctorPage() {
               counter, and your prescription is waiting in your account afterwards.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <Link
-                href="/doctors"
+              <a
+                href="#doctors"
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-vibrant-blue px-6 py-3 text-[15px] font-semibold text-white hover:bg-primary transition-colors"
               >
                 Find a doctor <ArrowRight className="w-4 h-4" />
-              </Link>
+              </a>
               <Link
                 href="/ai"
                 className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-6 py-3 text-[15px] font-semibold text-slate-800 hover:bg-slate-50 transition-colors"
@@ -141,7 +141,7 @@ export default async function OnlineDoctorPage() {
       </section>
 
       {/* Doctors */}
-      <section className="w-full py-16 md:py-20 bg-slate-50 border-b border-slate-100">
+      <section id="doctors" className="w-full py-16 md:py-20 bg-slate-50 border-b border-slate-100 scroll-mt-20">
         <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop">
           <OnlineDoctorRoster doctors={doctors} />
           <div className="mt-8">

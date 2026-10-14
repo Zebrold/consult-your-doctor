@@ -2,11 +2,13 @@ import { jsonLd } from "@/lib/json-ld";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
+import { PatientDock } from "@/components/PatientDock";
 import {
   DoctorProfileClient,
   ProfileDoctorData,
 } from "@/components/DoctorProfileClient";
-import { PatientNavHeader } from "@/components/PatientNavHeader";
 import { TopBar } from "@/components/portal/TopBar";
 import { doctorName } from "@/components/patient/format";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -137,20 +139,21 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
           container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop"
           className="hidden md:block"
         />
-      ) : (
-        <PatientNavHeader
-          isSignedIn={isLoggedIn}
-          name={viewer?.full_name}
-          email={viewer?.email || user?.email}
-          container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop"
-          className="hidden md:block"
-        />
+      ) : isLoggedIn ? null : (
+        // Signed-in patients get the blue bar from DoctorProfileClient at every width.
+        <Header />
       )}
       <DoctorProfileClient
         doctor={doctorData}
         isLoggedIn={isLoggedIn}
+        showPatientDock={isLoggedIn && isPreview}
         viewer={viewer?.role === "doctor" ? null : { name: viewer?.full_name ?? null, email: viewer?.email || user?.email || null }}
       />
+      {isLoggedIn ? (
+        isPreview && <PatientDock activeTab="find" isSignedIn={isLoggedIn} name={viewer?.full_name || user?.user_metadata?.full_name} />
+      ) : (
+        <Footer />
+      )}
     </>
   );
 }

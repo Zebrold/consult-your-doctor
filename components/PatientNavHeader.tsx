@@ -1,20 +1,20 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { CalendarDays, LifeBuoy, UserRound } from "lucide-react";
 import { TopBar } from "@/components/portal/TopBar";
-import { PhoneHeader } from "@/components/patient/PhoneHeader";
+import { PATIENT_ACCOUNT_LINKS, PhoneHeader } from "@/components/patient/PhoneHeader";
 
 interface PatientNavHeaderProps {
   name?: string | null;
   email?: string | null;
   isSignedIn?: boolean;
-  /** Adds a back arrow on phones. */
+  /** Adds a back arrow. */
   backHref?: string;
   /** Width and side padding, to line up with the page below. */
   container?: string;
+  /** Extra classes for the white bar (pages without the blue header). */
   className?: string;
-  /** Gives phones the home page's blue header with this title, in place of the white bar. */
+  /** Gives the page the home page's blue header with this title, at every screen size. */
   title?: string;
   /** The blue header without a title, for pages that need the room (Zebrold AI). */
   blue?: boolean;
@@ -26,30 +26,26 @@ interface PatientNavHeaderProps {
   hero?: ReactNode;
 }
 
-/** The patient pages' top bar: the logo and company name, and the account or a Sign in button. */
+/** The patient pages' header: the blue app header (with a title), or the white bar with the logo and the account. */
 export function PatientNavHeader({
   name, email, isSignedIn = false, backHref, container = "max-w-[1240px] px-margin-x-mobile lg:px-12", className = "", title, blue = !!title, eyebrow, subtitle, hero,
 }: PatientNavHeaderProps) {
+  if (blue) {
+    return (
+      <PhoneHeader title={title} eyebrow={eyebrow} subtitle={subtitle} backHref={backHref} isSignedIn={isSignedIn} name={name} email={email} container={container}>
+        {hero}
+      </PhoneHeader>
+    );
+  }
   return (
-    <>
-      <TopBar
-        homeHref="/"
-        section=""
-        person={isSignedIn ? { name: name || "", role: "Patient", detail: email } : null}
-        links={[
-          { href: "/patient/appointments", label: "My appointments", icon: <CalendarDays /> },
-          { href: "/patient/profile", label: "My profile", icon: <UserRound /> },
-          { href: "/patient/support", label: "Help & support", icon: <LifeBuoy /> },
-        ]}
-        backHref={backHref}
-        container={container}
-        className={blue ? `hidden md:block ${className}` : className}
-      />
-      {blue && (
-        <PhoneHeader title={title} eyebrow={eyebrow} subtitle={subtitle} backHref={backHref} isSignedIn={isSignedIn} name={name} email={email}>
-          {hero}
-        </PhoneHeader>
-      )}
-    </>
+    <TopBar
+      homeHref="/"
+      section=""
+      person={isSignedIn ? { name: name || "", role: "Patient", detail: email } : null}
+      links={PATIENT_ACCOUNT_LINKS}
+      backHref={backHref}
+      container={container}
+      className={className}
+    />
   );
 }

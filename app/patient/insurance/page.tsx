@@ -46,10 +46,6 @@ export default async function PatientInsurance() {
                 {/* ==================== RIGHT COLUMN (70% -> 8 cols) ==================== */}
                 <div className="lg:col-span-8 flex flex-col gap-6">
                   <AccountShortcuts />
-                  <div className="hidden md:block mb-2">
-                    <h2 className="font-display-lg text-headline-lg font-bold text-on-surface">Insurance &amp; Billing Details</h2>
-                    <p className="font-body-md text-body-lg text-on-surface-variant mt-2">Manage your insurance policies and view billing statements.</p>
-                  </div>
 
                   {/* Current Active Insurance Card */}
                   <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant/30">

@@ -1,5 +1,5 @@
 import { Metadata } from 'next'
-import { MapPin } from 'lucide-react'
+import { FileText, MapPin } from 'lucide-react'
 import { TopBar } from '@/components/portal/TopBar'
 import { TopBarChip } from '@/components/portal/TopBarChip'
 import { requireExecutive } from './_lib/ops'
@@ -18,6 +18,7 @@ export default async function ExecutiveLayout({ children }: { children: React.Re
         homeHref="/executive/dashboard"
         section="Executive Operations"
         person={{ name: profile.fullName, role: 'Executive' }}
+        links={[{ href: '/executive/policies', label: 'Policies & templates', icon: <FileText /> }]}
         chips={profile.hospitalName && <TopBarChip icon={MapPin}>{profile.hospitalName}</TopBarChip>}
         container="max-w-[1560px] px-margin-x-mobile lg:px-margin-x-desktop"
       />

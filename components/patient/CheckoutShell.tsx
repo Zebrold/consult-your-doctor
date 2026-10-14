@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeft, ShieldCheck, type LucideIcon } from "lucide-react";
+import { ShieldCheck, type LucideIcon } from "lucide-react";
 import { PatientNavHeader } from "@/components/PatientNavHeader";
 import { PatientDock } from "@/components/PatientDock";
 import { formatINR } from "@/components/patient/format";
 
-/** The patient portal around a checkout page: the portal's top bar, the page, and the navigation pill. */
+/** The patient portal around a checkout page: the blue header, the page, and the navigation pill. */
 export function CheckoutShell({ name, email, children }: { name: string | null; email: string | null; children: ReactNode }) {
   return (
     <div className="bg-background text-on-surface antialiased min-h-screen">
@@ -21,9 +21,6 @@ export function CheckoutShell({ name, email, children }: { name: string | null; 
       />
       <main className="w-full px-margin-x-mobile lg:px-margin-x-desktop pt-5 md:pt-8 pb-dock">
         <div className="max-w-[1080px] mx-auto flex flex-col gap-6">
-          <Link href="/patient/appointments" className="hidden md:inline-flex items-center gap-1.5 self-start text-sm font-semibold text-on-surface-variant hover:text-primary transition-colors">
-            <ArrowLeft className="w-4 h-4" /> My appointments
-          </Link>
           {children}
         </div>
       </main>

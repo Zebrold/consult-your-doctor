@@ -2,8 +2,6 @@ import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { withSignedFiles } from '@/lib/records'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
-import { User } from 'lucide-react'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
 import { PatientDock } from '@/components/PatientDock'
 import { ConsultationsList, DiagnosticBookingsList, RecordsAndMedicationsList } from '@/components/PatientDashboardLists'
@@ -121,25 +119,6 @@ export default async function PatientAppointments() {
       <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-dock">
         <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-5 md:pt-8">
           <div className="max-w-[1080px] mx-auto flex flex-col gap-6">
-
-            {/* Header with Title and View Profile action */}
-            <div className="hidden md:flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-outline-variant/20">
-              <div>
-                <h1 className="font-display-lg text-2xl md:text-3xl font-bold text-on-surface tracking-tight">
-                  My Appointments &amp; History
-                </h1>
-                <p className="font-body-md text-sm md:text-base text-on-surface-variant mt-1">
-                  Manage your consultations, diagnostic bookings, and medical records.
-                </p>
-              </div>
-
-              <Link
-                href="/patient/profile"
-                className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-surface-container hover:bg-surface-variant text-sm font-semibold text-primary transition-colors border border-outline-variant/30 shadow-sm"
-              >
-                <User className="w-4 h-4" /> View Profile
-              </Link>
-            </div>
 
             <PatientDashboardActions />
 

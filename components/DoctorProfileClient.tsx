@@ -135,7 +135,7 @@ export function DoctorProfileClient({
   doctor,
   isLoggedIn = false,
   viewer = null,
-  showPatientDock = true,
+  showPatientDock = false,
   isDoctorView = false,
   onEditProfile,
   onManageSchedule
@@ -249,20 +249,23 @@ export function DoctorProfileClient({
     }`;
   
   const bookUrl = isLoggedIn ? targetUrl : `/login?next=${encodeURIComponent(targetUrl)}`;
-  const findUrl = `/find${isPreview ? "?preview=patient" : ""}`;
+  const directoryUrl = isPreview ? "/find?preview=patient" : "/online-doctor";
 
   return (
     <div className="bg-background font-body-md text-on-surface antialiased min-h-screen">
-      {/* Phones: the blue bar, with Book in reach while scrolling */}
-      {!isDoctorView && (
+      {/* The blue bar, only for logged-in patient app view. A doctor looking at the page (no viewer) keeps the
+          Doctor Portal bar on wider screens. */}
+      {!isDoctorView && isLoggedIn && (
         <PhoneBar
           title={`Dr. ${rawName}`}
           subtitle={specialty}
-          backHref={findUrl}
+          backHref={directoryUrl}
           backLabel="Back to Doctor Directory"
           isSignedIn={isLoggedIn}
           name={viewer?.name}
           email={viewer?.email}
+          container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop"
+          phoneOnly={!viewer}
           menu={!isLoggedIn || !!viewer}
           action={
             <Link href={bookUrl} className={barActionClass}>
@@ -271,7 +274,7 @@ export function DoctorProfileClient({
           }
         />
       )}
-      <main className="w-full bg-background pb-dock">
+      <main className={`w-full bg-background ${showPatientDock && isLoggedIn ? "pb-dock" : "pb-12"} ${!isLoggedIn ? "pt-[calc(var(--header-h)+0.75rem)] md:pt-[calc(var(--header-h)+1.5rem)]" : ""}`}>
         <div className="flex flex-col w-full">
           <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop py-stack-lg flex flex-col gap-stack-lg max-w-[1440px] mx-auto">
             {/* Top Navigation / Status Header */}
@@ -294,7 +297,7 @@ export function DoctorProfileClient({
               <nav aria-label="Breadcrumbs" className="flex items-center gap-2 text-sm text-slate-500 font-medium pb-2">
                 <Link href="/" className="hover:text-vibrant-blue transition-colors">Home</Link>
                 <span>/</span>
-                <Link href={findUrl} className="hover:text-vibrant-blue transition-colors">Doctors</Link>
+                <Link href={directoryUrl} className="hover:text-vibrant-blue transition-colors">Doctors</Link>
                 <span>/</span>
                 <span className="text-slate-800 font-semibold truncate">Dr. {rawName}</span>
               </nav>
@@ -458,7 +461,7 @@ export function DoctorProfileClient({
 
                         <Link
                           className="inline-flex items-center gap-1.5 text-primary hover:text-on-primary-fixed-variant font-label-sm text-label-sm font-semibold group"
-                          href={findUrl}
+                          href={directoryUrl}
                         >
                           <span>Back to Doctor Directory</span>
                           <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform inline" />
@@ -891,8 +894,8 @@ export function DoctorProfileClient({
 
 
 
-      {/* FLOATING BOTTOM DOCK: Only shown for patient view */}
-      {showPatientDock && <PatientDock activeTab="find" />}
+      {/* FLOATING BOTTOM DOCK: Only shown for authenticated patient app view */}
+      {showPatientDock && isLoggedIn && <PatientDock activeTab="find" isSignedIn={isLoggedIn} name={viewer?.name} />}
     </div>
   );
 }

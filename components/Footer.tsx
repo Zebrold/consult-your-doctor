@@ -8,7 +8,10 @@ const ourServices = [
   { label: "Hospitals", href: "/hospitals" },
   { label: "Lab tests", href: "/diagnostics" },
   { label: "What we treat", href: "/what-we-treat" },
+  { label: "Prices", href: "/prices" },
   { label: "Join as a doctor", href: "/signup/doctor" },
+  { label: "Join as a hospital", href: "/signup/hospital" },
+  { label: "Join as a diagnostic centre", href: "/signup/diagnostic-centre" },
 ];
 
 const portalLogins = [
@@ -24,9 +27,18 @@ const companyLinks = [
   { label: "How it works", href: "/how-it-works" },
   { label: "Help and FAQ", href: "/how-it-works#faq" },
   { label: "Sign in", logins: portalLogins },
-  { label: "Privacy policy", href: "/privacy-policy" },
-  { label: "Terms of use", href: "/terms-of-use" },
   { label: "Contact us", href: "/contact" },
+];
+
+// The website terms, the most-read signed policies (lib/legal-docs), and the full set at /legal.
+const legalLinks = [
+  { label: "Terms of use", href: "/terms-of-use" },
+  { label: "Privacy policy", href: "/privacy-policy" },
+  { label: "Privacy notice & consent", href: "/legal/privacy-notice-and-consent-forms" },
+  { label: "AI use policy", href: "/legal/ai-use-policy" },
+  { label: "Telemedicine standards", href: "/legal/telemedicine-standard-operating-procedure" },
+  { label: "Data retention", href: "/legal/data-retention-and-deletion-policy" },
+  { label: "All legal documents", href: "/legal", strong: true },
 ];
 
 export function Footer() {
@@ -86,7 +98,7 @@ export function Footer() {
         {/* Main 3-Column Section */}
         <div className="grid grid-cols-2 lg:grid-cols-12 gap-x-6 gap-y-8 lg:gap-10 items-start">
           {/* Column 1: Brand & Badges */}
-          <div className="col-span-2 lg:col-span-5 flex flex-col justify-between pr-0 lg:pr-6">
+          <div className="col-span-2 lg:col-span-4 flex flex-col justify-between pr-0 lg:pr-6">
             <div>
               {/* Logo */}
               <Link
@@ -144,13 +156,8 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Divider between Col 1 & Col 2 on Desktop */}
-          <div className="hidden lg:block lg:col-span-1 h-full flex justify-center py-2" aria-hidden="true">
-            <div className="w-[1px] h-full min-h-[260px] bg-white/20 mx-auto" />
-          </div>
-
           {/* Column 2: Our Services */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-3 lg:border-l lg:border-white/20 lg:pl-8">
             <h3 className="font-bold text-white text-[16.5px] tracking-wide mb-4 flex items-center">
               Services
             </h3>
@@ -169,13 +176,8 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Divider between Col 2 & Col 3 on Desktop */}
-          <div className="hidden lg:block lg:col-span-1 h-full flex justify-center py-2" aria-hidden="true">
-            <div className="w-[1px] h-full min-h-[260px] bg-white/20 mx-auto" />
-          </div>
-
           {/* Column 3: Company */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 lg:border-l lg:border-white/20 lg:pl-8">
             <h3 className="font-bold text-white text-[16.5px] tracking-wide mb-4 flex items-center">
               Company
             </h3>
@@ -211,6 +213,26 @@ export function Footer() {
                       <span>{item.label}</span>
                     </Link>
                   )}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Column 4: Legal */}
+          <div className="col-span-2 lg:col-span-3 lg:border-l lg:border-white/20 lg:pl-8">
+            <h3 className="font-bold text-white text-[16.5px] tracking-wide mb-4 flex items-center">
+              Legal
+            </h3>
+            <ul className="grid grid-cols-2 lg:grid-cols-1 gap-x-6 md:gap-y-2 text-[14px] md:text-[13.5px]">
+              {legalLinks.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={`group inline-flex items-center gap-2 py-2 md:py-0 hover:text-white transition-colors focus-visible:outline-none focus-visible:underline ${item.strong ? "text-white font-semibold" : "text-white/85"}`}
+                  >
+                    <ChevronRight className="w-3.5 h-3.5 text-white/60 group-hover:text-white transition-colors shrink-0" />
+                    <span>{item.label}</span>
+                  </Link>
                 </li>
               ))}
             </ul>

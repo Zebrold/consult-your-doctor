@@ -4,7 +4,7 @@ import { useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { Building2, CalendarDays, ChevronRight, FlaskConical, LifeBuoy, LogIn, LogOut, Stethoscope, UserRound, X, type LucideIcon } from "lucide-react";
 
-/** A panel that slides up from the bottom over a dimmed page. */
+/** A panel that slides up from the bottom over a dimmed page (a centred dialog on wider screens). */
 export function Sheet({ title, subtitle, onClose, children }: { title: string; subtitle?: string; onClose: () => void; children: ReactNode }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -17,10 +17,10 @@ export function Sheet({ title, subtitle, onClose, children }: { title: string; s
     };
   }, [onClose]);
   return (
-    <div className="fixed inset-0 z-[60] flex items-end" role="dialog" aria-modal="true" aria-label={title}>
+    <div className="fixed inset-0 z-[60] flex items-end md:items-center md:justify-center md:p-6" role="dialog" aria-modal="true" aria-label={title}>
       <button type="button" tabIndex={-1} aria-label="Close" onClick={onClose} className="absolute inset-0 w-full h-full bg-slate-900/40" />
-      <div className="relative w-full max-h-[85dvh] overflow-y-auto overscroll-contain bg-white rounded-t-[28px] shadow-[0_-12px_40px_rgba(15,23,42,0.2)] px-4 pt-2 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
-        <span aria-hidden className="block w-10 h-1.5 rounded-full bg-slate-200 mx-auto mb-3" />
+      <div className="relative w-full max-h-[85dvh] overflow-y-auto overscroll-contain bg-white rounded-t-[28px] md:max-w-lg md:rounded-[28px] shadow-[0_-12px_40px_rgba(15,23,42,0.2)] px-4 md:px-6 pt-2 md:pt-6 pb-[calc(1.25rem+env(safe-area-inset-bottom))] md:pb-6">
+        <span aria-hidden className="block md:hidden w-10 h-1.5 rounded-full bg-slate-200 mx-auto mb-3" />
         <div className="flex items-start justify-between gap-3 mb-4">
           <div>
             <p className="font-title-md text-[19px] font-extrabold text-indigo-gray-900">{title}</p>
@@ -77,6 +77,7 @@ export function MenuSheet({ name, email, isSignedIn, onClose }: { name: string |
       <p className="mt-4 px-2 flex gap-4 text-[13px] text-slate-500">
         <Link href="/terms-of-use" onClick={onClose} className="py-1.5">Terms &amp; Conditions</Link>
         <Link href="/privacy-policy" onClick={onClose} className="py-1.5">Privacy Policy</Link>
+        <Link href="/legal" onClick={onClose} className="py-1.5">Legal</Link>
       </p>
     </Sheet>
   );

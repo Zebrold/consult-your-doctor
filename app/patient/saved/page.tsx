@@ -46,10 +46,6 @@ export default async function PatientSaved() {
                 {/* ==================== RIGHT COLUMN (70% -> 8 cols) ==================== */}
                 <div className="lg:col-span-8 flex flex-col gap-6">
                   <AccountShortcuts />
-                  <div className="hidden md:block mb-2">
-                    <h2 className="font-display-lg text-headline-lg font-bold text-on-surface">Saved Doctors &amp; Diagnostics</h2>
-                    <p className="font-body-md text-body-lg text-on-surface-variant mt-2">Quickly access your favorite practitioners and preferred lab centers.</p>
-                  </div>
 
                   <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant/30">
                     <h3 className="font-title-md text-title-md font-bold text-on-surface mb-6 flex items-center gap-2">

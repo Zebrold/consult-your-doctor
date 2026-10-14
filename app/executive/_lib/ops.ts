@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { matchBookedTests, sumPrices } from '@/lib/pricing'
+import type { PartnerApplication, PartnerKind } from '@/lib/partner-applications'
 
 type Admin = ReturnType<typeof createAdminClient>
 
@@ -305,6 +306,51 @@ export async function loadApplications(admin: Admin): Promise<Application[]> {
   }))
 }
 
+type RawPartnerApplication = {
+  id: string
+  kind: PartnerKind
+  organization_name: string
+  city: string
+  address: string | null
+  contact_name: string
+  contact_role: string | null
+  email: string
+  phone: string
+  registration_number: string | null
+  details: PartnerApplication['details'] | null
+  status: PartnerApplication['status']
+  created_at: string
+}
+
+/** Hospital or diagnostic centre applications, newest first. Empty until the partner_applications migration runs. */
+export async function loadPartnerApplications(admin: Admin, kind: PartnerKind): Promise<PartnerApplication[]> {
+  const { data, error } = await admin
+    .from('partner_applications')
+    .select('id, kind, organization_name, city, address, contact_name, contact_role, email, phone, registration_number, details, status, created_at')
+    .eq('kind', kind)
+    .order('created_at', { ascending: false })
+    .limit(200)
+  if (error) {
+    console.error('loadPartnerApplications:', error.message)
+    return []
+  }
+  return ((data ?? []) as RawPartnerApplication[]).map((row) => ({
+    id: row.id,
+    kind: row.kind,
+    organizationName: row.organization_name,
+    city: row.city,
+    address: row.address,
+    contactName: row.contact_name,
+    contactRole: row.contact_role,
+    email: row.email,
+    phone: row.phone,
+    registrationNumber: row.registration_number,
+    details: row.details ?? {},
+    status: row.status,
+    createdAt: row.created_at,
+  }))
+}
+
 export type Doctor = {
   id: string
   name: string
@@ -376,7 +422,7 @@ export async function loadNetworkCounts(admin: Admin) {
 
 export type AttentionItem = {
   id: string
-  category: 'doctors' | 'consultations' | 'diagnostics'
+  category: 'doctors' | 'partners' | 'consultations' | 'diagnostics'
   severity: 'high' | 'medium'
   title: string
   detail: string
@@ -394,11 +440,16 @@ const HOUR = 3600_000
 
 /**
  * Items that need a person to act, derived from real booking and application data:
- * doctor applications awaiting review, bookings unpaid for over a day, appointments never checked in,
+ * doctor, hospital and diagnostic centre applications awaiting review, bookings unpaid for over a day, appointments never checked in,
  * overdue lab visits, and lab reports not sent two days after collection.
  */
 export function buildAttentionItems(
-  { appointments, labBookings, applications }: { appointments: Appointment[]; labBookings: LabBooking[]; applications: Application[] },
+  {
+    appointments,
+    labBookings,
+    applications,
+    partnerApplications = [],
+  }: { appointments: Appointment[]; labBookings: LabBooking[]; applications: Application[]; partnerApplications?: PartnerApplication[] },
   now: number
 ): AttentionItem[] {
   const items: AttentionItem[] = []
@@ -421,6 +472,27 @@ export function buildAttentionItems(
       sinceLabel: `Applied ${timeAgo(app.createdAt, now)}`,
       status: 'Pending review',
       href: '/executive/doctors#applications',
+      actionLabel: 'Review application',
+    })
+  }
+
+  for (const app of partnerApplications) {
+    if (app.status !== 'pending') continue
+    const waited = now - new Date(app.createdAt).getTime()
+    const hospital = app.kind === 'hospital'
+    items.push({
+      id: `partner-${app.id}`,
+      category: 'partners',
+      severity: waited > 48 * HOUR ? 'high' : 'medium',
+      title: hospital ? 'Hospital application awaiting review' : 'Diagnostic centre application awaiting review',
+      detail: [app.city, app.contactName].filter(Boolean).join(' · '),
+      who: app.organizationName,
+      phone: app.phone,
+      portal: hospital ? 'Hospital onboarding' : 'Diagnostic centre onboarding',
+      since: app.createdAt,
+      sinceLabel: `Applied ${timeAgo(app.createdAt, now)}`,
+      status: 'Pending review',
+      href: hospital ? '/executive/hospitals#applications' : '/executive/diagnostics#applications',
       actionLabel: 'Review application',
     })
   }

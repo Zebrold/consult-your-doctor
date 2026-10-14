@@ -2,7 +2,7 @@
 
 import { useState, useTransition, type FormEvent, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { CircleCheck, KeyRound, Plus, Trash2 } from 'lucide-react'
+import { CircleCheck, KeyRound, Plus, Trash2, UserCheck } from 'lucide-react'
 import { DeskDialog, ErrorNote, Field, PrimaryButton, QuietButton, deskInput } from '@/components/portal/desk'
 import { addOrganizationLogin, createDiagnosticCenter, createDoctorAccount, createHospital } from '@/app/actions/network'
 
@@ -11,7 +11,21 @@ import { addOrganizationLogin, createDiagnosticCenter, createDoctorAccount, crea
 
 const PASSWORD_HINT = 'At least 10 characters, with letters and numbers. Share it privately, never by email or chat.'
 
-function OpenButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {
+/** A hospital or centre application (/signup/hospital, /signup/diagnostic-centre) to add to the network. */
+export type ApplicationPrefill = { id: string; name: string; city: string; address: string | null; email: string; contactName: string }
+
+function OpenButton({ children, onClick, approve = false }: { children: ReactNode; onClick: () => void; approve?: boolean }) {
+  if (approve) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary text-[13px] font-bold shadow-sm transition-colors"
+      >
+        <UserCheck className="w-4 h-4" /> {children}
+      </button>
+    )
+  }
   return (
     <button
       type="button"
@@ -50,29 +64,30 @@ function Created({ title, rows, note, onClose }: { title: string; rows: [string,
 }
 
 /** Name, city, address, contact email, and the staff sign-in fields shared by hospitals and centres. */
-function OrgFields({ kind }: { kind: 'hospital' | 'lab' }) {
+function OrgFields({ kind, prefill }: { kind: 'hospital' | 'lab'; prefill?: ApplicationPrefill }) {
   const noun = kind === 'hospital' ? 'hospital' : 'centre'
   return (
     <>
+      {prefill && <input type="hidden" name="applicationId" value={prefill.id} />}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label={kind === 'hospital' ? 'Hospital name' : 'Centre name'} className="sm:col-span-2">
-          <input name="name" required minLength={2} maxLength={160} className={deskInput} autoComplete="organization" />
+          <input name="name" required minLength={2} maxLength={160} defaultValue={prefill?.name} className={deskInput} autoComplete="organization" />
         </Field>
         <Field label="City">
-          <input name="city" required minLength={2} maxLength={80} className={deskInput} autoComplete="address-level2" />
+          <input name="city" required minLength={2} maxLength={80} defaultValue={prefill?.city} className={deskInput} autoComplete="address-level2" />
         </Field>
         <Field label="Contact email" hint="Optional">
-          <input name="contactEmail" type="email" maxLength={160} className={deskInput} autoComplete="email" />
+          <input name="contactEmail" type="email" maxLength={160} defaultValue={prefill?.email} className={deskInput} autoComplete="email" />
         </Field>
         <Field label="Address" className="sm:col-span-2">
-          <input name="address" maxLength={300} className={deskInput} autoComplete="street-address" />
+          <input name="address" maxLength={300} defaultValue={prefill?.address ?? undefined} className={deskInput} autoComplete="street-address" />
         </Field>
       </div>
       <fieldset className="flex flex-col gap-3 rounded-xl border border-outline-variant/50 p-4">
         <legend className="px-1 text-sm font-semibold text-indigo-gray-900">Staff sign-in for this {noun}</legend>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Account name" hint={`Optional. Defaults to "<name> Admin".`}>
-            <input name="adminName" maxLength={120} className={deskInput} />
+            <input name="adminName" maxLength={120} defaultValue={prefill?.contactName} className={deskInput} />
           </Field>
           <Field label="Staff ID" hint="Optional. Leave blank to generate one.">
             <input name="staffId" maxLength={24} pattern="[A-Za-z0-9-]{4,24}" className={`${deskInput} uppercase`} autoCapitalize="characters" />
@@ -106,29 +121,37 @@ function useSubmit<T extends { success: true } | { success: false; error: string
   return { pending, error, done, submit, reset: () => { setError(''); setDone(null) } }
 }
 
-export function AddHospitalButton() {
+const APPLICANT_NOTE = ' The applicant has been emailed their staff ID; give them the password privately.'
+
+/** Adds a hospital; with `fromApplication`, approves that application by adding it pre-filled. */
+export function AddHospitalButton({ fromApplication }: { fromApplication?: ApplicationPrefill } = {}) {
   const [open, setOpen] = useState(false)
   const { pending, error, done, submit, reset } = useSubmit(createHospital)
   const close = () => { setOpen(false); reset() }
   return (
     <>
-      <OpenButton onClick={() => setOpen(true)}>Add hospital</OpenButton>
+      <OpenButton onClick={() => setOpen(true)} approve={!!fromApplication}>{fromApplication ? 'Approve & add' : 'Add hospital'}</OpenButton>
       {open && (
-        <DeskDialog title="Add a hospital" subtitle="It is listed for booking straight away, and its staff sign in with the ID below." onClose={close} wide>
+        <DeskDialog
+          title={fromApplication ? `Approve ${fromApplication.name}` : 'Add a hospital'}
+          subtitle={fromApplication ? 'Check the details from the application, then set the staff sign-in. It is listed for booking straight away.' : 'It is listed for booking straight away, and its staff sign in with the ID below.'}
+          onClose={close}
+          wide
+        >
           {done ? (
             <Created
               title="Hospital added"
               rows={[['Hospital ID', done.code], ['Staff ID', done.staffId]]}
-              note="Give the hospital's staff their staff ID and the password you set. They sign in at Login → Hospitals and can add their doctors and slots."
+              note={`Give the hospital's staff their staff ID and the password you set. They sign in at Login → Hospitals and can add their doctors and slots.${fromApplication ? APPLICANT_NOTE : ''}`}
               onClose={close}
             />
           ) : (
             <form onSubmit={(e) => submit(e)} className="flex flex-col gap-4">
-              <OrgFields kind="hospital" />
+              <OrgFields kind="hospital" prefill={fromApplication} />
               <ErrorNote>{error}</ErrorNote>
               <div className="flex justify-end gap-2">
                 <QuietButton onClick={close}>Cancel</QuietButton>
-                <PrimaryButton pending={pending}>Add hospital</PrimaryButton>
+                <PrimaryButton pending={pending}>{fromApplication ? 'Approve & add hospital' : 'Add hospital'}</PrimaryButton>
               </div>
             </form>
           )}
@@ -140,7 +163,8 @@ export function AddHospitalButton() {
 
 const STARTER_TESTS = ['Complete Blood Count (CBC)', 'Thyroid Profile', 'Lipid Profile', 'X-Ray', 'Ultrasound', 'ECG']
 
-export function AddDiagnosticCenterButton() {
+/** Adds a diagnostic centre; with `fromApplication`, approves that application by adding it pre-filled. */
+export function AddDiagnosticCenterButton({ fromApplication }: { fromApplication?: ApplicationPrefill } = {}) {
   const [open, setOpen] = useState(false)
   const [tests, setTests] = useState(() => STARTER_TESTS.map((name) => ({ name, price: '' })))
   const { pending, error, done, submit, reset } = useSubmit(createDiagnosticCenter)
@@ -148,14 +172,19 @@ export function AddDiagnosticCenterButton() {
   const priced = tests.filter((t) => t.name.trim() && t.price !== '')
   return (
     <>
-      <OpenButton onClick={() => setOpen(true)}>Add diagnostic centre</OpenButton>
+      <OpenButton onClick={() => setOpen(true)} approve={!!fromApplication}>{fromApplication ? 'Approve & add' : 'Add diagnostic centre'}</OpenButton>
       {open && (
-        <DeskDialog title="Add a diagnostic centre" subtitle="Patients can book its priced tests straight away; the centre can edit its menu later." onClose={close} wide>
+        <DeskDialog
+          title={fromApplication ? `Approve ${fromApplication.name}` : 'Add a diagnostic centre'}
+          subtitle={fromApplication ? 'Check the details from the application, then set the staff sign-in. Patients can book its priced tests straight away.' : 'Patients can book its priced tests straight away; the centre can edit its menu later.'}
+          onClose={close}
+          wide
+        >
           {done ? (
             <Created
               title="Diagnostic centre added"
               rows={[['Centre ID', done.code], ['Staff ID', done.staffId]]}
-              note="Give the centre's staff their staff ID and the password you set. They sign in at Login → Diagnostic centres and manage tests, bookings and reports."
+              note={`Give the centre's staff their staff ID and the password you set. They sign in at Login → Diagnostic centres and manage tests, bookings and reports.${fromApplication ? APPLICANT_NOTE : ''}`}
               onClose={close}
             />
           ) : (
@@ -163,7 +192,7 @@ export function AddDiagnosticCenterButton() {
               onSubmit={(e) => submit(e, (form) => form.set('tests', JSON.stringify(priced.map((t) => ({ name: t.name.trim(), price: Number(t.price) })))))}
               className="flex flex-col gap-4"
             >
-              <OrgFields kind="lab" />
+              <OrgFields kind="lab" prefill={fromApplication} />
               <fieldset className="flex flex-col gap-2 rounded-xl border border-outline-variant/50 p-4">
                 <legend className="px-1 text-sm font-semibold text-indigo-gray-900">Starting price list</legend>
                 <p className="text-[12px] text-indigo-gray-600">Only tests with a price are listed. Leave this empty if the centre will add its own.</p>
@@ -199,7 +228,7 @@ export function AddDiagnosticCenterButton() {
               <ErrorNote>{error}</ErrorNote>
               <div className="flex justify-end gap-2">
                 <QuietButton onClick={close}>Cancel</QuietButton>
-                <PrimaryButton pending={pending}>Add centre</PrimaryButton>
+                <PrimaryButton pending={pending}>{fromApplication ? 'Approve & add centre' : 'Add centre'}</PrimaryButton>
               </div>
             </form>
           )}

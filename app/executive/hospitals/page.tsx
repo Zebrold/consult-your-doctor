@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
-import { Building2, KeyRound, MapPin, Stethoscope } from 'lucide-react'
-import { requireExecutive } from '../_lib/ops'
+import { Building2, ClipboardList, KeyRound, MapPin, Stethoscope } from 'lucide-react'
+import { currentTime, loadPartnerApplications, requireExecutive, timeAgo } from '../_lib/ops'
 import { Chip, EmptyState, MetricCard, PageHeader, Panel } from '../_components/ui'
 import { AddHospitalButton, AddLoginButton } from '../_components/NetworkForms'
+import { PartnerQueue } from '../_components/PartnerQueue'
 
 export const metadata: Metadata = { title: 'Partner Hospitals' }
 
@@ -19,11 +20,16 @@ type HospitalRow = {
 export default async function ExecutiveHospitalsPage() {
   const { admin } = await requireExecutive()
 
-  const [{ data: hospitalRows }, { data: doctorRows }, { data: loginRows }] = await Promise.all([
+  const [{ data: hospitalRows }, { data: doctorRows }, { data: loginRows }, applications] = await Promise.all([
     admin.from('hospitals').select('id, name, city, address, status, hospital_code, created_at').order('name'),
     admin.from('doctors').select('hospital_id'),
     admin.from('profiles').select('hospital_id, staff_id').eq('role', 'hospital_admin'),
+    loadPartnerApplications(admin, 'hospital'),
   ])
+  const now = currentTime()
+  // Oldest first, so the longest wait is reviewed first.
+  const pendingApplications = applications.filter((a) => a.status === 'pending').reverse()
+  const appliedLabels = Object.fromEntries(pendingApplications.map((a) => [a.id, timeAgo(a.createdAt, now)]))
 
   const doctorCount = new Map<string, number>()
   for (const d of (doctorRows ?? []) as { hospital_id: string | null }[]) {
@@ -55,6 +61,16 @@ export default async function ExecutiveHospitalsPage() {
         <MetricCard label="Doctors" value={totalDoctors} icon={Stethoscope} tone="primary" footer={<span>Across all hospitals</span>} />
         <MetricCard label="Without a login" value={withoutLogin} icon={KeyRound} tone={withoutLogin ? 'coral' : 'neutral'} footer={<span>{withoutLogin ? 'Create one below' : 'Every hospital can sign in'}</span>} />
       </section>
+
+      <Panel
+        id="applications"
+        title="Hospital Applications"
+        icon={ClipboardList}
+        description="Hospitals that applied to join at /signup/hospital. Approving adds the hospital and its staff sign-in, and emails the applicant their staff ID."
+        aside={<Chip tone={pendingApplications.length ? 'coral' : 'teal'} dot>{pendingApplications.length} pending</Chip>}
+      >
+        <PartnerQueue applications={pendingApplications} submittedLabels={appliedLabels} />
+      </Panel>
 
       <Panel title="All hospitals" icon={Building2} description="Each hospital's staff manage their own listing, doctors, slots and payments.">
         {hospitals.length === 0 ? (

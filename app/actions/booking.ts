@@ -191,10 +191,23 @@ async function savePatientBasics(supabase: Supabase, userId: string, formData: F
   if (current?.full_name !== fullName) updates.full_name = fullName
   if (current?.phone_number !== phone) updates.phone_number = phone
   if (Object.keys(updates).length > 0) {
-    const { error } = await supabase.from('profiles').update(updates).eq('id', userId)
-    if (error) {
-      console.error('Error saving patient profile:', error)
-      return error.code === '23505' ? 'This mobile number is already registered to another account.' : 'Could not save your details. Please try again.'
+    if (!current) {
+      const { error } = await supabase.from('profiles').insert({
+        id: userId,
+        full_name: fullName,
+        phone_number: phone,
+        role: 'patient',
+      })
+      if (error) {
+        console.error('Error creating patient profile:', error)
+        return error.code === '23505' ? 'This mobile number is already registered to another account.' : 'Could not save your details. Please try again.'
+      }
+    } else {
+      const { error } = await supabase.from('profiles').update(updates).eq('id', userId)
+      if (error) {
+        console.error('Error saving patient profile:', error)
+        return error.code === '23505' ? 'This mobile number is already registered to another account.' : 'Could not save your details. Please try again.'
+      }
     }
   }
 

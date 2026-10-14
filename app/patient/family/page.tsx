@@ -46,10 +46,6 @@ export default async function PatientFamily() {
                 {/* ==================== RIGHT COLUMN (70% -> 8 cols) ==================== */}
                 <div className="lg:col-span-8 flex flex-col gap-6">
                   <AccountShortcuts />
-                  <div className="hidden md:block mb-2">
-                    <h2 className="font-display-lg text-headline-lg font-bold text-on-surface">Family Members &amp; Dependents</h2>
-                    <p className="font-body-md text-body-lg text-on-surface-variant mt-2">Manage linked ABDM profiles and health records for your family.</p>
-                  </div>
 
                   <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant/30 flex flex-col items-center justify-center text-center py-12">
                     <div className="w-16 h-16 bg-surface-container-high rounded-full flex items-center justify-center text-vibrant-blue mb-4">

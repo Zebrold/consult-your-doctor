@@ -1,10 +1,12 @@
 import { jsonLd } from "@/lib/json-ld";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { Metadata } from "next";
-import Link from "next/link";
-import { MapPin, UserCircle, CheckCircle2, Building2 } from "lucide-react";
-import Image from "next/image";
 import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
+import { PatientNavHeader } from "@/components/PatientNavHeader";
+import { PatientDock } from "@/components/PatientDock";
+import { DoctorsDirectoryClient, DirectoryDoctor } from "@/components/DoctorsDirectoryClient";
+import { doctorName } from "@/components/patient/format";
 
 export const revalidate = 0;
 
@@ -13,10 +15,35 @@ export const metadata: Metadata = {
   description: "Browse our comprehensive directory of top-rated doctors and medical specialists. Book consultations and view patient reviews.",
 };
 
+type Joined<T> = T | T[] | null;
+type RawDoctor = {
+  id: string;
+  specialty: string | null;
+  experience_years: number | null;
+  consultation_fee: number | null;
+  image_url: string | null;
+  profiles: Joined<{ full_name: string | null }>;
+  hospitals: Joined<{ name: string | null; city: string | null; address: string | null }>;
+  departments: Joined<{ name: string | null }>;
+};
+
+const one = <T,>(v: Joined<T>) => (Array.isArray(v) ? v[0] ?? null : v);
+
 export default async function DoctorsDirectoryPage() {
   const supabase = await createClient();
+  const user = await getCurrentUser();
+  let viewer = null;
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, role, email")
+      .eq("id", user.id)
+      .maybeSingle();
+    viewer = profile;
+  }
+  const isLoggedIn = !!user;
 
-  const { data: doctors } = await supabase
+  const { data: rawDoctors } = await supabase
     .from("doctors")
     .select(`
       id,
@@ -28,86 +55,73 @@ export default async function DoctorsDirectoryPage() {
       hospitals!inner(name, city, address),
       departments(name)
     `)
-    .limit(50); // Limit to 50 for the top-level directory
+    .limit(100);
+
+  const doctors: DirectoryDoctor[] = ((rawDoctors ?? []) as unknown as RawDoctor[]).map((d) => {
+    const profile = one(d.profiles);
+    const hospital = one(d.hospitals);
+    const department = one(d.departments);
+    return {
+      id: d.id,
+      name: doctorName(profile?.full_name),
+      specialty: department?.name || d.specialty || null,
+      experienceYears: d.experience_years,
+      fee: d.consultation_fee,
+      image: d.image_url,
+      hospital: hospital?.name || null,
+      city: hospital?.city || null,
+      address: hospital?.address || null,
+    };
+  });
 
   const schema = {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    "itemListElement": (doctors || []).map((doc, index) => ({
+    "itemListElement": doctors.map((doc, index) => ({
       "@type": "ListItem",
       "position": index + 1,
-      "url": `https://consultyourdoctor.de/doctors/${doc.id}`
-    }))
+      "url": `https://consultyourdoctor.de/doctors/${doc.id}`,
+    })),
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLd(schema) }}
       />
-      <Header />
-      
-      <main className="flex-1 pt-[calc(var(--header-h)+2rem)] md:pt-[calc(var(--header-h)+3rem)] pb-12">
+      {isLoggedIn ? (
+        <PatientNavHeader
+          isSignedIn={isLoggedIn}
+          name={viewer?.full_name || user?.user_metadata?.full_name}
+          email={viewer?.email || user?.email}
+          container="max-w-7xl px-4 sm:px-6 lg:px-8"
+        />
+      ) : (
+        <Header />
+      )}
+
+      <main className="flex-1 pt-[calc(var(--header-h)+2rem)] md:pt-[calc(var(--header-h)+3rem)] pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8 md:mb-12">
-            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900 mb-3 md:mb-4">
-              Our Medical Specialists
+          <div className="text-center mb-10 md:mb-12">
+            <p className="text-sm font-semibold text-vibrant-blue mb-2">Medical Specialists</p>
+            <h1 className="font-display-lg text-3xl md:text-5xl font-bold tracking-tight text-indigo-gray-900 mb-3 md:mb-4">
+              Find the Right Doctor
             </h1>
-            <p className="text-base md:text-xl text-gray-600 max-w-2xl mx-auto">
-              Find and book appointments with highly rated doctors practicing at premium hospitals and clinics.
+            <p className="text-base md:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
+              Browse verified specialists across partner hospitals. Compare fees and book consultations online with no queue.
             </p>
           </div>
 
-          {doctors && doctors.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {doctors.map((item: any) => (
-                <div key={item.id} className="bg-white border border-gray-200 rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
-                  <div className="flex gap-4 mb-4">
-                    <div className="w-20 h-20 bg-gray-100 rounded-lg shrink-0 flex items-center justify-center relative overflow-hidden">
-                      {item.image_url ? (
-                        <Image src={item.image_url} alt={item.profiles?.full_name || "Doctor"} fill className="object-cover" />
-                      ) : (
-                        <UserCircle className="w-10 h-10 text-gray-300" />
-                      )}
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-gray-900 text-lg mb-1 line-clamp-1" title={item.profiles?.full_name}>{item.profiles?.full_name}</h3>
-                      <p className="text-sm text-[#E31E24] font-medium mb-1 line-clamp-1">{item.departments?.name || item.specialty}</p>
-                      <p className="text-xs text-gray-600">{item.experience_years} Years Experience</p>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2 mb-4 pt-4 border-t border-gray-100">
-                    <div className="flex items-start gap-2 text-sm text-gray-600">
-                      <Building2 className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-                      <span className="leading-tight line-clamp-1">{item.hospitals?.name}</span>
-                    </div>
-                    <div className="flex items-start gap-2 text-sm text-gray-600">
-                      <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-                      <span className="line-clamp-1">{item.hospitals?.city}</span>
-                    </div>
-                    <div className="flex justify-between items-center pt-2">
-                      <span className="text-sm font-bold text-gray-900">₹{item.consultation_fee} Fee</span>
-                      <span className="text-xs text-green-600 font-medium flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Available</span>
-                    </div>
-                  </div>
-                  
-                  <Link href={`/doctors/${item.id}`} className="mt-auto w-full py-2.5 bg-white border-2 border-gray-200 text-gray-700 text-sm font-bold hover:border-[#E31E24] hover:text-[#E31E24] transition-colors rounded-full text-center">
-                    View Profile
-                  </Link>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
-              <UserCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">No Doctors Found</h2>
-              <p className="text-gray-500">We couldn't find any registered doctors yet.</p>
-            </div>
-          )}
+          <DoctorsDirectoryClient doctors={doctors} />
         </div>
       </main>
+
+      {isLoggedIn ? (
+        <PatientDock activeTab="find" isSignedIn={isLoggedIn} name={viewer?.full_name || user?.user_metadata?.full_name} />
+      ) : (
+        <Footer />
+      )}
     </div>
   );
 }

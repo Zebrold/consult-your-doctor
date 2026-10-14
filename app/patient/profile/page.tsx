@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
-  BedDouble, Building2, CalendarDays, CircleAlert, CircleCheck, Download, FileText, FlaskConical, HeartPulse, IdCard, MapPin, Microscope,
+  BedDouble, Building2, CircleAlert, CircleCheck, Download, FileText, FlaskConical, HeartPulse, IdCard, MapPin, Microscope,
   Pill, Receipt, Siren, SquarePen, Stethoscope, Phone, type LucideIcon,
 } from 'lucide-react'
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
@@ -245,10 +245,6 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
 
               <div className="lg:col-span-8 flex flex-col gap-6">
                 <AccountShortcuts />
-                <div className="hidden md:block mb-2">
-                  <h1 className="font-display-lg text-headline-lg font-bold text-on-surface">Personal Information &amp; History</h1>
-                  <p className="font-body-md text-body-lg text-on-surface-variant mt-2">Your medical details, lab reports and payments in one place.</p>
-                </div>
 
                 {isSetupMandatory && (
                   <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-in fade-in duration-300">
@@ -278,12 +274,6 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
                 {payment === 'failed' && (
                   <Banner tone="coral" icon={CircleAlert}>The payment didn&apos;t go through, so the booking isn&apos;t confirmed yet. You can try again from &ldquo;Awaiting payment&rdquo; below.</Banner>
                 )}
-
-                <div className="hidden md:grid grid-cols-3 gap-3 md:gap-4">
-                  <Stat href="/patient/appointments" label="Upcoming visits" value={upcoming.length} icon={CalendarDays} tint="text-primary" />
-                  <Stat href="#labs" label="Lab reports" value={reportsSent} icon={Microscope} tint="text-fresh-teal" />
-                  <Stat href="#records" label="Prescriptions" value={records} icon={FileText} tint="text-on-surface-variant" />
-                </div>
 
                 {(admissions.current || admissions.past.length > 0) && (
                   <Section
@@ -576,20 +566,6 @@ function Banner({ tone, icon: Icon, children }: { tone: 'teal' | 'coral'; icon: 
       <Icon className="w-5 h-5 shrink-0" />
       <span>{children}</span>
     </div>
-  )
-}
-
-function Stat({ href, label, value, icon: Icon, tint }: { href: string; label: string; value: number; icon: LucideIcon; tint: string }) {
-  return (
-    <Link href={href} className="group rounded-xl bg-surface-container-lowest p-4 md:p-5 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-2">
-      <span className="flex flex-col min-w-0">
-        <span className="font-title-md text-[22px] md:text-[28px] font-bold text-on-surface leading-none">{value}</span>
-        <span className="font-label-sm text-[11px] md:text-label-sm text-on-surface-variant mt-1.5 leading-tight">{label}</span>
-      </span>
-      <span className={`hidden md:flex w-11 h-11 rounded-xl bg-surface-container-low ${tint} items-center justify-center transition-transform shrink-0`}>
-        <Icon className="w-[22px] h-[22px]" />
-      </span>
-    </Link>
   )
 }
 

@@ -2,7 +2,6 @@ import { jsonLd } from '@/lib/json-ld'
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
-import { PatientNavHeader } from '@/components/PatientNavHeader'
 import { PatientDock } from '@/components/PatientDock'
 import { PhoneBar } from '@/components/patient/PhoneHeader'
 import { MapPin, Mail, Phone, Building2, UserCircle, CheckCircle2, Award, FlaskConical, ShieldCheck, Siren, ArrowRight } from 'lucide-react'
@@ -112,26 +111,16 @@ export default async function HospitalProfilePage(
         dangerouslySetInnerHTML={{ __html: jsonLd(schema) }}
       />
       {isLoggedIn ? (
-        <>
-          <PatientNavHeader
-            isSignedIn={isLoggedIn}
-            name={viewer?.full_name || user?.user_metadata?.full_name}
-            email={viewer?.email || user?.email}
-            container="max-w-[1440px] px-4 sm:px-6 md:px-8"
-            backHref="/hospitals"
-            className="hidden md:block"
-          />
-          {/* Phones: the blue bar */}
-          <PhoneBar
-            title={hospital.name}
-            subtitle={hospital.city}
-            backHref="/hospitals"
-            backLabel="Back to Hospitals"
-            isSignedIn={isLoggedIn}
-            name={viewer?.full_name || user?.user_metadata?.full_name}
-            email={viewer?.email || user?.email}
-          />
-        </>
+        <PhoneBar
+          title={hospital.name}
+          subtitle={hospital.city}
+          backHref="/hospitals"
+          backLabel="Back to Hospitals"
+          isSignedIn={isLoggedIn}
+          name={viewer?.full_name || user?.user_metadata?.full_name}
+          email={viewer?.email || user?.email}
+          container="max-w-[1440px] px-4 sm:px-6 md:px-8"
+        />
       ) : (
         <Header />
       )}

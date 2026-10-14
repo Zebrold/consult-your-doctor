@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, CircleCheck, Microscope, Phone, Stethoscope, UserRound } from 'lucide-react'
+import { ArrowRight, Building2, CircleCheck, Microscope, Phone, Stethoscope, UserRound } from 'lucide-react'
 import type { AttentionItem } from '../_lib/ops'
 import { Chip, EmptyState } from './ui'
 
@@ -10,11 +10,12 @@ const filters = [
   { id: 'all', label: 'All' },
   { id: 'high', label: 'Critical' },
   { id: 'doctors', label: 'Doctor applications' },
+  { id: 'partners', label: 'Hospital & lab applications' },
   { id: 'consultations', label: 'Consultations' },
   { id: 'diagnostics', label: 'Diagnostics' },
 ] as const
 
-const portalIcons = { doctors: Stethoscope, consultations: UserRound, diagnostics: Microscope }
+const portalIcons = { doctors: Stethoscope, partners: Building2, consultations: UserRound, diagnostics: Microscope }
 
 export function AttentionBoard({ items, limit = 12 }: { items: AttentionItem[]; limit?: number }) {
   const [filter, setFilter] = useState<(typeof filters)[number]['id']>('all')

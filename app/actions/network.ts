@@ -6,6 +6,9 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getOrAssignDiagnosticCenterCode, getOrAssignHospitalCode } from '@/lib/organization-ids'
 import { createStaffLogin, passwordProblem, provisionDoctor } from '@/lib/provisioning'
+import { siteUrl } from '@/lib/site-url'
+import { sendPartnerApprovedEmail } from '@/lib/notify/email'
+import type { PartnerKind } from '@/lib/partner-applications'
 
 // The executive portal runs the partner network: it adds hospitals and diagnostic centres (each with the sign-in its
 // own staff use) and creates doctor accounts at any hospital.
@@ -55,6 +58,39 @@ const placeholderEmail = (name: string) => `info@${name.toLowerCase().replace(/[
 
 export type CreatedOrg = { success: true; id: string; code: string; staffId: string }
 
+/**
+ * When the hospital or centre was added from a partner application (/signup/hospital, /signup/diagnostic-centre),
+ * marks the application approved and tells the applicant their staff ID. Not exported: only the actions below call it.
+ */
+async function completeApplication(
+  caller: NonNullable<Awaited<ReturnType<typeof executiveCaller>>>,
+  form: FormData,
+  kind: PartnerKind,
+  organizationId: string,
+  staffId: string,
+) {
+  const applicationId = field(form, 'applicationId')
+  if (!z.string().uuid().safeParse(applicationId).success) return
+  const { data: app, error } = await caller.admin
+    .from('partner_applications')
+    .update({ status: 'approved', organization_id: organizationId, reviewed_by: caller.user.id, reviewed_at: new Date().toISOString() })
+    .eq('id', applicationId)
+    .eq('kind', kind)
+    .eq('status', 'pending')
+    .select('email, contact_name, organization_name')
+    .maybeSingle()
+  if (error) return console.error('completeApplication:', error)
+  if (!app) return
+  await sendPartnerApprovedEmail({
+    to: app.email,
+    contactName: app.contact_name,
+    organizationName: app.organization_name,
+    kind,
+    staffId,
+    signInUrl: `${siteUrl()}/login/${kind === 'hospital' ? 'hospital' : 'diagnostic'}`,
+  }).catch((err) => console.error('Failed to send partner approval email:', err))
+}
+
 export async function createHospital(form: FormData): Promise<CreatedOrg | Fail> {
   const caller = await executiveCaller()
   if (!caller) return fail(NOT_ALLOWED)
@@ -93,6 +129,7 @@ export async function createHospital(form: FormData): Promise<CreatedOrg | Fail>
     ['General Medicine', 'Cardiology', 'Neurology', 'Orthopaedics', 'Pediatrics'].map((name) => ({ hospital_id: hospital.id, name })),
   )
   const code = await getOrAssignHospitalCode(admin, hospital.id)
+  await completeApplication(caller, form, 'hospital', hospital.id, login.staffId)
   for (const path of ['/executive/hospitals', '/executive/doctors', '/hospitals']) revalidatePath(path)
   return { success: true, id: hospital.id, code, staffId: login.staffId }
 }
@@ -152,6 +189,7 @@ export async function createDiagnosticCenter(form: FormData): Promise<CreatedOrg
   }
 
   const code = await getOrAssignDiagnosticCenterCode(admin, center.id)
+  await completeApplication(caller, form, 'diagnostic_center', center.id, login.staffId)
   for (const path of ['/executive/diagnostics', '/diagnostics']) revalidatePath(path)
   return { success: true, id: center.id, code, staffId: login.staffId }
 }

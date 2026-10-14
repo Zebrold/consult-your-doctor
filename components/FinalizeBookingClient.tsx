@@ -147,7 +147,6 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, pl
           <div className="hidden md:flex flex-col md:flex-row md:items-center justify-between gap-4 pb-8">
             <div>
               <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Find Doctors", href: "/find" }, { label: name, href: `/doctors/${doctor.id}` }, { label: "Book Appointment" }]} />
-              <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">Finalize Consultation</h1>
             </div>
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container font-label-sm text-label-sm text-indigo-gray-900 font-semibold shadow-sm">

@@ -112,10 +112,6 @@ export default async function PatientSupport() {
 
               <div className="lg:col-span-8 flex flex-col gap-6">
                 <AccountShortcuts />
-                <div className="hidden md:block mb-2">
-                  <h1 className="font-display-lg text-headline-lg font-bold text-on-surface">Help, Support &amp; FAQs</h1>
-                  <p className="font-body-md text-body-lg text-on-surface-variant mt-2">Get answers to common questions or reach our support desk.</p>
-                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-vibrant-blue text-on-primary rounded-xl p-5 shadow-sm flex flex-col items-center text-center gap-2.5">

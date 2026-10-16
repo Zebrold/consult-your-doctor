@@ -7,6 +7,7 @@ import {
   Microscope, Stethoscope,
 } from "lucide-react";
 import { PatientDock } from "@/components/PatientDock";
+import { PatientFooter } from "@/components/patient/PatientFooter";
 import { doctorName, formatDayLabel, formatINR, formatSlot, formatTime, initials } from "@/components/patient/format";
 import { specialtyMeta } from "@/components/patient/specialties";
 import { PhoneHome } from "@/components/patient/PhoneHome";
@@ -97,7 +98,8 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
 
   return (
     <div className="bg-background text-on-surface antialiased min-h-screen">
-      <main className="w-full pb-dock">
+      {/* No bottom padding here: the footer carries the room for the navigation pill, so its blue runs under it. */}
+      <main className="w-full">
         <PhoneHome
           name={name}
           email={email}
@@ -226,39 +228,49 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
           </div>
         </section>
 
-        {/* Hospitals & labs */}
+        {/* Hospitals & labs: a blue panel like the app header, with white cards */}
         {facilities.length > 0 && (
           <section id="care-network" className="scroll-mt-6 w-full px-margin-x-mobile lg:px-margin-x-desktop pb-8 md:py-7">
-            <div className="max-w-container-max mx-auto">
-              <div className="flex items-center md:items-end justify-between gap-4 mb-stack-sm md:mb-8">
-                <div>
-                  <span className="hidden md:block font-label-sm text-label-sm uppercase tracking-wider text-vibrant-blue font-bold">Network Centers</span>
-                  <h2 className="font-title-md text-title-md md:font-headline-lg md:text-headline-lg text-on-surface tracking-tight md:mt-1">
+            <div className="max-w-container-max mx-auto relative overflow-hidden rounded-[28px] md:rounded-[36px] bg-[linear-gradient(160deg,#0758f2_0%,#1570ff_55%,#2b86ff_100%)] text-white shadow-[0_18px_40px_-22px_rgba(0,80,220,0.75)] px-4 pt-5 pb-5 md:px-8 md:pt-8 md:pb-8 lg:px-10">
+              <span aria-hidden className="absolute -right-24 -top-28 w-72 h-72 md:w-[28rem] md:h-[28rem] md:-top-48 rounded-full bg-white/[0.07]" />
+              <span aria-hidden className="absolute -left-16 -bottom-24 w-56 h-56 md:w-80 md:h-80 rounded-full bg-white/[0.05]" />
+
+              <div className="relative mb-4 md:mb-7">
+                <span className="hidden md:block font-label-sm text-label-sm uppercase tracking-wider text-white/75 font-bold">Network Centers</span>
+                {/* On phones the title scales with the space left beside "View All", so it stays on one line. */}
+                <div className="@container flex items-center md:items-end justify-between gap-3 md:gap-4 md:mt-1">
+                  <h2 className="min-w-0 font-title-md text-[length:clamp(16px,calc((100cqw_-_96px)/12.4),22px)] md:text-headline-lg font-extrabold md:font-bold tracking-tight leading-tight whitespace-nowrap md:whitespace-normal">
                     <span className="md:hidden">{place.location ? "Hospitals & Labs Near You" : "Featured Hospitals & Labs"}</span>
                     <span className="hidden md:inline">Partner Hospitals &amp; Diagnostics</span>
                   </h2>
-                </div>
-                <div className="flex items-center gap-4 shrink-0">
-                  <Link href="/hospitals" className="py-2.5 -my-2.5 md:py-0 md:my-0 text-label-sm md:font-body-md md:text-body-md font-semibold text-primary md:text-vibrant-blue hover:text-primary">
-                    <span className="md:hidden">Explore All</span>
+                  <div className="flex items-center gap-4 shrink-0">
+                  <Link href="/hospitals" className="group inline-flex items-center gap-0.5 md:gap-1 py-2.5 -my-2.5 md:py-0 md:my-0 text-sm md:text-body-md font-semibold text-white hover:underline underline-offset-4">
+                    <span className="md:hidden">View All</span>
                     <span className="hidden md:inline">View Hospital Directory</span>
+                    <ChevronRight className="md:hidden w-4 h-4" />
+                    <ArrowRight className="hidden md:block w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                   </Link>
                   {shownFacilities.length > 2 && (
-                    <CarouselButtons label="hospitals and labs" className={shownFacilities.length <= 3 ? "lg:hidden" : ""} onScroll={(d) => scrollRow(facilityRow.current, d)} />
+                    <CarouselButtons tone="blue" label="hospitals and labs" className={shownFacilities.length <= 3 ? "lg:hidden" : ""} onScroll={(d) => scrollRow(facilityRow.current, d)} />
                   )}
+                  </div>
                 </div>
+                <p className="mt-1 text-[13px] min-[380px]:text-[14px] md:text-body-md text-white/80">Find trusted hospitals and diagnostic centres</p>
               </div>
 
               <div
                 ref={facilityRow}
-                className="flex gap-4 md:gap-6 overflow-x-auto snap-x scroll-smooth pb-2 md:pb-4 pt-1 -mx-margin-x-mobile px-margin-x-mobile scroll-px-margin-x-mobile md:mx-0 md:px-0 md:scroll-px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                className="relative flex gap-3 md:gap-6 overflow-x-auto snap-x scroll-smooth pb-1 -mx-4 px-4 scroll-px-4 md:mx-0 md:px-0 md:scroll-px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >
                 {shownFacilities.map(({ item: f, km }) => {
                   const Icon = f.kind === "lab" ? Microscope : Building2;
                   const where = [km != null ? formatDistance(km) : null, f.city].filter(Boolean).join(" · ");
                   return (
-                    <article key={`${f.kind}-${f.id}`} className="snap-start shrink-0 w-[260px] md:w-[calc((100%-24px)/2)] lg:w-[calc((100%-48px)/3)] bg-surface-container-lowest rounded-xl overflow-hidden shadow-[0_4px_20px_rgb(0,80,203,0.04)] md:shadow-sm hover:shadow-md transition-all flex flex-col">
-                      <Link href={facilityHref(f)} className="h-32 md:h-48 w-full relative bg-surface-container block">
+                    <article
+                      key={`${f.kind}-${f.id}`}
+                      className="snap-start shrink-0 w-[250px] min-[380px]:w-[262px] md:w-[calc((100%-24px)/2)] lg:w-[calc((100%-48px)/3)] bg-white text-on-surface rounded-[20px] md:rounded-3xl p-1.5 md:p-2 shadow-[0_12px_28px_-16px_rgba(0,30,90,0.55)] hover:-translate-y-0.5 hover:shadow-[0_18px_34px_-16px_rgba(0,30,90,0.6)] transition-all flex flex-col"
+                    >
+                      <Link href={facilityHref(f)} className="h-[118px] md:h-48 w-full relative rounded-[15px] md:rounded-[18px] overflow-hidden bg-surface-container block">
                         {f.image ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img className="w-full h-full object-cover" alt={f.name} src={f.image} />
@@ -267,29 +279,25 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
                             <Icon className="w-10 h-10" />
                           </span>
                         )}
-                        <span className={`hidden md:flex absolute top-3 right-3 px-3 py-1 rounded-full bg-surface-container-lowest/90 backdrop-blur-md font-label-sm text-label-sm font-bold items-center gap-1 ${f.kind === "lab" ? "text-vibrant-blue" : "text-secondary"}`}>
+                        <span className={`hidden md:flex absolute top-3 right-3 px-3 py-1 rounded-full bg-white/90 backdrop-blur-md font-label-sm text-label-sm font-bold items-center gap-1 ${f.kind === "lab" ? "text-vibrant-blue" : "text-secondary"}`}>
                           <Icon className="w-3.5 h-3.5" /> {f.kind === "lab" ? "Diagnostic Lab" : "Hospital"}
                         </span>
                       </Link>
-                      <div className="p-4 md:p-6 flex flex-col justify-between flex-1 gap-1 md:gap-4">
-                        <div>
-                          {where && (
-                            <span className="hidden md:flex font-label-sm text-label-sm text-indigo-gray-600 mb-1 items-center gap-1">
-                              <MapPin className="w-3.5 h-3.5" /> {where}
-                            </span>
-                          )}
-                          <h3 className="font-title-md text-body-lg md:text-title-md font-semibold md:font-bold text-on-surface truncate" title={f.name}>{f.name}</h3>
-                          <p className="md:hidden text-sm text-outline flex items-center gap-1 truncate">
-                            <MapPin className="w-4 h-4 shrink-0" /> {where || f.address || "Partner facility"}
+                      <div className="px-2.5 pt-3 pb-2 md:px-4 md:pt-4 md:pb-3 flex flex-col justify-between flex-1 gap-1 md:gap-3">
+                        <div className="min-w-0">
+                          <h3 className="font-title-md text-[17px] md:text-title-md font-bold text-indigo-gray-900 truncate" title={f.name}>{f.name}</h3>
+                          <p className="mt-0.5 text-[13.5px] md:text-body-md text-slate-500 flex items-center gap-1.5 truncate">
+                            <MapPin className="w-4 h-4 shrink-0" /> <span className="truncate">{where || f.address || "Partner facility"}</span>
                           </p>
-                          {f.address && <p className="hidden md:block font-body-md text-body-md text-indigo-gray-600 mt-2 line-clamp-2">{f.address}</p>}
+                          {f.address && where && <p className="hidden md:block font-body-md text-body-md text-indigo-gray-600 mt-1.5 line-clamp-2">{f.address}</p>}
                         </div>
-                        <div className="flex items-center justify-between mt-2 md:mt-0 pt-2 md:pt-4 border-t border-indigo-gray-50 md:border-surface-variant">
-                          <span className="text-label-sm font-semibold text-primary md:text-indigo-gray-900">
+                        <div className="flex items-center justify-between gap-2 mt-2 md:mt-0 pt-2.5 md:pt-3 border-t border-slate-100">
+                          <span className="text-[13.5px] md:text-body-md font-semibold text-vibrant-blue">
                             {f.kind === "lab" ? plural(f.count, "Test") : plural(f.count, "Doctor")}
                           </span>
-                          <Link href={facilityHref(f)} className="py-2.5 -my-2.5 md:py-0 md:my-0 text-label-sm md:font-body-md md:text-body-md font-bold text-fresh-teal md:text-vibrant-blue hover:underline">
+                          <Link href={facilityHref(f)} className="group/link inline-flex items-center gap-1 py-2.5 -my-2.5 text-[13.5px] md:text-body-md font-bold text-fresh-teal hover:text-secondary">
                             {f.kind === "lab" ? "Book a Test" : "Explore Hospital"}
+                            <ArrowRight className="w-4 h-4 group-hover/link:translate-x-0.5 transition-transform" />
                           </Link>
                         </div>
                       </div>
@@ -303,28 +311,7 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
 
         {reviews}
 
-        {/* Patient Portal Footer */}
-        <footer className="w-full pt-8 pb-12 border-t border-outline-variant/30 text-on-surface-variant font-body-md text-xs">
-          <div className="max-w-[1440px] mx-auto px-margin-x-mobile lg:px-margin-x-desktop flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-6 gap-y-0 md:gap-y-2">
-              <Link href="/terms-of-use" className="py-2.5 md:py-0 hover:text-vibrant-blue hover:underline">
-                Terms &amp; Conditions
-              </Link>
-              <Link href="/privacy-policy" className="py-2.5 md:py-0 hover:text-vibrant-blue hover:underline">
-                Privacy Policy
-              </Link>
-              <Link href="/patient/support" className="py-2.5 md:py-0 hover:text-vibrant-blue hover:underline">
-                Help &amp; FAQs
-              </Link>
-              <a href="tel:108" className="py-2.5 md:py-0 text-soft-coral font-bold hover:underline">
-                Emergency: Call 108
-              </a>
-            </div>
-            <p className="text-center md:text-right text-[11px] text-on-surface-variant/70">
-              © 2026 Zebrold International Holdings Pvt Ltd. All rights reserved.
-            </p>
-          </div>
-        </footer>
+        <PatientFooter isSignedIn={isSignedIn} />
       </main>
 
       <PatientDock activeTab="home" isSignedIn={isSignedIn} name={name} />
@@ -332,22 +319,26 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
   );
 }
 
-function CarouselButtons({ label, className = "", onScroll }: { label: string; className?: string; onScroll: (direction: 1 | -1) => void }) {
+type CarouselTone = "light" | "blue";
+
+function CarouselButtons({ label, className = "", tone = "light", onScroll }: { label: string; className?: string; tone?: CarouselTone; onScroll: (direction: 1 | -1) => void }) {
   return (
     <div className={`hidden md:flex items-center gap-2 ${className}`}>
-      <CarouselButton label={`Previous ${label}`} onClick={() => onScroll(-1)}><ChevronLeft className="w-5 h-5" /></CarouselButton>
-      <CarouselButton label={`Next ${label}`} onClick={() => onScroll(1)}><ChevronRight className="w-5 h-5" /></CarouselButton>
+      <CarouselButton tone={tone} label={`Previous ${label}`} onClick={() => onScroll(-1)}><ChevronLeft className="w-5 h-5" /></CarouselButton>
+      <CarouselButton tone={tone} label={`Next ${label}`} onClick={() => onScroll(1)}><ChevronRight className="w-5 h-5" /></CarouselButton>
     </div>
   );
 }
 
-function CarouselButton({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+function CarouselButton({ label, onClick, tone, children }: { label: string; onClick: () => void; tone: CarouselTone; children: ReactNode }) {
   return (
     <button
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="w-10 h-10 rounded-full bg-surface-container-lowest flex items-center justify-center text-on-surface hover:bg-primary hover:text-on-primary transition-colors shadow-sm"
+      className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-sm ${
+        tone === "blue" ? "bg-white/15 border border-white/25 text-white hover:bg-white hover:text-vibrant-blue" : "bg-surface-container-lowest text-on-surface hover:bg-primary hover:text-on-primary"
+      }`}
     >
       {children}
     </button>

@@ -4,13 +4,17 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, MapPin, Search, Stethoscope, User, X } from "lucide-react";
+import { formatINR } from "@/components/patient/format";
+import { nearbyOnly, usePatientLocation } from "@/components/patient/location";
+import { NearbyNote } from "@/components/patient/Nearby";
 
 export type DirectoryDoctor = {
   id: string;
   name: string;
   specialty: string | null;
   experienceYears: number | null;
-  fee: number | null;
+  /** Online booking is open (the hospital has set the consultation fee, which only the profile page shows). */
+  bookable: boolean;
   image: string | null;
   hospital: string | null;
   city: string | null;
@@ -26,9 +30,15 @@ function initials(name: string) {
     .join("");
 }
 
-export function DoctorsDirectoryClient({ doctors }: { doctors: DirectoryDoctor[] }) {
+export function DoctorsDirectoryClient({ doctors, bookingFee }: { doctors: DirectoryDoctor[]; bookingFee: number }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("All");
+  // Once the patient has set a location, only the doctors near it.
+  const place = usePatientLocation();
+  const local = useMemo(
+    () => nearbyOnly(doctors.map((d) => ({ ...d, lat: null, lng: null })), place.location).map((row) => row.item),
+    [doctors, place.location],
+  );
 
   const specialties = useMemo(() => {
     const set = new Set<string>();
@@ -40,7 +50,7 @@ export function DoctorsDirectoryClient({ doctors }: { doctors: DirectoryDoctor[]
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return doctors.filter((doc) => {
+    return local.filter((doc) => {
       if (selectedSpecialty !== "All" && doc.specialty !== selectedSpecialty) {
         return false;
       }
@@ -52,7 +62,7 @@ export function DoctorsDirectoryClient({ doctors }: { doctors: DirectoryDoctor[]
         (doc.city && doc.city.toLowerCase().includes(q))
       );
     });
-  }, [doctors, searchQuery, selectedSpecialty]);
+  }, [local, searchQuery, selectedSpecialty]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -99,6 +109,8 @@ export function DoctorsDirectoryClient({ doctors }: { doctors: DirectoryDoctor[]
           </div>
         )}
       </div>
+
+      <NearbyNote place={place} count={local.length} noun="doctors" />
 
       {/* Results count */}
       <div className="flex items-center justify-between">
@@ -187,13 +199,13 @@ export function DoctorsDirectoryClient({ doctors }: { doctors: DirectoryDoctor[]
 
               <div className="mt-auto flex items-center justify-between gap-3 border-t border-slate-100 px-5 py-4">
                 <div>
-                  {doctor.fee ? (
+                  {doctor.bookable ? (
                     <>
-                      <span className="font-semibold text-indigo-gray-900">₹{doctor.fee}</span>
-                      <span className="text-sm text-slate-500"> fee</span>
+                      <span className="text-sm text-slate-500">Booking fee </span>
+                      <span className="font-semibold text-indigo-gray-900">{formatINR(bookingFee)}</span>
                     </>
                   ) : (
-                    <span className="text-sm text-slate-500">Fee on profile</span>
+                    <span className="text-sm text-slate-500">Online booking not open yet</span>
                   )}
                 </div>
                 <Link

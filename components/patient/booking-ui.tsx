@@ -2,7 +2,9 @@
 
 import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
-import { ChevronRight, CircleAlert, CreditCard, LogIn, Mail, Phone } from "lucide-react";
+import { Building2, ChevronRight, CircleAlert, CreditCard, LogIn, Mail, Phone, RotateCcw } from "lucide-react";
+import { formatINR } from "@/components/patient/format";
+import { sumPrices, type BookedTest } from "@/lib/pricing";
 
 export type PatientDetails = {
   name: string;
@@ -180,6 +182,61 @@ export function PayuNote() {
         <p className="font-label-sm text-[11px] text-indigo-gray-600">UPI, cards or net banking on the next screen</p>
       </div>
     </div>
+  );
+}
+
+/**
+ * What the patient pays in person, beside the booking fee but never part of the online total: the consultation fee at
+ * the hospital counter, or the lab's test charges.
+ */
+export function PayAtVenue({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="flex items-start gap-3 p-3 rounded-xl bg-surface-container-low">
+      <span className="w-9 h-9 rounded-lg bg-surface-container-lowest text-primary flex items-center justify-center shrink-0 shadow-sm">
+        <Building2 className="w-[18px] h-[18px]" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="font-label-sm text-[12px] font-bold text-on-surface">{title}</p>
+        <div className="font-label-sm text-[11px] text-indigo-gray-600 mt-0.5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/** A lab booking's test charges (and home collection), which the patient pays to the lab and not online. */
+export function LabChargesAtVenue({ tests, doorstepFee }: { tests: BookedTest[]; doorstepFee: number }) {
+  if (tests.length === 0 && doorstepFee === 0) return null;
+  return (
+    <PayAtVenue title={`Test charges: ${formatINR(sumPrices(tests) + doorstepFee)}, paid to the lab`}>
+      <ul className="flex flex-col gap-0.5 my-1">
+        {tests.map((t) => (
+          <li key={t.name} className="flex justify-between gap-3">
+            <span className="min-w-0 truncate">{t.name}</span>
+            <span className="shrink-0 tabular-nums">{formatINR(t.price)}</span>
+          </li>
+        ))}
+        {doorstepFee > 0 && (
+          <li className="flex justify-between gap-3">
+            <span>Home sample collection</span>
+            <span className="shrink-0 tabular-nums">{formatINR(doorstepFee)}</span>
+          </li>
+        )}
+      </ul>
+      The lab&apos;s own prices, paid at your visit. They aren&apos;t collected online or added to this total.
+    </PayAtVenue>
+  );
+}
+
+/** The cancellation and refund policy, shown with every booking and checkout summary. */
+export function RefundNote({ isConsultation }: { isConsultation: boolean }) {
+  return (
+    <p className="flex items-start gap-2 font-label-sm text-[11px] text-indigo-gray-600 leading-snug">
+      <RotateCcw className="w-4 h-4 text-vibrant-blue shrink-0" />
+      <span>
+        Full refund if you cancel at least 2 hours before the slot, or if the {isConsultation ? "doctor or hospital" : "lab"} cancels.
+        Refunds go back to your original payment method within 5–7 working days.
+      </span>
+    </p>
   );
 }
 

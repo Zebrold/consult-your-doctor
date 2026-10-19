@@ -12,13 +12,13 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { OnlineDoctorRoster, type RosterDoctor } from "@/components/OnlineDoctorRoster";
-import { CONSULTATION_PLATFORM_FEE } from "@/lib/pricing";
-import { doctorName } from "@/components/patient/format";
+import { getBookingFees } from "@/lib/booking-fees";
+import { doctorName, formatINR } from "@/components/patient/format";
 
 export const metadata: Metadata = {
   title: "Book a Doctor Online",
   description:
-    "Book an in-person consultation with a specialist at a partner hospital. Compare fees and open times, pay online, and get your prescription in your account.",
+    "Book an in-person consultation with a specialist at a partner hospital. See open times, pay a small booking fee online, and get your prescription in your account.",
 };
 
 // Consultations are in person at the doctor's hospital; only booking and payment happen online
@@ -29,7 +29,7 @@ const afterBooking = [
   { icon: FileText, text: "Your signed prescription is saved to your account as a PDF." },
 ];
 
-const assurances = [
+const assurances = (bookingFee: string) => [
   {
     icon: BadgeCheck,
     title: "Doctors at partner hospitals",
@@ -38,7 +38,7 @@ const assurances = [
   {
     icon: ReceiptIndianRupee,
     title: "The price before you pay",
-    desc: `The doctor's consultation fee plus a ₹${CONSULTATION_PLATFORM_FEE} booking fee, with the full amount shown before you pay.`,
+    desc: `You pay a ${bookingFee} booking fee online, nothing more. The consultation fee is set by the hospital, shown on the doctor's profile and paid at the hospital counter.`,
   },
   {
     icon: FolderLock,
@@ -49,6 +49,7 @@ const assurances = [
 
 export default async function OnlineDoctorPage() {
   const supabase = await createClient();
+  const bookingFee = formatINR((await getBookingFees()).consultation);
   // Only doctors patients can actually book: a fee is set and their hospital is listed.
   const { data: dbDoctors } = await supabase
     .from("doctors")
@@ -85,7 +86,6 @@ export default async function OnlineDoctorPage() {
       name: doctorName(one(doc.profiles)?.full_name),
       specialty: doc.specialty || null,
       experienceYears: doc.experience_years || null,
-      fee: doc.consultation_fee ? `₹${doc.consultation_fee.toLocaleString("en-IN")}` : null,
       image: doc.image_url || null,
       hospital: hospital?.name || null,
       city: hospital?.city || null,
@@ -143,7 +143,7 @@ export default async function OnlineDoctorPage() {
       {/* Doctors */}
       <section id="doctors" className="w-full py-16 md:py-20 bg-slate-50 border-b border-slate-100 scroll-mt-20">
         <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop">
-          <OnlineDoctorRoster doctors={doctors} />
+          <OnlineDoctorRoster doctors={doctors} bookingFee={bookingFee} />
           <div className="mt-8">
             <Link href="/doctors" className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-vibrant-blue hover:underline">
               See all doctors <ArrowRight className="w-4 h-4" />
@@ -187,7 +187,7 @@ export default async function OnlineDoctorPage() {
       {/* Assurances */}
       <section className="w-full pb-16 md:pb-20">
         <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop grid grid-cols-1 md:grid-cols-3 gap-5">
-          {assurances.map(({ icon: Icon, title, desc }) => (
+          {assurances(bookingFee).map(({ icon: Icon, title, desc }) => (
             <div key={title} className="rounded-xl border border-slate-200 bg-white p-6">
               <Icon className="w-6 h-6 text-primary" />
               <h3 className="mt-4 text-lg font-semibold text-indigo-gray-900">{title}</h3>

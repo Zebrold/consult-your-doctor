@@ -141,7 +141,7 @@ drop policy if exists "patients: read own reviews" on public.doctor_reviews;
 create policy "patients: read own reviews" on public.doctor_reviews for select to authenticated
   using (patient_id = (select auth.uid()));
 
--- 11. Platform Settings for Executive Configuration
+-- 11. Platform Settings: the online booking fees executives set on Payments (see 20261018_booking_fees.sql)
 create table if not exists public.platform_settings (
   key text primary key,
   value jsonb not null default '{}'::jsonb,
@@ -150,17 +150,15 @@ create table if not exists public.platform_settings (
 
 alter table public.platform_settings enable row level security;
 
+-- Read and written only by the server with the service role.
 drop policy if exists "executives: full platform settings access" on public.platform_settings;
-create policy "executives: full platform settings access" on public.platform_settings for all to authenticated
-  using ((select public.cyd_my_role()) in ('super_admin', 'executive'))
-  with check ((select public.cyd_my_role()) in ('super_admin', 'executive'));
-
 drop policy if exists "anyone: read platform settings" on public.platform_settings;
-create policy "anyone: read platform settings" on public.platform_settings for select to public
-  using (true);
+revoke all on public.platform_settings from anon, authenticated;
+
+delete from public.platform_settings where key = 'platform_fees';
 
 insert into public.platform_settings (key, value)
-values ('platform_fees', '{"consultation": 49, "diagnostic": 29}'::jsonb)
+values ('booking_fees', '{"consultation": 119, "diagnosticPercent": 11}'::jsonb)
 on conflict (key) do nothing;
 
 -- 11. Diagnostic Center Doorstep Service & Booking Types

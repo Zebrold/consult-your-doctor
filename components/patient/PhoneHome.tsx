@@ -10,7 +10,8 @@ import {
 import type { HomeDoctor } from "@/components/PatientHome";
 import { doctorName, formatDayLabel, formatINR, initials } from "@/components/patient/format";
 import { specialtyMeta } from "@/components/patient/specialties";
-import { byNearness, type usePatientLocation } from "@/components/patient/location";
+import { locationCity, nearbyOnly, type usePatientLocation } from "@/components/patient/location";
+import { NearbyNote } from "@/components/patient/Nearby";
 import { BlueHeader, BrandRow } from "@/components/patient/PhoneHeader";
 import { MenuSheet, Sheet } from "@/components/patient/PhoneSheet";
 import { formatDistance } from "@/lib/geo";
@@ -33,13 +34,15 @@ type Props = {
   visitLine: string | null;
   /** Every bookable doctor, soonest available first. */
   doctors: HomeDoctor[];
+  /** The doctor booking fee, the only price the cards show. */
+  bookingFee: number;
   specialties: { name: string; count: number }[];
   /** Cities with partner hospitals or labs. */
   cities: string[];
   place: Place;
 };
 
-export function PhoneHome({ name, email, isSignedIn, now, visitLine, doctors, specialties, cities, place }: Props) {
+export function PhoneHome({ name, email, isSignedIn, now, visitLine, doctors, bookingFee, specialties, cities, place }: Props) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [sheet, setSheet] = useState<"location" | "menu" | null>(null);
@@ -47,17 +50,18 @@ export function PhoneHome({ name, email, isSignedIn, now, visitLine, doctors, sp
   const location = place.location;
 
   // Nearest first once the patient has shared a location; only doctors in their area, unless there are none.
-  const ordered = useMemo(() => byNearness(doctors, location), [doctors, location]);
-  const nearby = location ? ordered.filter((r) => r.inArea) : ordered;
-  const shown = (nearby.length ? nearby : ordered).slice(0, 5);
+  // With a location set, only the doctors near it (the location sheet's "Show all locations" brings back the rest).
+  const nearby = useMemo(() => nearbyOnly(doctors, location), [doctors, location]);
+  const shown = nearby.slice(0, 5);
   const noneNearby = !!location && nearby.length === 0 && doctors.length > 0;
-  const findHref = location?.kind === "city" ? `/find?city=${encodeURIComponent(location.city)}` : "/find";
+  const city = locationCity(location);
+  const findHref = city ? `/find?city=${encodeURIComponent(city)}` : "/find";
 
   const search = (e: FormEvent) => {
     e.preventDefault();
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
-    if (location?.kind === "city") params.set("city", location.city);
+    if (city) params.set("city", city);
     router.push(params.size ? `/find?${params}` : "/find");
   };
 
@@ -151,7 +155,7 @@ export function PhoneHome({ name, email, isSignedIn, now, visitLine, doctors, sp
         <section className="flex flex-col gap-3">
           <div className="flex items-end justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="font-title-md text-[21px] font-extrabold tracking-tight text-indigo-gray-900">{location && !noneNearby ? "Doctors Near You" : "Top Doctors for You"}</h2>
+              <h2 className="font-title-md text-[21px] font-extrabold tracking-tight text-indigo-gray-900">{location ? "Doctors Near You" : "Top Doctors for You"}</h2>
               {location && !noneNearby && <p className="text-[13px] text-slate-500 truncate">Nearest to {location.label}</p>}
             </div>
             <Link href={findHref} className="flex items-center gap-0.5 py-2 -my-2 text-sm font-semibold text-vibrant-blue shrink-0">
@@ -159,12 +163,7 @@ export function PhoneHome({ name, email, isSignedIn, now, visitLine, doctors, sp
             </Link>
           </div>
 
-          {noneNearby && (
-            <p className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 text-[13px] text-amber-900">
-              <MapPin className="w-4 h-4 shrink-0 mt-0.5" />
-              No partner doctors near {location?.label} yet, so here are doctors elsewhere.
-            </p>
-          )}
+          {noneNearby && <NearbyNote place={place} count={0} noun="doctors" />}
 
           {doctors.length === 0 ? (
             <div className="p-6 rounded-2xl bg-surface-container-lowest border border-[#edf1f7] text-center text-sm text-indigo-gray-600">
@@ -174,7 +173,7 @@ export function PhoneHome({ name, email, isSignedIn, now, visitLine, doctors, sp
           ) : (
             <ul className="flex flex-col gap-3">
               {shown.map(({ item, km }) => (
-                <DoctorCard key={item.id} doctor={item} km={km} now={now} />
+                <DoctorCard key={item.id} doctor={item} km={km} now={now} bookingFee={bookingFee} />
               ))}
             </ul>
           )}
@@ -256,8 +255,8 @@ function SpecialtyRow({ specialties }: { specialties: { name: string; count: num
 
 const compactCount = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1).replace(/\.0$/, "")}K` : String(n));
 
-/** A doctor in the phone lists: photo, name, specialty, rating or next slot, fee and Consult Now. */
-export function DoctorCard({ doctor: d, km, now }: { doctor: HomeDoctor; km: number | null; now: number }) {
+/** A doctor in the phone lists: photo, name, specialty, rating or next slot, booking fee and Consult Now. */
+export function DoctorCard({ doctor: d, km, now, bookingFee }: { doctor: HomeDoctor; km: number | null; now: number; bookingFee: number }) {
   const availableToday = d.openToday > 0;
   // Degrees (or the hospital when none are listed) and experience, as on the doctor's profile.
   const details = [d.qualifications || d.hospital, d.experience ? `${d.experience}+ Years Exp.` : null].filter(Boolean).join(" • ");
@@ -300,7 +299,12 @@ export function DoctorCard({ doctor: d, km, now }: { doctor: HomeDoctor; km: num
         </span>
       </Link>
       <span className="flex flex-col items-end gap-2 shrink-0">
-        {d.fee ? <span className="font-title-md text-[18px] min-[380px]:text-[20px] font-extrabold leading-none tracking-tight text-vibrant-blue tabular-nums">{formatINR(d.fee)}</span> : null}
+        {d.bookable ? (
+          <span className="flex flex-col items-end leading-none">
+            <span className="font-title-md text-[18px] min-[380px]:text-[20px] font-extrabold tracking-tight text-vibrant-blue tabular-nums">{formatINR(bookingFee)}</span>
+            <span className="mt-0.5 text-[10px] font-medium text-slate-500">booking fee</span>
+          </span>
+        ) : null}
         <Link href={`/book/${d.id}`} className="h-9 px-2.5 min-[380px]:px-3.5 rounded-full bg-vibrant-blue text-white text-[12px] min-[380px]:text-[12.5px] font-semibold flex items-center gap-1 whitespace-nowrap shadow-[0_6px_14px_-6px_rgba(0,102,255,0.7)] active:scale-95 transition-transform">
           {/* The smallest phones get the short label so the doctor's name keeps its room. */}
           <span className="min-[360px]:hidden">Book</span>

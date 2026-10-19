@@ -5,8 +5,10 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { PatientNavHeader } from "@/components/PatientNavHeader";
 import { PatientDock } from "@/components/PatientDock";
+import { PatientFooter } from "@/components/AppFooter";
 import { DoctorsDirectoryClient, DirectoryDoctor } from "@/components/DoctorsDirectoryClient";
 import { doctorName } from "@/components/patient/format";
+import { getBookingFees } from "@/lib/booking-fees";
 
 export const revalidate = 0;
 
@@ -66,7 +68,7 @@ export default async function DoctorsDirectoryPage() {
       name: doctorName(profile?.full_name),
       specialty: department?.name || d.specialty || null,
       experienceYears: d.experience_years,
-      fee: d.consultation_fee,
+      bookable: Number(d.consultation_fee) > 0,
       image: d.image_url,
       hospital: hospital?.name || null,
       city: hospital?.city || null,
@@ -109,16 +111,19 @@ export default async function DoctorsDirectoryPage() {
               Find the Right Doctor
             </h1>
             <p className="text-base md:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-              Browse verified specialists across partner hospitals. Compare fees and book consultations online with no queue.
+              Browse verified specialists across partner hospitals. See where they practise and book a visit online for a flat booking fee.
             </p>
           </div>
 
-          <DoctorsDirectoryClient doctors={doctors} />
+          <DoctorsDirectoryClient doctors={doctors} bookingFee={(await getBookingFees()).consultation} />
         </div>
       </main>
 
       {isLoggedIn ? (
-        <PatientDock activeTab="find" isSignedIn={isLoggedIn} name={viewer?.full_name || user?.user_metadata?.full_name} />
+        <>
+          <PatientFooter isSignedIn />
+          <PatientDock activeTab="find" isSignedIn={isLoggedIn} name={viewer?.full_name || user?.user_metadata?.full_name} />
+        </>
       ) : (
         <Footer />
       )}

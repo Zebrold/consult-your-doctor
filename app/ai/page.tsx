@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
 import { PatientDock } from '@/components/PatientDock'
+import { PatientFooter } from '@/components/AppFooter'
 import { AssistantPage } from '@/components/assistant/AssistantPage'
 
 export const metadata: Metadata = {
@@ -23,9 +24,10 @@ export default async function AiPage() {
   return (
     <div className="bg-surface text-on-surface antialiased min-h-screen">
       <PatientNavHeader name={name} email={user?.email ?? null} isSignedIn={!!user} blue />
-      <main className="w-full max-w-[1240px] mx-auto px-margin-x-mobile lg:px-12 pt-4 md:pt-6 pb-dock">
+      <main className="w-full max-w-[1240px] mx-auto px-margin-x-mobile lg:px-12 pt-4 md:pt-6 pb-12 md:pb-16">
         <AssistantPage role={user ? 'patient' : null} viewer={user?.id ?? null} />
       </main>
+      <PatientFooter isSignedIn={!!user} />
       <PatientDock activeTab="ai" isSignedIn={!!user} name={name} />
     </div>
   )

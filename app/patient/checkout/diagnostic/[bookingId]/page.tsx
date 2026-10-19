@@ -3,9 +3,10 @@ import { redirect } from 'next/navigation'
 import { Building2, CalendarDays, CircleCheck, CircleX, FlaskConical, Home, SearchX } from 'lucide-react'
 import { PayUCheckoutForm } from '@/components/PayUCheckoutForm'
 import { CheckoutCard, CheckoutGrid, CheckoutHeading, CheckoutMessage, CheckoutShell, DetailRow, PaymentSummary } from '@/components/patient/CheckoutShell'
-import { formatLongDate } from '@/components/patient/format'
-import { matchBookedTests, onlineDoorstepCharge, sumPrices } from '@/lib/pricing'
-import { getPlatformFees } from '@/lib/platform-fees'
+import { LabChargesAtVenue } from '@/components/patient/booking-ui'
+import { formatINR, formatLongDate } from '@/components/patient/format'
+import { formatPercent, labBookingFee, labDoorstepFee, labTestBookingFee, matchBookedTests } from '@/lib/pricing'
+import { getBookingFees } from '@/lib/booking-fees'
 
 type Joined<T> = T | T[] | null
 const one = <T,>(v: Joined<T> | undefined) => (Array.isArray(v) ? v[0] : v) ?? null
@@ -14,7 +15,7 @@ export default async function DiagnosticCheckoutPage({ params }: { params: Promi
   const { bookingId } = await params
   const supabase = await createClient()
 
-  const [user, fees] = await Promise.all([getCurrentUser(), getPlatformFees()])
+  const [user, fees] = await Promise.all([getCurrentUser(), getBookingFees()])
   if (!user) redirect('/login/patient')
 
   // Only the patient's own booking is ever loaded (and RLS enforces the same).
@@ -59,9 +60,11 @@ export default async function DiagnosticCheckoutPage({ params }: { params: Promi
   // Price each booked test from the lab's price list (a booking can hold several tests).
   const bookedTests = matchBookedTests(booking.test_name || '', center?.test_prices)
   const isDoorstep = booking.booking_type === 'doorstep'
-  // The same amount /api/payu/hash charges.
-  const doorstepFee = onlineDoorstepCharge(booking.booking_type, center)
-  const total = (bookedTests ? sumPrices(bookedTests) : 0) + doorstepFee + fees.diagnostic
+  // The home-collection fee is the lab's listed one, paid to the lab with the tests.
+  const doorstepFee = isDoorstep ? labDoorstepFee(center) : 0
+  // The same amount /api/payu/hash charges: the booking fee on each test, and nothing the lab charges itself.
+  const percent = fees.diagnosticPercent
+  const total = bookedTests ? labBookingFee(bookedTests, percent) : 0
 
   return (
     <CheckoutShell name={name} email={email}>
@@ -77,21 +80,24 @@ export default async function DiagnosticCheckoutPage({ params }: { params: Promi
             <DetailRow
               icon={Home}
               label="Collection mode"
-              value={isDoorstep ? `🏠 Doorstep Collection (₹${doorstepFee})` : '🚶 Lab Centre Visit'}
+              value={isDoorstep ? '🏠 Doorstep Collection' : '🚶 Lab Centre Visit'}
+              sub={isDoorstep && doorstepFee > 0 ? `Home collection fee ${formatINR(doorstepFee)}, paid to the lab` : undefined}
             />
             {booking.preferred_date && <DetailRow icon={CalendarDays} label="Preferred date" value={formatLongDate(booking.preferred_date)} />}
           </CheckoutCard>
         }
         summary={
           <PaymentSummary
-            lines={[
-              ...(bookedTests ?? []).map((t) => ({ label: t.name, amount: t.price })),
-              ...(isDoorstep && doorstepFee > 0 ? [{ label: 'Doorstep home collection', amount: doorstepFee }] : []),
-              { label: 'Platform fee', amount: fees.diagnostic },
-            ]}
+            lines={(bookedTests ?? []).map((t) => ({
+              label: `Booking fee: ${t.name}`,
+              sub: `${formatPercent(percent)} of the ${formatINR(t.price)} test price`,
+              amount: labTestBookingFee(t.price, percent),
+            }))}
             total={total}
+            isConsultation={false}
+            atVenue={<LabChargesAtVenue tests={bookedTests ?? []} doorstepFee={doorstepFee} />}
           >
-            {bookedTests ? (
+            {bookedTests && total > 0 ? (
               <PayUCheckoutForm
                 txnid={bookingId}
                 amount={total}

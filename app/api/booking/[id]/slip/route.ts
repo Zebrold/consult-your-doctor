@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { generateAppointmentSlipPdf } from '@/lib/pdf/appointment-slip'
 import { doctorName, formatLongDate, formatTime } from '@/components/patient/format'
-import { CONSULTATION_PLATFORM_FEE, DIAGNOSTIC_PLATFORM_FEE, matchBookedTests, sumPrices } from '@/lib/pricing'
+import { labBookingFee, matchBookedTests } from '@/lib/pricing'
+import { getBookingFees } from '@/lib/booking-fees'
 
 type Joined<T> = T | T[] | null
 const one = <T,>(v: Joined<T> | undefined) => (Array.isArray(v) ? v[0] : v) ?? null
@@ -44,7 +45,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
         id, status, created_at, patient_id,
         patient:profiles!appointments_patient_id_fkey ( full_name, phone_number, email ),
         doctor:doctors (
-          id, specialty, consultation_fee, hospital_id,
+          id, specialty, hospital_id,
           profiles!doctors_profile_id_fkey ( full_name )
         ),
         hospital:hospitals ( id, name, city, address ),
@@ -80,8 +81,9 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
-      const fee = Number(doc?.consultation_fee) || 0
-      const totalAmount = Number(paymentRow?.amount) || fee + CONSULTATION_PLATFORM_FEE
+      // A PayU payment is the booking fee. A desk payment (cash or UPI) is what the counter took, which the slip doesn't show.
+      const online = !paymentRow || paymentRow.gateway === 'payu'
+      const bookingFee = paymentRow ? Number(paymentRow.amount) || 0 : (await getBookingFees()).consultation
 
       const pdfBytes = await generateAppointmentSlipPdf({
         bookingId: id,
@@ -103,11 +105,11 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
           dateTimeStr: dateStr,
         },
         payment: {
-          amount: totalAmount,
-          platformFee: CONSULTATION_PLATFORM_FEE,
+          online,
+          amount: online ? bookingFee : 0,
           transactionId: paymentRow?.transaction_id || id,
           status: 'PAID',
-          gateway: paymentRow?.gateway === 'payu' ? 'PayU' : 'Hospital desk',
+          gateway: online ? 'PayU' : 'Hospital desk',
           paidAt: new Date(apt.created_at || Date.now()),
         },
       })
@@ -148,8 +150,9 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
-      const tests = matchBookedTests(diag.test_name || '', center?.test_prices)
-      const totalAmount = Number(paymentRow?.amount) || (tests ? sumPrices(tests) : 0) + DIAGNOSTIC_PLATFORM_FEE
+      const online = !paymentRow || paymentRow.gateway === 'payu'
+      const tests = paymentRow ? null : matchBookedTests(diag.test_name || '', center?.test_prices)
+      const bookingFee = paymentRow ? Number(paymentRow.amount) || 0 : tests ? labBookingFee(tests, (await getBookingFees()).diagnosticPercent) : 0
 
       const pdfBytes = await generateAppointmentSlipPdf({
         bookingId: id,
@@ -171,11 +174,11 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
           dateTimeStr: dateStr,
         },
         payment: {
-          amount: totalAmount,
-          platformFee: DIAGNOSTIC_PLATFORM_FEE,
+          online,
+          amount: online ? bookingFee : 0,
           transactionId: paymentRow?.transaction_id || id,
           status: 'PAID',
-          gateway: paymentRow?.gateway === 'payu' ? 'PayU' : 'Centre desk',
+          gateway: online ? 'PayU' : 'Centre desk',
           paidAt: new Date(diag.created_at || Date.now()),
         },
       })

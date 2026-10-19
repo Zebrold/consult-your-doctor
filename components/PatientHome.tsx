@@ -7,11 +7,12 @@ import {
   Microscope, Stethoscope,
 } from "lucide-react";
 import { PatientDock } from "@/components/PatientDock";
-import { PatientFooter } from "@/components/patient/PatientFooter";
+import { PatientFooter } from "@/components/AppFooter";
 import { doctorName, formatDayLabel, formatINR, formatSlot, formatTime, initials } from "@/components/patient/format";
 import { specialtyMeta } from "@/components/patient/specialties";
 import { PhoneHome } from "@/components/patient/PhoneHome";
-import { byNearness, usePatientLocation } from "@/components/patient/location";
+import { nearbyOnly, usePatientLocation } from "@/components/patient/location";
+import { NearbyNote } from "@/components/patient/Nearby";
 import { formatDistance } from "@/lib/geo";
 
 export type HomeDoctor = {
@@ -23,7 +24,8 @@ export type HomeDoctor = {
   experience: number | null;
   /** Degrees as the doctor entered them, e.g. "MBBS, MD". */
   qualifications: string | null;
-  fee: number | null;
+  /** Online booking is open (the hospital has set the consultation fee, which only the profile page shows). */
+  bookable: boolean;
   image: string | null;
   nextSlot: string | null;
   openToday: number;
@@ -64,16 +66,23 @@ interface PatientHomeProps {
   cities: string[];
   /** Patient reviews (a server component), shown after the care network. */
   reviews?: ReactNode;
+  /** The doctor booking fee: the only price the doctor cards show. */
+  bookingFee: number;
 }
 
 const facilityHref = (f: HomeFacility) => (f.kind === "lab" ? `/book/diagnostic/${f.id}` : `/hospitals/${f.id}`);
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, nearbyDoctors, specialties, facilities, cities, reviews }: PatientHomeProps) {
+export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, nearbyDoctors, specialties, facilities, cities, reviews, bookingFee }: PatientHomeProps) {
   const place = usePatientLocation();
-  // Nearest first once the patient shares a location; otherwise four hospitals and two labs, as before.
+  // Once the patient sets a location, only the doctors near it, nearest first; otherwise the soonest available.
+  const shownDoctors = useMemo(
+    () => (place.location ? nearbyOnly(nearbyDoctors, place.location).map((row) => row.item).slice(0, 8) : doctors),
+    [doctors, nearbyDoctors, place.location],
+  );
+  // Only the hospitals and labs near the patient's location; otherwise four hospitals and two labs, as before.
   const shownFacilities = useMemo(() => {
-    if (place.location) return byNearness(facilities, place.location).slice(0, 8);
+    if (place.location) return nearbyOnly(facilities, place.location).slice(0, 8);
     const hospitals = facilities.filter((f) => f.kind === "hospital");
     const labs = facilities.filter((f) => f.kind === "lab");
     return [...hospitals.slice(0, labs.length ? 4 : 6), ...labs.slice(0, 2)].map((item) => ({ item, km: null as number | null, inArea: true }));
@@ -107,6 +116,7 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
           now={now}
           visitLine={isSignedIn && nextVisit ? visitLine : null}
           doctors={nearbyDoctors}
+          bookingFee={bookingFee}
           specialties={specialties}
           cities={cities}
           place={place}
@@ -167,16 +177,20 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
                 <span className="hidden md:block font-label-sm text-label-sm uppercase tracking-wider text-vibrant-blue font-bold">Top Verified Clinicians</span>
                 <h2 className="font-title-md text-title-md md:font-headline-lg md:text-headline-lg text-on-surface tracking-tight md:mt-1">
                   <span className="md:hidden">Available Doctors</span>
-                  <span className="hidden md:inline">Recommended Doctors For You</span>
+                  <span className="hidden md:inline">{place.location ? "Doctors Near You" : "Recommended Doctors For You"}</span>
                 </h2>
-                <p className="hidden md:block font-body-md text-body-md text-indigo-gray-600 mt-1">Verified doctors, sorted by their earliest open appointment slot.</p>
+                <p className="hidden md:block font-body-md text-body-md text-indigo-gray-600 mt-1">
+                  {place.location ? `Verified doctors nearest to ${place.location.label}.` : "Verified doctors, sorted by their earliest open appointment slot."}
+                </p>
               </div>
-              {doctors.length > 2 && (
-                <CarouselButtons label="doctors" className={doctors.length <= 4 ? "lg:hidden" : ""} onScroll={(d) => scrollRow(doctorRow.current, d)} />
+              {shownDoctors.length > 2 && (
+                <CarouselButtons label="doctors" className={shownDoctors.length <= 4 ? "lg:hidden" : ""} onScroll={(d) => scrollRow(doctorRow.current, d)} />
               )}
             </div>
 
-            {doctors.length === 0 ? (
+            {place.location && doctors.length > 0 && shownDoctors.length === 0 ? (
+              <NearbyNote place={place} count={0} noun="doctors" />
+            ) : doctors.length === 0 ? (
               <div className="p-8 rounded-xl bg-surface-container-lowest text-center text-indigo-gray-600">
                 <Stethoscope className="w-10 h-10 mx-auto mb-2 text-outline" />
                 No doctors are listed yet. Please check back soon.
@@ -188,7 +202,7 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
                   ref={doctorRow}
                   className="hidden md:flex gap-6 overflow-x-auto snap-x scroll-smooth pb-4 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                 >
-                  {doctors.map((d) => (
+                  {shownDoctors.map((d) => (
                     <article
                       key={d.id}
                       className="snap-start shrink-0 w-[calc((100%-24px)/2)] lg:w-[calc((100%-72px)/4)] bg-surface-container-lowest rounded-xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
@@ -213,8 +227,8 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
                       </div>
                       <div className="pt-4 mt-4 border-t border-surface-variant flex items-center justify-between gap-3">
                         <div>
-                          <span className="font-label-sm text-label-sm text-outline">Fee</span>
-                          <p className="font-title-md text-body-lg font-bold text-on-surface">{d.fee ? formatINR(d.fee) : "—"}</p>
+                          <span className="font-label-sm text-label-sm text-outline">Booking fee</span>
+                          <p className="font-title-md text-body-lg font-bold text-on-surface">{d.bookable ? formatINR(bookingFee) : "—"}</p>
                         </div>
                         <Link href={`/book/${d.id}`} className="px-5 py-2.5 rounded-full bg-vibrant-blue text-on-primary font-body-md text-body-md font-semibold hover:bg-primary transition-all">
                           Book Now
@@ -241,7 +255,7 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
                 <div className="@container flex items-center md:items-end justify-between gap-3 md:gap-4 md:mt-1">
                   <h2 className="min-w-0 font-title-md text-[length:clamp(16px,calc((100cqw_-_96px)/12.4),22px)] md:text-headline-lg font-extrabold md:font-bold tracking-tight leading-tight whitespace-nowrap md:whitespace-normal">
                     <span className="md:hidden">{place.location ? "Hospitals & Labs Near You" : "Featured Hospitals & Labs"}</span>
-                    <span className="hidden md:inline">Partner Hospitals &amp; Diagnostics</span>
+                    <span className="hidden md:inline">{place.location ? "Hospitals & Labs Near You" : "Partner Hospitals & Diagnostics"}</span>
                   </h2>
                   <div className="flex items-center gap-4 shrink-0">
                   <Link href="/hospitals" className="group inline-flex items-center gap-0.5 md:gap-1 py-2.5 -my-2.5 md:py-0 md:my-0 text-sm md:text-body-md font-semibold text-white hover:underline underline-offset-4">
@@ -255,8 +269,16 @@ export function PatientHome({ name, email, isSignedIn, now, nextVisit, doctors, 
                   )}
                   </div>
                 </div>
-                <p className="mt-1 text-[13px] min-[380px]:text-[14px] md:text-body-md text-white/80">Find trusted hospitals and diagnostic centres</p>
+                <p className="mt-1 text-[13px] min-[380px]:text-[14px] md:text-body-md text-white/80">
+                  {place.location ? `Near ${place.location.label}` : "Find trusted hospitals and diagnostic centres"}
+                </p>
               </div>
+
+              {place.location && shownFacilities.length === 0 && (
+                <div className="relative">
+                  <NearbyNote place={place} count={0} noun="hospitals or labs" />
+                </div>
+              )}
 
               <div
                 ref={facilityRow}

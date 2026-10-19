@@ -6,7 +6,6 @@ import { one } from '@/components/patient/data'
 import { istDateKey } from '@/components/patient/format'
 import type { Tone } from '@/components/portal/ui'
 import { testList } from '@/lib/pricing'
-import { readLocalFees } from '@/lib/platform-fees'
 
 type Admin = ReturnType<typeof createAdminClient>
 type Joined<T> = T | T[] | null
@@ -244,10 +243,15 @@ async function loadPayments(admin: Admin, ids: string[]): Promise<Map<string, Pa
   return map
 }
 
-/** What the hospital keeps from a payment: online payments include the platform fee, desk payments don't. */
-export const hospitalShare = (p: Payment) => (p.gateway === 'payu' ? Math.max(0, p.amount - (readLocalFees().consultation)) : p.amount)
+/**
+ * What the hospital takes for a visit. A desk payment is what the desk collected. An online (PayU) payment is only the
+ * patient's booking fee, which goes to Consult Your Doctor: the hospital takes the doctor's consultation fee at its own
+ * counter, so that is its share.
+ */
+export const hospitalShare = (p: Payment, consultationFee: number | null | undefined) =>
+  p.gateway === 'payu' ? Math.max(0, Number(consultationFee) || 0) : p.amount
 
-export const PAYMENT_METHOD: Record<string, string> = { payu: 'Online (PayU)', upi_qr: 'UPI scanner', cash: 'Cash at desk' }
+export const PAYMENT_METHOD: Record<string, string> = { payu: 'Booked online, fee at counter', upi_qr: 'UPI scanner', cash: 'Cash at desk' }
 
 export type Slot = { id: string; doctorId: string; start: string; end: string | null; booked: boolean }
 

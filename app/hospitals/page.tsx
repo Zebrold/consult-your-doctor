@@ -8,6 +8,14 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { PatientNavHeader } from "@/components/PatientNavHeader";
 import { PatientDock } from "@/components/PatientDock";
+import { PatientFooter } from "@/components/AppFooter";
+import { NearbyList } from "@/components/patient/Nearby";
+import { toLatLng } from "@/lib/geo";
+
+const pinOf = (place: { latitude?: unknown; longitude?: unknown }) => {
+  const pin = toLatLng(place.latitude, place.longitude);
+  return { lat: pin?.lat ?? null, lng: pin?.lng ?? null };
+};
 
 export const revalidate = 0;
 
@@ -67,7 +75,7 @@ export default async function HospitalsDirectoryPage() {
         <Header />
       )}
       
-      <main className={`flex-1 ${isLoggedIn ? 'pt-5 md:pt-8 pb-dock' : 'pt-[calc(var(--header-h)+2rem)] md:pt-[calc(var(--header-h)+3rem)] pb-12'}`}>
+      <main className={`flex-1 ${isLoggedIn ? 'pt-5 md:pt-8 pb-12 md:pb-16' : 'pt-[calc(var(--header-h)+2rem)] md:pt-[calc(var(--header-h)+3rem)] pb-12'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Signed-in patients have the title in the blue header. */}
           <div className={`${isLoggedIn ? 'hidden' : ''} text-center mb-8 md:mb-12`}>
@@ -80,44 +88,52 @@ export default async function HospitalsDirectoryPage() {
           </div>
 
           {hospitals && hospitals.length > 0 ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {hospitals.map((hospital: any) => (
-                <div key={hospital.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row group">
-                  <div className="w-full sm:w-48 h-48 bg-gray-100 shrink-0 relative overflow-hidden">
-                    {hospital.image_url ? (
-                      <Image src={hospital.image_url} alt={hospital.name} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                        <Building2 className="w-16 h-16 text-gray-300" />
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="p-6 flex flex-col flex-1">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-vibrant-blue transition-colors">{hospital.name}</h3>
-                    
-                    <div className="space-y-2 mb-6">
-                      <div className="flex items-start gap-2 text-sm text-gray-600">
-                        <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-                        <span>{[hospital.address, hospital.city, hospital.state].filter(Boolean).join(', ')}</span>
-                      </div>
-                      
-                      {hospital.contact_phone && (
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <Phone className="w-4 h-4 text-gray-400 shrink-0" />
-                          <span>{hospital.contact_phone}</span>
+            <NearbyList
+              noun="hospitals"
+              className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+              items={hospitals.map((hospital: any) => ({
+                key: hospital.id,
+                city: hospital.city ?? null,
+                // Map pins arrive with supabase/migrations/20261014_facility_locations.sql; until then the city decides.
+                ...pinOf(hospital),
+                card: (
+                  <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row group">
+                    <div className="w-full sm:w-48 h-48 bg-gray-100 shrink-0 relative overflow-hidden">
+                      {hospital.image_url ? (
+                        <Image src={hospital.image_url} alt={hospital.name} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                          <Building2 className="w-16 h-16 text-gray-300" />
                         </div>
                       )}
                     </div>
+                
+                    <div className="p-6 flex flex-col flex-1">
+                      <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-vibrant-blue transition-colors">{hospital.name}</h3>
+                  
+                      <div className="space-y-2 mb-6">
+                        <div className="flex items-start gap-2 text-sm text-gray-600">
+                          <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                          <span>{[hospital.address, hospital.city, hospital.state].filter(Boolean).join(', ')}</span>
+                        </div>
                     
-                    <Link href={`/hospitals/${hospital.id}`} className="mt-auto flex items-center justify-between px-6 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 font-bold hover:bg-vibrant-blue hover:border-vibrant-blue hover:text-white transition-colors">
-                      <span>View Hospital Profile</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </Link>
+                        {hospital.contact_phone && (
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <Phone className="w-4 h-4 text-gray-400 shrink-0" />
+                            <span>{hospital.contact_phone}</span>
+                          </div>
+                        )}
+                      </div>
+                  
+                      <Link href={`/hospitals/${hospital.id}`} className="mt-auto flex items-center justify-between px-6 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 font-bold hover:bg-vibrant-blue hover:border-vibrant-blue hover:text-white transition-colors">
+                        <span>View Hospital Profile</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </Link>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ),
+              }))}
+            />
           ) : (
             <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
               <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -128,7 +144,10 @@ export default async function HospitalsDirectoryPage() {
         </div>
       </main>
       {isLoggedIn ? (
-        <PatientDock activeTab="find" isSignedIn={isLoggedIn} name={viewer?.full_name || user?.user_metadata?.full_name} />
+        <>
+          <PatientFooter isSignedIn />
+          <PatientDock activeTab="find" isSignedIn={isLoggedIn} name={viewer?.full_name || user?.user_metadata?.full_name} />
+        </>
       ) : (
         <Footer />
       )}

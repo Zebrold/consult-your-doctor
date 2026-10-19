@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { FindCareClient, type FindDoctor } from "@/components/FindCareClient";
 import { currentTime, loadAvailability, one } from "@/components/patient/data";
+import { getBookingFees } from "@/lib/booking-fees";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -28,7 +29,7 @@ export default async function FindPage(props: {
   const supabase = await createClient();
   const now = currentTime();
 
-  const [{ data: dbDoctors, error }, availability, { data: { user } }] = await Promise.all([
+  const [{ data: dbDoctors, error }, availability, { data: { user } }, fees] = await Promise.all([
     supabase
       .from("doctors")
       .select(`
@@ -38,6 +39,7 @@ export default async function FindPage(props: {
       `),
     loadAvailability(supabase, now),
     supabase.auth.getUser(),
+    getBookingFees(),
   ]);
 
   if (error) {
@@ -56,7 +58,7 @@ export default async function FindPage(props: {
     specialty: d.specialty,
     qualifications: d.qualifications,
     experience: d.experience_years,
-    fee: d.consultation_fee,
+    bookable: Number(d.consultation_fee) > 0,
     image: d.image_url,
     hospital: one(d.hospitals),
     nextSlot: availability[d.id]?.nextSlot ?? null,
@@ -69,6 +71,7 @@ export default async function FindPage(props: {
       now={now}
       initial={{ q: param("q"), specialty: param("specialty"), city: param("city"), availableToday: param("available") === "today" }}
       account={{ isSignedIn: !!user, name: profileName, email: user?.email ?? null }}
+      bookingFee={fees.consultation}
     />
   );
 }

@@ -7,13 +7,14 @@ import {
   MapPin, Microscope, Navigation, Plus, Search,
 } from "lucide-react";
 import { PatientDock } from "@/components/PatientDock";
+import { PatientFooter } from "@/components/AppFooter";
 import { PatientNavHeader } from "@/components/PatientNavHeader";
 import { createDiagnosticBooking } from "@/app/actions/booking";
 import { startPayuPayment } from "@/lib/payu-client";
-import { DEFAULT_DOORSTEP_FEE, DIAGNOSTIC_PLATFORM_FEE, type BookedTest } from "@/lib/pricing";
+import { DEFAULT_DOORSTEP_FEE, formatPercent, labBookingFee, labTestBookingFee, type BookedTest } from "@/lib/pricing";
 import {
-  appendPatientDetails, Breadcrumbs, DayStrip, FormError, PatientDetailsFields, PayuNote, patientDetailsError,
-  SignInToBook, StepCard, SummaryRow, type PatientDetails,
+  appendPatientDetails, Breadcrumbs, DayStrip, FormError, LabChargesAtVenue, PatientDetailsFields, PayuNote, patientDetailsError,
+  RefundNote, SignInToBook, StepCard, SummaryRow, type PatientDetails,
 } from "@/components/patient/booking-ui";
 import { formatINR, formatLongDate, upcomingDays } from "@/components/patient/format";
 
@@ -34,13 +35,13 @@ interface DiagnosticBookingClientProps {
   patient: PatientDetails | null;
   now: number;
   payuKey: string;
-  /** The platform fee /api/payu/hash will charge (lib/platform-fees.ts). */
-  platformFee?: number;
+  /** The booking fee, as a per cent of each test's price, that /api/payu/hash will charge (lib/booking-fees.ts). */
+  bookingFeePercent: number;
 }
 
 const COLLAPSED = 8;
 
-export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, platformFee = DIAGNOSTIC_PLATFORM_FEE }: DiagnosticBookingClientProps) {
+export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, bookingFeePercent }: DiagnosticBookingClientProps) {
   const days = useMemo(() => upcomingDays(now, 6), [now]);
   const today = days[0].key;
   const doorstepEnabled = center.doorstepEnabled !== false;
@@ -62,9 +63,9 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, 
   const [submitting, setSubmitting] = useState(false);
 
   const selectedTests = tests.filter((t) => chosen.includes(t.name));
-  const testsTotal = selectedTests.reduce((sum, t) => sum + t.price, 0);
-  const total = testsTotal + currentDoorstepFee + platformFee;
-  const cheapest = tests.length ? Math.min(...tests.map((t) => t.price)) : null;
+  // The whole online payment: the booking fee on each test. The tests and home collection are paid to the lab.
+  const total = labBookingFee(selectedTests, bookingFeePercent);
+  const feeOf = (t: BookedTest) => labTestBookingFee(t.price, bookingFeePercent);
 
   const q = filter.trim().toLowerCase();
   const matching = tests.filter((t) => !q || t.name.toLowerCase().includes(q));
@@ -134,7 +135,7 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, 
         subtitle={center.name}
       />
 
-      <main className="w-full pb-dock">
+      <main className="w-full pb-12 md:pb-16">
         <div className="max-w-container-max mx-auto px-margin-x-mobile md:px-margin-x-desktop pt-5 md:pt-4">
           <div className="hidden md:block pb-6">
             <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Diagnostics", href: "/diagnostics" }, { label: center.name }, { label: "Book Diagnostic Test" }]} />
@@ -165,7 +166,7 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, 
                 </div>
                 <div className="relative grid grid-cols-3 gap-3 mt-4 bg-surface-container-low/60 md:bg-surface-container-low rounded-lg p-3 md:p-3.5 text-center">
                   <LabMetric label="Tests Offered" value={String(tests.length)} />
-                  <LabMetric label="Starting At" value={cheapest ? formatINR(cheapest) : "—"} accent />
+                  <LabMetric label="Booking Fee" value={`${formatPercent(bookingFeePercent)} of price`} accent />
                   <LabMetric label="City" value={center.city || "—"} />
                 </div>
               </section>
@@ -240,7 +241,7 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, 
                       </span>
                     </div>
                     <span className="text-xs font-bold text-emerald-700">
-                      {doorstepEnabled ? `+${formatINR(doorstepFee)} Home Visit Fee` : 'Not Available'}
+                      {doorstepEnabled ? `${formatINR(doorstepFee)} home visit fee, paid to the lab` : 'Not Available'}
                     </span>
                   </button>
                 </div>
@@ -293,7 +294,10 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, 
                                 </span>
                                 <span className="font-label-sm md:font-title-md text-[14px] md:text-body-lg font-semibold text-on-surface">{t.name}</span>
                               </span>
-                              <span className={`font-title-md text-[15px] md:text-title-md font-bold shrink-0 ${on ? "text-primary" : "text-on-surface"}`}>{formatINR(t.price)}</span>
+                              <span className="flex flex-col items-end shrink-0 text-right">
+                                <span className={`font-title-md text-[15px] md:text-title-md font-bold ${on ? "text-primary" : "text-on-surface"}`}>{formatINR(feeOf(t))}</span>
+                                <span className="font-label-sm text-[11px] text-indigo-gray-600">booking fee · {formatINR(t.price)} at the lab</span>
+                              </span>
                             </button>
                           </li>
                         );
@@ -393,24 +397,22 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, 
                   {selectedTests.length === 0 ? (
                     <p className="text-sm text-indigo-gray-600">No tests selected yet.</p>
                   ) : (
-                    selectedTests.map((t) => <SummaryRow key={t.name} label={t.name} value={formatINR(t.price)} />)
+                    selectedTests.map((t) => (
+                      <SummaryRow key={t.name} label={`Booking fee: ${t.name}`} sub={`${formatPercent(bookingFeePercent)} of the ${formatINR(t.price)} test price`} value={formatINR(feeOf(t))} />
+                    ))
                   )}
-                  <SummaryRow label="Platform fee" value={formatINR(platformFee)} />
-                  {isDoorstep ? (
-                    <SummaryRow label="Doorstep home visit" sub="Phlebotomist collection" value={formatINR(doorstepFee)} />
-                  ) : (
-                    <SummaryRow label="Sample collection" sub="At the lab" value="Free" tone="free" />
-                  )}
+                  <SummaryRow label="Sample collection" sub={isDoorstep ? "Home visit by the lab" : "At the lab"} value={isDoorstep ? "Paid to lab" : "Free"} tone={isDoorstep ? undefined : "free"} />
                 </div>
                 <div className="py-4 bg-surface-container-low -mx-5 md:-mx-6 px-5 md:px-6 flex items-center justify-between gap-3">
                   <div>
-                    <span className="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wide">Total Payable</span>
+                    <span className="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wide">Total Payable Online</span>
                     <span className="block font-label-sm text-[11px] text-indigo-gray-600 mt-0.5">Visit on {formatLongDate(`${date}T12:00:00+05:30`)}</span>
                   </div>
                   <span className="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary font-extrabold">{selectedTests.length ? formatINR(total) : "—"}</span>
                 </div>
 
                 <div className="mt-5 flex flex-col gap-4">
+                  <LabChargesAtVenue tests={selectedTests} doorstepFee={currentDoorstepFee} />
                   <PayuNote />
                   {error && (
                     <FormError>
@@ -461,12 +463,16 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, 
                     {center.name}{center.city ? `, ${center.city}` : ""}
                   </li>
                 </ul>
+                <div className="mt-4">
+                  <RefundNote isConsultation={false} />
+                </div>
               </div>
             </aside>
           </div>
         </div>
       </main>
 
+      <PatientFooter isSignedIn={!!patient} />
       <PatientDock activeTab="book" isSignedIn={!!patient} name={patient?.name} />
     </div>
   );

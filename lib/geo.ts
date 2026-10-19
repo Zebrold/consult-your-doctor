@@ -35,3 +35,37 @@ export function formatDistance(km: number): string {
   if (km < 1) return `${Math.max(50, Math.round((km * 1000) / 50) * 50)} m`
   return km < 10 ? `${km.toFixed(1)} km` : `${Math.round(km)} km`
 }
+
+// Hospital staff and OpenStreetMap spell cities differently ("New Delhi" / "Delhi", "HYD" / "Hyderabad",
+// "Bangalore" / "Bengaluru"), so cities are compared by a common key.
+const CITY_ALIASES: Record<string, string> = {
+  hyd: 'hyderabad',
+  secunderabad: 'hyderabad',
+  bangalore: 'bengaluru',
+  'bengaluru urban': 'bengaluru',
+  bombay: 'mumbai',
+  'mumbai suburban': 'mumbai',
+  'mumbai city': 'mumbai',
+  madras: 'chennai',
+  calcutta: 'kolkata',
+  gurgaon: 'gurugram',
+  poona: 'pune',
+  vizag: 'visakhapatnam',
+  trivandrum: 'thiruvananthapuram',
+  cochin: 'kochi',
+  baroda: 'vadodara',
+  mysore: 'mysuru',
+}
+
+/** "New Delhi" → "delhi", "HYD" → "hyderabad": the same key for the same city however it was typed. */
+export function cityKey(name: string | null | undefined): string {
+  const key = (name ?? '').toLowerCase().replace(/[^a-z]+/g, ' ').replace(/\b(district|city|metropolitan|region)\b/g, ' ').replace(/\s+/g, ' ').trim()
+  // New, South, Central, ... Delhi are all Delhi.
+  if (/^([a-z]+ )?delhi( ncr)?$/.test(key)) return 'delhi'
+  return CITY_ALIASES[key] ?? key
+}
+
+export const sameCity = (a: string | null | undefined, b: string | null | undefined) => {
+  const key = cityKey(a)
+  return key !== '' && key === cityKey(b)
+}

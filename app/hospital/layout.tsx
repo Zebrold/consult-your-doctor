@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Hospital } from 'lucide-react'
 import { PortalDock } from '@/components/portal/PortalNav'
 import { TopBar } from '@/components/portal/TopBar'
+import { PortalFooter } from '@/components/AppFooter'
 import { TopBarChip } from '@/components/portal/TopBarChip'
 import { requireHospital } from './_lib/hospital'
 
@@ -14,7 +15,7 @@ export default async function HospitalLayout({ children }: { children: React.Rea
   const live = hospital.status === 'active'
 
   return (
-    <div className="min-h-screen bg-slate-50 text-on-surface antialiased">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-on-surface antialiased">
       <TopBar
         homeHref="/hospital/dashboard"
         section="Hospital Portal"
@@ -27,9 +28,10 @@ export default async function HospitalLayout({ children }: { children: React.Rea
         }
       />
       <PortalDock portal="hospital" />
-      <main className="w-full max-w-[1440px] mx-auto px-4 lg:px-margin-x-desktop pt-4 md:pt-6 pb-dock flex flex-col gap-4 md:gap-stack-md">
+      <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 lg:px-margin-x-desktop pt-4 md:pt-6 pb-12 md:pb-16 flex flex-col gap-4 md:gap-stack-md">
         {children}
       </main>
+      <PortalFooter portal="hospital" />
     </div>
   )
 }

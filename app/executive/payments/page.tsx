@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import { PageHeader } from '../_components/ui'
 import { requireExecutive } from '../_lib/ops'
 import { getExecutivePayments } from '@/app/actions/payments'
-import { getPlatformFees } from '@/lib/platform-fees'
-import { PlatformFeeManager } from '../_components/PlatformFeeManager'
+import { getBookingFees } from '@/lib/booking-fees'
+import { BookingFeeManager } from '../_components/BookingFeeManager'
 import { ExecutivePaymentsClient } from './ExecutivePaymentsClient'
 
 export const metadata: Metadata = { title: 'Payment Management' }
@@ -12,7 +12,7 @@ export default async function ExecutivePaymentsPage() {
   await requireExecutive()
   const [{ transactions, stats }, fees] = await Promise.all([
     getExecutivePayments(),
-    getPlatformFees(),
+    getBookingFees(),
   ])
 
   return (
@@ -20,10 +20,10 @@ export default async function ExecutivePaymentsPage() {
       <PageHeader
         eyebrow="Financial Operations"
         title="Executive Panel — Payment Management"
-        description="Comprehensive ledger of online PayU, UPI QR, and desk collections. Reconcile transactions, issue traceable refunds, and configure live platform fees."
+        description="Comprehensive ledger of online PayU, UPI QR, and desk collections. Reconcile transactions, issue traceable refunds, and set the online booking fees."
       />
 
-      <PlatformFeeManager initialFees={fees} />
+      <BookingFeeManager initialFees={fees} />
 
       <ExecutivePaymentsClient initialTransactions={transactions} stats={stats} />
     </>

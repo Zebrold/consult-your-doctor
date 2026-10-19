@@ -1,92 +1,39 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
 import { requireExecutive } from '@/app/executive/_lib/ops'
-import { getPlatformFees, savePlatformFees, type PlatformFees, type PlatformFeeItem } from '@/lib/platform-fees'
+import {
+  BOOKING_FEES_TAG, MAX_CONSULTATION_BOOKING_FEE, getBookingFees, saveBookingFees, validConsultationBookingFee, validDiagnosticPercent,
+} from '@/lib/booking-fees'
+import type { BookingFees } from '@/lib/pricing'
 
-export async function getPlatformFeesAction(): Promise<PlatformFees> {
-  await requireExecutive()
-  return await getPlatformFees()
+/** The live booking fees, for client components that load their own data. They are public: every booking page shows them. */
+export async function bookingFeesAction(): Promise<BookingFees> {
+  return getBookingFees()
 }
 
-export type UpdatePlatformFeesPayload =
-  | FormData
-  | {
-      items?: PlatformFeeItem[]
-      consultation?: number
-      diagnostic?: number
-    }
-
-export async function updatePlatformFeesAction(payload: UpdatePlatformFeesPayload): Promise<{
-  success: boolean
-  fees?: PlatformFees
-  error?: string
-}> {
+export async function updateBookingFeesAction(input: BookingFees): Promise<{ success: boolean; fees?: BookingFees; error?: string }> {
   try {
     await requireExecutive()
 
-    let items: PlatformFeeItem[] | undefined
-    let consultation: number | undefined
-    let diagnostic: number | undefined
-
-    if (payload instanceof FormData) {
-      const itemsRaw = payload.get('items')
-      if (typeof itemsRaw === 'string' && itemsRaw.trim()) {
-        try {
-          items = JSON.parse(itemsRaw)
-        } catch {
-          return { success: false, error: 'Invalid items payload JSON.' }
-        }
-      }
-      const c = payload.get('consultation')
-      const d = payload.get('diagnostic')
-      if (c !== null) consultation = Number(c)
-      if (d !== null) diagnostic = Number(d)
-    } else {
-      items = payload.items
-      consultation = payload.consultation
-      diagnostic = payload.diagnostic
+    // Server actions take any value from the browser, so the amounts are checked here and not only in the form.
+    const consultation = Number(input?.consultation)
+    const diagnosticPercent = Number(input?.diagnosticPercent)
+    if (!validConsultationBookingFee(consultation)) {
+      return { success: false, error: `The doctor booking fee must be a whole number of rupees from ₹0 to ₹${MAX_CONSULTATION_BOOKING_FEE.toLocaleString('en-IN')}.` }
+    }
+    if (!validDiagnosticPercent(diagnosticPercent)) {
+      return { success: false, error: 'The lab booking fee must be a percentage from 0 to 100, with at most two decimals.' }
     }
 
-    if (items) {
-      if (!Array.isArray(items)) {
-        return { success: false, error: 'Platform fee items must be a list.' }
-      }
-      for (const item of items) {
-        if (!item.name || !item.name.trim()) {
-          return { success: false, error: 'All platform fees must have a valid name.' }
-        }
-        if (!Number.isFinite(Number(item.amount)) || Number(item.amount) < 0) {
-          return {
-            success: false,
-            error: `Platform fee "${item.name}" must have a valid non-negative amount (₹0 or more).`,
-          }
-        }
-      }
-    } else {
-      if (consultation !== undefined && (!Number.isFinite(consultation) || consultation < 0)) {
-        return { success: false, error: 'Please enter a valid consultation platform fee (0 or greater).' }
-      }
-      if (diagnostic !== undefined && (!Number.isFinite(diagnostic) || diagnostic < 0)) {
-        return { success: false, error: 'Please enter a valid diagnostic lab platform fee (0 or greater).' }
-      }
-    }
+    const fees: BookingFees = { consultation, diagnosticPercent }
+    await saveBookingFees(fees)
 
-    const updated = await savePlatformFees({
-      items,
-      consultation,
-      diagnostic,
-    })
-
-    // Revalidate relevant pages
-    revalidatePath('/executive/payments')
-    revalidatePath('/executive/revenue')
-    revalidatePath('/doctor/schedule')
-    revalidatePath('/prices')
-
-    return { success: true, fees: updated }
+    // Every page that shows a fee, and the PayU hash and callback, read it through this tag.
+    updateTag(BOOKING_FEES_TAG)
+    revalidatePath('/', 'layout')
+    return { success: true, fees }
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Failed to update platform fees'
-    return { success: false, error: message }
+    return { success: false, error: err instanceof Error ? err.message : 'Could not save the booking fees.' }
   }
 }

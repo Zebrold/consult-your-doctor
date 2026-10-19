@@ -1,6 +1,38 @@
-/** Fees added on top of the doctor's or lab's own price at checkout. */
-export const CONSULTATION_PLATFORM_FEE = 49
-export const DIAGNOSTIC_PLATFORM_FEE = 29
+/**
+ * What Consult Your Doctor charges online: a flat booking fee for a doctor, and a share of the lab's test prices for
+ * lab tests. The doctor's consultation fee is paid at the hospital counter, and the tests (and any home collection)
+ * at the lab, so neither is ever part of an online payment. Executives set both on Payments (lib/booking-fees.ts).
+ */
+export type BookingFees = {
+  /** Rupees per doctor booking. */
+  consultation: number
+  /** Per cent of the lab's price for each booked test. */
+  diagnosticPercent: number
+}
+
+export const DEFAULT_BOOKING_FEES: BookingFees = { consultation: 119, diagnosticPercent: 11 }
+
+// Worked in whole paise and hundredths of a per cent, so 11% of ₹350 is exactly ₹38.50 and not a float next to it.
+const testFeePaise = (price: number, percent: number) => Math.round((Math.round(price * 100) * Math.round(percent * 100)) / 10_000)
+
+/** The booking fee for one lab test: its share of the test's price, to the paisa. */
+export const labTestBookingFee = (price: number, percent: number) => testFeePaise(price, percent) / 100
+
+/** The booking fee for a lab booking: each test's fee added up, so the lines a patient sees always sum to the charge. */
+export const labBookingFee = (tests: BookedTest[], percent: number) =>
+  tests.reduce((sum, t) => sum + testFeePaise(t.price, percent), 0) / 100
+
+/** "11%" or "10.5%". */
+export const formatPercent = (percent: number) => `${Number(percent.toFixed(2))}%`
+
+/** What a patient still pays in person after paying the booking fee online, said without an amount. */
+export const payAtVenueNote = (isConsultation: boolean) =>
+  isConsultation
+    ? 'The consultation fee is set by the hospital and paid at the hospital counter.'
+    : 'The test charges are paid to the lab, not online.'
+
+/** An amount as it is posted to PayU and signed in the hash: rupees with two decimals, e.g. "38.50". */
+export const payuAmount = (amount: number) => amount.toFixed(2)
 
 type PriceList = Record<string, number | string> | null | undefined
 
@@ -43,18 +75,13 @@ export const sumPrices = (tests: BookedTest[]) => tests.reduce((sum, t) => sum +
 /** What a lab charges to collect samples at home when it hasn't set its own fee. */
 export const DEFAULT_DOORSTEP_FEE = 100
 
-/** The lab's listed home-collection fee: its own (0 means free), or the default when it hasn't set one. */
+/**
+ * The lab's listed home-collection fee: its own (0 means free), or the default when it hasn't set one. The patient pays
+ * it to the lab with the tests; it is never part of the online booking fee.
+ */
 export function labDoorstepFee(center: { doorstep_fee?: number | string | null } | null | undefined): number {
   const fee = Number(center?.doorstep_fee)
   return center?.doorstep_fee != null && Number.isFinite(fee) ? Math.max(0, Math.round(fee)) : DEFAULT_DOORSTEP_FEE
-}
-
-/**
- * The home-collection charge on a patient's own online booking. It comes from the lab's listed fee, never from the
- * booking row: a patient can write their own booking rows, and a negative or zero fee there would lower the price.
- */
-export function onlineDoorstepCharge(bookingType: string | null | undefined, center: { doorstep_fee?: number | string | null } | null | undefined) {
-  return bookingType === 'doorstep' ? labDoorstepFee(center) : 0
 }
 
 /**

@@ -10,6 +10,7 @@ import QuickSearch from '@/components/QuickSearch';
 import { PatientHome, type HomeDoctor, type HomeFacility } from '@/components/PatientHome';
 import { currentTime, loadAvailability, one } from '@/components/patient/data';
 import { pricedTests } from '@/lib/pricing';
+import { getBookingFees } from '@/lib/booking-fees';
 import { HomePhoneMockup } from '@/components/HomePhoneMockup';
 import { TrustedByPatients } from '@/components/TrustedByPatients';
 import { Header } from '@/components/Header';
@@ -130,7 +131,7 @@ export default async function Home(props: {
         city: hospital?.city ?? null,
         experience: d.experience_years,
         qualifications: d.qualifications?.trim() || null,
-        fee: d.consultation_fee,
+        bookable: Number(d.consultation_fee) > 0,
         image: d.image_url,
         nextSlot: availability[d.id]?.nextSlot ?? null,
         openToday: availability[d.id]?.openToday ?? 0,
@@ -149,7 +150,7 @@ export default async function Home(props: {
     // Every bookable doctor, soonest available first (photos break ties). Wide screens show the first eight; phones
     // re-order the whole list by distance once the patient shares a location.
     const bookable = doctors
-      .filter((d) => d.fee)
+      .filter((d) => d.bookable)
       .sort((a, b) => (a.nextSlot ?? '￿').localeCompare(b.nextSlot ?? '￿') || Number(!!b.image) - Number(!!a.image))
       .slice(0, 150);
     const recommended = bookable.slice(0, 8);
@@ -209,6 +210,7 @@ export default async function Home(props: {
         facilities={facilities}
         cities={cities}
         reviews={<TrustedByPatients compact />}
+        bookingFee={(await getBookingFees()).consultation}
       />
     );
   }
@@ -285,7 +287,7 @@ export default async function Home(props: {
         <section className="relative isolate overflow-hidden py-16 bg-white">
           <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
             <div className="lg:col-span-5 relative flex items-center justify-center">
-              <HomePhoneMockup />
+              <HomePhoneMockup bookingFee={(await getBookingFees()).consultation} />
             </div>
 
             <div className="lg:col-span-7 space-y-6">

@@ -7,16 +7,19 @@ import { PatientSidebar } from '@/components/PatientSidebar'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
 import { AccountShortcuts } from '@/components/patient/AccountShortcuts'
 import { PatientDock } from '@/components/PatientDock'
+import { PatientFooter } from '@/components/AppFooter'
 import { SupportTicketButton } from '@/components/patient/SupportTicket'
 import { currentTime, one } from '@/components/patient/data'
 import { formatShortDate } from '@/components/patient/format'
 import { COMPANY } from '@/lib/company'
-import { CONSULTATION_PLATFORM_FEE, DIAGNOSTIC_PLATFORM_FEE } from '@/lib/pricing'
+import { formatPercent, type BookingFees } from '@/lib/pricing'
+import { getBookingFees } from '@/lib/booking-fees'
+import { formatINR } from '@/components/patient/format'
 
 export const metadata: Metadata = { title: 'Help & Support | Consult Your Doctor' }
 
 // Answers describe what the site really does today.
-const FAQS: { q: string; a: React.ReactNode }[] = [
+const faqs = (fees: BookingFees): { q: string; a: React.ReactNode }[] => [
   {
     q: 'How do I get my prescription?',
     a: (
@@ -43,11 +46,11 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'Can I reschedule or cancel an appointment?',
-    a: 'You can’t change a booking yourself yet. Raise a ticket with the booking ID, or call the support desk, and the team will move or cancel it for you.',
+    a: 'You can’t change a booking yourself yet. Raise a ticket with the booking ID, or call the support desk, and the team will move or cancel it for you. Your booking fee is refunded in full if you cancel at least 2 hours before the slot, or if the doctor, hospital or lab cancels; refunds go back to your original payment method within 5–7 working days.',
   },
   {
     q: 'How do I pay, and is there a booking fee?',
-    a: `Online bookings are paid through PayU (card, UPI or netbanking) and include a small platform fee: ₹${CONSULTATION_PLATFORM_FEE} for a consultation and ₹${DIAGNOSTIC_PLATFORM_FEE} for lab tests. At a hospital or lab desk you can pay by scanning their UPI code, through PayU, or in cash.`,
+    a: `Online you pay only the booking fee, through PayU (card, UPI or netbanking): ${formatINR(fees.consultation)} for a doctor appointment, or ${formatPercent(fees.diagnosticPercent)} of each test's price for lab tests. The doctor's consultation fee is set by the hospital and paid at the hospital counter, and lab tests are paid at the lab. If you book at a hospital or lab desk, you pay there by scanning their UPI code or in cash.`,
   },
   {
     q: 'How do I sign in?',
@@ -60,6 +63,7 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
 ]
 
 export default async function PatientSupport() {
+  const FAQS = faqs(await getBookingFees())
   const supabase = await createClient()
   const user = await getCurrentUser()
   if (!user) redirect('/login/patient?next=/patient/support')
@@ -104,7 +108,7 @@ export default async function PatientSupport() {
         title="Help & Support"
         subtitle="Answers to common questions, or reach our support desk."
       />
-      <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-dock">
+      <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-12 md:pb-16">
         <div className="relative w-full overflow-hidden">
           <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-5 md:pt-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start max-w-[1440px] mx-auto">
@@ -191,6 +195,7 @@ export default async function PatientSupport() {
           </div>
         </div>
       </main>
+      <PatientFooter isSignedIn />
       <PatientDock activeTab="profile" name={profile?.full_name} />
     </div>
   )

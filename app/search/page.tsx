@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import SearchClient from "@/components/SearchClient";
+import { getBookingFees } from "@/lib/booking-fees";
 
 export default async function SearchPage({
   searchParams,
@@ -264,6 +265,7 @@ export default async function SearchPage({
       specialties={uniqueSpecialties}
       diagnosticCenters={filteredDiagCenters}
       allTests={allTests}
+      labFeePercent={(await getBookingFees()).diagnosticPercent}
     />
   );
 }

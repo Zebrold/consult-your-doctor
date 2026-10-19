@@ -648,7 +648,7 @@ export function TakePaymentButton({ appointmentId }: { appointmentId: string }) 
         {pending ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />} Take payment
       </button>
       {payment && (
-        <DeskDialog title="Take payment" subtitle="PayU, the UPI scanner or cash." onClose={() => setPayment(null)}>
+        <DeskDialog title="Take payment" subtitle="The UPI scanner or cash." onClose={() => setPayment(null)}>
           <PaymentPanel
             payment={payment}
             onRecord={(method, reference) => recordHospitalPayment({ appointmentId, method, reference })}

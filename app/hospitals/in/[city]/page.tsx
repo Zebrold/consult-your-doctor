@@ -8,6 +8,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { PatientNavHeader } from "@/components/PatientNavHeader";
 import { PatientDock } from "@/components/PatientDock";
+import { PatientFooter } from "@/components/AppFooter";
 
 export const revalidate = 0;
 
@@ -81,7 +82,7 @@ export default async function HospitalsInCityPage(props: Props) {
         <Header />
       )}
       
-      <main className={`flex-1 ${isLoggedIn ? 'pt-5 md:pt-8 pb-dock' : 'pt-[calc(var(--header-h)+2rem)] md:pt-[calc(var(--header-h)+3rem)] pb-12'}`}>
+      <main className={`flex-1 ${isLoggedIn ? 'pt-5 md:pt-8 pb-12 md:pb-16' : 'pt-[calc(var(--header-h)+2rem)] md:pt-[calc(var(--header-h)+3rem)] pb-12'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Signed-in patients have the title in the blue header. */}
           <div className={`${isLoggedIn ? 'hidden' : ''} text-center mb-8 md:mb-12`}>
@@ -145,7 +146,10 @@ export default async function HospitalsInCityPage(props: Props) {
         </div>
       </main>
       {isLoggedIn ? (
-        <PatientDock activeTab="find" isSignedIn={isLoggedIn} name={viewer?.full_name || user?.user_metadata?.full_name} />
+        <>
+          <PatientFooter isSignedIn />
+          <PatientDock activeTab="find" isSignedIn={isLoggedIn} name={viewer?.full_name || user?.user_metadata?.full_name} />
+        </>
       ) : (
         <Footer />
       )}

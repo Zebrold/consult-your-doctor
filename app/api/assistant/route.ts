@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ASSISTANT_SYSTEM, contextNote } from '@/lib/assistant/knowledge'
 import { assistantTools, type AssistantTool } from '@/lib/assistant/tools'
+import { getBookingFees } from '@/lib/booking-fees'
 import type { PdfDoc } from '@/lib/assistant/pdf-doc'
 
 // Zebrold AI: the Support chat on every page and each section's Zebrold AI page, running on Cloudflare Workers AI
@@ -167,6 +168,7 @@ export async function POST(request: Request) {
     firstName = profile?.full_name?.trim().split(/\s+/)[0] ?? null
   }
 
+  const fees = await getBookingFees()
   const encoder = new TextEncoder()
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -174,7 +176,7 @@ export async function POST(request: Request) {
       const tools = assistantTools({ admin, patientId: user && role === 'patient' ? user.id : null, onPdf: (pdf) => send({ type: 'pdf', pdf }) })
       const byName = new Map(tools.map((t) => [t.name, t]))
       const messages: ChatMessage[] = [
-        { role: 'system', content: `${ASSISTANT_SYSTEM}\n\n${contextNote({ role, firstName, path: parsed.data.path ?? '/', mode, language, now: Date.now() })}` },
+        { role: 'system', content: `${ASSISTANT_SYSTEM}\n\n${contextNote({ role, firstName, path: parsed.data.path ?? '/', mode, language, now: Date.now(), fees })}` },
         ...turns.map((m) => ({ role: m.role, content: m.content })),
       ]
 

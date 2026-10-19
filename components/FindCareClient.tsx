@@ -8,11 +8,15 @@ import {
   Map as MapIcon, MapPin, Navigation, Search, SearchX, SlidersHorizontal, Stethoscope, X, Zap,
 } from "lucide-react";
 import { PatientDock } from "@/components/PatientDock";
+import { PatientFooter } from "@/components/AppFooter";
 import { PatientNavHeader } from "@/components/PatientNavHeader";
 import { doctorName, formatINR, formatSlot, initials } from "@/components/patient/format";
 import type { Clinic } from "@/components/patient/CareMap";
 import type { HomeDoctor } from "@/components/PatientHome";
 import { DoctorCard as PhoneDoctorCard } from "@/components/patient/PhoneHome";
+import { locationCity, nearbyOnly, usePatientLocation } from "@/components/patient/location";
+import { NearbyNote } from "@/components/patient/Nearby";
+import { sameCity } from "@/lib/geo";
 
 const CareMap = dynamic(() => import("@/components/patient/CareMap"), {
   ssr: false,
@@ -25,20 +29,23 @@ export interface FindDoctor {
   specialty: string | null;
   qualifications: string | null;
   experience: number | null;
-  fee: number | null;
+  /** Online booking is open (the hospital has set the consultation fee, which only the profile page shows). */
+  bookable: boolean;
   image: string | null;
   hospital: { id: string; name: string; city: string | null; address: string | null } | null;
   nextSlot: string | null;
   openToday: number;
 }
 
-type Sort = "soonest" | "fee" | "experience";
+type Sort = "soonest" | "experience";
 
 interface FindCareClientProps {
   doctors: FindDoctor[];
   now: number;
   initial: { q: string; specialty: string; city: string; availableToday: boolean };
   account: { isSignedIn: boolean; name: string | null; email: string | null };
+  /** The doctor booking fee: the only price search results show. */
+  bookingFee: number;
 }
 
 const PAGE = 8;
@@ -63,7 +70,7 @@ const subscribeWide = (onChange: () => void) => {
 };
 const useIsWide = () => useSyncExternalStore(subscribeWide, () => window.matchMedia(wideQuery).matches, () => false);
 
-export function FindCareClient({ doctors, now, initial, account }: FindCareClientProps) {
+export function FindCareClient({ doctors, now, initial, account, bookingFee }: FindCareClientProps) {
   const specialties = useMemo(() => {
     const counts = new Map<string, number>();
     for (const d of doctors) if (d.specialty) counts.set(d.specialty, (counts.get(d.specialty) ?? 0) + 1);
@@ -76,7 +83,17 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
 
   const [query, setQuery] = useState(initial.q);
   const [specialty, setSpecialty] = useState(() => specialties.find((s) => s.toLowerCase() === initial.specialty.toLowerCase()) ?? "");
-  const [city, setCity] = useState(() => cities.find((c) => c.toLowerCase() === initial.city.toLowerCase()) ?? "");
+  // A city from the link, or one the patient picks here ("" is All cities). Until then (null) the list follows the
+  // patient's saved location and holds only the doctors near it.
+  const [cityChoice, setCity] = useState<string | null>(() => (initial.city ? cities.find((c) => sameCity(c, initial.city)) ?? null : null));
+  const place = usePatientLocation();
+  const byLocation = cityChoice === null && !!place.location;
+  const city = cityChoice ?? (byLocation ? cities.find((c) => sameCity(c, locationCity(place.location))) ?? "" : "");
+  const nearIds = useMemo(
+    () => new Set(nearbyOnly(doctors.map((d) => ({ id: d.id, city: d.hospital?.city ?? null, lat: null, lng: null })), place.location).map((row) => row.item.id)),
+    [doctors, place.location],
+  );
+  const where = byLocation ? `near ${place.location?.label}` : city ? `in ${city}` : "across all cities";
   const [availableToday, setAvailableToday] = useState(initial.availableToday);
   const [sort, setSort] = useState<Sort>("soonest");
   const [visible, setVisible] = useState(PAGE);
@@ -91,18 +108,17 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
     const q = query.trim().toLowerCase();
     const list = doctors.filter((d) => {
       if (specialty && d.specialty !== specialty) return false;
-      if (city && d.hospital?.city !== city) return false;
+      if (byLocation ? !nearIds.has(d.id) : city && d.hospital?.city !== city) return false;
       if (availableToday && d.openToday === 0) return false;
       if (!q) return true;
       return [d.name, d.specialty, d.hospital?.name, d.hospital?.city].some((v) => v?.toLowerCase().includes(q));
     });
     const last = (v: number | null, empty: number) => (v == null ? empty : v);
     return list.sort((a, b) => {
-      if (sort === "fee") return last(a.fee, Infinity) - last(b.fee, Infinity);
       if (sort === "experience") return last(b.experience, -1) - last(a.experience, -1);
       return (a.nextSlot ?? "￿").localeCompare(b.nextSlot ?? "￿");
     });
-  }, [doctors, query, specialty, city, availableToday, sort]);
+  }, [doctors, query, specialty, city, byLocation, nearIds, availableToday, sort]);
 
   const clinics: Clinic[] = useMemo(() => {
     const byId = new Map<string, Clinic>();
@@ -140,7 +156,7 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
       <CareMap clinics={clinics} selectedId={selectedClinic} onSelect={setSelectedClinic} />
       <div className="absolute top-4 left-4 z-[500] px-3.5 py-2 rounded-full bg-surface-container-lowest/90 backdrop-blur-md shadow-md flex items-center gap-2">
         <span className="w-2 h-2 rounded-full bg-vibrant-blue" />
-        <span className="font-label-sm text-label-sm text-on-surface font-semibold">{city || "All cities"}</span>
+        <span className="font-label-sm text-label-sm text-on-surface font-semibold">{byLocation ? place.location?.label : city || "All cities"}</span>
         <span className="font-label-sm text-[11px] text-outline">| {clinics.length} {clinics.length === 1 ? "Hospital" : "Hospitals"}</span>
       </div>
       {clinic && (
@@ -188,7 +204,7 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
         container="max-w-[1536px] px-margin-x-mobile lg:px-margin-x-desktop"
         eyebrow="Find care"
         title="Find a Doctor"
-        subtitle={`${filtered.length} verified ${filtered.length === 1 ? "doctor" : "doctors"} ${city ? `in ${city}` : "across all cities"}`}
+        subtitle={`${filtered.length} verified ${filtered.length === 1 ? "doctor" : "doctors"} ${where}`}
         hero={
           <form onSubmit={submitSearch} role="search" className="flex items-center gap-2.5 h-[54px] md:h-[60px] pl-4 md:pl-5 pr-1.5 rounded-full bg-white/15 border border-white/25 backdrop-blur-sm focus-within:bg-white/25 transition-colors md:max-w-4xl">
             <Search className="w-5 h-5 text-white/90 shrink-0" />
@@ -242,7 +258,7 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
         }
       />
 
-      <main className="w-full pb-dock">
+      <main className="w-full pb-12 md:pb-16">
         {/* Filters (the search is in the blue header) */}
         <section className="w-full md:bg-surface-container-low/70 md:backdrop-blur-md px-margin-x-mobile lg:px-margin-x-desktop pt-5 pb-4 md:py-8">
           <div className="max-w-[1536px] mx-auto flex flex-col gap-3 md:gap-6">
@@ -267,7 +283,6 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
                     Sort by
                     <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} className="px-2.5 py-2 rounded-lg bg-surface-container-low text-sm text-on-surface font-medium focus:outline-none">
                       <option value="soonest">Soonest available</option>
-                      <option value="fee">Lowest fee</option>
                       <option value="experience">Most experienced</option>
                     </select>
                   </label>
@@ -322,7 +337,6 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
                 <span className="flex items-center gap-1 text-on-surface font-semibold">
                   <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} className="bg-transparent font-semibold cursor-pointer focus:outline-none">
                     <option value="soonest">Next Available Slot</option>
-                    <option value="fee">Fee: Low to High</option>
                     <option value="experience">Experience: High to Low</option>
                   </select>
                   <ArrowUpDown className="w-4 h-4" />
@@ -343,11 +357,13 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
                 </div>
               )}
 
+              {byLocation && <NearbyNote place={place} count={nearIds.size} noun="doctors" />}
+
               <div className="flex items-center justify-between gap-3 md:px-2">
                 <div>
                   <h2 className="font-title-md text-[21px] font-extrabold text-indigo-gray-900 md:text-title-md md:font-headline-lg md:text-on-surface md:font-bold tracking-tight">Available Doctors</h2>
                   <p className="hidden md:block font-body-md text-label-sm text-indigo-gray-600 mt-0.5">
-                    {filtered.length} verified {filtered.length === 1 ? "doctor" : "doctors"} {city ? `in ${city}` : "across all cities"}
+                    {filtered.length} verified {filtered.length === 1 ? "doctor" : "doctors"} {where}
                   </p>
                 </div>
                 <span className="md:hidden text-label-sm text-on-surface-variant">
@@ -375,7 +391,7 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
                 <>
                   <ul className="md:hidden flex flex-col gap-3">
                     {filtered.slice(0, visible).map((d) => (
-                      <PhoneDoctorCard key={d.id} doctor={asHomeDoctor(d)} km={null} now={now} />
+                      <PhoneDoctorCard key={d.id} doctor={asHomeDoctor(d)} km={null} now={now} bookingFee={bookingFee} />
                     ))}
                   </ul>
                   <div className="hidden md:flex flex-col gap-6">
@@ -384,6 +400,7 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
                         key={d.id}
                         doctor={d}
                         now={now}
+                        bookingFee={bookingFee}
                         selected={!!d.hospital && d.hospital.id === selectedClinic}
                         onSelect={() => d.hospital && setSelectedClinic(d.hospital.id)}
                       />
@@ -425,6 +442,7 @@ export function FindCareClient({ doctors, now, initial, account }: FindCareClien
         </div>
       )}
 
+      <PatientFooter isSignedIn={account.isSignedIn} />
       <PatientDock activeTab="find" isSignedIn={account.isSignedIn} name={account.name} />
     </div>
   );
@@ -465,7 +483,7 @@ function AvailableTodayToggle({ checked, onChange, pill }: { checked: boolean; o
 }
 
 /** Tablets and desktops; phones list doctors with the home page's card (PhoneDoctorCard). */
-function DoctorCard({ doctor: d, now, selected, onSelect }: { doctor: FindDoctor; now: number; selected: boolean; onSelect: () => void }) {
+function DoctorCard({ doctor: d, now, bookingFee, selected, onSelect }: { doctor: FindDoctor; now: number; bookingFee: number; selected: boolean; onSelect: () => void }) {
   const name = doctorName(d.name);
   const today = d.openToday > 0;
   return (
@@ -502,9 +520,9 @@ function DoctorCard({ doctor: d, now, selected, onSelect }: { doctor: FindDoctor
               </span>
               {d.experience ? <span className="hidden md:inline font-label-sm text-label-sm text-outline font-normal">{d.experience} yrs exp</span> : null}
             </div>
-            {d.fee ? (
+            {d.bookable ? (
               <span className="hidden md:inline font-headline-lg text-title-md font-bold text-on-surface">
-                {formatINR(d.fee)} <span className="text-outline font-normal text-label-sm">/ visit</span>
+                {formatINR(bookingFee)} <span className="text-outline font-normal text-label-sm">booking fee</span>
               </span>
             ) : null}
           </div>
@@ -525,7 +543,7 @@ function DoctorCard({ doctor: d, now, selected, onSelect }: { doctor: FindDoctor
             </p>
           )}
           <p className="md:hidden mt-1 text-label-sm text-on-surface-variant">
-            {[d.experience ? `${d.experience} yrs exp` : null, d.fee ? `${formatINR(d.fee)} / visit` : null].filter(Boolean).join(" • ")}
+            {[d.experience ? `${d.experience} yrs exp` : null, d.bookable ? `${formatINR(bookingFee)} booking fee` : null].filter(Boolean).join(" • ")}
           </p>
         </div>
       </div>

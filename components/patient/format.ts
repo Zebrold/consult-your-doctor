@@ -51,7 +51,13 @@ export function isMorning(iso: string) {
   return hour < 12
 }
 
-export const formatINR = (amount: number) => `₹${Math.round(amount).toLocaleString('en-IN')}`
+/** "₹1,250", or "₹38.50" when there are paise (lab booking fees are a percentage of the test price). */
+export function formatINR(amount: number) {
+  const paise = Math.round(amount * 100)
+  return paise % 100 === 0
+    ? `₹${(paise / 100).toLocaleString('en-IN')}`
+    : `₹${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
 
 /** Names are stored with or without the "Dr." prefix (sometimes "Dr.Name", sometimes twice); show it exactly once. */
 export function doctorName(name: string | null | undefined) {

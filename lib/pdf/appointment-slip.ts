@@ -2,6 +2,7 @@ import { PDFDocument, rgb, type PDFImage, type PDFPage } from 'pdf-lib'
 import fontkit from '@pdf-lib/fontkit'
 import { C, PAGE, drawLogo, loadAssets, safe, wrap, dateText, timeText } from './clinical'
 import { drawBarcode } from './barcode'
+import { payAtVenueNote } from '@/lib/pricing'
 
 export type AppointmentSlipData = {
   bookingId: string
@@ -25,10 +26,14 @@ export type AppointmentSlipData = {
     dateTimeStr: string
   }
   payment: {
+    /**
+     * false for a booking made and paid at a hospital or lab desk: the slip then shows no amount, since what the counter
+     * took is the consultation fee or test charges.
+     */
+    online?: boolean
+    /** The booking fee paid online: the only amount on the slip. */
     amount: number
     transactionId?: string | null
-    platformFee?: number
-    baseFee?: number
     status: string
     gateway: string
     paidAt?: Date
@@ -238,7 +243,7 @@ export async function generateAppointmentSlipPdf(data: AppointmentSlipData): Pro
     height: 24,
     color: C.zebra,
   })
-  page.drawText('PAYMENT SUMMARY & TAX INVOICE', {
+  page.drawText('BOOKING FEE RECEIPT', {
     x: M + 14,
     y: y - 16,
     font: bold,
@@ -246,24 +251,22 @@ export async function generateAppointmentSlipPdf(data: AppointmentSlipData): Pro
     color: C.primary,
   })
 
-  const baseAmt = data.payment.baseFee ?? (data.payment.amount - (data.payment.platformFee ?? 50))
-  const platFee = data.payment.platformFee ?? 50
-  const totalAmt = data.payment.amount
+  const inr = (n: number) => `INR ${n.toLocaleString('en-IN', Number.isInteger(n) ? {} : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-  // Breakdown rows
+  // Only the booking fee is paid online; the consultation fee or test charges are paid at the venue and never shown.
+  const online = data.payment.online !== false
   let payY = y - 42
-  page.drawText('Consultation / Lab Service Charge', { x: M + 14, y: payY, font: regular, size: 8.5, color: C.ink })
-  page.drawText(`INR ${baseAmt.toLocaleString('en-IN')}`, { x: M + W - 90, y: payY, font: bold, size: 8.5, color: C.ink })
+  page.drawText(online ? 'Booking Fee (Consult Your Doctor)' : `Booked at the ${data.isConsultation ? 'hospital' : 'lab'} desk`, { x: M + 14, y: payY, font: regular, size: 8.5, color: C.ink })
+  page.drawText(online ? inr(data.payment.amount) : 'No booking fee', { x: M + W - 90, y: payY, font: bold, size: 8.5, color: C.ink })
 
   payY -= 16
-  page.drawText('Healthcare Platform Booking Fee', { x: M + 14, y: payY, font: regular, size: 8.5, color: C.ink })
-  page.drawText(`INR ${platFee.toLocaleString('en-IN')}`, { x: M + W - 90, y: payY, font: bold, size: 8.5, color: C.ink })
+  page.drawText(online ? safe(payAtVenueNote(data.isConsultation)) : 'Paid at the counter.', { x: M + 14, y: payY, font: regular, size: 8, color: C.muted })
 
   payY -= 18
   page.drawLine({ start: { x: M + 14, y: payY + 4 }, end: { x: M + W - 14, y: payY + 4 }, thickness: 0.8, color: C.line })
 
-  page.drawText('Total Amount Paid (Real-Time Settled)', { x: M + 14, y: payY - 10, font: bold, size: 10, color: C.ink })
-  page.drawText(`INR ${totalAmt.toLocaleString('en-IN')}`, { x: M + W - 100, y: payY - 10, font: bold, size: 11, color: C.primary })
+  page.drawText('Total Paid Online', { x: M + 14, y: payY - 10, font: bold, size: 10, color: C.ink })
+  page.drawText(inr(online ? data.payment.amount : 0), { x: M + W - 100, y: payY - 10, font: bold, size: 11, color: C.primary })
 
   // Transaction details line
   page.drawText(`Gateway: ${data.payment.gateway} | Txn Ref: ${safe(data.payment.transactionId || data.bookingId)} | Status: SUCCESS`, {

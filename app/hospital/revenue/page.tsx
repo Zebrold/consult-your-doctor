@@ -39,8 +39,10 @@ export default async function HospitalFinancePage() {
         patientName: v.patient?.name ?? 'Patient',
         doctor: doc ? doctorName(doc.name) : 'Doctor',
         department: doc?.department ?? 'Other',
-        paid: v.payment ? v.payment.amount : null,
-        share: v.payment ? hospitalShare(v.payment) : null,
+        // An online payment is the patient's booking fee to Consult Your Doctor; the hospital sees what it takes at its
+        // counter, the consultation fee.
+        paid: v.payment ? hospitalShare(v.payment, doc?.fee) : null,
+        share: v.payment ? hospitalShare(v.payment, doc?.fee) : null,
         method: v.payment ? (gateway === 'payu' ? 'online' : gateway === 'cash' ? 'cash' : 'other') : null,
       } satisfies LedgerRow
     })
@@ -78,7 +80,7 @@ export default async function HospitalFinancePage() {
           </div>
           <h1 className="font-headline-lg text-[24px] md:text-headline-lg text-indigo-gray-900 font-bold tracking-tight">Finance &amp; Revenue</h1>
           <p className="text-sm md:text-body-md text-indigo-gray-600 max-w-3xl">
-            Consultation fees collected for your doctors, online through PayU or in cash at your desk.
+            Consultation fees for your doctors, all paid at your counter: by patients who booked online, and at your desk for desk bookings.
           </p>
         </div>
       </section>
@@ -142,8 +144,8 @@ export default async function HospitalFinancePage() {
                   <div className="bg-fresh-teal h-full" style={{ width: `${100 - onlinePct}%` }} />
                 </div>
                 {[
-                  { label: 'Online (PayU)', sub: 'Paid online by patients for consultations', value: sum(online), count: online.length, dot: 'bg-vibrant-blue' },
-                  { label: 'Cash at desk', sub: 'Recorded by your front desk', value: sum(desk), count: desk.length, dot: 'bg-fresh-teal' },
+                  { label: 'Booked online', sub: 'Consultation fee paid at your counter', value: sum(online), count: online.length, dot: 'bg-vibrant-blue' },
+                  { label: 'Booked at your desk', sub: 'Recorded by your front desk', value: sum(desk), count: desk.length, dot: 'bg-fresh-teal' },
                 ].map((m) => (
                   <div key={m.label} className="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low/60">
                     <div className="flex items-center gap-2.5 min-w-0">

@@ -1,9 +1,8 @@
 'use client'
 
 import { useState, useTransition, type ReactNode } from 'react'
-import { Banknote, Check, CircleAlert, CreditCard, LoaderCircle, QrCode, X, type LucideIcon } from 'lucide-react'
+import { Banknote, Check, CircleAlert, LoaderCircle, QrCode, X, type LucideIcon } from 'lucide-react'
 import { formatINR } from '@/components/patient/format'
-import { startPayuPayment } from '@/lib/payu-client'
 import { bmiCategory, bmiOf } from '@/lib/vitals'
 import type { DeskPayment, DeskResult } from './desk-types'
 
@@ -99,17 +98,17 @@ export function QuietButton({ children, onClick }: { children: ReactNode; onClic
   )
 }
 
-type Method = 'payu' | 'upi_qr' | 'cash'
+type Method = 'upi_qr' | 'cash'
 
 const METHODS: { key: Method; label: string; detail: string; icon: LucideIcon }[] = [
-  { key: 'payu', label: 'PayU', detail: 'Card, UPI or netbanking', icon: CreditCard },
   { key: 'upi_qr', label: 'Scanner', detail: 'UPI QR code', icon: QrCode },
   { key: 'cash', label: 'Cash', detail: 'Paid at the desk', icon: Banknote },
 ]
 
 /**
- * Takes payment for one booking: PayU opens the hosted checkout on this screen (the callback records it and returns
- * here), the scanner shows a UPI QR code for the exact amount, and cash is recorded straight away.
+ * Takes payment for one booking at the counter: the scanner shows a UPI QR code for the exact amount, and cash is
+ * recorded straight away. PayU isn't offered here: online it only ever collects a patient's booking fee, never the
+ * consultation fee or test charges a desk takes.
  */
 export function PaymentPanel({
   payment,
@@ -120,7 +119,7 @@ export function PaymentPanel({
   onRecord: (method: 'upi_qr' | 'cash', reference: string) => Promise<DeskResult>
   onPaid: () => void
 }) {
-  const [method, setMethod] = useState<Method>(payment.upi ? 'upi_qr' : 'payu')
+  const [method, setMethod] = useState<Method>(payment.upi ? 'upi_qr' : 'cash')
   const [reference, setReference] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
@@ -133,21 +132,6 @@ export function PaymentPanel({
       onPaid()
     })
 
-  const payu = () =>
-    start(async () => {
-      const payuKey = payment.payuKey
-      if (!payuKey) return setError('PayU isn’t set up for this site yet.')
-      const problem = await startPayuPayment({
-        txnid: payment.id,
-        productinfo: payment.kind === 'appointment' ? 'Consultation' : 'Diagnostic',
-        firstname: payment.patient.name,
-        email: payment.patient.email || 'patients@consultyourdoctor.de',
-        phone: payment.patient.phone || '',
-        payuKey,
-      })
-      if (problem) setError(problem)
-    })
-
   return (
     <div className="flex flex-col gap-4">
       <div className="p-3.5 rounded-xl bg-surface-container-low flex items-center justify-between gap-3">
@@ -158,8 +142,8 @@ export function PaymentPanel({
           </p>
         </div>
         <div className="text-right shrink-0">
-          <p className="font-headline-lg text-[22px] font-bold text-indigo-gray-900">{formatINR(method === 'payu' ? payment.amounts.online : payment.amounts.desk)}</p>
-          <p className="text-[11px] text-indigo-gray-600">{method === 'payu' ? `incl. ${formatINR(payment.amounts.platformFee)} platform fee` : 'to collect'}</p>
+          <p className="font-headline-lg text-[22px] font-bold text-indigo-gray-900">{formatINR(payment.amounts.desk)}</p>
+          <p className="text-[11px] text-indigo-gray-600">to collect</p>
         </div>
       </div>
 
@@ -177,21 +161,15 @@ export function PaymentPanel({
                 <span className="font-semibold text-on-surface shrink-0">{formatINR(item.amount)}</span>
               </li>
             ))}
-            {method === 'payu' && (
-              <li className="px-3.5 py-2 flex items-center justify-between gap-3 text-sm">
-                <span className="text-indigo-gray-600">Platform fee (online payment)</span>
-                <span className="font-semibold text-on-surface shrink-0">{formatINR(payment.amounts.platformFee)}</span>
-              </li>
-            )}
             <li className="px-3.5 py-2.5 flex items-center justify-between gap-3 bg-primary-fixed/30">
               <span className="font-bold text-on-surface">Total</span>
-              <span className="font-bold text-primary shrink-0">{formatINR(method === 'payu' ? payment.amounts.online : payment.amounts.desk)}</span>
+              <span className="font-bold text-primary shrink-0">{formatINR(payment.amounts.desk)}</span>
             </li>
           </ul>
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Payment method">
+      <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Payment method">
         {METHODS.map(({ key, label, detail, icon: Icon }) => {
           const active = key === method
           return (
@@ -214,15 +192,6 @@ export function PaymentPanel({
         })}
       </div>
 
-      {method === 'payu' && (
-        <div className="flex flex-col gap-3">
-          <p className="text-sm text-indigo-gray-600">PayU’s secure checkout opens on this screen for the patient to pay by card, UPI or netbanking. You’ll come back here once it’s done, and the booking is confirmed automatically.</p>
-          <PrimaryButton type="button" pending={pending} onClick={payu}>
-            <CreditCard className="w-4 h-4" /> Pay {formatINR(payment.amounts.online)} with PayU
-          </PrimaryButton>
-        </div>
-      )}
-
       {method === 'upi_qr' &&
         (payment.upi ? (
           <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
@@ -243,7 +212,7 @@ export function PaymentPanel({
           </div>
         ) : (
           <p className="p-3 rounded-lg bg-surface-container-low text-sm text-indigo-gray-600">
-            The scanner isn’t set up yet: the site needs the UPI ID that receives payments (UPI_VPA). Use PayU or cash meanwhile.
+            The scanner isn’t set up yet: the site needs the UPI ID that receives payments (UPI_VPA). Take cash meanwhile.
           </p>
         ))}
 

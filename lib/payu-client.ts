@@ -41,7 +41,6 @@ export async function startPayuPayment(req: PayuRequest): Promise<string | null>
     surl: callback,
     furl: callback,
     hash: data.hash,
-    ...(data.udf1 ? { udf1: data.udf1 } : {}),
   }
 
   const form = document.createElement('form')

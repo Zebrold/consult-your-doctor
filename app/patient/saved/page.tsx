@@ -5,6 +5,7 @@ import { Home, Search, Calendar as CalendarIcon, User, Heart, Star, MapPin } fro
 import { PatientSidebar } from '@/components/PatientSidebar'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
 import { PatientDock } from '@/components/PatientDock'
+import { PatientFooter } from '@/components/AppFooter'
 import { AccountShortcuts } from '@/components/patient/AccountShortcuts'
 
 export default async function PatientSaved() {
@@ -34,7 +35,7 @@ export default async function PatientSaved() {
         title="Saved Doctors & Labs"
         subtitle="Your favourite doctors and preferred lab centres."
       />
-      <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-dock">
+      <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-12 md:pb-16">
         <div className="flex flex-col w-full">
           <div className="relative w-full overflow-hidden">
             <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-5 md:pt-8">
@@ -134,6 +135,7 @@ export default async function PatientSaved() {
         </div>
       </main>
 
+      <PatientFooter isSignedIn />
       <PatientDock activeTab="profile" name={profile?.full_name} />
     </div>
   )

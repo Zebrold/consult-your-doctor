@@ -1,11 +1,12 @@
 import { COMPANY } from '@/lib/company'
-import { CONSULTATION_PLATFORM_FEE, DIAGNOSTIC_PLATFORM_FEE } from '@/lib/pricing'
+import { formatPercent, type BookingFees } from '@/lib/pricing'
 
 // The Terms & Conditions and the Privacy Policy, shown at /terms-of-use and /privacy-policy to visitors and to
 // signed-in patients, doctors, hospitals, diagnostic centres and staff alike. A paragraph is a string (with **bold**
-// allowed); a bulleted list is an array of strings. When either changes, update LEGAL_UPDATED.
+// allowed); a bulleted list is an array of strings. When either changes, update LEGAL_UPDATED. The Terms quote the live
+// booking fees (lib/booking-fees.ts), so they are built from them.
 
-export const LEGAL_UPDATED = '8 October 2026'
+export const LEGAL_UPDATED = '17 October 2026'
 export const LEGAL_ENTITY = 'Zebrold International Holdings Pvt Ltd'
 
 export type LegalSection = { id: string; title: string; body: (string | string[])[] }
@@ -18,14 +19,16 @@ const contactLines = [
   `Phone: ${COMPANY.phone}`,
 ]
 
-export const TERMS: LegalDocument = {
+const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`
+
+export const terms = (fees: BookingFees): LegalDocument => ({
   title: 'Terms & Conditions',
   summary: [
     'Consult Your Doctor is a healthcare technology platform connecting you with independent licensed doctors, hospitals, and certified diagnostic laboratories. They provide your clinical care; we provide booking, secure payment processing, digital records, and care coordination.',
     'We are NOT an emergency response service. If you are experiencing a medical emergency, chest pain, severe trauma, or acute breathing distress, immediately call 108 or visit the nearest hospital emergency room.',
-    `When you book online, you pay the doctor’s consultation fee or lab test price plus a transparent platform service fee (₹${CONSULTATION_PLATFORM_FEE} for doctor consultations, ₹${DIAGNOSTIC_PLATFORM_FEE} for diagnostic laboratory tests). Desk payments at hospital or lab reception can be settled via UPI QR code or cash without online platform fees.`,
+    `When you book online, you pay only Consult Your Doctor’s booking fee: ${inr(fees.consultation)} for a doctor appointment, or ${formatPercent(fees.diagnosticPercent)} of each test’s price for lab tests. The doctor’s consultation fee is set by the hospital and paid at the hospital counter, and lab test charges are paid at the lab; neither is collected online. Bookings made at a hospital or lab front desk are paid there by UPI QR code or cash, with no booking fee.`,
     'Zebrold AI provides conversational platform navigation, slot discovery, and adherence follow-up reminders, but it is not a doctor. All clinical decisions, diagnoses, and prescriptions are made solely by licensed medical practitioners.',
-    'Cancellations made at least 2 hours prior to your scheduled consultation or sample collection qualify for a full refund, processed back to your original payment method within 5 to 7 business days.',
+    'You get a full refund if you cancel at least 2 hours before the slot, or if the doctor, hospital or lab cancels. Refunds go back to your original payment method within 5–7 working days.',
   ],
   sections: [
     {
@@ -66,12 +69,12 @@ export const TERMS: LegalDocument = {
       title: '4. Consultations, Bookings & Payment Terms',
       body: [
         [
-          `**Doctor Consultations:** When booking a consultation online, you pay the practitioner’s consultation fee plus a platform service fee of ₹${CONSULTATION_PLATFORM_FEE}. Consultations may be conducted in person at the doctor’s hospital/clinic or via teleconsultation where offered.`,
-          `**Diagnostic Lab Tests:** When booking lab tests online, you pay the diagnostic centre’s published price for each test plus a platform service fee of ₹${DIAGNOSTIC_PLATFORM_FEE}. Full test pricing is transparently displayed before payment confirmation.`,
+          `**Doctor Consultations:** When booking a consultation online, you pay a booking fee of ${inr(fees.consultation)} to Consult Your Doctor. This is the only amount collected online. The doctor’s consultation fee is set by the hospital, shown on the doctor’s profile page, and paid directly at the hospital counter at your visit; it is never collected online or added to the booking total. Consultations take place in person at the doctor’s hospital or clinic.`,
+          `**Diagnostic Lab Tests:** When booking lab tests online, you pay a booking fee of ${formatPercent(fees.diagnosticPercent)} of each booked test’s price to Consult Your Doctor. The tests themselves, and any home sample collection fee, are paid to the diagnostic centre at your visit and are never collected online.`,
           '**Payment Processing:** Online payments are processed through our authorized payment gateway partner, PayU. All online transactions are encrypted via industry-standard protocols. We do not store credit/debit card numbers or netbanking credentials on our servers.',
-          '**Front-Desk Payments:** When registering or checking in directly at a partner hospital or diagnostic centre front desk, patients may settle charges directly with the facility via UPI (scanning the facility’s QR code) or cash. Desk payments do not incur the online platform service fee.',
-          '**Booking Confirmation:** A booking is officially confirmed once the payment is captured or a front-desk admission is finalized. Unpaid online reservations may be released after a hold period to keep appointment slots open for other patients.',
-          '**Taxes:** All stated consultation and test fees are inclusive of applicable taxes unless explicitly indicated otherwise.',
+          '**Front-Desk Payments:** When registering or checking in directly at a partner hospital or diagnostic centre front desk, patients settle charges directly with the facility via UPI (scanning the facility’s QR code) or cash. Desk bookings carry no booking fee.',
+          '**Booking Confirmation:** An online booking is confirmed once the booking fee is captured; a desk booking once the front desk has taken payment. Unpaid online reservations may be released after a hold period to keep appointment slots open for other patients.',
+          '**Taxes:** The booking fees are inclusive of applicable taxes unless explicitly indicated otherwise.',
         ],
       ],
     },
@@ -80,11 +83,11 @@ export const TERMS: LegalDocument = {
       title: '5. Cancellations, Rescheduling & Refund Policy',
       body: [
         [
-          '**Patient Cancellations:** You may cancel or reschedule a scheduled appointment or lab booking free of charge up to 2 hours prior to the scheduled slot time through your patient portal account or by reaching out to our support team.',
-          '**Provider Cancellations & No-Shows:** If a doctor, hospital, or diagnostic centre cancels an appointment, encounters an unexpected emergency, or fails to attend your scheduled session, you will be offered an immediate reschedule or an automatic 100% refund, including all platform service fees.',
+          '**Patient Cancellations:** If you cancel at least 2 hours before the scheduled slot, you get a full refund of the booking fee. To cancel or reschedule, contact our support team with your booking ID.',
+          '**Provider Cancellations:** If the doctor, hospital or diagnostic centre cancels, you get a full refund of the booking fee, or a reschedule if you prefer.',
           '**Non-Refundable Services:** Once a consultation has commenced or been completed, or once a biological sample has been collected for laboratory testing, the associated fees become non-refundable.',
-          '**Patient Missed Appointments (No-Shows):** If you fail to arrive for an in-person appointment or fail to join a teleconsultation without cancelling at least 2 hours in advance, the healthcare provider reserves the right to mark the booking as completed or forfeited without refund.',
-          '**Refund Settlement Timeline:** Approved refunds are initiated immediately to the original source payment method (card, UPI, or netbanking). Banking networks and payment gateways typically credit the funds to your account within 5 to 7 business days.',
+          '**Patient Missed Appointments (No-Shows):** If you don’t arrive for your appointment and didn’t cancel at least 2 hours in advance, the booking may be marked as missed and the booking fee is not refunded.',
+          '**Refund Timeline:** Refunds go back to the original payment method (card, UPI or netbanking) within 5–7 working days.',
         ],
       ],
     },
@@ -183,7 +186,7 @@ export const TERMS: LegalDocument = {
         [
           '**Platform Availability:** While we strive to maintain uninterrupted service availability, we do not warrant that the Platform will always be error-free, uninterrupted, or free from temporary technical disruptions.',
           '**Clinical Disclaimer:** Consult Your Doctor is an intermediary platform and is NOT liable for any medical negligence, misdiagnosis, treatment error, surgical outcome, delayed lab report, or clinical omission attributable to any independent doctor, hospital, or diagnostic laboratory.',
-          '**Monetary Cap:** To the maximum extent permitted by applicable law, our aggregate liability for any claims arising out of or related to your use of the Platform shall be strictly capped at the total amount in platform service fees actually paid by you to Consult Your Doctor in the 12 months preceding the event giving rise to liability.',
+          '**Monetary Cap:** To the maximum extent permitted by applicable law, our aggregate liability for any claims arising out of or related to your use of the Platform shall be strictly capped at the total amount in booking fees actually paid by you to Consult Your Doctor in the 12 months preceding the event giving rise to liability.',
           '**Consumer Rights:** Nothing in these Terms shall limit or exclude any statutory rights that cannot be waived under Indian consumer protection laws.',
         ],
       ],
@@ -224,7 +227,7 @@ export const TERMS: LegalDocument = {
       ],
     },
   ],
-}
+})
 
 export const PRIVACY: LegalDocument = {
   title: 'Privacy Policy',

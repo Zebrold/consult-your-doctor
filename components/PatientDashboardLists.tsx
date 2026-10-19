@@ -297,7 +297,7 @@ export function DiagnosticBookingsList({ diagnosticBookings }: { diagnosticBooki
                   <h4 className="font-title-md text-body-lg text-indigo-gray-900 font-bold capitalize">{booking.test_name.replace(/-/g, ' ')}</h4>
                   {booking.booking_type === 'doorstep' ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold">
-                      🏠 Doorstep {booking.doorstep_fee ? `(₹${booking.doorstep_fee})` : ''}
+                      🏠 Doorstep {booking.doorstep_fee ? `(₹${booking.doorstep_fee} to the lab)` : ''}
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container text-indigo-gray-600 text-[10px] font-medium">
@@ -373,7 +373,7 @@ export function DiagnosticBookingsList({ diagnosticBookings }: { diagnosticBooki
                 <p className="text-[13px] font-semibold text-outline uppercase tracking-wider mb-1">Collection Mode</p>
                 <p className="font-body-md text-indigo-gray-900 font-semibold flex items-center gap-1.5">
                   {selectedBooking.booking_type === 'doorstep'
-                    ? `🏠 Doorstep Collection (Home Fee: ₹${selectedBooking.doorstep_fee || 0})`
+                    ? `🏠 Doorstep Collection (home fee ₹${selectedBooking.doorstep_fee || 0}, paid to the lab)`
                     : '🚶 In-Center Walk-In Visit'}
                 </p>
               </div>

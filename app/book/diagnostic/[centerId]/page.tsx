@@ -4,7 +4,7 @@ import { Metadata } from "next";
 import { DiagnosticBookingClient } from "@/components/DiagnosticBookingClient";
 import { currentTime, loadPatientDefaults } from "@/components/patient/data";
 import { labDoorstepFee, pricedTests } from "@/lib/pricing";
-import { getPlatformFees } from "@/lib/platform-fees";
+import { getBookingFees } from "@/lib/booking-fees";
 
 interface DiagnosticBookingPageProps {
   params: Promise<{ centerId: string }>;
@@ -28,7 +28,7 @@ export default async function DiagnosticBookingPage({ params }: DiagnosticBookin
   const [{ data: center }, patient, fees] = await Promise.all([
     supabase.from("diagnostic_centers").select("id, name, city, address, image_url, test_prices, doorstep_enabled, doorstep_fee").eq("id", centerId).maybeSingle(),
     loadPatientDefaults(supabase),
-    getPlatformFees(),
+    getBookingFees(),
   ]);
   if (!center) notFound();
 
@@ -46,7 +46,7 @@ export default async function DiagnosticBookingPage({ params }: DiagnosticBookin
       tests={pricedTests(center.test_prices)}
       patient={patient}
       now={currentTime()}
-      platformFee={fees.diagnostic}
+      bookingFeePercent={fees.diagnosticPercent}
       payuKey={process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY || "jwoG24"}
     />
   );

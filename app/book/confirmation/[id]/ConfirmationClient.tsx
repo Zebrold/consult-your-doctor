@@ -5,10 +5,13 @@ import Link from 'next/link'
 import Image from 'next/image'
 import {
   CalendarDays, CheckCircle2, Clock, Download, FileText,
-  Building2, Printer, RefreshCw, User, XCircle, ArrowLeft, HelpCircle
+  Building2, IndianRupee, Printer, RefreshCw, User, XCircle, ArrowLeft, HelpCircle
 } from 'lucide-react'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
 import { PatientDock } from '@/components/PatientDock'
+import { PatientFooter } from '@/components/AppFooter'
+import { formatINR } from '@/components/patient/format'
+import { payAtVenueNote } from '@/lib/pricing'
 
 export type ConfirmationData = {
   id: string
@@ -24,8 +27,11 @@ export type ConfirmationData = {
   dateTime: string
   patientName: string
   patientPhone: string | null
-  fee: number
+  /** The booking fee paid (or to pay) online; null for a booking made and paid at a hospital or lab desk. */
+  bookingFee: number | null
   paymentStatus: 'success' | 'pending' | 'failed'
+  /** Why the last payment didn't go through, from the PayU callback. */
+  failureReason: string | null
   appointmentStatus: string
   qrDataUrl: string
   checkoutUrl?: string
@@ -67,7 +73,7 @@ export function ConfirmationClient({ data }: { data: ConfirmationData }) {
         subtitle={[cleanDoctorName, data.dateTime].filter(Boolean).join(' • ')}
       />
 
-      <main className="max-w-[1080px] mx-auto px-4 sm:px-6 pt-5 md:pt-6 pb-dock">
+      <main className="max-w-[1080px] mx-auto px-4 sm:px-6 pt-5 md:pt-6 pb-12 md:pb-16">
         
         {/* Minimalist Card Container (Matches Image 1) */}
         <div className="bg-white rounded-3xl border border-gray-200/80 shadow-xl overflow-hidden max-w-[500px] mx-auto p-6 sm:p-8 print:shadow-none print:border-none print:p-0">
@@ -197,6 +203,26 @@ export function ConfirmationClient({ data }: { data: ConfirmationData }) {
               </div>
             </div>
 
+            {/* 5. Booking fee: the only amount paid online */}
+            <div className="py-4 flex items-start gap-4">
+              <div className="w-11 h-11 rounded-full bg-[#f0f7ff] text-[#0066ff] flex items-center justify-center shrink-0 border border-blue-100/60 mt-0.5">
+                <IndianRupee className="w-5 h-5 text-[#0066ff]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block">
+                  Booking Fee
+                </span>
+                <div className="font-bold text-[15.5px] text-gray-900 mt-0.5">
+                  {data.bookingFee == null ? 'None (booked at the desk)' : `${formatINR(data.bookingFee)} ${isPaid ? 'paid online' : 'to pay online'}`}
+                </div>
+                {data.bookingFee != null && (
+                  <div className="text-[13px] font-medium text-gray-500 mt-0.5">
+                    {payAtVenueNote(data.isConsultation)}
+                  </div>
+                )}
+              </div>
+            </div>
+
           </div>
 
           {/* Bottom Box: Important Message & QR Code (Matches Image 1) */}
@@ -212,6 +238,9 @@ export function ConfirmationClient({ data }: { data: ConfirmationData }) {
                   ? 'Payment was not completed. Please retry payment to confirm your booking.'
                   : 'Please complete your payment to confirm your appointment.'}
               </p>
+              {isFailed && data.failureReason && (
+                <p className="mt-1.5 text-[12px] font-semibold text-red-700 leading-snug">{data.failureReason}</p>
+              )}
             </div>
 
             <div className="flex flex-col items-center shrink-0">
@@ -274,6 +303,7 @@ export function ConfirmationClient({ data }: { data: ConfirmationData }) {
 
       </main>
 
+      <PatientFooter isSignedIn />
       <PatientDock activeTab="book" name={data.patientName} />
     </div>
   )

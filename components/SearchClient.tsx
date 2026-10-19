@@ -5,6 +5,8 @@ import { useState, useEffect, useMemo, Suspense } from "react"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import Link from "next/link"
 import dynamic from 'next/dynamic'
+import { formatINR } from '@/components/patient/format'
+import { labTestBookingFee } from '@/lib/pricing'
 
 const MapWithMarkers = dynamic(() => import('./MapWithMarkers'), { ssr: false })
 
@@ -16,7 +18,8 @@ function SearchClientInner({
   filteredHospitals,
   specialties,
   diagnosticCenters,
-  allTests
+  allTests,
+  labFeePercent,
 }: { 
   type: string,
   doctors: any[], 
@@ -25,7 +28,9 @@ function SearchClientInner({
   filteredHospitals: any[],
   specialties: string[],
   diagnosticCenters: any[],
-  allTests: string[]
+  allTests: string[],
+  /** The lab booking fee, a per cent of each test's price: all that is paid online. */
+  labFeePercent: number
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -250,7 +255,7 @@ function SearchClientInner({
                     {testsToShow.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mb-3">
                         {testsToShow.map((test: string) => {
-                          const price = center.test_prices?.[test]
+                          const price = Number(center.test_prices?.[test])
                           return (
                             <span 
                               key={test} 
@@ -258,7 +263,12 @@ function SearchClientInner({
                             >
                               <Activity className="w-3 h-3" />
                               {test}
-                              {price && <span className="text-fresh-teal font-semibold ml-0.5">₹{price}</span>}
+                              {price > 0 && (
+                                <span className="ml-0.5">
+                                  <span className="text-fresh-teal font-semibold">{formatINR(labTestBookingFee(price, labFeePercent))}</span>
+                                  <span className="text-indigo-gray-600"> booking · {formatINR(price)} at lab</span>
+                                </span>
+                              )}
                             </span>
                           )
                         })}
@@ -456,7 +466,7 @@ function SearchClientInner({
   )
 }
 
-export default function SearchClient(props: { type: string, doctors: any[], cities: string[], hospitals: any[], filteredHospitals: any[], specialties: string[], diagnosticCenters: any[], allTests: string[] }) {
+export default function SearchClient(props: { type: string, doctors: any[], cities: string[], hospitals: any[], filteredHospitals: any[], specialties: string[], diagnosticCenters: any[], allTests: string[], labFeePercent: number }) {
   return (
     <Suspense fallback={<div className="p-8 text-center text-vibrant-blue font-bold">Loading search portal...</div>}>
       <SearchClientInner {...props} />

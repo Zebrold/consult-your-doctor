@@ -7,7 +7,6 @@ import {
 } from 'lucide-react'
 import { currentTime } from '@/components/patient/data'
 import { doctorName, formatINR, formatShortDate, formatTime, istDateKey } from '@/components/patient/format'
-import { CONSULTATION_PLATFORM_FEE } from '@/lib/pricing'
 import { loadSlots, loadVisits, requireDoctor } from '../_lib/doctor'
 import { Avatar, Card, EmptyState } from '@/components/portal/ui'
 import { ProfileEditor, type EditableProfile } from '../_components/ProfileEditor'
@@ -383,7 +382,7 @@ export default async function DoctorProfilePage() {
             </div>
             <p className="text-label-sm text-on-surface-variant mb-4">Your consultation fee for clinic appointments.</p>
             <div className="flex flex-col gap-2.5">
-              <FeeRow title="In-person consultation" sub="Your fee, paid out per visit" value={doctor.fee ? formatINR(doctor.fee) : 'Not set'} strong />
+              <FeeRow title="In-person consultation" sub="Paid by the patient at the hospital counter" value={doctor.fee ? formatINR(doctor.fee) : 'Not set'} strong />
             </div>
           </Card>
 

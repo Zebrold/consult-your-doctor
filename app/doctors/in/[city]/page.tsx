@@ -5,8 +5,10 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { PatientNavHeader } from "@/components/PatientNavHeader";
 import { PatientDock } from "@/components/PatientDock";
+import { PatientFooter } from "@/components/AppFooter";
 import { DoctorsDirectoryClient, DirectoryDoctor } from "@/components/DoctorsDirectoryClient";
 import { doctorName } from "@/components/patient/format";
+import { getBookingFees } from "@/lib/booking-fees";
 
 export const revalidate = 0;
 
@@ -21,7 +23,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
   return {
     title: `Top Doctors in ${capitalizedCity} | Consult Your Doctor`,
-    description: `Find and book appointments with the best specialist doctors in ${capitalizedCity}. View fees, experience, and patient reviews.`,
+    description: `Find and book appointments with the best specialist doctors in ${capitalizedCity}. See experience, hospitals and open times, and book online.`,
   };
 }
 
@@ -80,7 +82,7 @@ export default async function DoctorsInCityPage(props: Props) {
       name: doctorName(profile?.full_name),
       specialty: department?.name || d.specialty || null,
       experienceYears: d.experience_years,
-      fee: d.consultation_fee,
+      bookable: Number(d.consultation_fee) > 0,
       image: d.image_url,
       hospital: hospital?.name || null,
       city: hospital?.city || null,
@@ -127,12 +129,15 @@ export default async function DoctorsInCityPage(props: Props) {
             </p>
           </div>
 
-          <DoctorsDirectoryClient doctors={doctors} />
+          <DoctorsDirectoryClient doctors={doctors} bookingFee={(await getBookingFees()).consultation} />
         </div>
       </main>
 
       {isLoggedIn ? (
-        <PatientDock activeTab="find" isSignedIn={isLoggedIn} name={viewer?.full_name || user?.user_metadata?.full_name} />
+        <>
+          <PatientFooter isSignedIn />
+          <PatientDock activeTab="find" isSignedIn={isLoggedIn} name={viewer?.full_name || user?.user_metadata?.full_name} />
+        </>
       ) : (
         <Footer />
       )}

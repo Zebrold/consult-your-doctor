@@ -1,10 +1,12 @@
 import { jsonLd } from "@/lib/json-ld";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
+import { getBookingFees } from "@/lib/booking-fees";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { PatientDock } from "@/components/PatientDock";
+import { PatientFooter, PortalFooter } from "@/components/AppFooter";
 import {
   DoctorProfileClient,
   ProfileDoctorData,
@@ -145,12 +147,18 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
       )}
       <DoctorProfileClient
         doctor={doctorData}
+        bookingFee={(await getBookingFees()).consultation}
         isLoggedIn={isLoggedIn}
         showPatientDock={isLoggedIn && isPreview}
         viewer={viewer?.role === "doctor" ? null : { name: viewer?.full_name ?? null, email: viewer?.email || user?.email || null }}
       />
-      {isLoggedIn ? (
-        isPreview && <PatientDock activeTab="find" isSignedIn={isLoggedIn} name={viewer?.full_name || user?.user_metadata?.full_name} />
+      {viewer?.role === "doctor" ? (
+        <PortalFooter portal="doctor" />
+      ) : isLoggedIn ? (
+        <>
+          <PatientFooter isSignedIn />
+          {isPreview && <PatientDock activeTab="find" isSignedIn={isLoggedIn} name={viewer?.full_name || user?.user_metadata?.full_name} />}
+        </>
       ) : (
         <Footer />
       )}

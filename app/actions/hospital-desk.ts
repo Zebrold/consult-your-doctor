@@ -3,7 +3,6 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { readLocalFees } from '@/lib/platform-fees'
 import { vitalsSentence } from '@/lib/vitals'
 import { RECORD_MAX_BYTES, RECORD_TYPES, storeRecordFile } from '@/lib/records'
 import { issuePatientToken, readPatientToken } from '@/lib/desk-token'
@@ -14,7 +13,7 @@ import { notifyBookingConfirmed, notifyHealthUpdate } from '@/lib/notify/patient
 import type { DeskPayment, DeskResult } from '@/components/portal/desk-types'
 
 // The hospital desk: register a patient with a one-time code, book them with one of the hospital's doctors, take
-// the payment (PayU, the UPI scanner or cash) and record their health details for the doctor.
+// the payment (the UPI scanner or cash) and record their health details for the doctor.
 
 type Admin = ReturnType<typeof createAdminClient>
 type Joined<T> = T | T[] | null
@@ -339,14 +338,9 @@ async function paymentFor(admin: Admin, hospitalId: string, appointmentId: strin
     status: visit.row.status,
     what: `Consultation${visit.doctor ? ` with ${one(visit.doctor.profiles)?.full_name ?? 'the doctor'}` : ''}`,
     patient: { name: visit.patient?.full_name || 'Patient', phone: visit.patient?.phone_number ?? null, email },
-    amounts: {
-      desk: visit.fee,
-      online: visit.fee + readLocalFees().consultation,
-      platformFee: readLocalFees().consultation,
-    },
+    amounts: { desk: visit.fee },
     items: [{ label: 'Consultation fee', amount: visit.fee }],
     upi: await upiQr(visit.fee, code, `Consultation ${code}`),
-    payuKey: process.env.PAYU_MERCHANT_KEY ?? null,
   }
 }
 

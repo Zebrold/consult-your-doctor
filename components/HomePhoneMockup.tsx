@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { ComponentType } from "react";
+import { formatINR } from "@/components/patient/format";
 import {
   Baby,
   Bot,
@@ -18,7 +19,8 @@ import {
 
 type Icon = ComponentType<{ className?: string; strokeWidth?: number }>;
 
-// Sample screen content for the illustration (the real app lists live doctors, fees and open slots).
+// Sample screen content for the illustration (the real app lists live doctors and open slots). Like the real cards, the
+// only price shown is the booking fee: the consultation fee is on the doctor's profile and paid at the hospital counter.
 const specialties: { lines: string[]; icon: Icon; active?: boolean; more?: boolean }[] = [
   { lines: ["All"], icon: Stethoscope, active: true },
   { lines: ["General", "Physician"], icon: UserRound },
@@ -29,10 +31,10 @@ const specialties: { lines: string[]; icon: Icon; active?: boolean; more?: boole
 ];
 
 const doctors = [
-  { name: "Dr. Ananya Mehta", specialty: "General Physician", degree: "MBBS, MD", years: 12, rating: "4.9", reviews: "8.4K", fee: 350, photo: "/images/avatars/doctor-1.webp" },
-  { name: "Dr. Rohit Sharma", specialty: "Dermatologist", degree: "MBBS, MD", years: 10, rating: "4.8", reviews: "6.2K", fee: 200, photo: "/images/avatars/doctor-4.webp" },
-  { name: "Dr. Sneha Kapoor", specialty: "Pediatrician", degree: "MBBS, MD", years: 11, rating: "4.9", reviews: "7.1K", fee: 200, photo: "/images/avatars/doctor-2.webp" },
-  { name: "Dr. Arjun Iyer", specialty: "Cardiologist", degree: "MBBS, DM", years: 14, rating: "4.9", reviews: "5.8K", fee: 400, photo: "/images/avatars/doctor-3.webp" },
+  { name: "Dr. Ananya Mehta", specialty: "General Physician", degree: "MBBS, MD", years: 12, rating: "4.9", reviews: "8.4K", photo: "/images/avatars/doctor-1.webp" },
+  { name: "Dr. Rohit Sharma", specialty: "Dermatologist", degree: "MBBS, MD", years: 10, rating: "4.8", reviews: "6.2K", photo: "/images/avatars/doctor-4.webp" },
+  { name: "Dr. Sneha Kapoor", specialty: "Pediatrician", degree: "MBBS, MD", years: 11, rating: "4.9", reviews: "7.1K", photo: "/images/avatars/doctor-2.webp" },
+  { name: "Dr. Arjun Iyer", specialty: "Cardiologist", degree: "MBBS, DM", years: 14, rating: "4.9", reviews: "5.8K", photo: "/images/avatars/doctor-3.webp" },
 ];
 
 const tabs: { label: string; icon: Icon; active?: boolean }[] = [
@@ -48,7 +50,7 @@ const tabs: { label: string; icon: Icon; active?: boolean }[] = [
  * than a picture so it stays sharp at any size. The phone is designed 430px wide with 1em = 16px; its font size is
  * tied to the width it is given (container query units), so every em inside scales with it.
  */
-export function HomePhoneMockup() {
+export function HomePhoneMockup({ bookingFee }: { bookingFee: number }) {
   return (
     <div
       role="img"
@@ -65,7 +67,7 @@ export function HomePhoneMockup() {
         {/* Titanium band, then the black bezel */}
         <div className="absolute inset-0 rounded-[4.25em] p-[0.1875em] bg-[linear-gradient(145deg,#71757d,#2a2c30_30%,#50545b_58%,#1d1f22)] shadow-[0_2.25em_4em_-1.25em_rgba(15,23,42,0.45),0_0.75em_1.5em_-0.75em_rgba(15,23,42,0.25)]">
           <div className="w-full h-full rounded-[4.0625em] bg-[#0a0a0b] p-[0.5625em]">
-            <Screen />
+            <Screen bookingFee={bookingFee} />
           </div>
         </div>
       </div>
@@ -73,7 +75,7 @@ export function HomePhoneMockup() {
   );
 }
 
-function Screen() {
+function Screen({ bookingFee }: { bookingFee: number }) {
   return (
     <div className="relative w-full h-full overflow-hidden rounded-[3.5em] bg-[linear-gradient(180deg,#ffffff_0%,#f7f9fd_45%,#f4f7fc_100%)] text-indigo-gray-900">
       {/* Dynamic Island */}
@@ -179,7 +181,10 @@ function Screen() {
               </div>
 
               <div className="flex flex-col items-end gap-[0.5em] shrink-0">
-                <span className="font-title-md font-extrabold text-[1.375em] leading-none tracking-tight text-vibrant-blue">₹{d.fee}</span>
+                <span className="flex flex-col items-end leading-none">
+                  <span className="font-title-md font-extrabold text-[1.375em] tracking-tight text-vibrant-blue">{formatINR(bookingFee)}</span>
+                  <span className="mt-[0.125em] text-[0.5625em] font-medium text-slate-500">booking fee</span>
+                </span>
                 <span className="h-[2.25em] px-[0.75em] rounded-full bg-vibrant-blue text-white flex items-center shadow-[0_0.25em_0.5em_-0.25em_rgba(0,102,255,0.6)]">
                   <span className="text-[0.71875em] font-semibold whitespace-nowrap">Consult Now</span>
                 </span>

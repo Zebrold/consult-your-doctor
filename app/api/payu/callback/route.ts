@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { notifyBookingConfirmed } from '@/lib/notify/patient';
+import { loadBookingFees, onlineChargeFor } from '@/lib/booking-fees';
+import { formatINR } from '@/components/patient/format';
 
 // We must use the service role key to bypass RLS, because this webhook is called by PayU's servers without any user session.
 const supabase = createClient(
@@ -14,15 +16,26 @@ const field = (data: Record<string, FormDataEntryValue>, name: string) => {
   return typeof value === 'string' ? value : '';
 };
 
-const returnPath = (udf1: string, isConsultation: boolean) =>
-  udf1 === 'desk' ? (isConsultation ? '/hospital/patients' : '/diagnostic-center/patients') : '/patient/profile';
-
 type Joined<T> = T | T[] | null;
 const one = <T,>(v: Joined<T> | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;
 
-/** Sends the patient their booking confirmation on WhatsApp and email. */
+/**
+ * The booking fee this payment had to cover, worked out the way /api/payu/hash priced it. Null when the fee settings
+ * can't be read: the amount was still signed by our own hash route, so PayU's verified amount is trusted then.
+ */
+async function expectedCharge(productinfo: string, txnid: string): Promise<number | null> {
+  try {
+    const charge = await onlineChargeFor(supabase, productinfo, txnid, await loadBookingFees());
+    return 'error' in charge ? null : charge.amount;
+  } catch (err) {
+    console.error('PayU callback: could not check the booking fee:', err);
+    return null;
+  }
+}
+
+/** Sends the patient their booking confirmation on WhatsApp and email. Only the booking fee they paid online is named. */
 async function notifyPaidBooking(isConsultation: boolean, id: string, amount: number, transactionId?: string) {
-  const paid = `₹${amount.toLocaleString('en-IN')}`;
+  const paid = formatINR(amount);
   const bookingId = id.slice(0, 8).toUpperCase();
   const tokenSeq = Math.abs(id.split('-').reduce((acc: number, part: string) => acc + parseInt(part.slice(0, 4), 16) || 0, 0) % 25) + 1;
   const tokenNumber = String(tokenSeq).padStart(2, '0');
@@ -37,7 +50,6 @@ async function notifyPaidBooking(isConsultation: boolean, id: string, amount: nu
         hospitals ( name, address, city ),
         doctors (
           specialty,
-          consultation_fee,
           profiles!doctors_profile_id_fkey ( full_name )
         )
       `)
@@ -154,12 +166,26 @@ export async function POST(request: Request) {
     const isConsultation = productinfo === 'Consultation';
     const isDiagnostic = productinfo === 'Diagnostic';
 
+    const bookingColumn = isConsultation ? { appointment_id: txnid } : { appointment_id: null, diagnostic_booking_id: txnid };
+    const failed = (reason: string) =>
+      NextResponse.redirect(`${baseUrl}/book/confirmation/${txnid}?payment=failed&reason=${encodeURIComponent(reason)}`, 303);
+
     if (status === 'success' && (isConsultation || isDiagnostic)) {
+      // PayU only ever collects the booking fee. A payment short of it (say the fee went up while the patient was on
+      // PayU's page) is kept for the operations team to settle and doesn't confirm the booking.
+      const paidAmount = Number(amount);
+      const expected = await expectedCharge(productinfo, txnid);
+      if (expected != null && !(paidAmount + 0.005 >= expected)) {
+        console.error(`PayU callback: ${txnid} paid ${amount}, booking fee is ${expected}. Left for review.`);
+        await supabase.from('payments').insert({ ...bookingColumn, transaction_id: mihpayid || txnid, amount: paidAmount || 0, gateway: 'payu', status: 'pending' });
+        return failed(`The amount paid (${formatINR(paidAmount || 0)}) doesn't match the booking fee (${formatINR(expected)}). Our team will refund or confirm it; you don't need to pay again.`);
+      }
+
       // Record payment success against the right booking table.
       const { error: paymentError } = await supabase.from('payments').insert({
-        ...(isConsultation ? { appointment_id: txnid } : { appointment_id: null, diagnostic_booking_id: txnid }),
+        ...bookingColumn,
         transaction_id: mihpayid || txnid,
-        amount: Number(amount),
+        amount: paidAmount,
         gateway: 'payu',
         status: 'success'
       });
@@ -179,12 +205,8 @@ export async function POST(request: Request) {
         .select('id');
       if (updateError) console.error(`Error confirming ${table} ${txnid}:`, updateError);
 
-      if (confirmed?.length) await notifyPaidBooking(isConsultation, txnid, Number(amount), mihpayid);
+      if (confirmed?.length) await notifyPaidBooking(isConsultation, txnid, paidAmount, mihpayid);
 
-      // Desk payments return to the hospital or centre portal; patients go to dedicated confirmation page.
-      if (udf[0] === 'desk') {
-        return NextResponse.redirect(`${baseUrl}${returnPath(udf[0], isConsultation)}?payment=success`, 303);
-      }
       return NextResponse.redirect(`${baseUrl}/book/confirmation/${txnid}?payment=success`, 303);
     }
 
@@ -192,7 +214,7 @@ export async function POST(request: Request) {
     const failureReason = field(data, 'error_Message') || field(data, 'unmappedstatus') || 'Transaction was not completed by provider';
     try {
       await supabase.from('payments').insert({
-        ...(isConsultation ? { appointment_id: txnid } : { appointment_id: null, diagnostic_booking_id: txnid }),
+        ...bookingColumn,
         transaction_id: mihpayid || txnid,
         amount: Number(amount) || 0,
         gateway: 'payu',
@@ -200,10 +222,7 @@ export async function POST(request: Request) {
       });
     } catch {}
 
-    if (udf[0] === 'desk') {
-      return NextResponse.redirect(`${baseUrl}${returnPath(udf[0], isConsultation)}?payment=failed`, 303);
-    }
-    return NextResponse.redirect(`${baseUrl}/book/confirmation/${txnid}?payment=failed&reason=${encodeURIComponent(failureReason)}`, 303);
+    return failed(failureReason);
 
   } catch (error) {
     console.error('PayU Callback Error:', error);

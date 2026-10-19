@@ -11,7 +11,6 @@ export type RosterDoctor = {
   /** Null when the doctor hasn't set one; never filled in with a guess. */
   specialty: string | null
   experienceYears: number | null
-  fee: string | null
   image: string | null
   hospital: string | null
   city: string | null
@@ -27,7 +26,7 @@ function initials(name: string) {
 }
 
 /** Doctor cards with specialty filter chips for the "Book a doctor online" page. */
-export function OnlineDoctorRoster({ doctors }: { doctors: RosterDoctor[] }) {
+export function OnlineDoctorRoster({ doctors, bookingFee }: { doctors: RosterDoctor[]; bookingFee: string }) {
   const [specialty, setSpecialty] = useState('All')
 
   const specialties = ['All', ...Array.from(new Set(doctors.map((d) => d.specialty).filter(Boolean) as string[])).slice(0, 5)]
@@ -104,14 +103,8 @@ export function OnlineDoctorRoster({ doctors }: { doctors: RosterDoctor[] }) {
               </div>
               <div className="mt-auto flex items-center justify-between gap-3 border-t border-slate-100 px-5 py-4">
                 <div>
-                  {doctor.fee ? (
-                    <>
-                      <span className="font-semibold text-indigo-gray-900">{doctor.fee}</span>
-                      <span className="text-sm text-slate-500"> fee</span>
-                    </>
-                  ) : (
-                    <span className="text-sm text-slate-500">Fee on profile</span>
-                  )}
+                  <span className="text-sm text-slate-500">Booking fee </span>
+                  <span className="font-semibold text-indigo-gray-900">{bookingFee}</span>
                 </div>
                 <Link
                   href={`/doctors/${doctor.id}`}

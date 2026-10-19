@@ -17,7 +17,9 @@ export const whatsappConfigured = () => Boolean(getApiKey() || (getMetaToken() &
 
 export type WhatsAppTemplate =
   | { name: 'cyd_report_ready'; params: [name: string, what: string, from: string]; document: { link: string; filename: string } }
-  | { name: 'cyd_booking_confirmed'; params: [name: string, what: string, where: string, bookingId: string, amount: string]; document?: { link: string; filename: string } }
+  // amount is the booking fee paid online ("₹119 booking fee"). note, which only session messages carry (it isn't a
+  // template parameter), says what is still paid at the hospital or lab.
+  | { name: 'cyd_booking_confirmed'; params: [name: string, what: string, where: string, bookingId: string, amount: string]; note?: string; document?: { link: string; filename: string } }
   | { name: 'cyd_health_update'; params: [name: string, hospital: string] }
   | { name: 'cyd_account_created'; params: [name: string, patientId: string, password: string, signInUrl: string] }
   | { name: 'cyd_ticket_update'; params: [name: string, ticketCode: string, status: string] }
@@ -42,7 +44,8 @@ function formatTemplateText(template: WhatsAppTemplate): { text: string; caption
     }
     case 'cyd_booking_confirmed': {
       const [name, what, where, bookingId, amount] = template.params
-      const text = `Hello ${name},\n\nYour booking for ${what} at ${where} is confirmed!\n\n📋 Booking ID: ${bookingId}\n💳 Amount Paid: ${amount}\n\nYour appointment confirmation slip PDF is attached.\n\nView details: ${siteUrl()}/patient/appointments\n\nThank you for choosing Consult Your Doctor.`
+      const note = template.note ? `\n🏥 ${template.note}` : ''
+      const text = `Hello ${name},\n\nYour booking for ${what} at ${where} is confirmed!\n\n📋 Booking ID: ${bookingId}\n💳 Amount Paid: ${amount}${note}\n\nYour appointment confirmation slip PDF is attached.\n\nView details: ${siteUrl()}/patient/appointments\n\nThank you for choosing Consult Your Doctor.`
       return { text, caption: text }
     }
     case 'cyd_health_update': {

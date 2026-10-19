@@ -15,7 +15,7 @@ export type LedgerRow = {
   department: string
   /** What the patient paid; null when no payment was recorded for a seen patient. */
   paid: number | null
-  /** The hospital's part of it (online payments include the platform fee). */
+  /** What the hospital takes: for an online booking, the consultation fee paid at its counter. */
   share: number | null
   method: 'online' | 'cash' | 'other' | null
 }
@@ -28,7 +28,7 @@ const PERIODS: { key: Period; label: string }[] = [
   { key: 'all', label: 'All time' },
 ]
 
-const METHOD_LABEL = { online: 'Online (PayU)', cash: 'Cash at desk', other: 'Other' } as const
+const METHOD_LABEL = { online: 'Booked online, fee at counter', cash: 'Cash at desk', other: 'Other' } as const
 
 function exportCsv(rows: LedgerRow[]) {
   const header = ['Date', 'Booking ID', 'Patient', 'Doctor', 'Department', 'Paid (INR)', 'Hospital share (INR)', 'Method']

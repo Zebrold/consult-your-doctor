@@ -98,7 +98,10 @@ export type AppointmentEmailArgs = {
   dateTimeStr: string
   tokenNumber: string
   bookingId: string
+  /** The booking fee paid online. */
   amount: string
+  /** What is still paid in person, without an amount ("The consultation fee is … paid at the hospital counter."). */
+  payAtVenue?: string
   siteUrl?: string
   pdfFilename?: string
 }
@@ -179,7 +182,7 @@ export function buildAppointmentEmailHtml(args: AppointmentEmailArgs): string {
                         </td>
                         <td align="right" valign="middle" style="padding-left: 12px;">
                           <div style="background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 14px; padding: 10px 16px; text-align: right; display: inline-block;">
-                            <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #dbeafe; font-weight: 600;">Payment Settled</div>
+                            <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #dbeafe; font-weight: 600;">Booking Fee Paid</div>
                             <div style="font-size: 20px; font-weight: 800; color: #ffffff; margin-top: 2px;">${escape(args.amount)}</div>
                             <div style="font-size: 10.5px; color: #86efac; font-weight: 700; margin-top: 2px;">&#9679; PayU Verified</div>
                           </div>
@@ -241,11 +244,17 @@ export function buildAppointmentEmailHtml(args: AppointmentEmailArgs): string {
                         </td>
                       </tr>
                       <tr>
-                        <td style="padding: 7px 0; font-size: 13px; color: #64748b; font-weight: 500;" valign="top">Payment:</td>
+                        <td style="padding: 7px 0; font-size: 13px; color: #64748b; font-weight: 500;" valign="top">Booking fee:</td>
                         <td style="padding: 7px 0; font-size: 14px; font-weight: 700; color: #059669;" valign="top">
-                          &#10003; Paid in Full (${escape(args.amount)}) <span style="font-size: 12px; font-weight: normal; color: #64748b;">&bull; Real-time PayU verified</span>
+                          &#10003; ${escape(args.amount)} paid online <span style="font-size: 12px; font-weight: normal; color: #64748b;">&bull; PayU verified</span>
                         </td>
-                      </tr>
+                      </tr>${args.payAtVenue ? `
+                      <tr>
+                        <td style="padding: 7px 0; font-size: 13px; color: #64748b; font-weight: 500;" valign="top">At your visit:</td>
+                        <td style="padding: 7px 0; font-size: 13.5px; font-weight: 600; color: #0f172a;" valign="top">
+                          ${escape(args.payAtVenue)}
+                        </td>
+                      </tr>` : ''}
                     </table>
                   </td>
                 </tr>
@@ -467,48 +476,6 @@ export async function sendEmail(email: Email): Promise<boolean> {
 }
 
 /** Sends appointment confirmation with token and booking reference */
-export async function sendAppointmentConfirmationEmail(args: {
-  to: string
-  patientName: string
-  doctorName: string
-  specialty?: string | null
-  hospitalName: string
-  location?: string | null
-  appointmentDate: string
-  tokenNumber: string | number
-  bookingId: string
-  amount?: string
-  siteUrl: string
-}) {
-  const html = buildAppointmentEmailHtml({
-    patientName: args.patientName,
-    doctorOrService: args.doctorName.startsWith('Dr') ? args.doctorName : `Dr. ${args.doctorName}`,
-    specialty: args.specialty,
-    hospitalName: args.hospitalName,
-    location: args.location,
-    dateTimeStr: args.appointmentDate,
-    tokenNumber: String(args.tokenNumber),
-    bookingId: args.bookingId.toUpperCase(),
-    amount: args.amount || '₹500',
-    siteUrl: args.siteUrl,
-  })
-
-  return sendEmail({
-    to: args.to,
-    subject: `Appointment Confirmed: Dr. ${args.doctorName} (Token ${String(args.tokenNumber).replace(/^#/, '')})`,
-    paragraphs: [
-      `Hello ${args.patientName},`,
-      `Your consultation with Dr. ${args.doctorName} at ${args.hospitalName} has been confirmed.`,
-      `Token Number: ${String(args.tokenNumber).replace(/^#/, '')}`,
-      `Booking Reference ID: ${args.bookingId}`,
-      `Scheduled Date & Time: ${args.appointmentDate}`,
-      `Please arrive 15 minutes prior to your consultation. You can view, reschedule, or manage this appointment in your patient dashboard.`,
-    ],
-    button: { text: 'View Appointment', url: `${args.siteUrl}/patient/appointments` },
-    html,
-  })
-}
-
 /** Sends support ticket receipt confirmation to the user */
 export async function sendTicketConfirmationEmail(args: {
   to: string

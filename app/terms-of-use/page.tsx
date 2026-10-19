@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { LegalPage } from '@/components/legal/LegalPage'
-import { TERMS } from '@/lib/legal'
+import { terms } from '@/lib/legal'
+import { getBookingFees } from '@/lib/booking-fees'
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import { ROLE_COOKIE, readRoleCookie } from '@/lib/role-cookie'
@@ -32,5 +33,5 @@ export default async function TermsPage() {
     userContext = { email: user.email, role, name }
   }
 
-  return <LegalPage doc={TERMS} current="/terms-of-use" user={userContext} />
+  return <LegalPage doc={terms(await getBookingFees())} current="/terms-of-use" user={userContext} />
 }

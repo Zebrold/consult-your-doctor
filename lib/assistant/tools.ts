@@ -1,7 +1,8 @@
 import { z } from 'zod'
 import type { createAdminClient } from '@/lib/supabase/admin'
 import { one } from '@/components/patient/data'
-import { CONSULTATION_PLATFORM_FEE, DIAGNOSTIC_PLATFORM_FEE } from '@/lib/pricing'
+import { labTestBookingFee } from '@/lib/pricing'
+import { getBookingFees } from '@/lib/booking-fees'
 import { PdfDocSchema, preparePdfArgs, type PdfDoc } from './pdf-doc'
 
 type Admin = ReturnType<typeof createAdminClient>
@@ -78,7 +79,7 @@ export function assistantTools({ admin, patientId, onPdf }: { admin: Admin; pati
     name: 'search_doctors',
     status: 'Searching doctors…',
     description:
-      'Find doctors who can be booked on the site, with their hospital, city, fee and next open slot. Search by specialty or department (e.g. "cardiology", "orthopedics", "general medicine") or by doctor name, and optionally by city. Leave both empty to list doctors with the soonest open slots.',
+      'Find doctors who can be booked on the site, with their hospital, city, booking fee and next open slot. Search by specialty or department (e.g. "cardiology", "orthopedics", "general medicine") or by doctor name, and optionally by city. Leave both empty to list doctors with the soonest open slots.',
     input: z.object({
       query: z.string().max(80).optional().describe('Specialty, department or doctor name'),
       city: z.string().max(60).optional().describe('City, e.g. "Mumbai"'),
@@ -86,7 +87,7 @@ export function assistantTools({ admin, patientId, onPdf }: { admin: Admin; pati
     run: async ({ query, city }) => {
       const { data, error } = await admin
         .from('doctors')
-        .select('id, specialty, experience_years, consultation_fee, qualifications, profiles!doctors_profile_id_fkey ( full_name ), departments ( name ), hospitals!inner ( name, city, status )')
+        .select('id, specialty, experience_years, qualifications, profiles!doctors_profile_id_fkey ( full_name ), departments ( name ), hospitals!inner ( name, city, status )')
         .eq('hospitals.status', 'active')
         .limit(500)
       if (error) return JSON.stringify({ error: 'Doctor search is unavailable right now.' })
@@ -95,7 +96,6 @@ export function assistantTools({ admin, patientId, onPdf }: { admin: Admin; pati
         id: string
         specialty: string | null
         experience_years: number | null
-        consultation_fee: number | string | null
         qualifications: string | null
         profiles: Joined<{ full_name: string | null }>
         departments: Joined<{ name: string | null }>
@@ -108,7 +108,6 @@ export function assistantTools({ admin, patientId, onPdf }: { admin: Admin; pati
         department: one(d.departments)?.name ?? null,
         qualifications: d.qualifications,
         experience: d.experience_years,
-        fee: d.consultation_fee != null ? Number(d.consultation_fee) : null,
         hospital: one(d.hospitals)?.name ?? null,
         city: one(d.hospitals)?.city ?? null,
       }))
@@ -140,7 +139,6 @@ export function assistantTools({ admin, patientId, onPdf }: { admin: Admin; pati
           experience_years: d.experience,
           hospital: d.hospital,
           city: d.city,
-          consultation_fee_inr: d.fee,
           next_open_slot_ist: next.has(d.id) ? when(next.get(d.id)!) : null,
           bookable_now: next.has(d.id),
           booking_status: next.has(d.id) ? 'Open slots available to book online' : 'No open slots yet, so this doctor cannot be booked online right now',
@@ -157,6 +155,7 @@ export function assistantTools({ admin, patientId, onPdf }: { admin: Admin; pati
         })
       }
       const bookable = doctors.filter((d) => d.bookable_now).length
+      const fees = await getBookingFees()
       return JSON.stringify({
         summary:
           bookable === 0
@@ -164,8 +163,8 @@ export function assistantTools({ admin, patientId, onPdf }: { admin: Admin; pati
             : `${bookable} of these ${doctors.length} doctors can be booked online now (bookable_now true). Only those have booking links.`,
         doctors,
         total_matches: found.length,
-        platform_fee_inr: CONSULTATION_PLATFORM_FEE,
-        note: 'Only call a doctor bookable when bookable_now is true. Doctors with no open slot cannot be booked online until their hospital publishes slots; say so plainly.',
+        booking_fee_inr: fees.consultation,
+        note: `Only call a doctor bookable when bookable_now is true. Doctors with no open slot cannot be booked online until their hospital publishes slots; say so plainly. The booking fee (₹${fees.consultation}) is all a patient pays online. The consultation fee is set by the hospital, shown only on the doctor's profile page (profile_url) and paid at the hospital counter: don't quote one, send them to the profile.`,
       })
     },
   })
@@ -191,10 +190,19 @@ export function assistantTools({ admin, patientId, onPdf }: { admin: Admin; pati
       }
       const menu = (c: Row) => Array.from(new Set([...(c.available_tests ?? []), ...Object.keys(c.test_prices ?? {})]))
 
+      const { diagnosticPercent } = await getBookingFees()
       const labs = centers
-        .map((c) => ({ c, tests: menu(c).filter((t) => !test || matches(t, test)).map((t) => ({ name: t, price_inr: priceOf(c, t) })) }))
+        .map((c) => ({
+          c,
+          tests: menu(c)
+            .filter((t) => !test || matches(t, test))
+            .map((t) => {
+              const price = priceOf(c, t)
+              return { name: t, lab_price_inr: price, booking_fee_inr: price ? labTestBookingFee(price, diagnosticPercent) : null }
+            }),
+        }))
         .filter((x) => x.tests.length > 0)
-        .sort((a, b) => b.tests.filter((t) => t.price_inr).length - a.tests.filter((t) => t.price_inr).length)
+        .sort((a, b) => b.tests.filter((t) => t.lab_price_inr).length - a.tests.filter((t) => t.lab_price_inr).length)
         .slice(0, 6)
         .map(({ c, tests }) => ({
           name: c.name ?? 'Diagnostic center',
@@ -213,7 +221,11 @@ export function assistantTools({ admin, patientId, onPdf }: { admin: Admin; pati
           available_cities: Array.from(new Set(((data ?? []) as Row[]).map((c) => c.city).filter(Boolean))).sort(),
         })
       }
-      return JSON.stringify({ labs, platform_fee_inr: DIAGNOSTIC_PLATFORM_FEE, note: 'Only tests with a price can be booked online.' })
+      return JSON.stringify({
+        labs,
+        booking_fee_percent: diagnosticPercent,
+        note: `Only tests with a price can be booked online. Online the patient pays only the booking fee (${diagnosticPercent}% of each test's price, booking_fee_inr); the lab price itself (lab_price_inr) and any home-collection fee are paid to the lab.`,
+      })
     },
   })
 

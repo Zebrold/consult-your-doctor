@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ageFrom, istDateKey } from '@/components/patient/format'
 import { matchBookedTests, sumPrices } from '@/lib/pricing'
-import { readLocalFees } from '@/lib/platform-fees'
 import { REPORT_BUCKET, reportPath } from '@/lib/lab-reports'
 import { renderLabReportPdf } from '@/lib/pdf/lab-report'
 import { issuePatientToken, readPatientToken } from '@/lib/desk-token'
@@ -15,7 +14,7 @@ import { notifyAccountCreated, notifyBookingConfirmed, notifyReportReady } from 
 import type { DeskPayment, DeskResult } from '@/components/portal/desk-types'
 
 // The diagnostic centre desk: register a patient (one-time code, then a generated Patient ID and password), book their
-// tests, take payment once the code is confirmed (PayU, the UPI scanner or cash), and produce the PDF report that goes
+// tests, take payment once the code is confirmed (the UPI scanner or cash), and produce the PDF report that goes
 // to the patient's account, WhatsApp and email.
 
 type Admin = ReturnType<typeof createAdminClient>
@@ -218,14 +217,9 @@ async function labPayment(admin: Admin, center: Center, bookingId: string): Prom
     status: found.row.status,
     what: tests.map((t) => t.name).join(', ') + (isDoorstep ? ' • Doorstep' : ''),
     patient: { name: found.patient?.full_name || 'Patient', phone: found.patient?.phone_number ?? null, email },
-    amounts: {
-      desk: amount,
-      online: amount + readLocalFees().diagnostic,
-      platformFee: readLocalFees().diagnostic,
-    },
+    amounts: { desk: amount },
     items,
     upi: await upiQr(amount, code, `Lab tests ${code}`),
-    payuKey: process.env.PAYU_MERCHANT_KEY ?? null,
   }
 }
 

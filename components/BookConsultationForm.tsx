@@ -4,6 +4,9 @@ import { useState, useEffect, useRef, Suspense } from 'react'
 import { MapPin, Building2, Stethoscope, UserCircle, Calendar, Loader2, Activity, ArrowRight, ChevronDown, ShieldCheck, type LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { createAppointment, createDiagnosticBooking } from '@/app/actions/booking'
+import { bookingFeesAction } from '@/app/actions/pricing'
+import { formatINR } from '@/components/patient/format'
+import { labTestBookingFee } from '@/lib/pricing'
 import { useSearchParams, useRouter } from 'next/navigation'
 
 export function BookConsultationFormInner({ defaultType = 'consultation' }: { defaultType?: 'consultation' | 'diagnostics' }) {
@@ -18,6 +21,8 @@ export function BookConsultationFormInner({ defaultType = 'consultation' }: { de
   const [specialties, setSpecialties] = useState<any[]>([])
   const [doctors, setDoctors] = useState<any[]>([])
   const [schedules, setSchedules] = useState<any[]>([])
+  // The lab booking fee (a per cent of each test's price); null until it has loaded.
+  const [labFeePercent, setLabFeePercent] = useState<number | null>(null)
 
   // State for selected values
   const [bookingType, setBookingType] = useState<'consultation' | 'diagnostics'>(defaultType)
@@ -56,6 +61,7 @@ export function BookConsultationFormInner({ defaultType = 'consultation' }: { de
         supabase.from('hospitals').select('city').eq('status', 'active'),
         supabase.from('diagnostic_centers').select('city').eq('status', 'active'),
       ])
+      bookingFeesAction().then((fees) => setLabFeePercent(fees.diagnosticPercent)).catch(() => null)
       setIsAuthenticated(!!session)
       if (cityData) {
         setCities(Array.from(new Set(cityData.map(h => h.city))))
@@ -476,8 +482,13 @@ export function BookConsultationFormInner({ defaultType = 'consultation' }: { de
                   <option value="" disabled>Select Diagnostic Test</option>
                   {centers.find(c => c.id === selectedCenter)?.available_tests?.map((test: string) => {
                     const center = centers.find(c => c.id === selectedCenter)
-                    const price = center?.test_prices?.[test]
-                    const priceDisplay = price ? ` - ₹${price}` : ''
+                    const price = Number(center?.test_prices?.[test])
+                    // The booking fee is all that's paid online; the test price itself is paid at the lab.
+                    const priceDisplay = !(price > 0)
+                      ? ''
+                      : labFeePercent == null
+                        ? ` - ${formatINR(price)} at the lab`
+                        : ` - ${formatINR(labTestBookingFee(price, labFeePercent))} booking fee (${formatINR(price)} at the lab)`
                     return (
                       <option key={test} value={test}>
                         {test}{priceDisplay}
@@ -537,7 +548,7 @@ export function BookConsultationFormInner({ defaultType = 'consultation' }: { de
                         >
                           <span className="block font-bold">🏠 Doorstep</span>
                           <span className="text-[11px] text-emerald-700 block">
-                            {enabled ? `Home (+₹${fee})` : 'Unavailable'}
+                            {enabled ? `Home (${formatINR(fee)} to lab)` : 'Unavailable'}
                           </span>
                         </button>
                       )

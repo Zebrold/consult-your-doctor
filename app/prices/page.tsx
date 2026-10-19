@@ -2,37 +2,40 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Check, ChevronDown, FlaskConical, Stethoscope } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { CONSULTATION_PLATFORM_FEE, DIAGNOSTIC_PLATFORM_FEE, pricedTests } from "@/lib/pricing";
+import { formatPercent, labTestBookingFee, pricedTests, type BookingFees } from "@/lib/pricing";
+import { getBookingFees } from "@/lib/booking-fees";
+import { formatINR as inr } from "@/components/patient/format";
 
-export const metadata: Metadata = {
-  title: "Prices",
-  description: `Pay the doctor's own fee plus ₹${CONSULTATION_PLATFORM_FEE}, or the lab's test prices plus ₹${DIAGNOSTIC_PLATFORM_FEE}. No subscriptions, and the total is shown before you pay.`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const fees = await getBookingFees();
+  return {
+    title: "Prices",
+    description: `Book a doctor for a ${inr(fees.consultation)} booking fee, or lab tests for ${formatPercent(fees.diagnosticPercent)} of the test price. The consultation fee and test prices are paid at the hospital or lab. No subscriptions.`,
+  };
+}
 
-const inr = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
-
-// The fee model is the one checkout charges (app/api/payu/hash/route.ts), so this page can't drift from it.
-const plans = [
+// The fees are the ones checkout and PayU charge (lib/booking-fees.ts), so this page can't drift from them.
+const plans = (fees: BookingFees) => [
   {
     icon: Stethoscope,
     name: "Doctor consultation",
-    price: `Doctor's fee + ${inr(CONSULTATION_PLATFORM_FEE)}`,
+    price: `${inr(fees.consultation)} booking fee`,
     points: [
+      "The booking fee is all you pay online",
+      "The consultation fee is set by the hospital, shown on the doctor's profile and paid at the hospital counter",
       "In person, at the doctor's partner hospital",
-      "Pick an open time and pay online",
       "Booking slip and token number on WhatsApp and email",
-      "Signed prescription saved to your account",
     ],
     cta: { label: "Find a doctor", href: "/online-doctor" },
   },
   {
     icon: FlaskConical,
     name: "Lab tests",
-    price: `Lab's prices + ${inr(DIAGNOSTIC_PLATFORM_FEE)}`,
+    price: `${formatPercent(fees.diagnosticPercent)} booking fee`,
     points: [
+      `${formatPercent(fees.diagnosticPercent)} of each test's price, paid online to book`,
+      "The test prices themselves, and any home collection, are paid at the lab",
       "Choose your tests and the day you'll visit",
-      `One ${inr(DIAGNOSTIC_PLATFORM_FEE)} fee per booking, however many tests`,
-      "Pay online before you go",
       "Your report appears in your account when it's ready",
     ],
     cta: { label: "Book a lab test", href: "/diagnostics" },
@@ -42,7 +45,7 @@ const plans = [
 const faqs = [
   {
     q: "How can I pay?",
-    a: "Online through PayU, by UPI, debit or credit card, or net banking. If you book at a hospital or lab front desk, you can also pay there by UPI or cash.",
+    a: "The booking fee is paid online through PayU, by UPI, debit or credit card, or net banking. The doctor's consultation fee is paid at the hospital counter and lab tests at the lab. If you book at a hospital or lab front desk, you pay there by UPI or cash.",
   },
   {
     q: "Are there subscriptions or membership fees?",
@@ -54,20 +57,14 @@ const faqs = [
   },
   {
     q: "How do cancellations and refunds work?",
-    a: "Contact our support team from your account or the contact page with your booking ID, and we'll sort it out with the hospital or lab.",
+    a: "Your booking fee is refunded in full if you cancel at least 2 hours before the slot, or if the doctor, hospital or lab cancels. Refunds go back to your original payment method within 5–7 working days. To cancel, contact our support team from your account or the contact page with your booking ID.",
   },
 ];
 
 /** Live figures from the listings, so the examples on this page match what patients will see. */
 async function loadPriceExamples() {
   const supabase = await createClient();
-  const [{ data: doctors }, { data: labs }] = await Promise.all([
-    supabase.from("doctors").select("consultation_fee, hospitals!inner ( status )").eq("hospitals.status", "active").gt("consultation_fee", 0),
-    supabase.from("diagnostic_centers").select("test_prices").eq("status", "active"),
-  ]);
-
-  const fees = (doctors ?? []).map((d) => Number(d.consultation_fee)).filter((n) => Number.isFinite(n) && n >= 50).sort((a, b) => a - b);
-  const feeRange = fees.length >= 3 ? { low: fees[Math.floor(fees.length * 0.1)], high: fees[Math.floor(fees.length * 0.9)] } : null;
+  const { data: labs } = await supabase.from("diagnostic_centers").select("test_prices").eq("status", "active");
 
   // Each test's lowest price across labs, for the tests most labs offer.
   const tests = new Map<string, { name: string; from: number; labs: number }>();
@@ -83,12 +80,12 @@ async function loadPriceExamples() {
     .sort((a, b) => b.labs - a.labs || a.from - b.from)
     .slice(0, 8);
 
-  return { feeRange, commonTests };
+  return { commonTests };
 }
 
 export default async function PricesPage() {
-  const { feeRange, commonTests } = await loadPriceExamples();
-  const exampleFee = 500;
+  const [{ commonTests }, fees] = await Promise.all([loadPriceExamples(), getBookingFees()]);
+  const exampleTest = 350;
 
   return (
     <div className="w-full bg-background">
@@ -97,11 +94,11 @@ export default async function PricesPage() {
         <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop py-12 md:py-16">
           <p className="text-sm font-semibold text-vibrant-blue">Prices</p>
           <h1 className="mt-3 max-w-3xl font-display-lg text-4xl md:text-5xl font-bold tracking-tight text-indigo-gray-900">
-            You pay the doctor&apos;s fee, plus a small booking fee
+            You pay a small booking fee online, and the rest at your visit
           </h1>
           <p className="mt-5 max-w-2xl text-base md:text-lg leading-relaxed text-slate-600">
-            Each doctor and lab sets their own prices. We add one booking fee and show you the total before you pay. No
-            subscriptions, no membership.
+            Each hospital and lab sets its own prices, and you pay those at the counter. Online you pay only our booking
+            fee. No subscriptions, no membership.
           </p>
         </div>
       </section>
@@ -109,7 +106,7 @@ export default async function PricesPage() {
       {/* Plans */}
       <section className="w-full py-12 md:py-16">
         <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop grid grid-cols-1 md:grid-cols-2 gap-5">
-          {plans.map(({ icon: Icon, name, price, points, cta }) => (
+          {plans(fees).map(({ icon: Icon, name, price, points, cta }) => (
             <div key={name} className="rounded-xl border border-slate-200 bg-white p-6 md:p-8 flex flex-col">
               <div className="flex items-center gap-3">
                 <span className="w-10 h-10 rounded-lg bg-primary-fixed/60 text-primary flex items-center justify-center">
@@ -118,11 +115,6 @@ export default async function PricesPage() {
                 <h2 className="text-lg font-semibold text-indigo-gray-900">{name}</h2>
               </div>
               <p className="mt-6 text-2xl md:text-3xl font-bold tracking-tight text-indigo-gray-900">{price}</p>
-              {name === "Doctor consultation" && feeRange && (
-                <p className="mt-2 text-sm text-slate-500">
-                  Most doctors on Consult Your Doctor charge between {inr(feeRange.low)} and {inr(feeRange.high)}.
-                </p>
-              )}
               <ul className="mt-6 space-y-3 flex-1">
                 {points.map((p) => (
                   <li key={p} className="flex gap-3 text-[15px] text-slate-700">
@@ -143,8 +135,11 @@ export default async function PricesPage() {
 
         <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop mt-5">
           <div className="rounded-xl bg-slate-50 border border-slate-200 px-6 py-5 text-[15px] text-slate-700">
-            <span className="font-semibold text-indigo-gray-900">Example:</span> a doctor whose fee is {inr(exampleFee)} costs{" "}
-            {inr(exampleFee)} + {inr(CONSULTATION_PLATFORM_FEE)} = <span className="font-semibold text-indigo-gray-900">{inr(exampleFee + CONSULTATION_PLATFORM_FEE)}</span> in total.
+            <span className="font-semibold text-indigo-gray-900">Example:</span> booking a doctor costs{" "}
+            <span className="font-semibold text-indigo-gray-900">{inr(fees.consultation)}</span> online, and you pay the consultation fee at the
+            hospital counter. A {inr(exampleTest)} lab test costs{" "}
+            <span className="font-semibold text-indigo-gray-900">{inr(labTestBookingFee(exampleTest, fees.diagnosticPercent))}</span> online, and{" "}
+            {inr(exampleTest)} at the lab.
           </div>
         </div>
       </section>
@@ -156,7 +151,9 @@ export default async function PricesPage() {
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
               <div className="max-w-2xl">
                 <h2 className="font-headline-lg text-2xl md:text-3xl font-bold tracking-tight text-indigo-gray-900">Common lab tests</h2>
-                <p className="mt-2 text-slate-600">Lowest price at our partner labs today, before the {inr(DIAGNOSTIC_PLATFORM_FEE)} booking fee.</p>
+                <p className="mt-2 text-slate-600">
+                  The lowest price at our partner labs today, which you pay at the lab, and the {formatPercent(fees.diagnosticPercent)} booking fee you pay online.
+                </p>
               </div>
               <Link href="/diagnostics" className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-vibrant-blue hover:underline shrink-0">
                 See all labs <ArrowRight className="w-4 h-4" />
@@ -169,7 +166,8 @@ export default async function PricesPage() {
                   <tr>
                     <th scope="col" className="px-5 py-3 font-medium">Test</th>
                     <th scope="col" className="px-5 py-3 font-medium hidden sm:table-cell">Available at</th>
-                    <th scope="col" className="px-5 py-3 font-medium text-right">From</th>
+                    <th scope="col" className="px-5 py-3 font-medium text-right">From, at the lab</th>
+                    <th scope="col" className="px-5 py-3 font-medium text-right">Booking fee</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -180,6 +178,7 @@ export default async function PricesPage() {
                         {t.labs} {t.labs === 1 ? "lab" : "labs"}
                       </td>
                       <td className="px-5 py-3.5 text-right font-semibold text-indigo-gray-900 tabular-nums">{inr(t.from)}</td>
+                      <td className="px-5 py-3.5 text-right text-slate-600 tabular-nums">{inr(labTestBookingFee(t.from, fees.diagnosticPercent))}</td>
                     </tr>
                   ))}
                 </tbody>

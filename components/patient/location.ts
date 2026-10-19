@@ -1,14 +1,22 @@
 "use client";
 
-import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
-import { distanceKm, type LatLng } from "@/lib/geo";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { distanceKm, sameCity, type LatLng } from "@/lib/geo";
 
 // Where the patient is looking for care: their device's location, or a city they picked. Kept in this browser only
 // (it never goes to our server); the device location is only used to sort what is already on the page.
 
 export type PatientLocation =
-  | { kind: "gps"; lat: number; lng: number; label: string }
+  // city: the town the device is in, for places without a map pin ("" when it couldn't be found; missing on locations
+  // saved before it was added, which are looked up again).
+  | { kind: "gps"; lat: number; lng: number; label: string; city?: string }
   | { kind: "city"; city: string; label: string };
+
+/** How far a place with a map pin can be from the device and still count as near. */
+export const NEARBY_KM = 30;
+
+/** The city a location is in, when known. */
+export const locationCity = (location: PatientLocation | null) => (location?.city ? location.city : null);
 
 const KEY = "cyd-patient-location";
 const EVENT = "cyd-location-change";
@@ -48,14 +56,17 @@ function parse(raw: string | null): PatientLocation | null {
   return null;
 }
 
-/** The neighbourhood or town for a point, from OpenStreetMap; falls back to "Current location". */
-async function placeName(lat: number, lng: number): Promise<string> {
+/** The neighbourhood (label) and city for a point, from OpenStreetMap; "Current location" and "" when it can't say. */
+async function placeOf(lat: number, lng: number): Promise<{ label: string; city: string }> {
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&zoom=14&addressdetails=1&lat=${lat}&lon=${lng}`, { headers: { Accept: "application/json" } });
     const a = ((await res.json()) as { address?: Record<string, string> }).address ?? {};
-    return a.suburb || a.neighbourhood || a.city_district || a.town || a.city || a.village || a.county || "Current location";
+    return {
+      label: a.suburb || a.neighbourhood || a.city_district || a.town || a.city || a.village || a.county || "Current location",
+      city: a.city || a.town || a.municipality || a.state_district || a.county || "",
+    };
   } catch {
-    return "Current location";
+    return { label: "Current location", city: "" };
   }
 }
 
@@ -66,6 +77,12 @@ export function usePatientLocation() {
   const location = useMemo(() => parse(raw), [raw]);
   const [status, setStatus] = useState<LocateStatus>("idle");
 
+  // A device location saved before cities were recorded: look its city up once.
+  useEffect(() => {
+    if (location?.kind !== "gps" || location.city !== undefined) return;
+    placeOf(location.lat, location.lng).then(({ city }) => write({ ...location, city }));
+  }, [location]);
+
   /** Asks the device where it is; `onDone` runs once the location is saved. */
   const locate = useCallback((onDone?: () => void) => {
     if (!("geolocation" in navigator)) return setStatus("unavailable");
@@ -74,7 +91,7 @@ export function usePatientLocation() {
       async (pos) => {
         const lat = Math.round(pos.coords.latitude * 1e4) / 1e4;
         const lng = Math.round(pos.coords.longitude * 1e4) / 1e4;
-        write({ kind: "gps", lat, lng, label: await placeName(lat, lng) });
+        write({ kind: "gps", lat, lng, ...(await placeOf(lat, lng)) });
         setStatus("idle");
         onDone?.();
       },
@@ -92,21 +109,23 @@ export function usePatientLocation() {
 type Placeable = { lat: number | null; lng: number | null; city: string | null };
 
 /**
- * Orders places for a patient's location, with each one's distance when both have a pin. With the device location:
- * pinned places nearest first, then the rest in their original order. With a city: places in that city first.
- * Without a location: the original order.
+ * Orders places for a patient's location, with each one's distance when both have a pin, and whether it is near
+ * (inArea). With the device location a pinned place is near within NEARBY_KM, and a place without a pin when it is in
+ * the device's city. With a chosen city, places in that city are near. Near places come first, nearest first; without
+ * a location everything keeps its order and counts as near.
  */
 export function byNearness<T extends Placeable>(items: T[], location: PatientLocation | null): { item: T; km: number | null; inArea: boolean }[] {
   if (!location) return items.map((item) => ({ item, km: null, inArea: true }));
-  if (location.kind === "city") {
-    const city = location.city.toLowerCase();
-    const rows = items.map((item, i) => ({ item, km: null, inArea: (item.city ?? "").toLowerCase() === city, i }));
-    return rows.sort((a, b) => Number(b.inArea) - Number(a.inArea) || a.i - b.i).map(({ item, km, inArea }) => ({ item, km, inArea }));
-  }
-  const here: LatLng = { lat: location.lat, lng: location.lng };
+  const here: LatLng | null = location.kind === "gps" ? { lat: location.lat, lng: location.lng } : null;
   const rows = items.map((item, i) => {
-    const km = item.lat != null && item.lng != null ? distanceKm(here, { lat: item.lat, lng: item.lng }) : null;
-    return { item, km, inArea: km != null && km <= 50, i };
+    const km = here && item.lat != null && item.lng != null ? distanceKm(here, { lat: item.lat, lng: item.lng }) : null;
+    return { item, km, inArea: km != null ? km <= NEARBY_KM : sameCity(item.city, location.city), i };
   });
-  return rows.sort((a, b) => (a.km ?? Infinity) - (b.km ?? Infinity) || a.i - b.i).map(({ item, km, inArea }) => ({ item, km, inArea }));
+  return rows
+    .sort((a, b) => Number(b.inArea) - Number(a.inArea) || (a.km ?? Infinity) - (b.km ?? Infinity) || a.i - b.i)
+    .map(({ item, km, inArea }) => ({ item, km, inArea }));
 }
+
+/** Only the places near the patient's location, nearest first (all of them when no location is set). */
+export const nearbyOnly = <T extends Placeable>(items: T[], location: PatientLocation | null) =>
+  byNearness(items, location).filter((row) => row.inArea);

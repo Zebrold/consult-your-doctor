@@ -324,7 +324,7 @@ export function TakeLabPaymentButton({ booking, kind = 'blue', className }: { bo
         {kind !== 'icon' && 'Take Payment'}
       </button>
       {payment && (
-        <DeskDialog title="Take payment" subtitle="PayU, the UPI scanner or cash." onClose={() => setPayment(null)}>
+        <DeskDialog title="Take payment" subtitle="The UPI scanner or cash." onClose={() => setPayment(null)}>
           <PaymentPanel
             payment={payment}
             onRecord={(method, reference) => recordLabPayment({ bookingId: booking.id, method, reference })}

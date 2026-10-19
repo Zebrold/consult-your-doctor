@@ -93,9 +93,10 @@ export default async function HospitalDashboardPage() {
   const month = today.slice(0, 7)
   const lastMonth = istDateKey(Date.parse(`${month}-01T12:00:00+05:30`) - DAY).slice(0, 7)
   const paidOn = (v: HospitalVisit) => dayOf(v.payment?.createdAt ?? v.createdAt)
-  const revenueIn = (key: string) => visits.reduce((sum, v) => (v.payment && paidOn(v)?.startsWith(key) ? sum + hospitalShare(v.payment) : sum), 0)
+  const shareOf = (v: HospitalVisit) => (v.payment ? hospitalShare(v.payment, v.doctorId ? doctorById.get(v.doctorId)?.fee : null) : 0)
+  const revenueIn = (key: string) => visits.reduce((sum, v) => (v.payment && paidOn(v)?.startsWith(key) ? sum + shareOf(v) : sum), 0)
   const paymentsToday = visits.filter((v) => v.payment && paidOn(v) === today)
-  const revenueToday = paymentsToday.reduce((sum, v) => sum + hospitalShare(v.payment!), 0)
+  const revenueToday = paymentsToday.reduce((sum, v) => sum + shareOf(v), 0)
   const revenueThisMonth = revenueIn(month)
 
   // Next 7 days: how full each department's published slots are.

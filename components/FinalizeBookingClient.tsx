@@ -8,13 +8,13 @@ import {
   Navigation, Sun, Sunset, type LucideIcon,
 } from "lucide-react";
 import { PatientDock } from "@/components/PatientDock";
+import { PatientFooter } from "@/components/AppFooter";
 import { PatientNavHeader } from "@/components/PatientNavHeader";
 import { finalizeConsultationAppointment } from "@/app/actions/booking";
 import { startPayuPayment } from "@/lib/payu-client";
-import { CONSULTATION_PLATFORM_FEE } from "@/lib/pricing";
 import {
-  appendPatientDetails, Breadcrumbs, DayStrip, FormError, PatientDetailsFields, PayuNote, patientDetailsError,
-  SignInToBook, StepCard, SummaryRow, type PatientDetails,
+  appendPatientDetails, Breadcrumbs, DayStrip, FormError, PatientDetailsFields, PayAtVenue, PayuNote, patientDetailsError,
+  RefundNote, SignInToBook, StepCard, SummaryRow, type PatientDetails,
 } from "@/components/patient/booking-ui";
 import {
   doctorName, formatINR, formatLongDate, formatSlot, formatTime, initials, isMorning, istDateKey, upcomingDays,
@@ -27,7 +27,8 @@ export interface BookingDoctor {
   qualifications: string | null;
   bio: string | null;
   experience: number | null;
-  fee: number | null;
+  /** Online booking is open once the hospital has set the doctor's consultation fee (shown on the profile only). */
+  bookable: boolean;
   image: string | null;
   hospital: { id: string; name: string; city: string | null; address: string | null } | null;
 }
@@ -41,15 +42,13 @@ interface FinalizeBookingClientProps {
   patient: PatientDetails | null;
   now: number;
   payuKey: string;
-  /** The platform fee /api/payu/hash will charge (lib/platform-fees.ts). */
-  platformFee?: number;
+  /** The booking fee /api/payu/hash will charge (lib/booking-fees.ts): the whole online payment. */
+  bookingFee: number;
 }
 
-export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, platformFee = CONSULTATION_PLATFORM_FEE }: FinalizeBookingClientProps) {
+export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, bookingFee }: FinalizeBookingClientProps) {
   const router = useRouter();
   const name = doctorName(doctor.name);
-  const fee = doctor.fee ?? 0;
-  const total = fee + platformFee;
   const days = useMemo(() => upcomingDays(now, 6), [now]);
   const today = days[0].key;
 
@@ -126,7 +125,7 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, pl
 
   const morning = daySlots.filter((s) => isMorning(s.start));
   const later = daySlots.filter((s) => !isMorning(s.start));
-  const canBook = fee > 0;
+  const canBook = doctor.bookable;
 
   return (
     <div className="bg-background text-on-surface antialiased min-h-screen">
@@ -141,7 +140,7 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, pl
         subtitle="Pick a time, then pay to confirm your visit."
       />
 
-      <main className="relative w-full overflow-hidden pb-dock md:pt-8">
+      <main className="relative w-full overflow-hidden pb-12 md:pb-16 md:pt-8">
         <div className="relative max-w-[1280px] mx-auto px-margin-x-mobile lg:px-margin-x-desktop pt-5 md:py-8">
           {/* Breadcrumb & heading */}
           <div className="hidden md:flex flex-col md:flex-row md:items-center justify-between gap-4 pb-8">
@@ -194,7 +193,7 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, pl
                 <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-surface-container-high/40 md:border-surface-container-low text-center md:text-left md:ml-[136px]">
                   <Metric label="Experience" value={doctor.experience ? `${doctor.experience} Years` : "—"} />
                   <Metric label="Hospital" value={doctor.hospital?.name || "—"} />
-                  <Metric label="Consultation Fee" value={fee ? formatINR(fee) : "Not set"} highlight />
+                  <Metric label="Booking Fee" value={formatINR(bookingFee)} highlight />
                 </div>
               </section>
 
@@ -365,8 +364,7 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, pl
                   <span className="px-2.5 py-0.5 rounded-full bg-fresh-teal/15 text-secondary font-label-sm text-label-sm font-bold">1 Visit</span>
                 </div>
                 <div className="py-4 flex flex-col gap-3 font-body-md text-body-md">
-                  <SummaryRow label={`${doctor.specialty || "Specialist"} clinic visit`} value={fee ? formatINR(fee) : "—"} />
-                  <SummaryRow label="Platform fee" value={formatINR(platformFee)} />
+                  <SummaryRow label="Booking fee" sub={`${doctor.specialty || "Specialist"} clinic visit`} value={formatINR(bookingFee)} />
                   <div className="flex items-center justify-between gap-2 text-sm py-2.5 px-3 rounded-lg bg-surface-container-low md:bg-surface-container-low">
                     <span className="text-indigo-gray-600 font-medium flex items-center gap-1.5">
                       <CalendarDays className="w-4 h-4 text-vibrant-blue" /> Slot
@@ -375,11 +373,14 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, pl
                   </div>
                 </div>
                 <div className="pt-4 border-t border-surface-container flex items-baseline justify-between">
-                  <span className="font-label-sm text-label-sm text-outline uppercase font-semibold">Total Payable</span>
-                  <span className="font-headline-lg text-headline-lg-mobile md:text-headline-lg font-extrabold text-vibrant-blue">{formatINR(total)}</span>
+                  <span className="font-label-sm text-label-sm text-outline uppercase font-semibold">Total Payable Online</span>
+                  <span className="font-headline-lg text-headline-lg-mobile md:text-headline-lg font-extrabold text-vibrant-blue">{formatINR(bookingFee)}</span>
                 </div>
 
                 <div className="mt-5 flex flex-col gap-4">
+                  <PayAtVenue title="Consultation fee: paid at the hospital counter">
+                    Set by the hospital and paid when you visit. It isn&apos;t collected online or added to this total.
+                  </PayAtVenue>
                   <PayuNote />
                   {error && (
                     <FormError>
@@ -411,7 +412,7 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, pl
                         "Select a time slot"
                       ) : (
                         <>
-                          <Lock className="w-5 h-5" /> Confirm &amp; Pay {formatINR(total)}
+                          <Lock className="w-5 h-5" /> Confirm &amp; Pay {formatINR(bookingFee)}
                         </>
                       )}
                     </button>
@@ -428,6 +429,9 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, pl
                     Show your booking ID at the hospital reception to check in.
                   </li>
                 </ul>
+                <div className="mt-4">
+                  <RefundNote isConsultation />
+                </div>
               </div>
 
               {doctor.hospital && (
@@ -448,6 +452,7 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, pl
         </div>
       </main>
 
+      <PatientFooter isSignedIn={!!patient} />
       <PatientDock activeTab="book" isSignedIn={!!patient} name={patient?.name} />
     </div>
   );

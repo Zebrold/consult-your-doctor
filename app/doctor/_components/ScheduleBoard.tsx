@@ -8,7 +8,6 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { blockScheduleSlot } from '@/app/actions/doctor'
-import { CONSULTATION_PLATFORM_FEE } from '@/lib/pricing'
 import { showHR, showSpO2 } from '@/lib/vitals'
 import { doctorName, formatDayLabel, formatINR, formatShortDate, formatTime, istDateKey } from '@/components/patient/format'
 import { Avatar, Chip } from '@/components/portal/ui'

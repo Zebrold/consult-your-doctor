@@ -22,7 +22,7 @@ export type LabInfo = {
   createdAt: string | null
   doorstepEnabled: boolean
   doorstepFee: number
-  /** Tests in the lab's own order, with the price patients pay the lab (before the platform fee). */
+  /** Tests in the lab's own order, with the price patients pay at the lab (the online booking fee is separate). */
   tests: LabTest[]
   prices: Record<string, number>
 }

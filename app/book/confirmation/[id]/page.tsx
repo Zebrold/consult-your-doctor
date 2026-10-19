@@ -3,7 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound, redirect } from 'next/navigation'
 import QRCode from 'qrcode'
 import { doctorName, formatLongDate, formatTime } from '@/components/patient/format'
-import { CONSULTATION_PLATFORM_FEE, DIAGNOSTIC_PLATFORM_FEE, matchBookedTests, sumPrices } from '@/lib/pricing'
+import { labBookingFee, matchBookedTests } from '@/lib/pricing'
+import { getBookingFees } from '@/lib/booking-fees'
 
 // Paid booking states. Payment status always comes from the database: a ?payment=success in the URL proves nothing.
 const PAID = ['confirmed', 'visited', 'completed', 'report_sent']
@@ -24,7 +25,14 @@ export default async function BookingConfirmationPage(props: Props) {
   const { id } = await props.params
   const search = (await props.searchParams) ?? {}
   const admin = createAdminClient()
-  const viewer = await getCurrentUser()
+  const [viewer, fees] = await Promise.all([getCurrentUser(), getBookingFees()])
+  // Set by the PayU callback when a payment didn't go through; shown with the failed state.
+  const failureReason = search.payment === 'failed' && search.reason ? search.reason.slice(0, 300) : null
+
+  // The booking fee is the only amount shown: what PayU took, or what it will take. null for a booking made and paid at a
+  // hospital or lab desk, which has no booking fee (the counter took the consultation fee or test charges).
+  const bookingFeeFrom = (payment: { amount: number | string; gateway: string | null } | null, unpaid: number | null) =>
+    payment ? (payment.gateway === 'payu' ? Number(payment.amount) || 0 : null) : unpaid
 
   // 1. Check if id belongs to an appointment
   const { data: aptData } = await admin
@@ -33,7 +41,7 @@ export default async function BookingConfirmationPage(props: Props) {
       id, status, created_at, patient_id,
       patient:profiles!appointments_patient_id_fkey ( full_name, phone_number ),
       doctor:doctors (
-        id, specialty, consultation_fee,
+        id, specialty,
         profiles!doctors_profile_id_fkey ( full_name )
       ),
       hospital:hospitals ( id, name, city, address ),
@@ -48,7 +56,7 @@ export default async function BookingConfirmationPage(props: Props) {
     if (rawApt) {
       const [{ data: pProf }, { data: docRow }, { data: hospRow }, { data: schedRow }] = await Promise.all([
         admin.from('profiles').select('full_name, phone_number').eq('id', rawApt.patient_id).maybeSingle(),
-        admin.from('doctors').select('id, specialty, consultation_fee, profiles!doctors_profile_id_fkey ( full_name )').eq('id', rawApt.doctor_id).maybeSingle(),
+        admin.from('doctors').select('id, specialty, profiles!doctors_profile_id_fkey ( full_name )').eq('id', rawApt.doctor_id).maybeSingle(),
         admin.from('hospitals').select('id, name, city, address').eq('id', rawApt.hospital_id).maybeSingle(),
         admin.from('schedules').select('start_time').eq('id', rawApt.schedule_id).maybeSingle(),
       ])
@@ -84,13 +92,12 @@ export default async function BookingConfirmationPage(props: Props) {
         : 'pending'
     const { data: paid } = await admin
       .from('payments')
-      .select('amount')
+      .select('amount, gateway')
       .eq('appointment_id', id)
       .eq('status', 'success')
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
-    const doctorFee = Number(doc?.consultation_fee) || 0
 
     const verificationUrl = `${siteUrl()}/book/confirmation/${id}`
     const qrDataUrl = await QRCode.toDataURL(verificationUrl, { margin: 1, width: 240 })
@@ -109,8 +116,9 @@ export default async function BookingConfirmationPage(props: Props) {
       dateTime: dateStr,
       patientName: patient?.full_name || 'Patient',
       patientPhone: maskPhone(patient?.phone_number, viewer?.id === apt.patient_id),
-      fee: Number(paid?.amount) || (doctorFee ? doctorFee + CONSULTATION_PLATFORM_FEE : 0),
+      bookingFee: bookingFeeFrom(paid, fees.consultation),
       paymentStatus,
+      failureReason,
       appointmentStatus: apt.status || 'confirmed',
       qrDataUrl,
       checkoutUrl: `/patient/checkout/${id}`
@@ -153,9 +161,16 @@ export default async function BookingConfirmationPage(props: Props) {
     const tokenNumber = String(tokenSeq).padStart(2, '0')
 
     const dateStr = diag.preferred_date ? formatLongDate(diag.preferred_date) : 'Scheduled Date'
-    // Priced the way checkout prices it: every booked test, plus the booking fee.
+    // Priced the way checkout prices it: the booking fee on every booked test.
     const tests = matchBookedTests(diag.test_name || '', center?.test_prices)
-    const price = tests ? sumPrices(tests) + DIAGNOSTIC_PLATFORM_FEE : 0
+    const { data: paid } = await admin
+      .from('payments')
+      .select('amount, gateway')
+      .eq('diagnostic_booking_id', id)
+      .eq('status', 'success')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
     const paymentStatus: 'success' | 'pending' | 'failed' = PAID.includes(diag.status)
       ? 'success'
@@ -180,8 +195,9 @@ export default async function BookingConfirmationPage(props: Props) {
       dateTime: dateStr,
       patientName: patient?.full_name || 'Patient',
       patientPhone: maskPhone(patient?.phone_number, viewer?.id === diag.patient_id),
-      fee: price,
+      bookingFee: bookingFeeFrom(paid, tests ? labBookingFee(tests, fees.diagnosticPercent) : null),
       paymentStatus,
+      failureReason,
       appointmentStatus: diag.status || 'confirmed',
       qrDataUrl,
       checkoutUrl: `/patient/checkout/diagnostic/${id}`

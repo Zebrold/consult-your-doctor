@@ -4,7 +4,7 @@ import { Metadata } from "next";
 import { FinalizeBookingClient, type BookingDoctor, type BookingSlot } from "@/components/FinalizeBookingClient";
 import { currentTime, loadPatientDefaults, one } from "@/components/patient/data";
 import { doctorName } from "@/components/patient/format";
-import { getPlatformFees } from "@/lib/platform-fees";
+import { getBookingFees } from "@/lib/booking-fees";
 
 interface BookDoctorPageProps {
   params: Promise<{ doctorId: string }>;
@@ -54,7 +54,7 @@ export default async function BookDoctorPage({ params }: BookDoctorPageProps) {
       .lt("start_time", new Date(now + 60 * 86_400_000).toISOString())
       .order("start_time", { ascending: true }),
     loadPatientDefaults(supabase),
-    getPlatformFees(),
+    getBookingFees(),
   ]);
 
   if (!row) notFound();
@@ -67,7 +67,7 @@ export default async function BookDoctorPage({ params }: BookDoctorPageProps) {
     qualifications: d.qualifications,
     bio: d.bio,
     experience: d.experience_years,
-    fee: d.consultation_fee,
+    bookable: Number(d.consultation_fee) > 0,
     image: d.image_url,
     hospital: one(d.hospitals),
   };
@@ -84,7 +84,7 @@ export default async function BookDoctorPage({ params }: BookDoctorPageProps) {
       slots={slots}
       patient={patient}
       now={now}
-      platformFee={fees.consultation}
+      bookingFee={fees.consultation}
       payuKey={process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY || "jwoG24"}
     />
   );

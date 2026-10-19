@@ -9,7 +9,7 @@ import {
 import { currentTime } from '@/components/patient/data'
 import { formatINR, formatShortDate, initials, istDateKey } from '@/components/patient/format'
 import { Card } from '@/components/portal/ui'
-import { DIAGNOSTIC_PLATFORM_FEE, pricedTests } from '@/lib/pricing'
+import { pricedTests } from '@/lib/pricing'
 import { awaitingReport, bookingCode, isPaid, loadLabBookings, requireCenter, shiftDay } from '../_lib/lab'
 import { LabProfileEditor } from '../_components/LabProfileEditor'
 

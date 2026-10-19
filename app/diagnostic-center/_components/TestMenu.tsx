@@ -4,7 +4,6 @@ import { useState, useTransition, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, ChevronDown, CircleCheck, CircleDashed, LoaderCircle, Plus, Search, Trash2 } from 'lucide-react'
 import { removeLabTest, saveLabTest } from '@/app/actions/diagnostic-center'
-import { DIAGNOSTIC_PLATFORM_FEE } from '@/lib/pricing'
 
 type Test = { name: string; price: number | null }
 type Result = { success: true } | { success: false; error: string }
@@ -108,7 +107,7 @@ export function TestMenu({
   booked = {},
   actions = LAB_ACTIONS,
   bookable = true,
-  note = 'Patients pay these listed prices when they book online. Changes show on the booking page straight away.',
+  note = 'Patients pay these prices at your lab; online they pay only the Consult Your Doctor booking fee. Changes show on the booking page straight away.',
 }: {
   tests: Test[]
   booked?: Record<string, number>

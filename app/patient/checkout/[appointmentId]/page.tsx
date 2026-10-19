@@ -3,8 +3,9 @@ import { redirect } from 'next/navigation'
 import { Building2, CalendarDays, CircleCheck, CircleX, Clock, SearchX, UserRound } from 'lucide-react'
 import { PayUCheckoutForm } from '@/components/PayUCheckoutForm'
 import { CheckoutCard, CheckoutGrid, CheckoutHeading, CheckoutMessage, CheckoutShell, DetailRow, PaymentSummary } from '@/components/patient/CheckoutShell'
+import { PayAtVenue } from '@/components/patient/booking-ui'
 import { doctorName, formatLongDate, formatTime } from '@/components/patient/format'
-import { getPlatformFees } from '@/lib/platform-fees'
+import { getBookingFees } from '@/lib/booking-fees'
 
 type Joined<T> = T | T[] | null
 const one = <T,>(v: Joined<T> | undefined) => (Array.isArray(v) ? v[0] : v) ?? null
@@ -13,7 +14,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
   const { appointmentId } = await params
   const supabase = await createClient()
 
-  const [user, fees] = await Promise.all([getCurrentUser(), getPlatformFees()])
+  const [user, fees] = await Promise.all([getCurrentUser(), getBookingFees()])
   if (!user) redirect('/login/patient')
 
   // Only the patient's own appointment is ever loaded (and RLS enforces the same).
@@ -23,7 +24,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
       .select(`
         id,
         status,
-        doctors ( specialty, consultation_fee, profiles ( full_name ) ),
+        doctors ( specialty, profiles ( full_name ) ),
         hospitals ( name, address, city ),
         schedules ( start_time )
       `)
@@ -59,13 +60,13 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
     )
   }
 
-  type Doctor = { specialty: string | null; consultation_fee: number | null; profiles: Joined<{ full_name: string | null }> }
+  type Doctor = { specialty: string | null; profiles: Joined<{ full_name: string | null }> }
   type Hospital = { name: string; address: string | null; city: string | null }
   const doctor = one(appointment.doctors as Joined<Doctor>)
   const hospital = one(appointment.hospitals as Joined<Hospital>)
   const startTime = one(appointment.schedules as Joined<{ start_time: string }>)?.start_time ?? null
-  const fee = Number(doctor?.consultation_fee) || 0
-  const total = fee + fees.consultation
+  // The same amount /api/payu/hash charges: the booking fee only. The consultation fee is paid at the hospital counter.
+  const total = fees.consultation
 
   return (
     <CheckoutShell name={name} email={email}>
@@ -88,27 +89,24 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
         }
         summary={
           <PaymentSummary
-            lines={[
-              { label: 'Consultation fee', amount: fee },
-              { label: 'Platform fee', amount: fees.consultation },
-            ]}
+            lines={[{ label: 'Booking fee', sub: 'Consult Your Doctor', amount: fees.consultation }]}
             total={total}
+            isConsultation
+            atVenue={
+              <PayAtVenue title="Consultation fee: paid at the hospital counter">
+                Set by the hospital and paid when you visit. It isn&apos;t collected online or added to this total.
+              </PayAtVenue>
+            }
           >
-            {fee > 0 ? (
-              <PayUCheckoutForm
-                txnid={appointmentId}
-                amount={total}
-                productinfo="Consultation"
-                firstname={(name || 'Patient').replace(/[|]/g, ' ')}
-                email={email || 'patient@example.com'}
-                phone={profile?.phone_number || user.phone || '9999999999'}
-                payuKey={process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY || ''}
-              />
-            ) : (
-              <p className="rounded-xl bg-error-container/60 text-on-error-container text-sm p-3">
-                This doctor&apos;s fee isn&apos;t set yet, so the visit can&apos;t be paid online. Please contact support.
-              </p>
-            )}
+            <PayUCheckoutForm
+              txnid={appointmentId}
+              amount={total}
+              productinfo="Consultation"
+              firstname={(name || 'Patient').replace(/[|]/g, ' ')}
+              email={email || 'patient@example.com'}
+              phone={profile?.phone_number || user.phone || '9999999999'}
+              payuKey={process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY || ''}
+            />
           </PaymentSummary>
         }
       />

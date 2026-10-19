@@ -29,7 +29,7 @@ import {
 import type { EducationEntry } from "@/lib/education";
 import type { Review, ReviewSummary } from "@/lib/reviews";
 import { Stars } from "@/components/Stars";
-import { CONSULTATION_PLATFORM_FEE } from "@/lib/pricing";
+import { formatINR } from "@/components/patient/format";
 
 
 export interface ProfileDoctorData {
@@ -82,6 +82,8 @@ export interface DoctorProfileClientProps {
   isDoctorView?: boolean;
   onEditProfile?: () => void;
   onManageSchedule?: () => void;
+  /** The doctor booking fee: all the patient pays online (lib/booking-fees.ts). */
+  bookingFee: number;
 }
 
 function getDoctorInitials(name?: string | null) {
@@ -138,7 +140,8 @@ export function DoctorProfileClient({
   showPatientDock = false,
   isDoctorView = false,
   onEditProfile,
-  onManageSchedule
+  onManageSchedule,
+  bookingFee,
 }: DoctorProfileClientProps) {
   const searchParams = useSearchParams();
   const isPreview = searchParams.get("preview") === "patient";
@@ -152,6 +155,8 @@ export function DoctorProfileClient({
   const specialty = doctor.departments?.name || doctor.specialty || "Specialist";
   // Shown only when the doctor has filled them in; never replaced with a made-up value.
   const experienceYears = doctor.experience_years || null;
+  // The consultation fee the hospital set. This page is the only place a patient sees it: it is paid at the hospital
+  // counter, never online, so booking screens, checkout, slips and messages show only the booking fee.
   const fee = doctor.consultation_fee || null;
   const hospital = doctor.hospitals;
   const qualifications = doctor.qualifications?.trim() || null;
@@ -274,7 +279,7 @@ export function DoctorProfileClient({
           }
         />
       )}
-      <main className={`w-full bg-background ${showPatientDock && isLoggedIn ? "pb-dock" : "pb-12"} ${!isLoggedIn ? "pt-[calc(var(--header-h)+0.75rem)] md:pt-[calc(var(--header-h)+1.5rem)]" : ""}`}>
+      <main className={`w-full bg-background pb-12 ${!isLoggedIn ? "pt-[calc(var(--header-h)+0.75rem)] md:pt-[calc(var(--header-h)+1.5rem)]" : ""}`}>
         <div className="flex flex-col w-full">
           <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop py-stack-lg flex flex-col gap-stack-lg max-w-[1440px] mx-auto">
             {/* Top Navigation / Status Header */}
@@ -376,7 +381,7 @@ export function DoctorProfileClient({
                     <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-5">
                       {[
                         { label: "Experience", value: experienceYears ? `${experienceYears} years` : "Not listed" },
-                        { label: "Consultation fee", value: fee ? `₹${fee.toLocaleString("en-IN")}` : "Not set yet" },
+                        { label: "Consultation fee", value: fee ? formatINR(fee) : "Not set yet", note: fee ? "Paid at the hospital counter" : undefined },
                         { label: "Hospital", value: hospital?.name || "Not listed", note: hospital?.city || undefined },
                         {
                           label: "Patient rating",
@@ -447,7 +452,7 @@ export function DoctorProfileClient({
                             className="flex items-center gap-2 bg-vibrant-blue hover:bg-primary text-on-primary font-title-md text-body-md px-6 py-3 rounded-full transition-transform active:scale-95 shadow-[0_2px_12px_rgba(15,23,42,0.1)] font-bold cursor-pointer"
                           >
                             <Calendar className="w-5 h-5 inline" />
-                            <span>{fee ? `Book consultation · ₹${fee.toLocaleString("en-IN")}` : "Book consultation"}</span>
+                            <span>{fee ? `Book consultation · ${formatINR(bookingFee)} booking fee` : "Book consultation"}</span>
                           </Link>
 
                           <a
@@ -693,20 +698,22 @@ export function DoctorProfileClient({
                     )}
                   </div>
                   {fee ? (
-                    <dl className="text-[15px] divide-y divide-slate-100">
-                      <div className="flex items-center justify-between py-2">
-                        <dt className="text-slate-600">Consultation fee</dt>
-                        <dd className="font-semibold text-slate-900">₹{fee.toLocaleString("en-IN")}</dd>
-                      </div>
-                      <div className="flex items-center justify-between py-2">
-                        <dt className="text-slate-600">Booking fee</dt>
-                        <dd className="font-semibold text-slate-900">₹{CONSULTATION_PLATFORM_FEE}</dd>
-                      </div>
-                      <div className="flex items-center justify-between pt-3">
-                        <dt className="font-semibold text-slate-900">Total, paid online</dt>
-                        <dd className="text-lg font-bold text-primary">₹{(fee + CONSULTATION_PLATFORM_FEE).toLocaleString("en-IN")}</dd>
-                      </div>
-                    </dl>
+                    <div className="flex flex-col gap-3 text-[15px]">
+                      <dl className="divide-y divide-slate-100">
+                        <div className="flex items-center justify-between pb-2">
+                          <dt className="text-slate-600">Booking fee, paid online</dt>
+                          <dd className="text-lg font-bold text-primary">{formatINR(bookingFee)}</dd>
+                        </div>
+                        <div className="pt-3">
+                          <dt className="font-semibold text-slate-900">
+                            Consultation fee {formatINR(fee)}, set by the hospital and paid at the hospital counter
+                          </dt>
+                          <dd className="mt-1 text-sm text-slate-600">
+                            You pay it at the hospital when you visit. It isn&apos;t collected online and is never added to your booking total.
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
                   ) : (
                     <p className="text-sm text-slate-600">This doctor hasn&apos;t set a consultation fee yet, so online booking isn&apos;t open.</p>
                   )}

@@ -9,6 +9,7 @@ import {
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { PatientDock } from '@/components/PatientDock'
+import { PatientFooter } from '@/components/AppFooter'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
 import { PatientSidebar } from '@/components/PatientSidebar'
 import { AccountShortcuts } from '@/components/patient/AccountShortcuts'
@@ -172,7 +173,9 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
     ...visits.filter((v) => v.status === 'pending_payment' && (!v.at || Date.parse(v.at) > now)).map((v) => ({ id: v.id, href: `/patient/checkout/${v.id}`, label: v.doctor ? doctorName(v.doctor.name) : 'Consultation' })),
     ...labBookings.filter((b) => b.status === 'pending_payment').map((b) => ({ id: b.id, href: `/patient/checkout/diagnostic/${b.id}`, label: b.tests })),
   ]
-  const totalPaid = payments.reduce((s, p) => s + (Number(p.amount) || 0), 0)
+  // Online payments are booking fees. A desk payment is what the hospital or lab counter took (the consultation fee or test
+  // charges), which booking screens never show, so it is listed without its amount and left out of the total.
+  const totalPaid = payments.filter((p) => p.gateway === 'payu').reduce((s, p) => s + (Number(p.amount) || 0), 0)
   const describePayment = (id: string) => {
     const visit = visits.find((v) => v.id === id)
     if (visit) return `Consultation · ${visit.doctor ? doctorName(visit.doctor.name) : 'Doctor'}`
@@ -230,7 +233,7 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
           </HeroStats>
         }
       />
-      <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-dock">
+      <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-12 md:pb-16">
         <div className="relative w-full overflow-hidden">
           <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-5 md:pt-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start max-w-[1440px] mx-auto">
@@ -476,10 +479,10 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
                   id="payments"
                   icon={Receipt}
                   title="Payments & Billing"
-                  subtitle="Paid online through PayU or at the desk"
+                  subtitle="Booking fees paid online through PayU"
                   action={
                     payments.length ? (
-                      <span className="px-2.5 py-1 rounded-full bg-fresh-teal/10 text-secondary font-label-sm text-xs font-semibold shrink-0">{formatINR(totalPaid)} paid</span>
+                      <span className="px-2.5 py-1 rounded-full bg-fresh-teal/10 text-secondary font-label-sm text-xs font-semibold shrink-0">{formatINR(totalPaid)} paid online</span>
                     ) : undefined
                   }
                 >
@@ -505,10 +508,14 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
                           <span className="min-w-0">
                             <span className="block text-sm text-on-surface truncate capitalize">{describePayment(p.booking_id)}</span>
                             <span className="block text-xs text-on-surface-variant">
-                              {[p.created_at ? formatShortDate(p.created_at) : null, p.gateway === 'payu' ? 'Paid online' : p.gateway ? 'Paid at the desk' : null].filter(Boolean).join(' • ')}
+                              {[p.created_at ? formatShortDate(p.created_at) : null, p.gateway === 'payu' ? 'Booking fee, paid online' : p.gateway ? 'Booked at the desk' : null].filter(Boolean).join(' • ')}
                             </span>
                           </span>
-                          <span className="font-title-md text-[15px] font-bold text-on-surface shrink-0">{formatINR(Number(p.amount) || 0)}</span>
+                          {p.gateway === 'payu' ? (
+                            <span className="font-title-md text-[15px] font-bold text-on-surface shrink-0">{formatINR(Number(p.amount) || 0)}</span>
+                          ) : (
+                            <span className="text-xs text-on-surface-variant shrink-0">Paid at the counter</span>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -555,6 +562,7 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
         </div>
       </main>
 
+      <PatientFooter isSignedIn />
       <PatientDock activeTab="profile" name={name} />
     </div>
   )

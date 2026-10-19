@@ -3,7 +3,9 @@ import Link from "next/link";
 import { ShieldCheck, type LucideIcon } from "lucide-react";
 import { PatientNavHeader } from "@/components/PatientNavHeader";
 import { PatientDock } from "@/components/PatientDock";
+import { PatientFooter } from "@/components/AppFooter";
 import { formatINR } from "@/components/patient/format";
+import { RefundNote } from "@/components/patient/booking-ui";
 
 /** The patient portal around a checkout page: the blue header, the page, and the navigation pill. */
 export function CheckoutShell({ name, email, children }: { name: string | null; email: string | null; children: ReactNode }) {
@@ -19,11 +21,12 @@ export function CheckoutShell({ name, email, children }: { name: string | null; 
         title="Checkout"
         subtitle="Paid securely through PayU."
       />
-      <main className="w-full px-margin-x-mobile lg:px-margin-x-desktop pt-5 md:pt-8 pb-dock">
+      <main className="w-full px-margin-x-mobile lg:px-margin-x-desktop pt-5 md:pt-8 pb-12 md:pb-16">
         <div className="max-w-[1080px] mx-auto flex flex-col gap-6">
           {children}
         </div>
       </main>
+      <PatientFooter isSignedIn />
       <PatientDock activeTab="book" name={name} />
     </div>
   );
@@ -72,27 +75,41 @@ export function DetailRow({ icon: Icon, label, value, sub }: { icon: LucideIcon;
   );
 }
 
-/** The charges, the total and the pay button. */
-export function PaymentSummary({ lines, total, children }: { lines: { label: string; amount: number }[]; total: number; children: ReactNode }) {
+/**
+ * The booking fee, the online total and the pay button. `atVenue` is what the patient pays in person (the consultation
+ * fee at the hospital counter, or the lab's test charges): shown below, never part of the total.
+ */
+export function PaymentSummary({ lines, total, atVenue, isConsultation, children }: {
+  lines: { label: string; sub?: string; amount: number }[];
+  total: number;
+  atVenue?: ReactNode;
+  isConsultation: boolean;
+  children: ReactNode;
+}) {
   return (
     <CheckoutCard title="Payment summary">
       <dl className="flex flex-col gap-3 text-[15px]">
         {lines.map((line) => (
           <div key={line.label} className="flex items-start justify-between gap-4">
-            <dt className="text-on-surface-variant capitalize">{line.label}</dt>
+            <dt className="text-on-surface-variant">
+              <span className="block">{line.label}</span>
+              {line.sub && <span className="block text-xs text-outline mt-0.5">{line.sub}</span>}
+            </dt>
             <dd className="font-semibold text-on-surface tabular-nums shrink-0">{formatINR(line.amount)}</dd>
           </div>
         ))}
         <div className="flex items-center justify-between gap-4 pt-4 mt-1 border-t border-dashed border-outline-variant">
-          <dt className="font-bold text-on-surface">Total payable</dt>
+          <dt className="font-bold text-on-surface">Total payable online</dt>
           <dd className="font-headline-lg text-2xl font-bold text-primary tabular-nums">{formatINR(total)}</dd>
         </div>
       </dl>
+      {atVenue}
       <div className="flex flex-col gap-3">
         {children}
         <p className="flex items-center justify-center gap-1.5 text-xs text-on-surface-variant">
           <ShieldCheck className="w-4 h-4 text-fresh-teal" /> Paid securely through PayU
         </p>
+        <RefundNote isConsultation={isConsultation} />
       </div>
     </CheckoutCard>
   );

@@ -27,7 +27,7 @@ function Counter({ icon: Icon, label, value }: { icon: LucideIcon; label: string
   )
 }
 
-export default async function HospitalPatientsPage(props: { searchParams?: Promise<{ view?: string; payment?: string }> }) {
+export default async function HospitalPatientsPage(props: { searchParams?: Promise<{ view?: string }> }) {
   const params = (await props.searchParams) ?? {}
   const { admin, hospital } = await requireHospital()
   const now = currentTime()
@@ -51,7 +51,7 @@ export default async function HospitalPatientsPage(props: { searchParams?: Promi
       ageSex: v.patient ? ageSex(facts[v.patient.id], now) : null,
       doctor: doc ? doctorName(doc.name) : 'Doctor',
       department: doc?.department ?? 'Other',
-      payment: v.payment ? { label: PAYMENT_METHOD[v.payment.gateway ?? ''] ?? 'Paid', amount: hospitalShare(v.payment) } : null,
+      payment: v.payment ? { label: PAYMENT_METHOD[v.payment.gateway ?? ''] ?? 'Paid', amount: hospitalShare(v.payment, doc?.fee) } : null,
     }
   })
 
@@ -79,13 +79,6 @@ export default async function HospitalPatientsPage(props: { searchParams?: Promi
         </div>
         <AddPatientButton doctors={doctors.map((d) => ({ id: d.id, name: doctorName(d.name), department: d.department, fee: d.fee }))} />
       </section>
-
-      {params.payment === 'success' && (
-        <p role="status" className="p-3.5 rounded-xl bg-secondary-container/50 text-on-secondary-container text-sm font-semibold">PayU payment received. The booking is confirmed and the patient has been notified.</p>
-      )}
-      {params.payment === 'failed' && (
-        <p role="alert" className="p-3.5 rounded-xl bg-error-container/60 text-on-error-container text-sm font-semibold">The PayU payment didn’t go through. The booking is still unpaid; try again or use the scanner or cash.</p>
-      )}
 
       <section className="flex md:grid md:grid-cols-5 gap-2.5 md:gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
         <Counter icon={Users} label="Patients" value={counters.patients} tone="text-indigo-gray-900" />

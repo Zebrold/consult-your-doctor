@@ -15,12 +15,14 @@ import {
   Search,
 } from "lucide-react";
 import { BookConsultationForm } from "@/components/BookConsultationForm";
-import { CONSULTATION_PLATFORM_FEE, DIAGNOSTIC_PLATFORM_FEE } from "@/lib/pricing";
+import { formatPercent, type BookingFees } from "@/lib/pricing";
+import { getBookingFees } from "@/lib/booking-fees";
+import { formatINR } from "@/components/patient/format";
 
 export const metadata: Metadata = {
   title: "How It Works",
   description:
-    "Find a doctor at a partner hospital, book a time and pay online, then get your prescription and lab reports in your account. Here is how Consult Your Doctor works.",
+    "Find a doctor at a partner hospital, book a time for a small booking fee, then get your prescription and lab reports in your account. Here is how Consult Your Doctor works.",
 };
 
 // Keep this in line with what the site really does (see lib/assistant/knowledge.ts).
@@ -28,17 +30,17 @@ const steps = [
   {
     icon: Search,
     title: "Find the right doctor",
-    desc: "Search by specialty, hospital or city. Every profile shows the doctor's experience, consultation fee and next open time.",
+    desc: "Search by specialty, hospital or city. Every profile shows the doctor's experience, next open time and the consultation fee the hospital has set.",
   },
   {
     icon: CalendarCheck,
-    title: "Book a time and pay online",
-    desc: "Pick a slot, sign in with your mobile number and pay securely through PayU by UPI, card or net banking.",
+    title: "Book a time and pay the booking fee",
+    desc: "Pick a slot, sign in with your mobile number and pay the booking fee securely through PayU by UPI, card or net banking.",
   },
   {
     icon: Hospital,
     title: "Visit the hospital",
-    desc: "Your booking slip and token number arrive on WhatsApp and email. Show it at reception and the desk checks you in.",
+    desc: "Your booking slip and token number arrive on WhatsApp and email. Show it at reception, pay the consultation fee at the counter, and the desk checks you in.",
   },
   {
     icon: FileText,
@@ -56,7 +58,7 @@ const features = [
   {
     icon: FlaskConical,
     title: "Lab tests at partner centres",
-    desc: "Choose your tests and a day, pay online and visit the lab. When the report is ready it appears in your account straight away.",
+    desc: "Choose your tests and a day, pay the booking fee online and pay for the tests at the lab. When the report is ready it appears in your account straight away.",
   },
   {
     icon: FolderLock,
@@ -70,18 +72,18 @@ const features = [
   },
 ];
 
-const faqs = [
+const faqs = (fees: BookingFees) => [
   {
     q: "What does a consultation cost?",
-    a: `You pay the doctor's own consultation fee plus a ₹${CONSULTATION_PLATFORM_FEE} booking fee. The full amount is shown before you pay, with nothing added later.`,
+    a: `Online you pay only a ${formatINR(fees.consultation)} booking fee. The consultation fee is set by the hospital, shown on the doctor's profile, and paid at the hospital counter when you visit. It is never added to the online payment.`,
   },
   {
     q: "Are consultations online or in person?",
-    a: "Consultations take place in person at the doctor's hospital. You book and pay online, so there is no queue at the counter when you arrive.",
+    a: "Consultations take place in person at the doctor's hospital. You book online and pay the booking fee, so your slot is held when you arrive.",
   },
   {
     q: "How do lab test bookings work?",
-    a: `Pick a partner lab, choose your tests and the day you'll visit. You pay the lab's test prices plus a ₹${DIAGNOSTIC_PLATFORM_FEE} booking fee. Labs book by day rather than by exact time.`,
+    a: `Pick a partner lab, choose your tests and the day you'll visit. Online you pay a booking fee of ${formatPercent(fees.diagnosticPercent)} of each test's price; the tests themselves are paid at the lab. Labs book by day rather than by exact time.`,
   },
   {
     q: "Who can see my medical records?",
@@ -89,7 +91,8 @@ const faqs = [
   },
 ];
 
-export default function HowItWorksPage() {
+export default async function HowItWorksPage() {
+  const fees = await getBookingFees();
   return (
     <div className="w-full bg-background">
       {/* Hero */}
@@ -101,8 +104,8 @@ export default function HowItWorksPage() {
               From finding a doctor to your prescription, in one place
             </h1>
             <p className="text-base md:text-lg leading-relaxed text-slate-600 max-w-xl">
-              Book a specialist at a partner hospital or a test at a nearby lab, pay online, and keep every prescription and
-              report in your account.
+              Book a specialist at a partner hospital or a test at a nearby lab for a small booking fee, and keep every
+              prescription and report in your account.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <Link
@@ -181,7 +184,7 @@ export default function HowItWorksPage() {
               <h3 className="text-lg font-semibold text-indigo-gray-900">Clear prices</h3>
             </div>
             <p className="text-[15px] leading-relaxed text-slate-600 flex-1">
-              The doctor&apos;s fee plus ₹{CONSULTATION_PLATFORM_FEE} for a consultation, or the lab&apos;s prices plus ₹{DIAGNOSTIC_PLATFORM_FEE} for tests. You see the total before you pay.
+              Online you pay only a booking fee: {formatINR(fees.consultation)} for a consultation, or {formatPercent(fees.diagnosticPercent)} of the test price for lab tests. The consultation fee is paid at the hospital counter and the tests at the lab.
             </p>
             <Link href="/prices" className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-vibrant-blue hover:underline shrink-0">
               See prices <ArrowRight className="w-4 h-4" />
@@ -204,7 +207,7 @@ export default function HowItWorksPage() {
             </p>
           </div>
           <div className="lg:col-span-8 divide-y divide-slate-200 border-y border-slate-200">
-            {faqs.map((faq) => (
+            {faqs(fees).map((faq) => (
               <details key={faq.q} className="group py-5">
                 <summary className="flex items-center justify-between gap-4 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                   <span className="text-base md:text-lg font-semibold text-indigo-gray-900">{faq.q}</span>

@@ -42,7 +42,7 @@ ${credentials.password ? `<p style="margin:6px 0">Password: <b style="font-famil
 
 /**
  * Books tests for a walk-in or phone patient: the patient confirms their mobile number with a one-time code (which
- * gives them an account with a Patient ID and password), then the desk takes payment by PayU, the UPI scanner or cash.
+ * gives them an account with a Patient ID and password), then the desk takes payment by the UPI scanner or cash.
  */
 export function NewBookingForm({
   tests,

@@ -3,9 +3,12 @@ import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import { PatientDock } from '@/components/PatientDock'
+import { PatientFooter } from '@/components/AppFooter'
 import { PhoneBar } from '@/components/patient/PhoneHeader'
 import { MapPin, Mail, Phone, Building2, UserCircle, CheckCircle2, Award, FlaskConical, ShieldCheck, Siren, ArrowRight } from 'lucide-react'
 import { testList } from '@/lib/pricing'
+import { getBookingFees } from '@/lib/booking-fees'
+import { formatINR } from '@/components/patient/format'
 import Image from 'next/image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -76,6 +79,9 @@ export default async function HospitalProfilePage(
   const insurance = list(hospital.insurance_accepted)
   const tests = testList(list(hospital.available_tests), hospital.test_prices).filter((t): t is { name: string; price: number } => !!t.price)
 
+  // Doctor cards show only the booking fee; the consultation fee is on the doctor's profile.
+  const bookingFee = (await getBookingFees()).consultation
+
   // Fetch affiliated doctors
   const { data: doctors } = await supabase
     .from('doctors')
@@ -125,7 +131,7 @@ export default async function HospitalProfilePage(
         <Header />
       )}
       
-      <main className={`flex-1 ${isLoggedIn ? 'pt-4 md:pt-6 pb-dock md:pb-12' : 'pt-[calc(var(--header-h)+1.5rem)] md:pt-[calc(var(--header-h)+3rem)] pb-8 md:pb-12'}`}>
+      <main className={`flex-1 ${isLoggedIn ? 'pt-4 md:pt-6 pb-12' : 'pt-[calc(var(--header-h)+1.5rem)] md:pt-[calc(var(--header-h)+3rem)] pb-8 md:pb-12'}`}>
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 md:px-8">
           
           {/* Breadcrumbs */}
@@ -300,10 +306,16 @@ export default async function HospitalProfilePage(
                       
                       <div className="space-y-2 mb-4 pt-3.5 border-t border-slate-100 text-xs text-slate-600">
                         <div className="flex items-center justify-between pt-1">
-                          <span className="text-sm font-extrabold text-slate-900">₹{item.consultation_fee ?? 500} <span className="text-xs font-normal text-slate-500">Fee</span></span>
-                          <span className="text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Available
-                          </span>
+                          {Number(item.consultation_fee) > 0 ? (
+                            <>
+                              <span className="text-sm font-extrabold text-slate-900">{formatINR(bookingFee)} <span className="text-xs font-normal text-slate-500">Booking fee</span></span>
+                              <span className="text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Available
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-xs text-slate-500">Online booking not open yet</span>
+                          )}
                         </div>
                       </div>
                       
@@ -337,7 +349,10 @@ export default async function HospitalProfilePage(
       </main>
 
       {isLoggedIn ? (
-        <PatientDock activeTab="find" isSignedIn={isLoggedIn} name={viewer?.full_name || user?.user_metadata?.full_name} />
+        <>
+          <PatientFooter isSignedIn />
+          <PatientDock activeTab="find" isSignedIn={isLoggedIn} name={viewer?.full_name || user?.user_metadata?.full_name} />
+        </>
       ) : (
         <Footer />
       )}

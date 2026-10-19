@@ -1,6 +1,7 @@
 import { Metadata } from 'next'
 import { FileText, MapPin } from 'lucide-react'
 import { TopBar } from '@/components/portal/TopBar'
+import { PortalFooter } from '@/components/AppFooter'
 import { TopBarChip } from '@/components/portal/TopBarChip'
 import { requireExecutive } from './_lib/ops'
 import { ExecutiveDock } from './_components/ExecutiveDock'
@@ -13,7 +14,7 @@ export default async function ExecutiveLayout({ children }: { children: React.Re
   const { profile } = await requireExecutive()
 
   return (
-    <div className="min-h-screen bg-slate-50 font-body-md text-on-surface">
+    <div className="min-h-screen flex flex-col bg-slate-50 font-body-md text-on-surface">
       <TopBar
         homeHref="/executive/dashboard"
         section="Executive Operations"
@@ -24,9 +25,10 @@ export default async function ExecutiveLayout({ children }: { children: React.Re
       />
       <ExecutiveDock />
 
-      <main className="max-w-[1560px] mx-auto px-margin-x-mobile lg:px-margin-x-desktop pt-4 md:pt-6 pb-dock flex flex-col gap-6 md:gap-stack-lg">
+      <main className="flex-1 w-full max-w-[1560px] mx-auto px-margin-x-mobile lg:px-margin-x-desktop pt-4 md:pt-6 pb-12 md:pb-16 flex flex-col gap-6 md:gap-stack-lg">
         {children}
       </main>
+      <PortalFooter portal="executive" />
 
     </div>
   )

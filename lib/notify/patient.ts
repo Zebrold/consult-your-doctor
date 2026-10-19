@@ -80,12 +80,14 @@ export function notifyReportReady(args: { patientId: string; what: string; from:
 }
 
 import { generateAppointmentSlipPdf } from '@/lib/pdf/appointment-slip'
+import { payAtVenueNote } from '@/lib/pricing'
 
 export type BookingConfirmationArgs = {
   patientId: string
   what: string
   where: string
   bookingId: string
+  /** The booking fee paid online, e.g. "₹119". The consultation fee and test prices are paid at the venue and never named. */
   amount: string
   numericAmount?: number
   dateTimeStr?: string
@@ -101,11 +103,13 @@ export type BookingConfirmationArgs = {
   transactionId?: string | null
 }
 
-/** A booking has been confirmed & paid: generates PDF appointment slip, sends on WhatsApp and attaches to email. */
+/** A booking's booking fee has been paid: generates the PDF appointment slip, sends it on WhatsApp and attaches it to email. */
 export function notifyBookingConfirmed(args: BookingConfirmationArgs) {
   later('booking', async (admin) => {
     const contact = await patientContact(admin, args.patientId)
     if (!contact) return
+    const isConsultation = args.isConsultation ?? true
+    const venueNote = payAtVenueNote(isConsultation)
 
     // Retrieve patient extra details (gender, DOB) if available
     let gender = args.gender
@@ -117,14 +121,14 @@ export function notifyBookingConfirmed(args: BookingConfirmationArgs) {
     }
 
     const tokenNumber = args.tokenNumber || String(Math.abs(args.bookingId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % 25) + 1).padStart(2, '0')
-    const numericAmount = args.numericAmount || Number(args.amount.replace(/[^\d.]/g, '')) || 500
+    const numericAmount = args.numericAmount ?? (Number(args.amount.replace(/[^\d.]/g, '')) || 0)
 
     let pdfBytes: Uint8Array | null = null
     try {
       pdfBytes = await generateAppointmentSlipPdf({
         bookingId: args.bookingId,
         tokenNumber,
-        isConsultation: args.isConsultation ?? true,
+        isConsultation,
         patient: {
           name: contact.name,
           phone: contact.phone,
@@ -171,7 +175,8 @@ export function notifyBookingConfirmed(args: BookingConfirmationArgs) {
     // 1. WhatsApp with PDF document attachment & clear text confirmation
     await sendWhatsApp(contact.phone, {
       name: 'cyd_booking_confirmed',
-      params: [firstName(contact.name), args.what, args.where, args.bookingId, args.amount],
+      params: [firstName(contact.name), args.what, args.where, args.bookingId, `${args.amount} booking fee`],
+      note: venueNote,
       ...(signedUrl ? { document: { link: signedUrl, filename } } : {}),
     })
 
@@ -198,6 +203,7 @@ export function notifyBookingConfirmed(args: BookingConfirmationArgs) {
         tokenNumber,
         bookingId: args.bookingId.toUpperCase(),
         amount: args.amount,
+        payAtVenue: venueNote,
         siteUrl: SITE_URL,
         pdfFilename: filename,
       })
@@ -210,7 +216,8 @@ export function notifyBookingConfirmed(args: BookingConfirmationArgs) {
           `Your appointment for ${args.what} at ${args.where} is confirmed!`,
           `📋 Appointment Token: ${tokenNumber.replace(/^#/, '')}`,
           `🔖 Booking Reference ID: ${args.bookingId.toUpperCase()}`,
-          `💳 Amount Paid: ${args.amount} (Real-time PayU verified)`,
+          `💳 Booking fee paid: ${args.amount} (PayU verified)`,
+          `🏥 ${venueNote}`,
           `📅 Schedule: ${args.dateTimeStr || 'Scheduled Visit'}`,
           `Your official clinical appointment confirmation slip & receipt is attached to this email as a PDF.`,
           `You can also view and manage this visit anytime in your account at https://www.consultyourdoctor.de/patient/appointments.`,

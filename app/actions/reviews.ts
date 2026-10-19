@@ -73,7 +73,7 @@ export async function submitAppointmentFeedback(input: AppointmentFeedbackInput)
   let { error: docError } = await admin.from('doctor_reviews').upsert(fullDoctorPayload, { onConflict: 'appointment_id' })
 
   // Fallback if extended hospital columns aren't migrated in DB yet
-  if (docError && /hospital_/.test(docError.message)) {
+  if (docError && (/hospital/i.test(docError.message) || /column/i.test(docError.message))) {
     const fallbackPayload = {
       appointment_id: visit.id,
       doctor_id: visit.doctor_id,

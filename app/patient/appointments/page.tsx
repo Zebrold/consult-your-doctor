@@ -70,7 +70,7 @@ export default async function PatientAppointments() {
       .eq('patient_id', user.id)
       .order('created_at', { ascending: false }),
     // The patient's own reviews, so finished visits show their rating instead of "Rate your visit".
-    supabase.from('doctor_reviews').select('appointment_id, rating, comment, hospital_rating, hospital_comment').eq('patient_id', user.id),
+    supabase.from('doctor_reviews').select('appointment_id, rating, comment').eq('patient_id', user.id),
   ])
 
   const appointments = fetchedAppointments ?? []

@@ -59,11 +59,22 @@ export async function createDiagnosticBooking(formData: FormData) {
       return { error: 'Please choose a visit date from today onwards.' }
     }
 
-    const { data: center } = await supabase
+    let center: any = null
+    const { data: cFull, error: cErr } = await supabase
       .from('diagnostic_centers')
       .select('test_prices, doorstep_enabled, doorstep_fee')
       .eq('id', centerId)
       .maybeSingle()
+    if (!cErr && cFull) {
+      center = cFull
+    } else {
+      const { data: cBasic } = await supabase
+        .from('diagnostic_centers')
+        .select('test_prices')
+        .eq('id', centerId)
+        .maybeSingle()
+      center = cBasic
+    }
     const offered = new Set(pricedTests(center?.test_prices).map((t) => t.name))
     if (selectedTests.some((name) => !offered.has(name))) {
       return { error: 'Some of the selected tests are no longer offered by this lab. Please review your selection.' }
@@ -96,16 +107,16 @@ export async function createDiagnosticBooking(formData: FormData) {
   let doorstepFee = 0
 
   if (reqBookingType === 'doorstep') {
-    const { data: centerSettings } = await supabase
+    const { data: centerSettings, error: csErr } = await supabase
       .from('diagnostic_centers')
       .select('doorstep_enabled, doorstep_fee')
       .eq('id', centerId)
       .maybeSingle()
 
-    if (!centerSettings || centerSettings.doorstep_enabled === false) {
+    if (!csErr && centerSettings && centerSettings.doorstep_enabled === false) {
       return { error: 'Doorstep home collection is currently unavailable at this diagnostic center.' }
     }
-    doorstepFee = labDoorstepFee(centerSettings)
+    doorstepFee = centerSettings ? labDoorstepFee(centerSettings) : 100
   }
 
   // 3. Insert Booking with doorstep details. The server writes it (patients can't insert booking rows themselves,

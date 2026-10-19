@@ -25,11 +25,30 @@ export default async function DiagnosticBookingPage({ params }: DiagnosticBookin
   const { centerId } = await params;
   const supabase = await createClient();
 
-  const [{ data: center }, patient, fees] = await Promise.all([
-    supabase.from("diagnostic_centers").select("id, name, city, address, image_url, test_prices, doorstep_enabled, doorstep_fee").eq("id", centerId).maybeSingle(),
+  // Try fetching center with doorstep columns; if missing from DB schema, fallback to core fields
+  let center: any = null;
+  const { data: centerFull, error: centerErr } = await supabase
+    .from("diagnostic_centers")
+    .select("id, name, city, address, image_url, test_prices, doorstep_enabled, doorstep_fee")
+    .eq("id", centerId)
+    .maybeSingle();
+
+  if (!centerErr && centerFull) {
+    center = centerFull;
+  } else {
+    const { data: centerBasic } = await supabase
+      .from("diagnostic_centers")
+      .select("id, name, city, address, image_url, test_prices")
+      .eq("id", centerId)
+      .maybeSingle();
+    center = centerBasic;
+  }
+
+  const [patient, fees] = await Promise.all([
     loadPatientDefaults(supabase),
     getBookingFees(),
   ]);
+
   if (!center) notFound();
 
   return (

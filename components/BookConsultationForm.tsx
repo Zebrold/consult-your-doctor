@@ -152,8 +152,13 @@ export function BookConsultationFormInner({ defaultType = 'consultation' }: { de
       const { data: hData } = await supabase.from('hospitals').select('id, name').eq('city', selectedCity).eq('status', 'active')
       setHospitals(hData || [])
       
-      const { data: cData } = await supabase.from('diagnostic_centers').select('id, name, address, available_tests, test_prices, doorstep_enabled, doorstep_fee').eq('city', selectedCity).eq('status', 'active')
-      setCenters(cData || [])
+      const { data: cData, error: cErr } = await supabase.from('diagnostic_centers').select('id, name, address, available_tests, test_prices, doorstep_enabled, doorstep_fee').eq('city', selectedCity).eq('status', 'active')
+      if (cErr) {
+        const { data: fallbackCData } = await supabase.from('diagnostic_centers').select('id, name, address, available_tests, test_prices').eq('city', selectedCity).eq('status', 'active')
+        setCenters(fallbackCData || [])
+      } else {
+        setCenters(cData || [])
+      }
     }
     fetchFacilities()
   }, [selectedCity])

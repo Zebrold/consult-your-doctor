@@ -62,11 +62,13 @@ function containerVars(container: string): CSSProperties {
 /** The blue panel with its rounded bottom and soft circles. `className` sets the bottom padding (pb-6 by default). */
 export function BlueHeader({ children, className = "pb-6 md:pb-10", container = DEFAULT_CONTAINER }: { children: ReactNode; className?: string; container?: string }) {
   return (
-    <section className={`relative overflow-hidden rounded-b-[32px] md:rounded-b-[44px] bg-[linear-gradient(160deg,#0758f2_0%,#1570ff_55%,#2b86ff_100%)] text-white px-4 md:px-0 pt-[calc(env(safe-area-inset-top)+14px)] md:pt-5 shadow-[0_14px_30px_-14px_rgba(0,80,220,0.6)] print:hidden ${className}`}>
-      <span aria-hidden className="absolute -right-28 -top-20 w-80 h-80 md:w-[30rem] md:h-[30rem] md:-top-40 rounded-full bg-white/[0.07]" />
-      <span aria-hidden className="absolute -right-14 top-32 w-56 h-56 md:right-[18%] md:top-24 md:w-72 md:h-72 rounded-full bg-white/[0.06]" />
-      <span aria-hidden className="hidden md:block absolute -left-24 -bottom-40 w-80 h-80 rounded-full bg-white/[0.05]" />
-      <Plus aria-hidden className="absolute right-6 top-[128px] w-14 h-14 md:right-[8%] md:top-[110px] md:w-20 md:h-20 text-white/15" strokeWidth={3.5} />
+    <section className={`relative rounded-b-[32px] md:rounded-b-[44px] bg-[linear-gradient(160deg,#0758f2_0%,#1570ff_55%,#2b86ff_100%)] text-white px-4 md:px-0 pt-[calc(env(safe-area-inset-top)+14px)] md:pt-5 shadow-[0_14px_30px_-14px_rgba(0,80,220,0.6)] print:hidden ${className}`}>
+      <div className="absolute inset-0 overflow-hidden rounded-b-[32px] md:rounded-b-[44px] pointer-events-none">
+        <span aria-hidden className="absolute -right-28 -top-20 w-80 h-80 md:w-[30rem] md:h-[30rem] md:-top-40 rounded-full bg-white/[0.07]" />
+        <span aria-hidden className="absolute -right-14 top-32 w-56 h-56 md:right-[18%] md:top-24 md:w-72 md:h-72 rounded-full bg-white/[0.06]" />
+        <span aria-hidden className="hidden md:block absolute -left-24 -bottom-40 w-80 h-80 rounded-full bg-white/[0.05]" />
+        <Plus aria-hidden className="absolute right-6 top-[128px] w-14 h-14 md:right-[8%] md:top-[110px] md:w-20 md:h-20 text-white/15" strokeWidth={3.5} />
+      </div>
       <div className="relative md:mx-auto md:max-w-(--bh-max) md:px-(--bh-pad-md) lg:px-(--bh-pad-lg)" style={containerVars(container)}>
         {children}
       </div>
@@ -227,8 +229,10 @@ export function PhoneBar({
   const close = useCallback(() => setMenuOpen(false), []);
   return (
     <>
-      <header className={`${phoneOnly ? "md:hidden " : ""}sticky top-0 z-40 overflow-hidden rounded-b-[24px] md:rounded-b-[32px] bg-[linear-gradient(160deg,#0758f2_0%,#1570ff_55%,#2b86ff_100%)] text-white px-3 md:px-0 pt-[calc(env(safe-area-inset-top)+10px)] pb-3 md:py-3.5 shadow-[0_10px_24px_-12px_rgba(0,80,220,0.6)] print:hidden`}>
-        <span aria-hidden className="absolute -right-16 -top-24 w-56 h-56 md:w-80 md:h-80 md:-top-40 rounded-full bg-white/[0.07]" />
+      <header className={`${phoneOnly ? "md:hidden " : ""}sticky top-0 z-40 rounded-b-[24px] md:rounded-b-[32px] bg-[linear-gradient(160deg,#0758f2_0%,#1570ff_55%,#2b86ff_100%)] text-white px-3 md:px-0 pt-[calc(env(safe-area-inset-top)+10px)] pb-3 md:py-3.5 shadow-[0_10px_24px_-12px_rgba(0,80,220,0.6)] print:hidden`}>
+        <div className="absolute inset-0 overflow-hidden rounded-b-[24px] md:rounded-b-[32px] pointer-events-none">
+          <span aria-hidden className="absolute -right-16 -top-24 w-56 h-56 md:w-80 md:h-80 md:-top-40 rounded-full bg-white/[0.07]" />
+        </div>
         <div className="relative flex items-center gap-2.5 md:gap-3.5 md:mx-auto md:max-w-(--bh-max) md:px-(--bh-pad-md) lg:px-(--bh-pad-lg)" style={containerVars(container)}>
           <Link href={backHref} aria-label={backLabel} className={glass}>
             <ArrowLeft className="w-5 h-5" />

@@ -50,12 +50,12 @@ const tabs: { label: string; icon: Icon; active?: boolean }[] = [
  * than a picture so it stays sharp at any size. The phone is designed 430px wide with 1em = 16px; its font size is
  * tied to the width it is given (container query units), so every em inside scales with it.
  */
-export function HomePhoneMockup({ bookingFee }: { bookingFee: number }) {
+export function HomePhoneMockup({ bookingFee, size = "max-w-[220px] md:max-w-[234px] lg:max-w-[248px]" }: { bookingFee: number; size?: string }) {
   return (
     <div
       role="img"
       aria-label="Preview of the Consult your Doctor mobile app: specialties and top doctors with their fees"
-      className="@container relative w-full max-w-[220px] md:max-w-[234px] lg:max-w-[248px] select-none pointer-events-none"
+      className={`@container relative w-full ${size} select-none pointer-events-none`}
     >
       <div style={{ fontSize: "calc(100cqw / 26.875)" }} className="relative w-full h-[55.625em]">
         {/* Side buttons: action and volume on the left, power on the right */}

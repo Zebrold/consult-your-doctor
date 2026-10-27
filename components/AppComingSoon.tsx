@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import Image from "next/image";
-import { Smartphone } from "lucide-react";
+import { ArrowUpRight, Smartphone } from "lucide-react";
 
 /** The site's blue stethoscope logo, as in the header. */
 function Logo({ className = "" }: { className?: string }) {
@@ -35,9 +35,10 @@ const stores = [
 
 /**
  * The header's "Get the app" button. The mobile app isn't out yet, so it opens a "coming soon" card: on hover or
- * keyboard focus on desktop, and on tap on touch screens.
+ * keyboard focus on desktop, and on tap on touch screens. `hero` is the outlined white button on the home page's blue
+ * header, `banner` the pill in the home page's phone banner.
  */
-export function AppComingSoon({ compact = false }: { compact?: boolean }) {
+export function AppComingSoon({ compact = false, variant }: { compact?: boolean; variant?: "hero" | "banner" }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const cardId = useId();
@@ -63,13 +64,29 @@ export function AppComingSoon({ compact = false }: { compact?: boolean }) {
         aria-expanded={open}
         aria-controls={cardId}
         aria-label="Get the app (coming soon)"
-        className={`relative flex items-center gap-2 rounded-full text-on-surface transition-colors ${compact
-            ? "w-10 h-10 justify-center hover:bg-surface-container"
-            : "pl-3 pr-4 py-2 border border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-          }`}
+        className={
+          variant === "hero"
+            ? "flex items-center gap-1.5 min-h-[38px] px-4 rounded-[10px] border-[1.5px] border-white/85 text-white text-sm font-bold whitespace-nowrap hover:bg-white/10 transition-colors"
+            : variant === "banner"
+              ? "flex items-center min-h-9 px-4 rounded-full bg-[#1D4ED8] text-white text-[13px] font-extrabold whitespace-nowrap active:scale-95 transition-transform"
+              : `relative flex items-center gap-2 rounded-full text-on-surface transition-colors ${compact
+                  ? "w-10 h-10 justify-center hover:bg-surface-container"
+                  : "pl-3 pr-4 py-2 border border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                }`
+        }
       >
-        <Smartphone className={compact ? "w-6 h-6" : "w-[18px] h-[18px] text-vibrant-blue"} strokeWidth={1.9} />
-        {!compact && <span className="text-[13px] font-semibold whitespace-nowrap">Get the app</span>}
+        {variant === "hero" ? (
+          <>
+            Get the App <ArrowUpRight className="w-[13px] h-[13px]" strokeWidth={2.4} />
+          </>
+        ) : variant === "banner" ? (
+          "GET THE APP"
+        ) : (
+          <>
+            <Smartphone className={compact ? "w-6 h-6" : "w-[18px] h-[18px] text-vibrant-blue"} strokeWidth={1.9} />
+            {!compact && <span className="text-[13px] font-semibold whitespace-nowrap">Get the app</span>}
+          </>
+        )}
       </button>
 
       {/* The top padding bridges the gap, so the card stays open while the pointer moves onto it. On phones the card

@@ -12,8 +12,8 @@ import { PatientFooter } from "@/components/AppFooter";
 import { PatientNavHeader } from "@/components/PatientNavHeader";
 import { doctorName, formatINR, formatSlot, initials } from "@/components/patient/format";
 import type { Clinic } from "@/components/patient/CareMap";
-import type { HomeDoctor } from "@/components/PatientHome";
-import { DoctorCard as PhoneDoctorCard } from "@/components/patient/PhoneHome";
+import type { HomeDoctor } from "@/components/home/types";
+import { DoctorCard as PhoneDoctorCard } from "@/components/patient/DoctorCard";
 import { locationCity, nearbyOnly, usePatientLocation } from "@/components/patient/location";
 import { NearbyNote } from "@/components/patient/Nearby";
 import { sameCity } from "@/lib/geo";
@@ -482,7 +482,7 @@ function AvailableTodayToggle({ checked, onChange, pill }: { checked: boolean; o
   );
 }
 
-/** Tablets and desktops; phones list doctors with the home page's card (PhoneDoctorCard). */
+/** Tablets and desktops; phones list doctors with the compact phone card (PhoneDoctorCard). */
 function DoctorCard({ doctor: d, now, bookingFee, selected, onSelect }: { doctor: FindDoctor; now: number; bookingFee: number; selected: boolean; onSelect: () => void }) {
   const name = doctorName(d.name);
   const today = d.openToday > 0;

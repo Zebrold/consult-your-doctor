@@ -41,7 +41,8 @@ const legalLinks = [
   { label: "All legal documents", href: "/legal", strong: true },
 ];
 
-export function Footer() {
+/** `dockRoom` leaves space at the bottom for the patient navigation pill on pages that show it. */
+export function Footer({ dockRoom = false }: { dockRoom?: boolean } = {}) {
   return (
     <footer className="relative w-full overflow-hidden text-white bg-gradient-to-br from-[#0052d4] via-[#005ef5] to-[#0048cb]">
       {/* Background Wave Ripple Accents (Matching Image 2) */}
@@ -94,7 +95,7 @@ export function Footer() {
         </div>
       </div>
 
-      <div className="relative max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop pt-10 md:pt-14 pb-[calc(2rem+env(safe-area-inset-bottom))] md:pb-8">
+      <div className={`relative max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop pt-10 md:pt-14 ${dockRoom ? "pb-dock" : "pb-[calc(2rem+env(safe-area-inset-bottom))] md:pb-8"}`}>
         {/* Main 3-Column Section */}
         <div className="grid grid-cols-2 lg:grid-cols-12 gap-x-6 gap-y-8 lg:gap-10 items-start">
           {/* Column 1: Brand & Badges */}

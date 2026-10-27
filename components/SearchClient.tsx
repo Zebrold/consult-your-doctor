@@ -288,7 +288,7 @@ function SearchClientInner({
                         View Details
                       </button>
                       <button 
-                        onClick={(e) => { e.stopPropagation(); router.push(`/?booking=diagnostics&city=${center.city}&center_id=${center.id}`); }}
+                        onClick={(e) => { e.stopPropagation(); router.push(`/book/diagnostic/${center.id}`); }}
                         className="flex-grow bg-vibrant-blue text-white rounded-full py-2 font-label-sm text-label-sm transition-transform shadow-[0_4px_12px_rgba(15,23,42,0.08)] text-center inline-block"
                       >
                         Book Test

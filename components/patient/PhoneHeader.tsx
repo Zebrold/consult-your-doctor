@@ -7,7 +7,7 @@ import { ArrowLeft, Bell, CalendarDays, LifeBuoy, LogIn, Menu, Plus, UserRound }
 import { MenuSheet } from "@/components/patient/PhoneSheet";
 import { AccountMenu, type TopBarLink } from "@/components/portal/TopBar";
 
-// The blue app header the patient pages use, first drawn for the home page (PhoneHome): the brand, the bookings bell
+// The blue app header the patient pages use: the brand, the bookings bell
 // and the account on top, then the page's title and whatever the page puts inside it (search, stats). Phones open
 // the ☰ menu sheet; tablets and desktops get the account dropdown, and the header lines up with the page below.
 

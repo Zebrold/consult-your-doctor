@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { PUBLIC_DOCS, docHref } from '@/lib/legal-docs';
+import { SPECIALITIES } from '@/components/home/specialities';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://consultyourdoctor.de';
@@ -117,11 +118,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.9,
   }));
 
+  const specialityUrls: MetadataRoute.Sitemap = SPECIALITIES.map((s) => ({
+    url: `${baseUrl}/specialities/${s.slug}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly',
+    priority: 0.8,
+  }));
+
   return [
-    ...staticUrls, 
-    ...doctorUrls, 
-    ...hospitalUrls, 
-    ...cityDoctorUrls, 
-    ...cityHospitalUrls
+    ...staticUrls,
+    ...doctorUrls,
+    ...hospitalUrls,
+    ...cityDoctorUrls,
+    ...cityHospitalUrls,
+    ...specialityUrls
   ];
 }

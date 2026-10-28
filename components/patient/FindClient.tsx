@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import dynamic from "next/dynamic";
+import { preconnect } from "react-dom";
 import Link from "next/link";
 import { ArrowRight, Building2, CalendarDays, Check, ChevronDown, Hospital, MapPin, Search, SearchX, SlidersHorizontal, Star, Stethoscope, UserRound, FlaskConical, Clock } from "lucide-react";
 import { PhoneHeader } from "@/components/patient/PhoneHeader";
@@ -15,6 +16,8 @@ import { doctorName, formatINR, formatSlot, initials } from "@/components/patien
 import { formatDistance, sameCity } from "@/lib/geo";
 import { hospitalTags, placeOf } from "./HospitalCards";
 import { Dots, PageBody, RatingPill, btnOutline, btnPrimary, card } from "./app-ui";
+import { RemoteImage, type ImageLoad } from "@/components/RemoteImage";
+import { TILE_ORIGIN } from "@/components/patient/map-tiles";
 
 const CareMap = dynamic(() => import("@/components/patient/CareMap"), {
   ssr: false,
@@ -170,6 +173,8 @@ export function FindClient({ doctors, hospitals, labs, now, initial, account, fe
     return Array.from(byId.values());
   }, [mode, doctorRows, hospitalRows, labRows]);
 
+  // The map tiles can be the largest thing on a phone screen, so open the connection to their server early.
+  preconnect(TILE_ORIGIN);
   const map = (
     <CareMap clinics={clinics} selectedId={selectedClinic} onSelect={setSelectedClinic} unit={mode === "lab" ? "test" : "doctor"} />
   );
@@ -186,6 +191,11 @@ export function FindClient({ doctors, hospitals, labs, now, initial, account, fe
   const subtitle = `${count(total, mode === "doc" ? ["verified doctor", "verified doctors"] : mode === "hosp" ? ["partner hospital", "partner hospitals"] : ["partner lab", "partner labs"])} ${byLocation ? `near ${where}` : cityChoice ? `in ${where}` : "across all cities"}`;
 
   const sortLabel = SORTS[mode].find(([s]) => s === sort)?.[1] ?? "";
+  // The first few results sit near the top of a phone screen, so their photos load straight away, and the first one
+  // that has a photo goes ahead of every other image (it is often the largest thing on screen).
+  const shown = (mode === "doc" ? doctorRows : mode === "hosp" ? hospitalRows : labRows).slice(0, visible);
+  const firstPhoto = shown.findIndex(({ item }) => mode === "lab" || !!item.image);
+  const loadOf = (i: number): ImageLoad => (i === firstPhoto && i < 3 ? "first" : i < 3 ? "eager" : "lazy");
 
   return (
     <>
@@ -379,10 +389,10 @@ export function FindClient({ doctors, hospitals, labs, now, initial, account, fe
               ) : (
                 <div className="flex flex-col gap-3 lg:gap-3.5">
                   {mode === "doc" &&
-                    doctorRows.slice(0, visible).map(({ item, km }) => <DoctorResult key={item.id} doctor={item} km={km} now={now} fee={fees.consultation} />)}
+                    doctorRows.slice(0, visible).map(({ item, km }, i) => <DoctorResult key={item.id} doctor={item} km={km} now={now} fee={fees.consultation} load={loadOf(i)} />)}
                   {mode === "hosp" &&
-                    hospitalRows.slice(0, visible).map(({ item, km }) => <HospitalResult key={item.id} hospital={item} km={km} fee={fees.consultation} />)}
-                  {mode === "lab" && labRows.slice(0, visible).map(({ item, km }) => <LabResult key={item.id} lab={item} km={km} percent={fees.diagnosticPercent} />)}
+                    hospitalRows.slice(0, visible).map(({ item, km }, i) => <HospitalResult key={item.id} hospital={item} km={km} fee={fees.consultation} load={loadOf(i)} />)}
+                  {mode === "lab" && labRows.slice(0, visible).map(({ item, km }, i) => <LabResult key={item.id} lab={item} km={km} percent={fees.diagnosticPercent} load={loadOf(i)} />)}
                   {total > visible && (
                     <button type="button" onClick={() => setVisible((v) => v + PAGE)} className={`${btnOutline} self-center mt-1`}>
                       Show more {NOUN[mode][1]}
@@ -515,10 +525,10 @@ function Filters(p: {
   );
 }
 
-function Thumb({ image, alt, fallback, contain = false, className }: { image: string | null; alt: string; fallback: ReactNode; contain?: boolean; className: string }) {
+/** A result's photo, at most 112px square (lg:w-28), resized and sent as WebP. */
+function Thumb({ image, alt, fallback, contain = false, load, className }: { image: string | null; alt: string; fallback: ReactNode; contain?: boolean; load: ImageLoad; className: string }) {
   return image ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={image} alt={alt} loading="lazy" className={`shrink-0 bg-[#EEF1F5] ${contain ? "object-contain" : "object-cover object-top"} ${className}`} />
+    <RemoteImage src={image} alt={alt} width={112} height={112} load={load} className={`shrink-0 bg-[#EEF1F5] ${contain ? "object-contain" : "object-cover object-top"} ${className}`} />
   ) : (
     <span className={`shrink-0 flex items-center justify-center bg-[linear-gradient(160deg,#F2F6FF,#DCE7FF)] text-[#2A4DD0] ${className}`}>{fallback}</span>
   );
@@ -538,13 +548,13 @@ function FeeColumn({ label, fee, note, href, cta }: { label: string; fee: string
   );
 }
 
-function DoctorResult({ doctor: d, km, now, fee }: { doctor: FindDoctor; km: number | null; now: number; fee: number }) {
+function DoctorResult({ doctor: d, km, now, fee, load }: { doctor: FindDoctor; km: number | null; now: number; fee: number; load: ImageLoad }) {
   const name = doctorName(d.name);
   const href = d.bookable ? `/book/${d.id}` : `/doctors/${d.id}`;
   const quals = [d.qualifications, d.experience ? `${d.experience}+ yrs` : null].filter(Boolean).join(" · ");
   const where = [d.hospital?.name, km != null ? formatDistance(km) : null].filter(Boolean).join(" · ");
   const next = d.nextSlot ? formatSlot(d.nextSlot, now) : null;
-  const photo = <Thumb image={d.image} alt={`Portrait of ${name}`} fallback={<span className="text-[18px] font-extrabold">{initials(d.name) || <UserRound className="w-6 h-6" />}</span>} className="w-[60px] h-[66px] lg:w-28 lg:h-28 rounded-[14px]" />;
+  const photo = <Thumb image={d.image} alt={`Portrait of ${name}`} load={load} fallback={<span className="text-[18px] font-extrabold">{initials(d.name) || <UserRound className="w-6 h-6" />}</span>} className="w-[60px] h-[66px] lg:w-28 lg:h-28 rounded-[14px]" />;
   return (
     <article className={`${card} p-3 lg:p-[18px]`}>
       <div className="lg:grid lg:grid-cols-[112px_minmax(0,1fr)_220px] lg:gap-5 lg:items-center">
@@ -616,13 +626,13 @@ function DoctorResult({ doctor: d, km, now, fee }: { doctor: FindDoctor; km: num
   );
 }
 
-function HospitalResult({ hospital: h, km, fee }: { hospital: HomeHospital; km: number | null; fee: number }) {
+function HospitalResult({ hospital: h, km, fee, load }: { hospital: HomeHospital; km: number | null; fee: number; load: ImageLoad }) {
   const area = [placeOf(h), km != null ? formatDistance(km) : null].filter(Boolean).join(" · ");
   const doctors = count(h.doctors, ["doctor", "doctors"]);
   return (
     <Link href={`/hospitals/${h.id}`} className={`group block ${card} p-3 lg:p-[18px]`}>
       <span className="flex gap-3 lg:grid lg:grid-cols-[112px_minmax(0,1fr)_220px] lg:gap-5 lg:items-center">
-        <Thumb image={h.image} alt="" fallback={<Building2 className="w-9 h-9" strokeWidth={1.5} />} className="w-[92px] h-[104px] lg:w-28 lg:h-28 rounded-[14px]" />
+        <Thumb image={h.image} alt="" load={load} fallback={<Building2 className="w-9 h-9" strokeWidth={1.5} />} className="w-[92px] h-[104px] lg:w-28 lg:h-28 rounded-[14px]" />
         <span className="flex-1 min-w-0 flex flex-col gap-[3px] lg:gap-0">
           <span className="flex justify-between gap-1.5">
             <span className="flex items-center gap-[5px] min-w-0 text-[14.5px] lg:text-[16.5px] font-extrabold">
@@ -657,12 +667,12 @@ function HospitalResult({ hospital: h, km, fee }: { hospital: HomeHospital; km: 
   );
 }
 
-function LabResult({ lab: l, km, percent }: { lab: FindLab; km: number | null; percent: number }) {
+function LabResult({ lab: l, km, percent, load }: { lab: FindLab; km: number | null; percent: number; load: ImageLoad }) {
   const area = [l.address?.split(",")[0]?.trim() || l.city, km != null ? formatDistance(km) : null].filter(Boolean).join(" · ");
   return (
     <Link href={`/book/diagnostic/${l.id}`} className={`group block ${card} p-3 lg:p-[18px]`}>
       <span className="flex gap-3 lg:grid lg:grid-cols-[112px_minmax(0,1fr)_220px] lg:gap-5 lg:items-center">
-        <Thumb image={l.image ?? "/images/home/lab-microscope.webp"} alt="" contain={!l.image} fallback={<FlaskConical className="w-9 h-9" />} className={`w-[92px] h-[104px] lg:w-28 lg:h-28 rounded-[14px] ${l.image ? "" : "p-2 bg-[linear-gradient(160deg,#F2F6FF,#DCE7FF)]!"}`} />
+        <Thumb image={l.image ?? "/images/home/lab-microscope.webp"} alt="" contain={!l.image} load={load} fallback={<FlaskConical className="w-9 h-9" />} className={`w-[92px] h-[104px] lg:w-28 lg:h-28 rounded-[14px] ${l.image ? "" : "p-2 bg-[linear-gradient(160deg,#F2F6FF,#DCE7FF)]!"}`} />
         <span className="flex-1 min-w-0 flex flex-col gap-[3px] lg:gap-0">
           <span className="flex items-center gap-[5px] min-w-0 text-[14.5px] lg:text-[16.5px] font-extrabold">
             <span className="truncate group-hover:text-[#2A4DD0] transition-colors">{l.name}</span>

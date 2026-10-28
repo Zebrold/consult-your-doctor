@@ -27,14 +27,14 @@ export type EditableProfile = {
 export type ProfileTab = 'basic' | 'registration' | 'education' | 'insurance'
 
 const input =
-  'w-full rounded-lg bg-surface-container-low px-3.5 py-2.5 text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-vibrant-blue/30'
+  'w-full rounded-[11px] bg-white border-[1.5px] border-[#D6DDE8] px-3.5 py-2.5 text-[14px] text-[#0B1B3F] placeholder:text-[#98A2B3] focus:outline-none focus:border-[#2A4DD0]'
 
 function Field({ label, hint, children, className = '' }: { label: string; hint?: string; children: ReactNode; className?: string }) {
   return (
     <label className={`flex flex-col gap-1.5 ${className}`}>
-      <span className="font-label-sm text-label-sm text-indigo-gray-600">{label}</span>
+      <span className="text-[12px] font-extrabold text-[#5B667A]">{label}</span>
       {children}
-      {hint && <span className="text-[11px] text-indigo-gray-600">{hint}</span>}
+      {hint && <span className="text-[11.5px] text-[#5B667A]">{hint}</span>}
     </label>
   )
 }
@@ -126,14 +126,14 @@ export function ProfileEditor({
 
       {open && (
         <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true" aria-label="Edit profile">
-          <button type="button" aria-label="Close" className="absolute inset-0 bg-indigo-gray-900/50 backdrop-blur-sm" onClick={() => setOpen(false)} />
-          <form onSubmit={submit} className="relative w-full sm:max-w-3xl h-[94dvh] sm:h-auto sm:max-h-[92dvh] bg-surface-container-lowest rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-            <div className="p-5 sm:p-6 pb-3 flex items-start justify-between gap-3 border-b border-surface-container">
+          <button type="button" aria-label="Close" className="absolute inset-0 bg-[#0B1B3F]/50 backdrop-blur-sm" onClick={() => setOpen(false)} />
+          <form onSubmit={submit} className="relative w-full sm:max-w-3xl h-[94dvh] sm:h-auto sm:max-h-[92dvh] bg-white text-[#0B1B3F] rounded-t-[22px] sm:rounded-[20px] shadow-2xl flex flex-col overflow-hidden font-(family-name:--font-manrope)">
+            <div className="p-5 sm:p-6 pb-3 flex items-start justify-between gap-3 border-b border-[#EEF2F7]">
               <div>
-                <h3 className="font-title-md text-title-md font-bold text-indigo-gray-900">Edit Public Profile</h3>
-                <p className="text-sm text-indigo-gray-600">Patients see these details when they find and book you.</p>
+                <h3 className="text-[18px] font-extrabold tracking-[-0.01em]">Edit profile</h3>
+                <p className="mt-0.5 text-[13px] text-[#5B667A]">Patients see these details when they find and book you.</p>
               </div>
-              <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-variant flex items-center justify-center shrink-0">
+              <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="w-9 h-9 rounded-full bg-[#F4F6FA] hover:bg-[#EEF2F7] flex items-center justify-center shrink-0">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -147,8 +147,8 @@ export function ProfileEditor({
                     role="tab"
                     aria-selected={tab === t.key}
                     onClick={() => setTab(t.key)}
-                    className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[13px] font-semibold transition-colors ${
-                      tab === t.key ? 'bg-vibrant-blue text-on-primary' : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
+                    className={`shrink-0 inline-flex items-center gap-1.5 h-[34px] px-3.5 rounded-full text-[13px] font-extrabold transition-colors ${
+                      tab === t.key ? 'bg-[#2A4DD0] text-white' : 'bg-[#F4F6FA] text-[#27324A] hover:bg-[#EEF2F7]'
                     }`}
                   >
                     <t.icon className="w-4 h-4" /> {t.label}
@@ -189,7 +189,7 @@ export function ProfileEditor({
                     name="image"
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
-                    className="block w-full text-sm text-indigo-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-surface-container-high file:text-primary"
+                    className="block w-full text-[13px] text-[#5B667A] file:mr-3 file:h-[34px] file:px-3.5 file:rounded-[10px] file:border-0 file:font-extrabold file:bg-[#EEF3FF] file:text-[#2A4DD0]"
                   />
                 </Field>
               </div>
@@ -197,7 +197,7 @@ export function ProfileEditor({
               {extended && (
                 <>
                   <div hidden={tab !== 'registration'} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <p className="sm:col-span-2 text-sm text-indigo-gray-600">Your medical registration prints on every prescription and shows on your public profile.</p>
+                    <p className="sm:col-span-2 text-[13px] text-[#5B667A]">Your medical registration prints on every prescription and shows on your public profile.</p>
                     <Field label="Registration number">
                       <input name="registration_number" maxLength={40} defaultValue={profile.registrationNumber ?? ''} placeholder="e.g. 54321" className={input} />
                     </Field>
@@ -207,21 +207,21 @@ export function ProfileEditor({
                   </div>
 
                   <div hidden={tab !== 'education'} className="flex flex-col gap-3">
-                    <p className="text-sm text-indigo-gray-600">Add your degrees, residencies, fellowships and certifications, in the order patients should see them.</p>
-                    {education.length === 0 && <p className="p-4 rounded-xl bg-surface-container-low text-sm text-indigo-gray-600 text-center">No entries yet.</p>}
+                    <p className="text-[13px] text-[#5B667A]">Add your degrees, residencies, fellowships and certifications, in the order patients should see them.</p>
+                    {education.length === 0 && <p className="p-4 rounded-xl bg-[#F4F6FA] text-[13px] text-[#5B667A] text-center">No entries yet.</p>}
                     <ul className="flex flex-col gap-3">
                       {education.map((entry, i) => (
-                        <li key={i} className="p-3.5 rounded-xl bg-surface-container-low flex flex-col gap-3">
+                        <li key={i} className="p-3.5 rounded-[14px] bg-[#F7F9FC] shadow-[inset_0_0_0_1px_#EEF2F7] flex flex-col gap-3">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="font-label-sm text-[12px] font-bold text-primary uppercase tracking-wider">Entry {i + 1}</span>
+                            <span className="text-[12px] font-extrabold text-[#2A4DD0] uppercase tracking-[0.06em]">Entry {i + 1}</span>
                             <span className="flex items-center gap-1">
-                              <button type="button" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up" title="Move up" className="p-1.5 rounded-full hover:bg-surface-container disabled:opacity-30">
+                              <button type="button" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up" title="Move up" className="p-1.5 rounded-full hover:bg-[#EEF2F7] disabled:opacity-30">
                                 <ArrowUp className="w-4 h-4" />
                               </button>
-                              <button type="button" onClick={() => move(i, 1)} disabled={i === education.length - 1} aria-label="Move down" title="Move down" className="p-1.5 rounded-full hover:bg-surface-container disabled:opacity-30">
+                              <button type="button" onClick={() => move(i, 1)} disabled={i === education.length - 1} aria-label="Move down" title="Move down" className="p-1.5 rounded-full hover:bg-[#EEF2F7] disabled:opacity-30">
                                 <ArrowDown className="w-4 h-4" />
                               </button>
-                              <button type="button" onClick={() => setEducation((list) => list.filter((_, j) => j !== i))} aria-label="Remove entry" title="Remove" className="p-1.5 rounded-full text-error hover:bg-error-container/50">
+                              <button type="button" onClick={() => setEducation((list) => list.filter((_, j) => j !== i))} aria-label="Remove entry" title="Remove" className="p-1.5 rounded-full text-[#B42318] hover:bg-[#FEF3F2]">
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             </span>
@@ -247,29 +247,29 @@ export function ProfileEditor({
                         </li>
                       ))}
                     </ul>
-                    <button type="button" onClick={() => setEducation((list) => [...list, blankEntry()])} disabled={education.length >= 20} className="self-start px-4 py-2 rounded-full bg-primary-fixed/60 text-primary text-[13px] font-bold inline-flex items-center gap-1.5 hover:bg-primary-fixed disabled:opacity-50">
+                    <button type="button" onClick={() => setEducation((list) => [...list, blankEntry()])} disabled={education.length >= 20} className="self-start h-[34px] px-3.5 rounded-[10px] border-[1.5px] border-dashed border-[#C9D5F2] bg-white text-[#2A4DD0] text-[12.5px] font-extrabold inline-flex items-center gap-1.5 hover:bg-[#EEF3FF] disabled:opacity-50">
                       <Plus className="w-4 h-4" /> Add education or training
                     </button>
                   </div>
 
                   <div hidden={tab !== 'insurance'} className="flex flex-col gap-3">
-                    <p className="text-sm text-indigo-gray-600">Insurers and schemes your patients can use for your consultations (cashless or reimbursement).</p>
+                    <p className="text-[13px] text-[#5B667A]">Insurers and schemes your patients can use for your consultations (cashless or reimbursement).</p>
                     <input type="hidden" name="insurance_present" value="1" />
                     <ChipPicker name="insurance" label="Insurance accepted" suggestions={INSURERS} initial={profile.insurance ?? []} placeholder="Add an insurer or TPA" />
                   </div>
                 </>
               )}
 
-              {error && <p role="alert" className="p-3 rounded-lg bg-error-container text-on-error-container text-sm">{error}</p>}
+              {error && <p role="alert" className="p-3 rounded-xl bg-[#FEF3F2] text-[#B42318] text-[13px] font-bold">{error}</p>}
             </div>
 
-            <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-4 sm:px-6 border-t border-surface-container flex justify-end gap-2">
-              <button type="button" onClick={() => setOpen(false)} className="px-5 py-2.5 rounded-full text-sm font-semibold text-indigo-gray-600 hover:bg-surface-container">
+            <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-4 sm:px-6 border-t border-[#EEF2F7] grid grid-cols-2 sm:flex sm:justify-end gap-2.5">
+              <button type="button" onClick={() => setOpen(false)} className="h-[42px] px-5 rounded-[11px] border-[1.5px] border-[#D6DDE8] bg-white text-[13.5px] font-extrabold text-[#27324A] hover:bg-[#F4F6FA]">
                 Cancel
               </button>
-              <button type="submit" disabled={pending} className="px-5 py-2.5 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary text-sm font-bold flex items-center gap-2 disabled:opacity-60">
+              <button type="submit" disabled={pending} className="h-[42px] px-5 rounded-[11px] bg-[#2A4DD0] hover:bg-[#2443B8] text-white text-[13.5px] font-extrabold flex items-center justify-center gap-2 disabled:opacity-60">
                 {pending && <LoaderCircle className="w-4 h-4 animate-spin" />}
-                Save Profile
+                Save profile
               </button>
             </div>
           </form>

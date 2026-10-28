@@ -6,6 +6,7 @@ import { AlertTriangle, ArrowLeft, ArrowRight, CalendarDays, CircleAlert, Clock,
 import { VerifiedBadge } from "@/components/home/ui";
 import { ReviewButton, type ExistingReview } from "./ReviewButton";
 import { DeskTitle, InfoRow, StatusDot, btnDanger, btnOutline, btnPrimary, card } from "./app-ui";
+import { RemoteImage } from "@/components/RemoteImage";
 
 export type BookingTab = "upcoming" | "completed" | "cancelled";
 
@@ -237,8 +238,7 @@ function Cell({ label, value, border = false }: { label: string; value: string; 
 
 function Avatar({ item, size }: { item: BookingItem; size: string }) {
   if (item.image) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={item.image} alt="" className={`shrink-0 ${size} rounded-xl object-cover object-top bg-[#EEF1F5]`} />;
+    return <RemoteImage src={item.image} alt="" width={48} height={48} className={`shrink-0 ${size} rounded-xl object-cover object-top bg-[#EEF1F5]`} />;
   }
   return (
     <span className={`shrink-0 ${size} rounded-xl bg-[#EEF3FF] text-[#2A4DD0] flex items-center justify-center`}>

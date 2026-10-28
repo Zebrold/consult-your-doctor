@@ -28,6 +28,7 @@ import { BlueHeader, PhoneHeader } from "@/components/patient/PhoneHeader";
 import { DayStrip } from "@/components/patient/booking-ui";
 import { Dots, InfoRow, btnPrimary, card } from "@/components/patient/app-ui";
 import { directionsHref, doctorName as fullName, formatINR, formatSlot, formatTime, initials, isMorning, istDateKey, upcomingDays } from "@/components/patient/format";
+import { RemoteImage } from "@/components/RemoteImage";
 
 export interface ProfileDoctorData {
   id: string;
@@ -142,8 +143,7 @@ export function DoctorProfileClient({ doctor, bookingFee, now, account }: Doctor
 
   const photo = (className: string, text: string) =>
     doctor.image_url ? (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={doctor.image_url} alt={`Portrait of ${name}`} className={`shrink-0 object-cover object-top bg-[#EEF1F5] ${className}`} />
+      <RemoteImage src={doctor.image_url} alt={`Portrait of ${name}`} width={120} height={132} load="first" className={`shrink-0 object-cover object-top bg-[#EEF1F5] ${className}`} />
     ) : (
       <span className={`shrink-0 bg-[#EEF3FF] text-[#2A4DD0] flex items-center justify-center font-extrabold ${className} ${text}`}>
         {initials(doctor.profiles?.full_name) || <UserRound className="w-7 h-7" />}

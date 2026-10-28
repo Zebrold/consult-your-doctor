@@ -2,15 +2,14 @@ import type { Metadata } from 'next'
 import { currentTime } from '@/components/patient/data'
 import { ageFrom, istDateKey } from '@/components/patient/format'
 import { latestVitals, loadPatientFacts, loadVisits, patientCode, requireDoctor, type Visit } from '../_lib/doctor'
-import { PatientRoster, type RosterPatient } from '../_components/PatientRoster'
+import { PatientRoster, type RosterPatient, type RosterStats } from '../_components/PatientRoster'
 
 export const metadata: Metadata = { title: 'Patients | Doctor Portal' }
 export const dynamic = 'force-dynamic'
 
 const PAID = ['confirmed', 'visited', 'completed']
-const DAY = 86_400_000
 
-export default async function DoctorPatientsPage(props: { searchParams?: Promise<{ patient?: string }> }) {
+export default async function DoctorPatientsPage(props: { searchParams?: Promise<{ patient?: string; q?: string }> }) {
   const params = (await props.searchParams) ?? {}
   const { admin, doctor } = await requireDoctor()
   const now = currentTime()
@@ -49,7 +48,7 @@ export default async function DoctorPatientsPage(props: { searchParams?: Promise
       firstVisit: list[0].start,
       lastSeen: seen.length ? seen[seen.length - 1].start : null,
       nextVisit: upcoming[0]?.start ?? null,
-      active: active ? { id: active.id, status: active.status } : null,
+      active: active ? { id: active.id, status: active.status, start: active.start } : null,
       group: checkedIn ? 'checked-in' : upcoming.length ? 'upcoming' : 'past',
       records: records.slice(0, 6),
       vitals: vitals[id] ?? null,
@@ -64,18 +63,36 @@ export default async function DoctorPatientsPage(props: { searchParams?: Promise
       (a.group === 'upcoming' ? (a.nextVisit ?? '').localeCompare(b.nextVisit ?? '') : (b.lastSeen ?? '').localeCompare(a.lastSeen ?? '')),
   )
 
-  const monthKey = istDateKey(now).slice(0, 7)
-  const lastMonthKey = istDateKey(Date.parse(`${monthKey}-01T00:00:00+05:30`) - DAY).slice(0, 7)
-  const inMonth = (iso: string | null, key: string) => !!iso && istDateKey(iso).slice(0, 7) === key
-  const stats = {
+  // The last seven months, oldest first
+  const thisMonth = istDateKey(now).slice(0, 7)
+  const months = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(`${thisMonth}-15T12:00:00Z`)
+    d.setUTCMonth(d.getUTCMonth() - (6 - i))
+    return d.toISOString().slice(0, 7)
+  })
+  const monthOf = (iso: string | null) => (iso ? istDateKey(iso).slice(0, 7) : null)
+  const visitSeries = months.map((m) => visits.filter((v) => monthOf(v.start) === m).length)
+  const stats: RosterStats = {
     total: roster.length,
-    newThisMonth: roster.filter((p) => inMonth(p.firstVisit, monthKey)).length,
-    visitsThisMonth: visits.filter((v) => inMonth(v.start, monthKey)).length,
-    visitsLastMonth: visits.filter((v) => inMonth(v.start, lastMonthKey)).length,
-    upcoming: visits.filter((v) => v.status === 'confirmed' && v.start && Date.parse(v.start) > now).length,
-    nextUpcoming: visits.find((v) => v.status === 'confirmed' && v.start && Date.parse(v.start) > now)?.start ?? null,
+    newThisMonth: roster.filter((p) => monthOf(p.firstVisit) === thisMonth).length,
+    visitsThisMonth: visitSeries[6],
+    visitsLastMonth: visitSeries[5],
+    lastMonthName: new Date(`${months[5]}-15T12:00:00Z`).toLocaleDateString('en-GB', { month: 'short' }),
+    returningPct: roster.length ? Math.round((roster.filter((p) => p.visitCount > 1).length / roster.length) * 100) : 0,
     awaitingNotes: roster.filter((p) => p.group === 'checked-in').length,
+    visitSeries,
+    patientSeries: months.map((m) => roster.filter((p) => (monthOf(p.firstVisit) ?? '9999') <= m).length),
   }
 
-  return <PatientRoster patients={roster} stats={stats} now={now} initialPatient={params.patient ?? null} />
+  return (
+    <PatientRoster
+      key={params.q ?? ''}
+      doctor={{ name: doctor.name, image: doctor.image }}
+      patients={roster}
+      stats={stats}
+      now={now}
+      initialPatient={params.patient ?? null}
+      initialQuery={params.q ?? ''}
+    />
+  )
 }

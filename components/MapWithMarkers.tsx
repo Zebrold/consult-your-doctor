@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
+import { TILE_URL } from '@/components/patient/map-tiles'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -175,8 +176,7 @@ export default function MapWithMarkers({
     >
       <TileLayer
         attribution='&copy; Google Maps'
-        url="https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
-        subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+        url={TILE_URL}
         maxZoom={20}
       />
       <MapResizer />

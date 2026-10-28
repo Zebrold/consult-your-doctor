@@ -4,6 +4,7 @@ import { VerifiedBadge } from "@/components/home/ui";
 import type { HomeHospital } from "@/components/home/types";
 import { formatDistance } from "@/lib/geo";
 import { Dots, card } from "./app-ui";
+import { RemoteImage } from "@/components/RemoteImage";
 
 /** What a hospital offers in a few words: its specialities, or "Multi-speciality" when it has three or more. */
 export function hospitalTags(h: Pick<HomeHospital, "specialties">) {
@@ -22,8 +23,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 function Photo({ h, className }: { h: HomeHospital; className: string }) {
   return h.image ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={h.image} alt={`Exterior of ${h.name}`} loading="lazy" className={`w-full h-full object-cover ${className}`} />
+    <RemoteImage src={h.image} alt={`Exterior of ${h.name}`} fill sizes="(min-width: 1024px) 400px, (min-width: 768px) 50vw, 100vw" className={`object-cover ${className}`} />
   ) : (
     <span className={`w-full h-full flex items-center justify-center bg-[linear-gradient(160deg,#F2F6FF,#DCE7FF)] text-[#2A4DD0] ${className}`}>
       <Building2 className="w-12 h-12" strokeWidth={1.5} />

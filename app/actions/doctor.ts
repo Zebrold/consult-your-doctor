@@ -10,6 +10,7 @@ import { z } from 'zod'
 import { EducationSchema } from '@/lib/education'
 import { RxSchema, filledMedicines, type RxData } from '@/lib/rx'
 import { cleanList } from '@/lib/profile-lists'
+import { PHOTO_CACHE } from '@/lib/photos'
 import { migrationHint } from '@/lib/desk-payments'
 
 const IMAGE_TYPES: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
@@ -245,7 +246,7 @@ export async function updateDoctorProfile(formData: FormData) {
     
     const { data: uploadData, error: uploadError } = await adminClient.storage
       .from('avatars')
-      .upload(fileName, image, { upsert: true, contentType: image.type })
+      .upload(fileName, image, { upsert: true, contentType: image.type, cacheControl: PHOTO_CACHE })
 
     if (uploadError) {
       console.error('Image upload error:', uploadError)

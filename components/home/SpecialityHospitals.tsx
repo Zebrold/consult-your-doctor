@@ -9,6 +9,7 @@ import { formatDistance } from "@/lib/geo";
 import { specialityIcon, type SpecialityInfo } from "./specialities";
 import { AppBanner, VerifiedBadge } from "./ui";
 import type { HomeHospital } from "./types";
+import { RemoteImage } from "@/components/RemoteImage";
 
 export type SpecialityHospital = HomeHospital & {
   /** Doctors at the hospital listed under this speciality. */
@@ -160,8 +161,7 @@ function HospitalTile({ hospital: h, km, far }: { hospital: SpecialityHospital; 
     <Link href={`/hospitals/${h.id}`} className="group flex flex-col gap-[3px] min-w-0">
       <span className="relative block aspect-[1/1.08] md:aspect-[4/3.4] rounded-[18px] overflow-hidden bg-[linear-gradient(160deg,#F2F6FF_0%,#DCE7FF_100%)] mb-2">
         {h.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={h.image} alt={`Exterior of ${h.name}`} loading="lazy" className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300" />
+          <RemoteImage src={h.image} alt={`Exterior of ${h.name}`} fill sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw" className="object-cover group-hover:scale-[1.03] transition-transform duration-300" />
         ) : (
           <span className="absolute inset-0 flex items-center justify-center text-[#2A4DD0]">
             <Building2 className="w-12 h-12" strokeWidth={1.6} />

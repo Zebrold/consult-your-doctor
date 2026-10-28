@@ -2,12 +2,8 @@ import { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { doctorName } from '@/components/patient/format'
-import { CircleUserRound, ExternalLink, MapPin } from 'lucide-react'
-import { PortalDock } from '@/components/portal/PortalNav'
-import { TopBar } from '@/components/portal/TopBar'
-import { PortalFooter } from '@/components/AppFooter'
-import { TopBarChip } from '@/components/portal/TopBarChip'
 import { requireDoctor } from './_lib/doctor'
+import { DoctorDock } from './_components/DoctorDock'
 
 export const metadata: Metadata = {
   title: 'Doctor Portal',
@@ -28,23 +24,12 @@ export default async function DoctorLayout({ children }: { children: React.React
     redirect('/auth/signout?next=/login/doctor')
   }
 
+  // The doctor workspace: the blue sidebar and white top bar on desktops, the tab bar on phones (DoctorDock), and the
+  // pale app background behind every page.
   return (
-    <div className="min-h-screen flex flex-col bg-background text-on-surface antialiased">
-      <TopBar
-        homeHref="/doctor/dashboard"
-        section="Doctor Portal"
-        person={{ name: doctorName(doctor.name), role: doctor.specialty || 'Doctor', image: doctor.image }}
-        chips={doctor.hospital && <TopBarChip icon={MapPin}>{doctor.hospital.name}</TopBarChip>}
-        links={[
-          { href: '/doctor/profile', label: 'My profile', icon: <CircleUserRound /> },
-          { href: `/doctors/${doctor.id}`, label: 'My public profile', icon: <ExternalLink /> },
-        ]}
-      />
-      <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 lg:px-margin-x-desktop pt-4 md:pt-6 pb-12 md:pb-16 flex flex-col gap-4 md:gap-stack-md">
-        {children}
-      </main>
-      <PortalFooter portal="doctor" />
-      <PortalDock portal="doctor" avatar={{ name: doctor.name, image: doctor.image }} />
+    <div className="min-h-dvh bg-[#F6F8FC] lg:bg-[#F4F6FA] text-[#0B1B3F] font-(family-name:--font-manrope) antialiased lg:pl-[260px] lg:pt-[72px]">
+      <DoctorDock doctor={{ id: doctor.id, name: doctorName(doctor.name), specialty: doctor.specialty, image: doctor.image }} />
+      {children}
     </div>
   )
 }

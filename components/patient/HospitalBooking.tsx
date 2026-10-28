@@ -7,6 +7,7 @@ import { VerifiedBadge } from "@/components/home/ui";
 import { SPECIALITIES, specialityIcon } from "@/components/home/specialities";
 import { doctorName, formatINR, formatSlot, initials } from "./format";
 import { InfoRow, card } from "./app-ui";
+import { RemoteImage } from "@/components/RemoteImage";
 
 export type HospitalDoctor = {
   id: string;
@@ -137,8 +138,7 @@ export function HospitalBooking({ doctors, bookingFee, now, children }: { doctor
                       <div key={d.id} className={`rounded-[14px] border-[1.5px] overflow-hidden transition-colors ${on ? "border-[#2A4DD0] bg-[#F7F9FF]" : "border-[#E1E7F0] bg-white"}`}>
                         <button type="button" role="radio" aria-checked={on} onClick={() => pickDoctor(d.id)} className="flex items-center gap-3 w-full px-3 py-2.5 lg:p-3 text-left">
                           {d.image ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={d.image} alt="" className="shrink-0 w-[50px] h-[50px] lg:w-[52px] lg:h-[52px] rounded-xl object-cover object-top bg-[#EEF1F5]" />
+                            <RemoteImage src={d.image} alt="" width={52} height={52} className="shrink-0 w-[50px] h-[50px] lg:w-[52px] lg:h-[52px] rounded-xl object-cover object-top bg-[#EEF1F5]" />
                           ) : (
                             <span className="shrink-0 w-[50px] h-[50px] lg:w-[52px] lg:h-[52px] rounded-xl bg-[#EEF3FF] text-[#2A4DD0] flex items-center justify-center text-[15px] font-extrabold">
                               {initials(d.name) || <UserRound className="w-5 h-5" />}

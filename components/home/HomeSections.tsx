@@ -11,6 +11,7 @@ import { formatDistance } from "@/lib/geo";
 import { SPECIALITIES, specialityIcon } from "./specialities";
 import { CarouselArrows, VerifiedBadge, scrollRow } from "./ui";
 import type { HomeDoctor, HomeHospital } from "./types";
+import { RemoteImage } from "@/components/RemoteImage";
 
 type Place = ReturnType<typeof usePatientLocation>;
 type Near<T> = { item: T; km: number | null };
@@ -63,8 +64,7 @@ function HospitalCard({ hospital: h, km }: { hospital: HomeHospital; km: number 
     <article className="shrink-0 snap-start w-[240px] md:w-[290px] rounded-2xl md:rounded-[18px] bg-white overflow-hidden shadow-[0_0_0_1px_#E6EBF3,0_10px_22px_rgba(11,27,63,0.07)] flex flex-col">
       <Link href={href} className="relative block h-[124px] md:h-40 overflow-hidden bg-[linear-gradient(160deg,#F2F6FF_0%,#DCE7FF_100%)]">
         {h.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={h.image} alt={`Exterior of ${h.name}`} loading="lazy" className="w-full h-full object-cover" />
+          <RemoteImage src={h.image} alt={`Exterior of ${h.name}`} fill sizes="(min-width: 768px) 290px, 240px" className="object-cover" />
         ) : (
           <span className="absolute inset-0 flex items-center justify-center pb-8 text-[#2A4DD0]">
             <Building2 className="w-12 h-12" strokeWidth={1.6} />
@@ -157,8 +157,7 @@ function DoctorCard({ doctor: d, km, now }: { doctor: HomeDoctor; km: number | n
           className="shrink-0 w-[70px] h-[84px] md:w-[104px] md:h-[118px] rounded-xl md:rounded-[14px] overflow-hidden bg-[linear-gradient(160deg,#F2F6FF_0%,#DCE7FF_100%)] flex items-center justify-center text-[#2A4DD0] text-xl md:text-3xl font-extrabold"
         >
           {d.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={d.image} alt="" loading="lazy" className="w-full h-full object-cover object-top" />
+            <RemoteImage src={d.image} alt="" width={104} height={118} className="w-full h-full object-cover object-top" />
           ) : (
             initials(d.name)
           )}

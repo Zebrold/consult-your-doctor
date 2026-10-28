@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { REPORT_BUCKET, REPORT_MAX_BYTES, REPORT_TYPES, reportPath } from '@/lib/lab-reports'
 import { notifyReportReady } from '@/lib/notify/patient'
+import { PHOTO_CACHE } from '@/lib/photos'
 
 type Result = { success: true } | { success: false; error: string }
 
@@ -186,7 +187,7 @@ export async function updateLabProfile(formData: FormData): Promise<Result> {
     if (image.size > 5 * 1024 * 1024) return fail('The photo must be under 5 MB.')
     const ext = image.type.split('/')[1].replace('jpeg', 'jpg')
     const path = `diagnostic-centers/${ctx.centerId}-${Date.now()}.${ext}`
-    const { error: uploadError } = await ctx.admin.storage.from('avatars').upload(path, image, { upsert: true, contentType: image.type })
+    const { error: uploadError } = await ctx.admin.storage.from('avatars').upload(path, image, { upsert: true, contentType: image.type, cacheControl: PHOTO_CACHE })
     if (uploadError) {
       console.error('updateLabProfile image:', uploadError)
       return fail('Could not upload the photo. Please try again.')

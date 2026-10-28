@@ -3,6 +3,7 @@
 import { ChevronLeft, ChevronRight, MapPin, Building2 } from "lucide-react";
 import { useRef } from "react";
 import Link from "next/link";
+import { RemoteImage } from "@/components/RemoteImage";
 
 export function FeaturedHospitalsClient({ hospitals }: { hospitals: any[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -52,7 +53,7 @@ export function FeaturedHospitalsClient({ hospitals }: { hospitals: any[] }) {
             <div key={hospital.id} className="w-[280px] md:w-[300px] h-full flex-shrink-0 snap-start bg-surface-container-lowest rounded-2xl border border-surface-variant overflow-hidden card-shadow card-hover flex flex-col">
               <div className="aspect-[16/9] w-full relative bg-surface-variant flex items-center justify-center flex-shrink-0">
                 {hospital.image_url ? (
-                  <img alt={hospital.name} className="w-full h-full object-cover" src={hospital.image_url} />
+                  <RemoteImage src={hospital.image_url} alt={hospital.name} fill sizes="300px" className="object-cover" />
                 ) : (
                   <Building2 className="w-10 h-10 text-vibrant-blue" />
                 )}

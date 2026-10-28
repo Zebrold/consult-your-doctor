@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { migrationHint } from '@/lib/desk-payments'
 import { cleanList } from '@/lib/profile-lists'
+import { PHOTO_CACHE } from '@/lib/photos'
 
 // The hospital profile page: the details patients see on the hospital's public page, and its test charges.
 
@@ -79,7 +80,7 @@ export async function updateHospitalProfile(formData: FormData): Promise<Result>
     if (image.size > 5 * 1024 * 1024) return fail('The photo must be under 5 MB.')
     const ext = image.type.split('/')[1].replace('jpeg', 'jpg')
     const path = `hospitals/${ctx.hospitalId}-${Date.now()}.${ext}`
-    const { error: uploadError } = await ctx.admin.storage.from('avatars').upload(path, image, { upsert: true, contentType: image.type })
+    const { error: uploadError } = await ctx.admin.storage.from('avatars').upload(path, image, { upsert: true, contentType: image.type, cacheControl: PHOTO_CACHE })
     if (uploadError) {
       console.error('updateHospitalProfile image:', uploadError)
       return fail('Could not upload the photo. Please try again.')

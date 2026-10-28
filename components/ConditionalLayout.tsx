@@ -1,9 +1,11 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import React, { Suspense } from "react";
+import type React from "react";
 
-function ConditionalLayoutInner({
+// No Suspense boundary around this: usePathname() doesn't need one, and a fallback that renders the page's children
+// made the server stream every page into the HTML twice (once in the fallback, once in the real layout).
+export function ConditionalLayout({
   header,
   footer,
   children,
@@ -39,18 +41,5 @@ function ConditionalLayoutInner({
       <main className="flex-grow">{children}</main>
       {footer}
     </div>
-  );
-}
-
-export function ConditionalLayout(props: {
-  header: React.ReactNode;
-  footer: React.ReactNode;
-  children: React.ReactNode;
-  isPatientLoggedIn?: boolean;
-}) {
-  return (
-    <Suspense fallback={<div className="min-h-dvh flex flex-col pt-(--header-h)">{props.header}<main className="flex-grow">{props.children}</main>{props.footer}</div>}>
-      <ConditionalLayoutInner {...props} />
-    </Suspense>
   );
 }

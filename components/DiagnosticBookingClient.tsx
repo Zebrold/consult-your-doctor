@@ -15,6 +15,7 @@ import {
   appendPatientDetails, DayStrip, FormError, LabChargesAtVenue, PayuNote, patientDetailsError, RefundNote, SummaryRow, type PatientDetails,
 } from "@/components/patient/booking-ui";
 import { directionsHref, formatINR, formatLongDate, upcomingDays } from "@/components/patient/format";
+import { RemoteImage } from "@/components/RemoteImage";
 
 export interface DiagnosticCenter {
   id: string;
@@ -124,8 +125,7 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, 
   const signIn = `/login/patient?next=${encodeURIComponent(`/book/diagnostic/${center.id}`)}`;
 
   const photo = center.image ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={center.image} alt={center.name} className="absolute inset-0 w-full h-full object-cover" />
+    <RemoteImage src={center.image} alt={center.name} fill sizes="(min-width: 1024px) 1000px, 100vw" load="first" className="object-cover" />
   ) : (
     // eslint-disable-next-line @next/next/no-img-element
     <img src="/images/home/lab-microscope.webp" alt="" className="absolute right-[26px] bottom-[34px] lg:bottom-6 h-[160px] w-auto" />

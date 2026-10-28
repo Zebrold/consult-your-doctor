@@ -2,9 +2,9 @@
 
 import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { FileDown, FileSignature, LoaderCircle, Trash2, Upload } from 'lucide-react'
+import { FileDown, LoaderCircle, Trash2, Upload } from 'lucide-react'
 import { prescriptionTemplatePreview, removeSignature, uploadSignature } from '@/app/actions/doctor'
-import { Card } from '@/components/portal/ui'
+import { Panel, PanelHead, btnOutline, btnSmall } from './doc-ui'
 
 /**
  * The doctor's prescription template: their signature (printed on every prescription) and a sample PDF to check their
@@ -54,47 +54,42 @@ export function PrescriptionTemplate({ signatureUrl, registration }: { signature
     })
 
   return (
-    <Card>
-      <div className="flex items-center gap-2 text-fresh-teal mb-1">
-        <FileSignature className="w-5 h-5" />
-        <h2 className="font-title-md text-[16px] md:text-title-md text-on-surface font-semibold">Prescription Template</h2>
-      </div>
-      <p className="text-label-sm text-on-surface-variant mb-3">Your name, clinic, registration number and signature print on every prescription.</p>
-
-      <div className="p-3 rounded-xl bg-surface-container-low flex flex-col gap-2.5">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">Signature</span>
+    <Panel>
+      <PanelHead title="Prescription template" sub="Your name, clinic, registration number and signature print on every prescription." />
+      <div className="pt-3 border-t border-[#EEF2F7] flex flex-col gap-2.5">
+        <span className="text-[12px] font-extrabold tracking-[0.06em] text-[#5B667A]">SIGNATURE</span>
         {signatureUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- a short-lived signed link to a private file
-          <img src={signatureUrl} alt="Your signature" className="h-16 max-w-full object-contain object-left bg-white rounded-lg border border-outline-variant/40 p-1.5" />
+          <img src={signatureUrl} alt="Your signature" className="h-16 max-w-full object-contain object-left bg-white rounded-xl shadow-[inset_0_0_0_1px_#E6EAF0] p-1.5" />
         ) : (
-          <p className="text-[13px] text-on-surface-variant">No signature yet. Prescriptions show your name in its place until you add one.</p>
+          <p className="text-[13px] text-[#5B667A]">No signature yet. Prescriptions show your name in its place until you add one.</p>
         )}
         <div className="flex flex-wrap gap-2">
           <input ref={input} type="file" accept="image/png,image/jpeg" className="hidden" onChange={(e) => upload(e.target.files?.[0])} />
-          <button type="button" onClick={() => input.current?.click()} disabled={pending} className="px-3.5 py-2 rounded-full bg-surface-container-lowest border border-outline-variant/60 hover:border-vibrant-blue/50 text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60">
+          <button type="button" onClick={() => input.current?.click()} disabled={pending} className={`${btnSmall} disabled:opacity-60`}>
             {pending ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             {signatureUrl ? 'Replace signature' : 'Upload signature'}
           </button>
           {signatureUrl && (
-            <button type="button" onClick={remove} disabled={pending} className="px-3 py-2 rounded-full text-[13px] font-semibold text-error hover:bg-error-container/50 inline-flex items-center gap-1.5 disabled:opacity-60">
+            <button type="button" onClick={remove} disabled={pending} className="inline-flex items-center gap-1.5 h-[34px] px-3 rounded-[10px] text-[12.5px] font-extrabold text-[#B42318] hover:bg-[#FEF3F2] disabled:opacity-60">
               <Trash2 className="w-4 h-4" /> Remove
             </button>
           )}
         </div>
-        <span className="text-[11px] text-on-surface-variant">PNG or JPG, under 1 MB. Sign on white paper and photograph it, or use a transparent PNG.</span>
+        <span className="text-[11.5px] text-[#5B667A]">PNG or JPG, under 1 MB. Sign on white paper and photograph it, or use a transparent PNG.</span>
       </div>
 
-      {!registration && <p className="mt-3 p-2.5 rounded-lg bg-error-container/50 text-[12.5px] text-on-error-container">Add your registration number (Edit Public Profile → Registration) so it prints on your prescriptions.</p>}
+      {!registration && <p className="mt-3 p-2.5 rounded-xl bg-[#FFFAEB] text-[12.5px] font-bold text-[#B54708]">Add your registration number (Edit profile → Registration) so it prints on your prescriptions.</p>}
       {error && (
-        <p role="alert" className="mt-3 p-2.5 rounded-lg bg-error-container text-on-error-container text-[13px]">
+        <p role="alert" className="mt-3 p-2.5 rounded-xl bg-[#FEF3F2] text-[#B42318] text-[13px] font-bold">
           {error}
         </p>
       )}
 
-      <button type="button" onClick={preview} disabled={previewing} className="mt-3 w-full px-4 py-2.5 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary text-[13px] font-bold inline-flex items-center justify-center gap-2 disabled:opacity-60">
+      <button type="button" onClick={preview} disabled={previewing} className={`${btnOutline} lg:border w-full mt-3 disabled:opacity-60`}>
         {previewing ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
         Download a sample prescription
       </button>
-    </Card>
+    </Panel>
   )
 }

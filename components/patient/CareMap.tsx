@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, Marker, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
+import { TILE_URL } from "@/components/patient/map-tiles";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { LocateFixed, Minus, Plus } from "lucide-react";
@@ -249,8 +250,7 @@ export default function CareMap({
       <MapContainer center={INDIA} zoom={5} className="w-full h-full z-0" zoomControl={false} scrollWheelZoom={false} style={{ background: "#eef2f8" }}>
         <TileLayer
           attribution='&copy; Google Maps'
-          url="https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
-          subdomains={["mt0", "mt1", "mt2", "mt3"]}
+          url={TILE_URL}
           maxZoom={20}
           keepBuffer={6}
         />

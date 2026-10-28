@@ -13,6 +13,7 @@ import { IST, directionsHref, doctorName, firstName, formatTime, initials } from
 import { SPECIALITIES, specialityIcon } from "./specialities";
 import { VerifiedBadge } from "./ui";
 import type { HomeHospital } from "./types";
+import { RemoteImage } from "@/components/RemoteImage";
 
 export type PatientVisit = {
   id: string;
@@ -324,8 +325,7 @@ function NextAppointmentCard({ next }: { next: PatientVisit | null }) {
       </div>
       <div className="flex items-center gap-3">
         {next.doctorImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={next.doctorImage} alt="" className="w-[50px] h-[50px] rounded-xl object-cover object-top bg-[#EEF1F5]" />
+          <RemoteImage src={next.doctorImage} alt="" width={50} height={50} className="w-[50px] h-[50px] rounded-xl object-cover object-top bg-[#EEF1F5]" />
         ) : (
           <span className="w-[50px] h-[50px] rounded-xl bg-[#EEF3FF] text-[#2A4DD0] flex items-center justify-center text-[15px] font-extrabold">{initials(next.doctor) || <UserRound className="w-5 h-5" />}</span>
         )}

@@ -7,6 +7,7 @@ import { AccountCard, AccountPage } from '@/components/patient/AccountPage'
 import { btnPrimary } from '@/components/patient/app-ui'
 import { one } from '@/components/patient/data'
 import { doctorName, initials } from '@/components/patient/format'
+import { RemoteImage } from '@/components/RemoteImage'
 
 export const metadata: Metadata = { title: 'Your doctors & labs | Consult Your Doctor' }
 
@@ -63,8 +64,7 @@ export default async function SavedPage() {
             {[...doctors.values()].map((d) => (
               <div key={d.id} className={row}>
                 {d.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={d.image} alt="" className="shrink-0 w-11 h-11 rounded-xl object-cover object-top bg-[#EEF1F5]" />
+                  <RemoteImage src={d.image} alt="" width={44} height={44} className="shrink-0 w-11 h-11 rounded-xl object-cover object-top bg-[#EEF1F5]" />
                 ) : (
                   <span className="shrink-0 w-11 h-11 rounded-xl bg-[#EEF3FF] text-[#2A4DD0] flex items-center justify-center text-[13px] font-extrabold">{initials(d.name)}</span>
                 )}

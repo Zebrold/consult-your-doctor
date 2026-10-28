@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Activity, CalendarClock, ClipboardList, Copy, FilePenLine, FlaskConical, HeartPulse, LoaderCircle, MessageSquareText, Paperclip, Pill, Plus,
-  RotateCcw, Stethoscope, Trash2, TriangleAlert, X, type LucideIcon,
+  Activity, ArrowLeft, CalendarClock, Check, ClipboardList, Copy, FlaskConical, HeartPulse, LoaderCircle, MessageSquareText, Paperclip, Pill, Plus,
+  RotateCcw, Stethoscope, Trash2, TriangleAlert, type LucideIcon,
 } from 'lucide-react'
 import { addPrescription } from '@/app/actions/doctor'
 import { bmiCategory, bmiOf } from '@/lib/vitals'
@@ -53,15 +53,21 @@ const loadDraft = (id: string): Draft | null => {
   }
 }
 
-const field = 'w-full rounded-lg bg-surface-container-low border border-slate-200/90 px-3 py-2.5 text-[14px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-vibrant-blue/30 focus:border-vibrant-blue'
+const field =
+  'w-full rounded-[11px] bg-white border-[1.5px] border-[#D6DDE8] px-3 py-2.5 text-[14px] text-[#0B1B3F] placeholder:text-[#98A2B3] focus:outline-none focus:border-[#2A4DD0]'
+const chip = (on: boolean) =>
+  `h-[34px] px-3 rounded-full border-[1.5px] text-[12.5px] font-extrabold transition-colors ${
+    on ? 'bg-[#2A4DD0] border-[#2A4DD0] text-white' : 'bg-white border-[#D6DDE8] text-[#27324A] hover:border-[#2A4DD0] hover:text-[#2A4DD0]'
+  }`
+const label = 'text-[11.5px] font-extrabold text-[#5B667A]'
 const istToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
 const addDays = (days: number) => new Date(Date.now() + days * 86_400_000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
 
 /** Adds `chip` to a comma-separated list field, or takes it out if it's there. */
-function toggleItem(value: string, chip: string) {
+function toggleItem(value: string, item: string) {
   const items = listItems(value)
-  const has = items.some((i) => i.toLowerCase() === chip.toLowerCase())
-  return (has ? items.filter((i) => i.toLowerCase() !== chip.toLowerCase()) : [...items, chip]).join(', ')
+  const has = items.some((i) => i.toLowerCase() === item.toLowerCase())
+  return (has ? items.filter((i) => i.toLowerCase() !== item.toLowerCase()) : [...items, item]).join(', ')
 }
 
 /**
@@ -76,15 +82,17 @@ export function PrescriptionWriter({ visit, onClose }: { visit: WriterVisit; onC
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
   const [tab, setTab] = useState<'write' | 'preview'>('write')
+  const [sent, setSent] = useState(false)
   const firstField = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
+    if (sent) return
     try {
       localStorage.setItem(draftKey(visit.id), JSON.stringify(draft))
     } catch {
       // Storage blocked: the draft lasts until the writer closes.
     }
-  }, [draft, visit.id])
+  }, [draft, visit.id, sent])
 
   const closeRef = useRef(onClose)
   useEffect(() => {
@@ -141,240 +149,261 @@ export function PrescriptionWriter({ visit, onClose }: { visit: WriterVisit; onC
       } catch {
         // Nothing to clear.
       }
-      onClose()
+      setSent(true)
       router.refresh()
     })
   }
 
+  const booking = visit.id.slice(0, 8).toUpperCase()
+  const sendLabel = completing ? 'Sign & send' : 'Send update'
+
   return (
-    <div className="fixed inset-0 z-[90] bg-background flex flex-col" role="dialog" aria-modal="true" aria-label={`Prescription for ${visit.patientName}`}>
-      {/* Top bar */}
-      <header className="shrink-0 bg-surface-container-lowest border-b border-surface-container px-3 md:px-6 py-2.5 md:py-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="hidden sm:flex w-10 h-10 rounded-xl bg-primary-fixed text-primary items-center justify-center shrink-0">
-            <FilePenLine className="w-5 h-5" />
+    <div className="fixed inset-0 z-[90] bg-[#F6F8FC] text-[#0B1B3F] font-(family-name:--font-manrope) flex flex-col" role="dialog" aria-modal="true" aria-label={`Prescription for ${visit.patientName}`}>
+      {/* Header: the patient, and on desktops the actions */}
+      <header className="shrink-0 bg-[#2A4DD0] text-white rounded-b-[28px] lg:rounded-none px-3.5 lg:px-6 pt-[calc(env(safe-area-inset-top)+14px)] lg:pt-3 pb-5 lg:pb-3">
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={onClose} aria-label="Close (your draft is kept)" title="Close (your draft is kept)" className="shrink-0 w-11 h-11 rounded-full flex items-center justify-center hover:bg-white/10">
+            <ArrowLeft className="w-5 h-5" strokeWidth={2.4} />
+          </button>
+          <span className="flex-1 min-w-0">
+            <span className="block text-[16px] lg:text-[17px] font-extrabold truncate">{completing ? 'New prescription' : 'Update prescription'}</span>
+            <span className="hidden lg:block text-[12.5px] text-[#DCE6FF] truncate">
+              For <strong className="text-white">{visit.patientName}</strong> · Booking #{booking} · the PDF goes to the patient on WhatsApp and email
+              {completing ? ' and completes the visit' : ''}
+            </span>
           </span>
-          <div className="min-w-0">
-            <h2 className="font-title-md text-[16px] md:text-title-md font-bold text-indigo-gray-900 truncate">Prescription • {visit.patientName}</h2>
-            <p className="text-[12px] text-indigo-gray-600 truncate">
-              Booking #{visit.id.slice(0, 8).toUpperCase()} • PDF goes to the patient on WhatsApp and email{completing ? ' and completes the visit' : ''}
-            </p>
-          </div>
+          {!sent && (
+            <div className="hidden lg:flex items-center gap-2 shrink-0">
+              <button type="button" onClick={clear} className="h-10 px-3.5 rounded-[11px] text-[13.5px] font-extrabold hover:bg-white/10 inline-flex items-center gap-1.5">
+                <RotateCcw className="w-4 h-4" /> Clear
+              </button>
+              <button type="button" onClick={onClose} className="h-10 px-4 rounded-[11px] border border-white/40 text-[13.5px] font-extrabold hover:bg-white/10">
+                Save draft
+              </button>
+              <button type="button" onClick={submit} disabled={pending} className="h-10 px-4 rounded-[11px] bg-white text-[#2A4DD0] text-[13.5px] font-extrabold inline-flex items-center gap-2 hover:bg-white/90 disabled:opacity-60">
+                {pending && <LoaderCircle className="w-4 h-4 animate-spin" />}
+                {sendLabel}
+              </button>
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <button type="button" onClick={clear} className="hidden md:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[13px] font-semibold text-indigo-gray-600 hover:bg-surface-container">
-            <RotateCcw className="w-4 h-4" /> Clear
-          </button>
-          <button
-            type="button"
-            onClick={submit}
-            disabled={pending}
-            className="inline-flex items-center gap-2 px-4 md:px-5 py-2.5 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary text-[13px] md:text-sm font-bold disabled:opacity-60 shadow-sm"
-          >
-            {pending && <LoaderCircle className="w-4 h-4 animate-spin" />}
-            <span className="hidden sm:inline">{completing ? 'Save, Send PDF & Complete' : 'Save & Send PDF'}</span>
-            <span className="sm:hidden">Send</span>
-          </button>
-          <button type="button" onClick={onClose} aria-label="Close" title="Close (your draft is kept)" className="w-9 h-9 rounded-full bg-surface-container hover:bg-surface-variant flex items-center justify-center">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+        <p className="lg:hidden mt-2.5 mx-1.5 text-[13px] text-[#DCE6FF]">
+          For <strong className="text-white">{visit.patientName}</strong> · Booking #{booking}
+        </p>
+        <p className="lg:hidden mt-1 mx-1.5 text-[12.5px] font-bold">The PDF goes to the patient on WhatsApp and email{completing ? ' and completes the visit' : ''}.</p>
       </header>
 
-      {/* Phone: switch between writing and the preview */}
-      <div className="xl:hidden shrink-0 px-3 pt-2 flex gap-1.5" role="tablist">
-        {(['write', 'preview'] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            role="tab"
-            aria-selected={tab === t}
-            onClick={() => setTab(t)}
-            className={`flex-1 py-2 rounded-full text-[13px] font-semibold ${tab === t ? 'bg-vibrant-blue text-on-primary' : 'bg-surface-container text-on-surface'}`}
-          >
-            {t === 'write' ? 'Write' : 'Preview'}
-          </button>
-        ))}
-      </div>
-
-      {error && (
-        <p role="alert" className="mx-3 md:mx-6 mt-3 p-3 rounded-lg bg-error-container text-on-error-container text-sm flex items-start gap-2">
-          <TriangleAlert className="w-4 h-4 shrink-0 mt-0.5" /> {error}
-        </p>
-      )}
-
-      <div className="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(420px,520px)]">
-        {/* Writer */}
-        <div className={`${tab === 'write' ? 'block' : 'hidden'} xl:block min-h-0 overflow-y-auto`}>
-          <div className="max-w-4xl mx-auto px-3 md:px-6 py-4 md:py-6 flex flex-col gap-4">
-            {!completing && (
-              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-col gap-2">
-                <div className="flex items-center gap-2 text-amber-500 font-semibold text-[13px]">
-                  <RotateCcw className="w-4 h-4 shrink-0" />
-                  <span>Prescription Amendment (Traceable Audit History)</span>
-                </div>
-                <p className="text-[12px] text-indigo-gray-600">
-                  This visit already has an issued prescription. Changes will be safely logged with a permanent traceable amendment record.
-                </p>
-                <label className="flex flex-col gap-1 text-[12px]">
-                  <span className="font-semibold text-indigo-gray-700">Reason for Amendment:</span>
-                  <input
-                    type="text"
-                    value={amendmentReason}
-                    onChange={(e) => setAmendmentReason(e.target.value)}
-                    placeholder="e.g. Dose adjusted after patient report review"
-                    className={field}
-                  />
-                </label>
-              </div>
-            )}
-            <Block icon={HeartPulse} title="Vitals" hint="Measured at this visit">
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-                {(
-                  [
-                    ['bp', 'BP', 'mmHg', '120/80'],
-                    ['hr', 'Pulse', 'bpm', '72'],
-                    ['rr', 'Resp. rate', '/min', '16'],
-                    ['spo2', 'SpO2', '%', '98'],
-                    ['temp', 'Temp', '°F', '98.6'],
-                    ['weight', 'Weight', 'kg', '68'],
-                    ['height', 'Height', 'cm', '170'],
-                  ] as const
-                ).map(([key, label, unit, ph]) => (
-                  <label key={key} className="flex flex-col gap-1">
-                    <span className="text-[11px] font-semibold text-indigo-gray-600">
-                      {label} <span className="font-normal">({unit})</span>
-                    </span>
-                    <input value={draft.vitals[key]} onChange={(e) => set('vitals', { ...draft.vitals, [key]: e.target.value })} placeholder={ph} maxLength={20} className={field} />
-                  </label>
-                ))}
-              </div>
-              <p className="mt-2 text-[12px] text-indigo-gray-600" aria-live="polite">
-                BMI: <span className="font-bold text-indigo-gray-900">{bmi ? `${bmi} • ${bmiCategory(bmi)}` : 'worked out from weight and height'}</span>
-              </p>
-            </Block>
-
-            <Block icon={MessageSquareText} title="Chief complaints" hint="Tap to add, then add duration or details">
-              <Chips options={COMPLAINT_CHIPS} value={draft.complaints} onToggle={(c) => set('complaints', toggleItem(draft.complaints, c))} />
-              <textarea ref={firstField} value={draft.complaints} onChange={(e) => set('complaints', e.target.value)} rows={2} maxLength={2000} placeholder="e.g. Fever since 3 days, dry cough, body ache" className={`${field} mt-2 resize-y`} />
-            </Block>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Block icon={Activity} title="Clinical findings" hint="History and examination">
-                <textarea value={draft.findings} onChange={(e) => set('findings', e.target.value)} rows={4} maxLength={2000} placeholder="e.g. Throat congested, chest clear, no lymphadenopathy" className={`${field} resize-y`} />
-              </Block>
-              <Block icon={Stethoscope} title="Diagnosis" hint="Provisional or final">
-                <textarea value={draft.diagnosis} onChange={(e) => set('diagnosis', e.target.value)} rows={2} maxLength={2000} placeholder="e.g. Acute viral pharyngitis" className={`${field} resize-y`} />
-                <label className="mt-2 flex flex-col gap-1">
-                  <span className="text-[11px] font-semibold text-error">Allergies</span>
-                  <input value={draft.allergy} onChange={(e) => set('allergy', e.target.value)} maxLength={300} placeholder="e.g. Penicillin, sulfa drugs (or leave blank)" className={field} />
-                </label>
-              </Block>
-            </div>
-
-            <Block
-              icon={Pill}
-              title="Medicines (Rx)"
-              hint={`${meds.length} ${meds.length === 1 ? 'medicine' : 'medicines'}`}
-              action={
-                <button type="button" onClick={() => set('medicines', [...draft.medicines, blankMedicine()])} disabled={draft.medicines.length >= 30} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-primary-fixed/60 text-primary text-[13px] font-bold hover:bg-primary-fixed disabled:opacity-50">
-                  <Plus className="w-4 h-4" /> Add medicine
-                </button>
-              }
-            >
-              <datalist id="rx-medicines">
-                {COMMON_MEDICINES.map((m) => (
-                  <option key={m} value={m} />
-                ))}
-              </datalist>
-              <ol className="flex flex-col gap-3">
-                {draft.medicines.map((m, i) => (
-                  <MedicineRow
-                    key={i}
-                    index={i}
-                    medicine={m}
-                    onChange={(patch) => setMed(i, patch)}
-                    onCopy={() => setDraft((d) => ({ ...d, medicines: [...d.medicines.slice(0, i + 1), { ...m }, ...d.medicines.slice(i + 1)] }))}
-                    onRemove={() => setDraft((d) => ({ ...d, medicines: d.medicines.length > 1 ? d.medicines.filter((_, j) => j !== i) : [blankMedicine()] }))}
-                  />
-                ))}
-              </ol>
-            </Block>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Block icon={FlaskConical} title="Investigations advised" hint="Tests to do">
-                <Chips options={TEST_CHIPS} value={draft.investigations} onToggle={(c) => set('investigations', toggleItem(draft.investigations, c))} />
-                <textarea value={draft.investigations} onChange={(e) => set('investigations', e.target.value)} rows={2} maxLength={2000} placeholder="Comma or new line between tests" className={`${field} mt-2 resize-y`} />
-              </Block>
-              <Block icon={ClipboardList} title="Advice" hint="Diet, rest and care at home">
-                <Chips options={ADVICE_CHIPS} value={draft.advice} onToggle={(c) => set('advice', toggleItem(draft.advice, c))} />
-                <textarea value={draft.advice} onChange={(e) => set('advice', e.target.value)} rows={2} maxLength={3000} placeholder="One piece of advice per line" className={`${field} mt-2 resize-y`} />
-              </Block>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Block icon={CalendarClock} title="Follow-up" hint="When to come back">
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {FOLLOW_UPS.map((f) => {
-                    const date = addDays(f.days)
-                    return (
-                      <button
-                        key={f.label}
-                        type="button"
-                        onClick={() => set('followUp', draft.followUp === date ? '' : date)}
-                        className={`px-3 py-1.5 rounded-full text-[12.5px] font-semibold border transition-all ${
-                          draft.followUp === date
-                            ? 'bg-vibrant-blue text-white border-vibrant-blue shadow-xs'
-                            : 'bg-white text-slate-800 border-slate-300 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50/40'
-                        }`}
-                      >
-                        After {f.label}
-                      </button>
-                    )
-                  })}
-                </div>
-                <input type="date" min={istToday()} value={draft.followUp} onChange={(e) => set('followUp', e.target.value)} className={field} />
-              </Block>
-              <Block icon={Paperclip} title="Referral & attachment" hint="Optional">
-                <input value={draft.referral} onChange={(e) => set('referral', e.target.value)} maxLength={300} placeholder="Refer to, e.g. Cardiologist for 2D Echo review" className={field} />
-                <label className="mt-2 flex flex-col gap-1">
-                  <span className="text-[11px] font-semibold text-indigo-gray-600">Attach a document (PDF or image, up to 5 MB)</span>
-                  <input
-                    type="file"
-                    accept="application/pdf,image/jpeg,image/png,image/webp"
-                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                    className="block w-full text-sm text-indigo-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-surface-container-high file:text-primary"
-                  />
-                </label>
-              </Block>
-            </div>
-            <p className="text-[12px] text-indigo-gray-600 pb-6">Your draft is saved in this browser as you type. It’s cleared once the prescription is sent.</p>
-          </div>
+      {sent ? (
+        <div className="flex-1 overflow-y-auto px-4 py-6">
+          <section className="max-w-md mx-auto rounded-[18px] bg-white shadow-[0_0_0_1px_#E6EBF3] px-5 py-7 text-center">
+            <span className="inline-flex w-[52px] h-[52px] rounded-full bg-[#ECFDF3] items-center justify-center">
+              <Check className="w-[26px] h-[26px] text-[#067647]" strokeWidth={2.6} />
+            </span>
+            <h2 className="mt-3 mb-1 text-[18px] font-extrabold">{completing ? 'Prescription sent' : 'Update sent'}</h2>
+            <p className="text-[13px] leading-normal text-[#5B667A]">{visit.patientName} can see it in their account, and the PDF is on its way to them on WhatsApp and email.</p>
+            <button type="button" onClick={onClose} className="mt-[18px] w-full h-[42px] rounded-[11px] bg-[#2A4DD0] hover:bg-[#2443B8] text-white text-[13.5px] font-extrabold">
+              Done
+            </button>
+          </section>
         </div>
-
-        {/* Live preview */}
-        <aside className={`${tab === 'preview' ? 'block' : 'hidden'} xl:block min-h-0 overflow-y-auto bg-surface-container-low xl:border-l border-surface-container`}>
-          <div className="p-3 md:p-6">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-gray-600 mb-2">Preview • the PDF adds your letterhead, registration and signature</p>
-            <Preview draft={draft} patientName={visit.patientName} code={visit.id.slice(0, 8).toUpperCase()} />
+      ) : (
+        <>
+          {/* Phones and tablets: switch between writing and the preview */}
+          <div className="xl:hidden shrink-0 px-4 lg:px-6 pt-3.5">
+            <div role="tablist" className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-white shadow-[inset_0_0_0_1px_#E6EAF0] lg:max-w-xs">
+              {(['write', 'preview'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === t}
+                  onClick={() => setTab(t)}
+                  className={`h-[34px] rounded-[9px] text-[13px] font-extrabold ${tab === t ? 'bg-[#2A4DD0] text-white' : 'text-[#5B667A]'}`}
+                >
+                  {t === 'write' ? 'Write' : 'Preview'}
+                </button>
+              ))}
+            </div>
           </div>
-        </aside>
-      </div>
+
+          {error && (
+            <p role="alert" className="mx-4 lg:mx-6 mt-3 p-3 rounded-xl bg-[#FEF3F2] text-[#B42318] text-[13px] font-bold flex items-start gap-2">
+              <TriangleAlert className="w-4 h-4 shrink-0 mt-0.5" /> {error}
+            </p>
+          )}
+
+          <div className="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(420px,520px)]">
+            {/* Writer */}
+            <div className={`${tab === 'write' ? 'block' : 'hidden'} xl:block min-h-0 overflow-y-auto`}>
+              <div className="max-w-4xl mx-auto px-4 lg:px-6 py-3.5 lg:py-6 flex flex-col gap-3.5 lg:gap-4">
+                {!completing && (
+                  <div className="p-3.5 rounded-[14px] bg-[#FFFAEB] shadow-[inset_0_0_0_1px_#FEDF89] flex flex-col gap-2">
+                    <p className="flex items-center gap-2 text-[#B54708] font-extrabold text-[13px]">
+                      <RotateCcw className="w-4 h-4 shrink-0" /> Amending a sent prescription
+                    </p>
+                    <p className="text-[12.5px] text-[#5B667A]">This visit already has a prescription. Your changes are kept with a permanent record of the amendment.</p>
+                    <label className="flex flex-col gap-1">
+                      <span className={label}>Reason for the amendment</span>
+                      <input type="text" value={amendmentReason} onChange={(e) => setAmendmentReason(e.target.value)} placeholder="e.g. Dose adjusted after patient report review" className={field} />
+                    </label>
+                  </div>
+                )}
+
+                <Block icon={Stethoscope} title="Diagnosis" hint="Provisional or final">
+                  <textarea ref={firstField} value={draft.diagnosis} onChange={(e) => set('diagnosis', e.target.value)} rows={2} maxLength={2000} placeholder="e.g. Acute viral pharyngitis" className={`${field} resize-y`} />
+                  <label className="mt-2.5 flex flex-col gap-1">
+                    <span className="text-[11.5px] font-extrabold text-[#B42318]">Allergies</span>
+                    <input value={draft.allergy} onChange={(e) => set('allergy', e.target.value)} maxLength={300} placeholder="e.g. Penicillin, sulfa drugs (or leave blank)" className={field} />
+                  </label>
+                </Block>
+
+                <Block
+                  icon={Pill}
+                  title="Medicines"
+                  hint={`${meds.length} ${meds.length === 1 ? 'medicine' : 'medicines'}`}
+                  action={
+                    <button
+                      type="button"
+                      onClick={() => set('medicines', [...draft.medicines, blankMedicine()])}
+                      disabled={draft.medicines.length >= 30}
+                      className="shrink-0 inline-flex items-center gap-1 h-[34px] px-3 rounded-[10px] border-[1.5px] border-dashed border-[#C9D5F2] bg-white text-[#2A4DD0] text-[12.5px] font-extrabold hover:bg-[#EEF3FF] disabled:opacity-50"
+                    >
+                      <Plus className="w-[13px] h-[13px]" strokeWidth={2.6} /> Add medicine
+                    </button>
+                  }
+                >
+                  <datalist id="rx-medicines">
+                    {COMMON_MEDICINES.map((m) => (
+                      <option key={m} value={m} />
+                    ))}
+                  </datalist>
+                  <ol className="flex flex-col gap-3">
+                    {draft.medicines.map((m, i) => (
+                      <MedicineRow
+                        key={i}
+                        index={i}
+                        medicine={m}
+                        onChange={(patch) => setMed(i, patch)}
+                        onCopy={() => setDraft((d) => ({ ...d, medicines: [...d.medicines.slice(0, i + 1), { ...m }, ...d.medicines.slice(i + 1)] }))}
+                        onRemove={() => setDraft((d) => ({ ...d, medicines: d.medicines.length > 1 ? d.medicines.filter((_, j) => j !== i) : [blankMedicine()] }))}
+                      />
+                    ))}
+                  </ol>
+                </Block>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 lg:gap-4">
+                  <Block icon={MessageSquareText} title="Chief complaints" hint="Tap to add, then add duration or details">
+                    <Chips options={COMPLAINT_CHIPS} value={draft.complaints} onToggle={(c) => set('complaints', toggleItem(draft.complaints, c))} />
+                    <textarea value={draft.complaints} onChange={(e) => set('complaints', e.target.value)} rows={2} maxLength={2000} placeholder="e.g. Fever since 3 days, dry cough, body ache" className={`${field} mt-2.5 resize-y`} />
+                  </Block>
+                  <Block icon={Activity} title="Clinical findings" hint="History and examination">
+                    <textarea value={draft.findings} onChange={(e) => set('findings', e.target.value)} rows={4} maxLength={2000} placeholder="e.g. Throat congested, chest clear, no lymphadenopathy" className={`${field} resize-y`} />
+                  </Block>
+                </div>
+
+                <Block icon={HeartPulse} title="Vitals" hint="Measured at this visit">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+                    {(
+                      [
+                        ['bp', 'BP', 'mmHg', '120/80'],
+                        ['hr', 'Pulse', 'bpm', '72'],
+                        ['rr', 'Resp. rate', '/min', '16'],
+                        ['spo2', 'SpO₂', '%', '98'],
+                        ['temp', 'Temp', '°F', '98.6'],
+                        ['weight', 'Weight', 'kg', '68'],
+                        ['height', 'Height', 'cm', '170'],
+                      ] as const
+                    ).map(([key, name, unit, ph]) => (
+                      <label key={key} className="flex flex-col gap-1">
+                        <span className={label}>
+                          {name} <span className="font-bold">({unit})</span>
+                        </span>
+                        <input value={draft.vitals[key]} onChange={(e) => set('vitals', { ...draft.vitals, [key]: e.target.value })} placeholder={ph} maxLength={20} className={field} />
+                      </label>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-[12.5px] text-[#5B667A]" aria-live="polite">
+                    BMI: <span className="font-extrabold text-[#0B1B3F]">{bmi ? `${bmi} · ${bmiCategory(bmi)}` : 'worked out from weight and height'}</span>
+                  </p>
+                </Block>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 lg:gap-4">
+                  <Block icon={FlaskConical} title="Tests advised" hint="Tests to do">
+                    <Chips options={TEST_CHIPS} value={draft.investigations} onToggle={(c) => set('investigations', toggleItem(draft.investigations, c))} />
+                    <textarea value={draft.investigations} onChange={(e) => set('investigations', e.target.value)} rows={2} maxLength={2000} placeholder="Comma or new line between tests" className={`${field} mt-2.5 resize-y`} />
+                  </Block>
+                  <Block icon={ClipboardList} title="Advice" hint="Diet, rest and care at home">
+                    <Chips options={ADVICE_CHIPS} value={draft.advice} onToggle={(c) => set('advice', toggleItem(draft.advice, c))} />
+                    <textarea value={draft.advice} onChange={(e) => set('advice', e.target.value)} rows={2} maxLength={3000} placeholder="One piece of advice per line" className={`${field} mt-2.5 resize-y`} />
+                  </Block>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 lg:gap-4">
+                  <Block icon={CalendarClock} title="Follow-up" hint="When to come back">
+                    <div role="radiogroup" aria-label="Follow-up" className="flex flex-wrap gap-2 mb-2.5">
+                      {FOLLOW_UPS.map((f) => {
+                        const date = addDays(f.days)
+                        const on = draft.followUp === date
+                        return (
+                          <button key={f.label} type="button" role="radio" aria-checked={on} onClick={() => set('followUp', on ? '' : date)} className={chip(on)}>
+                            {f.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <input type="date" min={istToday()} value={draft.followUp} onChange={(e) => set('followUp', e.target.value)} aria-label="Follow-up date" className={field} />
+                  </Block>
+                  <Block icon={Paperclip} title="Referral & attachment" hint="Optional">
+                    <input value={draft.referral} onChange={(e) => set('referral', e.target.value)} maxLength={300} placeholder="Refer to, e.g. Cardiologist for 2D Echo review" className={field} />
+                    <label className="mt-2.5 flex flex-col gap-1">
+                      <span className={label}>Attach a document (PDF or image, up to 5 MB)</span>
+                      <input
+                        type="file"
+                        accept="application/pdf,image/jpeg,image/png,image/webp"
+                        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                        className="block w-full text-[13px] text-[#5B667A] file:mr-3 file:h-[34px] file:px-3.5 file:rounded-[10px] file:border-0 file:font-extrabold file:bg-[#EEF3FF] file:text-[#2A4DD0]"
+                      />
+                    </label>
+                  </Block>
+                </div>
+                <p className="text-[12px] text-[#5B667A] pb-4 lg:pb-6">Your draft is saved in this browser as you type. It’s cleared once the prescription is sent.</p>
+              </div>
+            </div>
+
+            {/* Live preview */}
+            <aside className={`${tab === 'preview' ? 'block' : 'hidden'} xl:block min-h-0 overflow-y-auto bg-[#EEF2F7] xl:border-l border-[#E6EAF0]`}>
+              <div className="p-4 lg:p-6">
+                <p className="text-[11.5px] font-extrabold uppercase tracking-[0.06em] text-[#5B667A] mb-2">Preview · the PDF adds your letterhead, registration and signature</p>
+                <Preview draft={draft} patientName={visit.patientName} code={booking} />
+              </div>
+            </aside>
+          </div>
+
+          {/* Phones and tablets: save or send, always in reach */}
+          <div className="lg:hidden shrink-0 grid grid-cols-[1fr_1.6fr] gap-2.5 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] bg-white border-t border-[#E6EBF3] shadow-[0_-8px_20px_rgba(11,27,63,0.06)]">
+            <button type="button" onClick={onClose} className="h-12 rounded-[11px] border-[1.5px] border-[#D6DDE8] bg-white text-[13.5px] font-extrabold text-[#27324A]">
+              Save draft
+            </button>
+            <button type="button" onClick={submit} disabled={pending} className="h-12 rounded-[11px] bg-[#2A4DD0] text-white text-[13.5px] font-extrabold inline-flex items-center justify-center gap-2 disabled:opacity-60">
+              {pending && <LoaderCircle className="w-4 h-4 animate-spin" />}
+              {sendLabel}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }
 
 function Block({ icon: Icon, title, hint, action, children }: { icon: LucideIcon; title: string; hint?: string; action?: ReactNode; children: ReactNode }) {
   return (
-    <section className="bg-surface-container-lowest rounded-2xl p-4 md:p-5 shadow-sm border border-surface-container">
+    <section className="rounded-[18px] lg:rounded-2xl bg-white shadow-[0_0_0_1px_#E6EBF3] lg:shadow-[0_0_0_1px_#E6EAF0,0_1px_2px_rgba(11,27,63,0.04)] p-4 lg:p-5">
       <div className="flex items-center justify-between gap-3 mb-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-8 h-8 rounded-lg bg-primary-fixed/50 text-primary flex items-center justify-center shrink-0">
-            <Icon className="w-[18px] h-[18px]" />
-          </span>
+          <Icon aria-hidden className="w-[18px] h-[18px] text-[#2A4DD0] shrink-0" />
           <div className="min-w-0">
-            <h3 className="font-title-md text-[15px] font-bold text-indigo-gray-900">{title}</h3>
-            {hint && <p className="text-[11.5px] text-indigo-gray-600 truncate">{hint}</p>}
+            <h3 className="text-[16px] font-extrabold">{title}</h3>
+            {hint && <p className="text-[12.5px] text-[#5B667A] truncate">{hint}</p>}
           </div>
         </div>
         {action}
@@ -384,24 +413,14 @@ function Block({ icon: Icon, title, hint, action, children }: { icon: LucideIcon
   )
 }
 
-function Chips({ options, value, onToggle }: { options: string[]; value: string; onToggle: (chip: string) => void }) {
+function Chips({ options, value, onToggle }: { options: string[]; value: string; onToggle: (item: string) => void }) {
   const chosen = new Set(listItems(value).map((i) => i.toLowerCase()))
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-2">
       {options.map((o) => {
         const on = chosen.has(o.toLowerCase())
         return (
-          <button
-            key={o}
-            type="button"
-            aria-pressed={on}
-            onClick={() => onToggle(o)}
-            className={`px-2.5 py-1 rounded-full text-[12px] font-semibold border transition-all ${
-              on
-                ? 'bg-vibrant-blue text-white border-vibrant-blue shadow-xs'
-                : 'bg-white text-slate-800 border-slate-300 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50/40'
-            }`}
-          >
+          <button key={o} type="button" aria-pressed={on} onClick={() => onToggle(o)} className={chip(on)}>
             {o}
           </button>
         )
@@ -418,21 +437,21 @@ function MedicineRow({ index, medicine: m, onChange, onCopy, onRemove }: { index
   const setDuration = (value: string, u: string) => onChange({ duration: value && u ? `${value} ${Number(value) === 1 ? u.replace(/s$/, '') : u}` : value })
 
   return (
-    <li className="p-3 rounded-xl bg-surface-container-low flex flex-col gap-2.5">
+    <li className="pt-3 border-t border-[#EEF2F7] first:border-t-0 first:pt-0 flex flex-col gap-2.5">
       <div className="flex items-center justify-between gap-2">
-        <span className="w-6 h-6 rounded-full bg-vibrant-blue text-on-primary text-[12px] font-bold flex items-center justify-center">{index + 1}</span>
+        <span className="w-6 h-6 rounded-full bg-[#2A4DD0] text-white text-[12px] font-extrabold flex items-center justify-center">{index + 1}</span>
         <span className="flex items-center gap-1">
-          <button type="button" onClick={onCopy} title="Duplicate" aria-label="Duplicate medicine" className="p-1.5 rounded-full hover:bg-surface-container text-indigo-gray-600">
+          <button type="button" onClick={onCopy} title="Duplicate" aria-label="Duplicate medicine" className="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center hover:bg-[#F4F6FA] text-[#5B667A]">
             <Copy className="w-4 h-4" />
           </button>
-          <button type="button" onClick={onRemove} title="Remove" aria-label="Remove medicine" className="p-1.5 rounded-full hover:bg-error-container/50 text-error">
+          <button type="button" onClick={onRemove} title="Remove" aria-label="Remove medicine" className="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center hover:bg-[#FEF3F2] text-[#B42318]">
             <Trash2 className="w-4 h-4" />
           </button>
         </span>
       </div>
       <div className="grid grid-cols-12 gap-2">
         <label className="col-span-4 sm:col-span-2 flex flex-col gap-1">
-          <span className="text-[11px] font-semibold text-indigo-gray-600">Type</span>
+          <span className={label}>Type</span>
           <select value={m.form} onChange={(e) => onChange({ form: e.target.value as Medicine['form'] })} className={field}>
             {MED_FORMS.map((f) => (
               <option key={f}>{f}</option>
@@ -440,30 +459,30 @@ function MedicineRow({ index, medicine: m, onChange, onCopy, onRemove }: { index
           </select>
         </label>
         <label className="col-span-8 sm:col-span-4 flex flex-col gap-1">
-          <span className="text-[11px] font-semibold text-indigo-gray-600">Medicine name and strength</span>
+          <span className={label}>Medicine name and strength</span>
           <input value={m.name} onChange={(e) => onChange({ name: e.target.value })} list="rx-medicines" maxLength={120} placeholder="e.g. Dolo 650" className={field} />
         </label>
         <label className="col-span-6 sm:col-span-3 flex flex-col gap-1">
-          <span className="text-[11px] font-semibold text-indigo-gray-600">Generic name</span>
+          <span className={label}>Generic name</span>
           <input value={m.generic} onChange={(e) => onChange({ generic: e.target.value })} maxLength={120} placeholder="e.g. Paracetamol" className={field} />
         </label>
         <label className="col-span-6 sm:col-span-3 flex flex-col gap-1">
-          <span className="text-[11px] font-semibold text-indigo-gray-600">Dose</span>
+          <span className={label}>Dose</span>
           <input value={m.dose} onChange={(e) => onChange({ dose: e.target.value })} maxLength={40} placeholder="1 tablet / 5 ml" className={field} />
         </label>
         <label className="col-span-6 sm:col-span-4 flex flex-col gap-1">
-          <span className="text-[11px] font-semibold text-indigo-gray-600">Frequency</span>
+          <span className={label}>Frequency</span>
           <select value={FREQUENCIES.some((f) => f.value === m.frequency) ? m.frequency : ''} onChange={(e) => onChange({ frequency: e.target.value })} className={field}>
             <option value="">Choose</option>
             {FREQUENCIES.map((f) => (
               <option key={f.value} value={f.value}>
-                {f.value} • {f.label}
+                {f.value} · {f.label}
               </option>
             ))}
           </select>
         </label>
         <label className="col-span-6 sm:col-span-3 flex flex-col gap-1">
-          <span className="text-[11px] font-semibold text-indigo-gray-600">When</span>
+          <span className={label}>When</span>
           <select value={m.timing} onChange={(e) => onChange({ timing: e.target.value })} className={field}>
             {TIMINGS.map((t) => (
               <option key={t}>{t}</option>
@@ -471,7 +490,7 @@ function MedicineRow({ index, medicine: m, onChange, onCopy, onRemove }: { index
           </select>
         </label>
         <div className="col-span-12 sm:col-span-5 flex flex-col gap-1">
-          <span className="text-[11px] font-semibold text-indigo-gray-600">Duration</span>
+          <span className={label}>Duration</span>
           <div className="flex gap-2">
             <input
               value={amount}
@@ -489,10 +508,8 @@ function MedicineRow({ index, medicine: m, onChange, onCopy, onRemove }: { index
             <button
               type="button"
               onClick={() => onChange({ duration: 'Continue' })}
-              className={`px-3 rounded-lg text-[12px] font-semibold shrink-0 transition-colors ${
-                m.duration === 'Continue'
-                  ? 'bg-vibrant-blue text-white shadow-xs'
-                  : 'bg-white text-slate-800 border border-slate-300 hover:bg-slate-100 hover:text-slate-900'
+              className={`px-3 rounded-[11px] border-[1.5px] text-[12.5px] font-extrabold shrink-0 transition-colors ${
+                m.duration === 'Continue' ? 'bg-[#2A4DD0] border-[#2A4DD0] text-white' : 'bg-white border-[#D6DDE8] text-[#27324A] hover:border-[#2A4DD0]'
               }`}
             >
               Continue
@@ -500,7 +517,7 @@ function MedicineRow({ index, medicine: m, onChange, onCopy, onRemove }: { index
           </div>
         </div>
         <label className="col-span-12 flex flex-col gap-1">
-          <span className="text-[11px] font-semibold text-indigo-gray-600">Instructions (optional)</span>
+          <span className={label}>Instructions (optional)</span>
           <input value={m.instructions} onChange={(e) => onChange({ instructions: e.target.value })} maxLength={200} placeholder="e.g. Stop if fever settles; dissolve in water" className={field} />
         </label>
       </div>
@@ -530,24 +547,24 @@ function Preview({ draft, patientName, code }: { draft: Draft; patientName: stri
   const symptoms = listItems(draft.complaints)
   const tests = listItems(draft.investigations)
   const notes = listItems(draft.advice)
-  const heading = (t: string) => <p className="text-[10.5px] font-bold uppercase tracking-wide text-on-surface">{t}:</p>
+  const heading = (t: string) => <p className="text-[10.5px] font-bold uppercase tracking-wide">{t}:</p>
   const cell = 'border border-sky-400/70 px-1.5 py-1 align-middle'
 
   return (
-    <div className="bg-white text-on-surface rounded-lg shadow-[0_4px_20px_rgba(15,23,42,0.12)] p-5 flex flex-col gap-3 min-h-[600px]">
-      <div className="border-b border-outline pb-2 flex items-start justify-between gap-2">
-        <p className="text-[15px] font-bold text-on-surface flex items-center gap-1.5">
-          <Stethoscope className="w-5 h-5 text-vibrant-blue" /> Consult Your Doctor
+    <div className="bg-white text-[#0B1B3F] rounded-lg shadow-[0_4px_20px_rgba(15,23,42,0.12)] p-5 flex flex-col gap-3 min-h-[600px]">
+      <div className="border-b border-[#98A2B3] pb-2 flex items-start justify-between gap-2">
+        <p className="text-[15px] font-bold flex items-center gap-1.5">
+          <Stethoscope className="w-5 h-5 text-[#2A4DD0]" /> Consult Your Doctor
         </p>
         <div className="text-right">
           <p className="text-[11.5px] font-bold">Your name</p>
-          <p className="text-[10px] text-indigo-gray-600">Hospital and address • Reg. No.</p>
+          <p className="text-[10px] text-[#5B667A]">Hospital and address · Reg. No.</p>
         </div>
       </div>
       <div className="grid grid-cols-3 border border-sky-400/70 text-[10.5px]">
-        {grid.map(([label, value]) => (
-          <div key={label} className="border border-sky-400/40 px-1.5 py-1 min-w-0">
-            <p className="font-bold text-[9px]">{label}</p>
+        {grid.map(([name, value]) => (
+          <div key={name} className="border border-sky-400/40 px-1.5 py-1 min-w-0">
+            <p className="font-bold text-[9px]">{name}</p>
             <p className="truncate">{value}</p>
           </div>
         ))}
@@ -582,7 +599,7 @@ function Preview({ draft, patientName, code }: { draft: Draft; patientName: stri
           </tbody>
         </table>
       ) : (
-        <p className="text-[12px] text-indigo-gray-600 text-center">Medicines you add appear in the table here.</p>
+        <p className="text-[12px] text-[#5B667A] text-center">Medicines you add appear in the table here.</p>
       )}
       {symptoms.length > 0 && (
         <div>
@@ -603,9 +620,9 @@ function Preview({ draft, patientName, code }: { draft: Draft; patientName: stri
       {observed.length > 0 && (
         <div>
           {heading('Vital observation')}
-          {observed.map(([label, value]) => (
-            <p key={label} className="text-[12px]">
-              <span className="font-bold">{label}</span>: {value}
+          {observed.map(([name, value]) => (
+            <p key={name} className="text-[12px]">
+              <span className="font-bold">{name}</span>: {value}
             </p>
           ))}
         </div>
@@ -613,7 +630,7 @@ function Preview({ draft, patientName, code }: { draft: Draft; patientName: stri
       {draft.allergy.trim() && (
         <div>
           {heading('Allergies')}
-          <p className="text-[12px] font-bold text-error">{draft.allergy}</p>
+          <p className="text-[12px] font-bold text-[#B42318]">{draft.allergy}</p>
         </div>
       )}
       {tests.length > 0 && (
@@ -632,7 +649,7 @@ function Preview({ draft, patientName, code }: { draft: Draft; patientName: stri
           {notes.map((n) => (
             <li key={n}>{n}</li>
           ))}
-          <li className="text-indigo-gray-600">The standard medicine-use notes are printed after these.</li>
+          <li className="text-[#5B667A]">The standard medicine-use notes are printed after these.</li>
         </ul>
       </div>
       <div>
@@ -643,11 +660,11 @@ function Preview({ draft, patientName, code }: { draft: Draft; patientName: stri
             {new Date(`${draft.followUp}T12:00:00+05:30`).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         )}
-        <p className="text-[11.5px] text-indigo-gray-600">Zebrold AI follows up with the patient for 12 days after the consultation.</p>
+        <p className="text-[11.5px] text-[#5B667A]">Zebrold AI follows up with the patient for 12 days after the consultation.</p>
       </div>
-      <div className="mt-auto pt-4 flex items-end justify-between gap-3 text-[10px] text-indigo-gray-600">
-        <span className="border-t border-on-surface pt-1 w-40">Doctor’s signature and stamp</span>
-        <span>Booking #{code} • RX number and barcode added on save</span>
+      <div className="mt-auto pt-4 flex items-end justify-between gap-3 text-[10px] text-[#5B667A]">
+        <span className="border-t border-[#0B1B3F] pt-1 w-40">Doctor’s signature and stamp</span>
+        <span>Booking #{code} · RX number and barcode added on save</span>
       </div>
     </div>
   )

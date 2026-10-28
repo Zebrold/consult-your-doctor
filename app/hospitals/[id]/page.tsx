@@ -16,6 +16,7 @@ import { HospitalBooking, HeroButtons, type HospitalDoctor } from '@/components/
 import { Dots, btnOutline, card } from '@/components/patient/app-ui'
 import { currentTime, one } from '@/components/patient/data'
 import { directionsHref, formatINR } from '@/components/patient/format'
+import { RemoteImage } from '@/components/RemoteImage'
 
 export const revalidate = 0
 
@@ -134,8 +135,7 @@ export default async function HospitalProfilePage(props: { params: Promise<{ id:
   }
 
   const photo = hospital.image_url ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={hospital.image_url} alt={`Exterior of ${hospital.name}`} className="w-full h-full object-cover" />
+    <RemoteImage src={hospital.image_url} alt={`Exterior of ${hospital.name}`} fill sizes="(min-width: 1024px) 1000px, 100vw" load="first" className="object-cover" />
   ) : (
     <span className="w-full h-full flex items-center justify-center bg-[linear-gradient(160deg,#EAF1FF,#D3E0FF)] text-[#2A4DD0]">
       <Building2 className="w-20 h-20" strokeWidth={1.3} />

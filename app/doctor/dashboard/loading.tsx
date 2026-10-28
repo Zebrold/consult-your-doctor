@@ -1,5 +1,5 @@
-import { PortalPageSkeleton } from '@/components/PageSkeleton'
+import { DoctorSkeleton } from '../_components/DoctorSkeleton'
 
 export default function Loading() {
-  return <PortalPageSkeleton />
+  return <DoctorSkeleton />
 }

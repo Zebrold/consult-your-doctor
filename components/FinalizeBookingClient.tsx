@@ -13,6 +13,7 @@ import { finalizeConsultationAppointment } from "@/app/actions/booking";
 import { startPayuPayment } from "@/lib/payu-client";
 import { appendPatientDetails, DayStrip, FormError, PayuNote, patientDetailsError, RefundNote, type PatientDetails } from "@/components/patient/booking-ui";
 import { directionsHref, doctorName, formatINR, formatLongDate, formatSlot, formatTime, initials, isMorning, istDateKey, upcomingDays } from "@/components/patient/format";
+import { RemoteImage } from "@/components/RemoteImage";
 
 export interface BookingDoctor {
   id: string;
@@ -156,8 +157,7 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, bo
               <section className={`p-4 lg:p-[22px] ${card} rounded-[20px]! lg:rounded-2xl!`}>
                 <div className="flex items-center gap-3.5">
                   {doctor.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={doctor.image} alt={name} className="shrink-0 w-[72px] h-[78px] lg:w-24 lg:h-24 rounded-[14px] object-cover object-top bg-[#EEF1F5]" />
+                    <RemoteImage src={doctor.image} alt={name} width={96} height={96} load="first" className="shrink-0 w-[72px] h-[78px] lg:w-24 lg:h-24 rounded-[14px] object-cover object-top bg-[#EEF1F5]" />
                   ) : (
                     <span className="shrink-0 w-[72px] h-[78px] lg:w-24 lg:h-24 rounded-[14px] bg-[#EEF3FF] text-[#2A4DD0] flex items-center justify-center text-[22px] font-extrabold">{initials(doctor.name)}</span>
                   )}

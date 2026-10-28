@@ -56,7 +56,12 @@ const nextConfig: NextConfig = {
       { source: '/privacy', destination: '/privacy-policy', permanent: true },
     ]
   },
+  // Not experimental.inlineCss: tried 2026-10-28, it put the ~210 KB stylesheet in every page three times (a <style>
+  // tag plus two copies in the RSC payload), ~45 KB brotli more per page view than the cached stylesheet file.
   images: {
+    // Uploaded photos get a new file name every time (doctors/<id>-<timestamp>.jpg), so a resized copy never goes
+    // stale: keep it for 31 days instead of the default 4 hours.
+    minimumCacheTTL: 2678400,
     remotePatterns: [
       {
         protocol: 'https',

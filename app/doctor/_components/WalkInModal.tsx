@@ -6,19 +6,19 @@ import { LoaderCircle, UserPlus, X } from 'lucide-react'
 import { addNewPatient } from '@/app/actions/doctor'
 
 const input =
-  'w-full rounded-lg bg-surface-container-low px-3.5 py-2.5 text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-vibrant-blue/30'
+  'w-full h-11 rounded-[11px] bg-white border-[1.5px] border-[#D6DDE8] px-3.5 text-[14px] text-[#0B1B3F] placeholder:text-[#98A2B3] focus:outline-none focus:border-[#2A4DD0]'
 
 function Field({ label, children, className = '' }: { label: string; children: ReactNode; className?: string }) {
   return (
     <label className={`flex flex-col gap-1.5 ${className}`}>
-      <span className="font-label-sm text-label-sm text-indigo-gray-600">{label}</span>
+      <span className="text-[12px] font-extrabold text-[#5B667A]">{label}</span>
       {children}
     </label>
   )
 }
 
 /** Registers a patient who is seeing the doctor now, with a visit starting immediately. */
-export function WalkInButton({ className, label = 'Add Walk-in Patient', icon }: { className: string; label?: ReactNode; icon?: ReactNode }) {
+export function WalkInButton({ className, label = 'Add walk-in patient', icon }: { className: string; label?: ReactNode; icon?: ReactNode }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -42,20 +42,23 @@ export function WalkInButton({ className, label = 'Add Walk-in Patient', icon }:
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className={className}>
-        {icon ?? <UserPlus className="w-[18px] h-[18px]" />}
+        {icon ?? <UserPlus className="w-4 h-4" />}
         <span>{label}</span>
       </button>
 
       {open && (
         <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true" aria-label="Add walk-in patient">
-          <button type="button" aria-label="Close" className="absolute inset-0 bg-indigo-gray-900/50 backdrop-blur-sm" onClick={() => setOpen(false)} />
-          <form onSubmit={submit} className="relative w-full sm:max-w-xl max-h-[92dvh] overflow-y-auto bg-surface-container-lowest rounded-t-2xl sm:rounded-2xl shadow-2xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-6 flex flex-col gap-4">
+          <button type="button" aria-label="Close" className="absolute inset-0 bg-[#0B1B3F]/50 backdrop-blur-sm" onClick={() => setOpen(false)} />
+          <form
+            onSubmit={submit}
+            className="relative w-full sm:max-w-xl max-h-[92dvh] overflow-y-auto bg-white text-[#0B1B3F] rounded-t-[22px] sm:rounded-[20px] shadow-2xl p-5 sm:p-6 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-6 flex flex-col gap-4 font-(family-name:--font-manrope)"
+          >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="font-title-md text-title-md font-bold text-indigo-gray-900">Walk-in Patient</h3>
-                <p className="text-sm text-indigo-gray-600">Creates the patient&apos;s record and a visit with you starting now.</p>
+                <h3 className="text-[18px] font-extrabold tracking-[-0.01em]">New consult</h3>
+                <p className="mt-0.5 text-[13px] text-[#5B667A]">Adds a walk-in patient&apos;s record and a visit with you starting now.</p>
               </div>
-              <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-variant flex items-center justify-center">
+              <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="w-9 h-9 rounded-full bg-[#F4F6FA] hover:bg-[#EEF2F7] flex items-center justify-center shrink-0">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -72,8 +75,8 @@ export function WalkInButton({ className, label = 'Add Walk-in Patient', icon }:
               </Field>
             </div>
 
-            <fieldset className="flex flex-col gap-3 pt-2 border-t border-surface-container">
-              <legend className="font-label-sm text-label-sm text-indigo-gray-900 font-bold pt-3">Clinical notes (optional, only what you measured)</legend>
+            <fieldset className="flex flex-col gap-3 pt-3 border-t border-[#EEF2F7]">
+              <legend className="text-[14px] font-extrabold pt-3">Clinical notes (optional, only what you measured)</legend>
               <Field label="Reason for visit / working diagnosis">
                 <input name="diagnosis" className={input} />
               </Field>
@@ -81,10 +84,10 @@ export function WalkInButton({ className, label = 'Add Walk-in Patient', icon }:
                 <Field label="BP">
                   <input name="bp" className={input} placeholder="mmHg" />
                 </Field>
-                <Field label="SpO2">
+                <Field label="SpO₂">
                   <input name="spo2" className={input} placeholder="%" />
                 </Field>
-                <Field label="Heart rate">
+                <Field label="Pulse">
                   <input name="hr" className={input} placeholder="bpm" />
                 </Field>
               </div>
@@ -96,14 +99,18 @@ export function WalkInButton({ className, label = 'Add Walk-in Patient', icon }:
               </Field>
             </fieldset>
 
-            {error && <p role="alert" className="p-3 rounded-lg bg-error-container text-on-error-container text-sm">{error}</p>}
-            <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setOpen(false)} className="px-5 py-2.5 rounded-full text-sm font-semibold text-indigo-gray-600 hover:bg-surface-container">
+            {error && (
+              <p role="alert" className="p-3 rounded-xl bg-[#FEF3F2] text-[#B42318] text-[13px] font-bold">
+                {error}
+              </p>
+            )}
+            <div className="grid grid-cols-2 sm:flex sm:justify-end gap-2.5">
+              <button type="button" onClick={() => setOpen(false)} className="h-[42px] px-5 rounded-[11px] border-[1.5px] border-[#D6DDE8] bg-white text-[13.5px] font-extrabold text-[#27324A] hover:bg-[#F4F6FA]">
                 Cancel
               </button>
-              <button type="submit" disabled={pending} className="px-5 py-2.5 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary text-sm font-bold flex items-center gap-2 disabled:opacity-60">
+              <button type="submit" disabled={pending} className="h-[42px] px-5 rounded-[11px] bg-[#2A4DD0] hover:bg-[#2443B8] text-white text-[13.5px] font-extrabold flex items-center justify-center gap-2 disabled:opacity-60">
                 {pending && <LoaderCircle className="w-4 h-4 animate-spin" />}
-                Add Patient
+                Add patient
               </button>
             </div>
           </form>

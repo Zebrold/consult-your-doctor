@@ -615,9 +615,11 @@ function QueueRow({ v, doc, line, late }: { v: HospitalVisit; doc: HospitalDocto
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-xs md:text-sm font-semibold text-slate-900 truncate">{v.patient?.name ?? 'Patient'}</span>
             {line && <span className="text-xs text-slate-400 font-normal shrink-0">{line.replace('y • ', '')}</span>}
+            {v.fastTrack && <span className="px-1.5 py-px rounded-md border border-amber-200/70 bg-amber-50 text-amber-700 text-[10px] font-semibold shrink-0">Fast track</span>}
           </div>
           <p className="text-[11px] text-slate-500 font-mono truncate">
             {v.start ? formatTime(v.start) : 'No slot'} • #{v.code}
+            {v.services.length > 0 && <span className="font-sans font-medium text-slate-600"> • {v.services.map((s) => s.name).join(', ')}</span>}
             <span className="sm:hidden font-sans font-medium text-slate-600">{doc ? ` • ${doctorName(doc.name)}` : ''}</span>
           </p>
         </div>

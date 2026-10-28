@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { CheckCircle2, FlaskConical, IndianRupee, Info, Loader2, Percent, Save, ShieldAlert, Sparkles, Stethoscope } from 'lucide-react'
+import { CheckCircle2, FlaskConical, IndianRupee, Info, Loader2, Percent, Save, ShieldAlert, Sparkles, Stethoscope, Zap } from 'lucide-react'
 import { updateBookingFeesAction } from '@/app/actions/pricing'
 import { formatPercent, labTestBookingFee, type BookingFees } from '@/lib/pricing'
 import { formatINR } from '@/components/patient/format'
@@ -9,24 +9,27 @@ import { formatINR } from '@/components/patient/format'
 const input =
   'w-full pl-7 pr-3 py-2 text-sm bg-white rounded-lg border border-slate-300 font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0066ff]/20 focus:border-[#0066ff]'
 
-/** The two online booking fees: a flat one per doctor booking and a percentage of the lab's test prices. */
+/** The online booking fees: flat ones per doctor booking (general and fast track) and a percentage of the lab's test prices. */
 export function BookingFeeManager({ initialFees }: { initialFees: BookingFees }) {
   const [consultation, setConsultation] = useState(String(initialFees.consultation))
+  const [fastTrack, setFastTrack] = useState(String(initialFees.fastTrack))
   const [percent, setPercent] = useState(String(initialFees.diagnosticPercent))
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [isPending, startTransition] = useTransition()
 
   const consultationFee = Number(consultation)
+  const fastTrackFee = Number(fastTrack)
   const diagnosticPercent = Number(percent)
-  const previewReady = consultation.trim() !== '' && percent.trim() !== '' && Number.isFinite(consultationFee) && Number.isFinite(diagnosticPercent)
+  const previewReady = [consultation, fastTrack, percent].every((v) => v.trim() !== '' && Number.isFinite(Number(v)))
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setMessage(null)
     startTransition(async () => {
-      const res = await updateBookingFeesAction({ consultation: consultationFee, diagnosticPercent })
+      const res = await updateBookingFeesAction({ consultation: consultationFee, fastTrack: fastTrackFee, diagnosticPercent })
       if (res.success && res.fees) {
         setConsultation(String(res.fees.consultation))
+        setFastTrack(String(res.fees.fastTrack))
         setPercent(String(res.fees.diagnosticPercent))
         setMessage({ type: 'success', text: 'Booking fees saved. Every booking page, checkout and PayU payment now uses them.' })
       } else {
@@ -61,16 +64,26 @@ export function BookingFeeManager({ initialFees }: { initialFees: BookingFees })
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FeeCard
             badge={<><Stethoscope className="w-3 h-3" /> Doctor Booking</>}
             tone="bg-blue-50 text-blue-700 border-blue-200/70"
             id="fee-consultation"
             label="Booking fee per appointment (₹)"
-            hint="Charged once per doctor appointment."
+            hint="Charged once per general doctor appointment."
           >
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">₹</span>
             <input id="fee-consultation" type="number" min="0" step="1" required value={consultation} onChange={(e) => setConsultation(e.target.value)} className={input} />
+          </FeeCard>
+          <FeeCard
+            badge={<><Zap className="w-3 h-3" /> Fast Track</>}
+            tone="bg-amber-50 text-amber-700 border-amber-200/70"
+            id="fee-fast-track"
+            label="Fast-track booking fee (₹)"
+            hint="Charged instead of the booking fee when the patient picks fast track."
+          >
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">₹</span>
+            <input id="fee-fast-track" type="number" min="0" step="1" required value={fastTrack} onChange={(e) => setFastTrack(e.target.value)} className={input} />
           </FeeCard>
           <FeeCard
             badge={<><FlaskConical className="w-3 h-3" /> Lab Booking</>}
@@ -89,6 +102,10 @@ export function BookingFeeManager({ initialFees }: { initialFees: BookingFees })
             <div>
               <span className="font-semibold text-slate-900">Doctor booking: </span>
               the patient pays <strong className="text-blue-700">{formatINR(consultationFee)}</strong> online; the consultation fee is paid at the hospital counter.
+            </div>
+            <div>
+              <span className="font-semibold text-slate-900">Fast track: </span>
+              the patient pays <strong className="text-amber-700">{formatINR(fastTrackFee)}</strong> online and is seen ahead of general patients once checked in.
             </div>
             <div>
               <span className="font-semibold text-slate-900">Lab booking: </span>

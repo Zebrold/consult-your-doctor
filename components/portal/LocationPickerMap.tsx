@@ -29,7 +29,7 @@ function ClickToMove({ onPick }: { onPick: (p: LatLng) => void }) {
 export default function LocationPickerMap({ point, fallbackCenter, onPick }: { point: LatLng | null; fallbackCenter: LatLng; onPick: (p: LatLng) => void }) {
   const centre = point ?? fallbackCenter;
   return (
-    <MapContainer center={[centre.lat, centre.lng]} zoom={point ? 16 : 5} scrollWheelZoom={false} className="w-full h-full">
+    <MapContainer center={[centre.lat, centre.lng]} zoom={point ? 16 : 5} scrollWheelZoom={false} className="w-full h-full isolate">
       <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} />
       <ClickToMove onPick={onPick} />
       <Follow point={point} />

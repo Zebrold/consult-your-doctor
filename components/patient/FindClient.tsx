@@ -327,12 +327,12 @@ export function FindClient({ doctors, hospitals, labs, now, initial, account, fe
                 place={place.location?.label ?? null}
               />
             </div>
-            <div className="h-[260px] rounded-2xl overflow-hidden shadow-[0_0_0_1px_#E6EAF0] relative bg-[#EEF2F6]">{isWide && map}</div>
+            <div className="h-[260px] rounded-2xl overflow-hidden shadow-[0_0_0_1px_#E6EAF0] relative isolate bg-[#EEF2F6]">{isWide && map}</div>
           </aside>
 
           <div className="min-w-0">
             <section className="lg:hidden px-4 md:px-6 pt-3.5">
-              <div className="relative h-[230px] rounded-[20px] overflow-hidden shadow-[0_0_0_1px_#E1E7F0] bg-[#EEF2F6]">
+              <div className="relative isolate h-[230px] rounded-[20px] overflow-hidden shadow-[0_0_0_1px_#E1E7F0] bg-[#EEF2F6]">
                 {!isWide && map}
                 <span className="absolute z-[500] left-3 top-3 flex items-center gap-2 h-8 px-3 rounded-full bg-white text-[12.5px] font-extrabold shadow-[0_4px_12px_rgba(11,27,63,0.12)] pointer-events-none">
                   <span className="w-2 h-2 rounded-full bg-[#2A4DD0]" />

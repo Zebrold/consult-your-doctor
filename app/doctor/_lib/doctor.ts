@@ -7,6 +7,7 @@ import type { Tone } from '@/components/portal/ui'
 import { parseVitals, type Vitals } from '@/lib/vitals'
 import { signRecordFiles } from '@/lib/records'
 import { parseEducation, type EducationEntry } from '@/lib/education'
+import { bookedServices, isFastTrack, type BookedTest } from '@/lib/pricing'
 
 export { loadPatientFacts, type PatientFacts } from '@/lib/patient-facts'
 export type { Tone }
@@ -101,14 +102,19 @@ export type Visit = {
   end: string | null
   patient: { id: string; name: string; phone: string | null; email: string | null } | null
   records: VisitRecord[]
+  /** Booked as fast track: seen ahead of general patients once checked in. */
+  fastTrack: boolean
+  /** Hospital services the patient picked, paid at the counter. */
+  services: BookedTest[]
 }
 
 /** Every appointment booked with this doctor, oldest slot first. */
 export async function loadVisits(admin: Admin, doctorId: string): Promise<Visit[]> {
   const { data } = await admin
     .from('appointments')
+    // `*` so booking_type and services come back once 20261028_fast_track_services.sql has run.
     .select(`
-      id, status, created_at, schedule_id,
+      *,
       patient:profiles!appointments_patient_id_fkey ( id, full_name, phone_number, email ),
       schedules ( start_time, end_time ),
       medical_records ( id, notes, document_type, file_url )
@@ -116,7 +122,7 @@ export async function loadVisits(admin: Admin, doctorId: string): Promise<Visit[
     .eq('doctor_id', doctorId)
 
   type Row = {
-    id: string; status: string; created_at: string; schedule_id: string | null
+    id: string; status: string; created_at: string; schedule_id: string | null; booking_type?: string | null; services?: unknown
     patient: Joined<{ id: string; full_name: string | null; phone_number: string | null; email: string | null }>
     schedules: Joined<{ start_time: string; end_time: string | null }>
     medical_records: { id: string; notes: string | null; document_type: string | null; file_url: string | null }[] | null
@@ -139,6 +145,8 @@ export async function loadVisits(admin: Admin, doctorId: string): Promise<Visit[
         records: (r.medical_records ?? [])
           // medical_records has no timestamp column; a record dates from its visit.
           .map((m) => ({ id: m.id, type: m.document_type, notes: m.notes, fileUrl: (m.file_url && links[m.file_url]) || null, createdAt: null })),
+        fastTrack: isFastTrack(r.booking_type),
+        services: bookedServices(r.services),
       }
     })
     .sort((a, b) => (a.start ?? a.createdAt).localeCompare(b.start ?? b.createdAt))

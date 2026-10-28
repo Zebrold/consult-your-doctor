@@ -20,6 +20,8 @@ export type BoardVisit = {
   patient: { id: string; name: string; phone: string | null } | null
   recordUrl: string | null
   hasNotes: boolean
+  /** Booked as fast track: seen ahead of general patients once checked in. */
+  fastTrack: boolean
 }
 export type BoardVitals = { bp: string | null; spo2: string | null; hr: string | null; date: string | null }
 export type BoardPatientFacts = { age: number | null; gender: string | null; bloodGroup: string | null; vitals: BoardVitals | null }
@@ -144,7 +146,8 @@ export function ScheduleBoard({
   const weekBooked = weekItems.filter(isBooked).length
   const weekPublished = weekItems.filter((i) => i.slot).length
   const weekPct = weekPublished ? (weekItems.filter((i) => i.slot && (i.visit || i.slot.booked)).length / weekPublished) * 100 : 0
-  const waiting = items(today).filter((i) => kindOf(i) === 'in')
+  // Fast track first, then by slot time (the sort keeps slot order).
+  const waiting = items(today).filter((i) => kindOf(i) === 'in').sort((a, b) => Number(!!b.visit?.fastTrack) - Number(!!a.visit?.fastTrack))
 
   const navLabel =
     view === 'week'
@@ -377,6 +380,7 @@ function WaitingRoom({ waiting }: { waiting: Item[] }) {
               <span className="flex-1 min-w-0">
                 <span className="block text-[13.5px] font-extrabold truncate">{i.visit?.patient?.name ?? 'Patient'}</span>
                 <span className="block text-[12px] text-[#5B667A]">
+                  {i.visit?.fastTrack && <span className="font-extrabold text-[#B54708]">Fast track · </span>}
                   Token {visitToken(i.visit!.id)} · slot {formatTime(i.start)}
                 </span>
               </span>
@@ -416,7 +420,7 @@ function SlotList({ items, facts, now, empty }: { items: Item[]; facts: Record<s
         const past = Date.parse(item.end ?? item.start) <= now
         const f = v?.patient ? facts[v.patient.id] : undefined
         const who = [f?.age != null ? String(f.age) : null, f?.gender?.[0]?.toUpperCase()].filter(Boolean).join(' ')
-        const sub = v ? [who, `Token ${visitToken(v.id)}`, `${lengthOf(item)} min`].filter(Boolean).join(' · ') : kind === 'reserved' ? 'Held, not open to book' : `${lengthOf(item)} min · in-person`
+        const sub = v ? [v.fastTrack ? 'Fast track' : null, who, `Token ${visitToken(v.id)}`, `${lengthOf(item)} min`].filter(Boolean).join(' · ') : kind === 'reserved' ? 'Held, not open to book' : `${lengthOf(item)} min · in-person`
         const actions: ReactNode = v ? (
           <>
             {v.status === 'confirmed' && <CheckInButton visit={ref(v)} kind="blueOutline" size={SIZE.sm} />}

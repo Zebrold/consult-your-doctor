@@ -55,13 +55,14 @@ export default async function DoctorDashboard() {
   const paid = live.filter((v) => PAID.includes(v.status))
   const onDay = (key: string, list: Visit[] = live) => list.filter((v) => v.start && istDateKey(v.start) === key)
   const todays = onDay(todayKey)
-  const checkedIn = todays.filter((v) => v.status === 'visited')
+  // Checked-in patients in the order they are seen: fast track first, then by slot time (the sort keeps slot order).
+  const checkedIn = todays.filter((v) => v.status === 'visited').sort((a, b) => Number(b.fastTrack) - Number(a.fastTrack))
   const vitals = latestVitals(visits)
 
   // Who to see next: someone already checked in, then the next booked slot, then the next day with bookings.
   const openToday = todays.filter(isOpenVisit)
   const next =
-    openToday.find((v) => v.status === 'visited') ??
+    checkedIn[0] ??
     openToday.find((v) => Date.parse(v.end ?? v.start!) > now - 15 * 60_000) ??
     openToday[0] ??
     live.find((v) => isOpenVisit(v) && v.start && Date.parse(v.start) > now) ??
@@ -105,7 +106,7 @@ export default async function DoctorDashboard() {
   const factIds = Array.from(new Set([next, ...todays].map((v) => v?.patient?.id).filter(Boolean) as string[]))
   const facts = await loadPatientFacts(admin, factIds)
   const priorVisits = (v: Visit) => paid.filter((p) => p.patient?.id === v.patient?.id && p.id !== v.id && (p.start ?? '') < (v.start ?? '')).length
-  const visitKind = (v: Visit) => (priorVisits(v) ? 'Return visit' : 'First visit')
+  const visitKind = (v: Visit) => [v.fastTrack ? 'Fast track' : null, priorVisits(v) ? 'Return visit' : 'First visit'].filter(Boolean).join(' · ')
 
   // The Write Rx button opens on whoever is in front of the doctor: checked in, else up next today. Otherwise it offers
   // the paid visits of the last 30 days (none later than today): checked in first, then newest.
@@ -323,7 +324,10 @@ export default async function DoctorDashboard() {
                       <Initials name={v.patient?.name ?? null} className="w-[38px] h-[38px] lg:w-9 lg:h-9 text-[12.5px] lg:text-[12px]" />
                       <span className="flex-1 min-w-0">
                         <span className="block text-[14px] font-extrabold truncate">{v.patient?.name ?? 'Patient'}</span>
-                        <span className="block text-[12px] text-[#5B667A] truncate">Token {visitToken(v.id)} · slot {formatTime(v.start!)}</span>
+                        <span className="block text-[12px] text-[#5B667A] truncate">
+                          {v.fastTrack && <span className="font-extrabold text-[#B54708]">Fast track · </span>}
+                          Token {visitToken(v.id)} · slot {formatTime(v.start!)}
+                        </span>
                       </span>
                       <PrescriptionButton visit={ref(v)} kind="blueOutline" label="Start consult" icon={false} size={SIZE.sm} />
                     </li>

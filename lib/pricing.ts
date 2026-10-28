@@ -1,16 +1,27 @@
 /**
- * What Consult Your Doctor charges online: a flat booking fee for a doctor, and a share of the lab's test prices for
- * lab tests. The doctor's consultation fee is paid at the hospital counter, and the tests (and any home collection)
- * at the lab, so neither is ever part of an online payment. Executives set both on Payments (lib/booking-fees.ts).
+ * What Consult Your Doctor charges online: a flat booking fee for a doctor (a higher one for fast track), and a share
+ * of the lab's test prices for lab tests. The doctor's consultation fee and any hospital services are paid at the
+ * hospital counter, and the tests (and any home collection) at the lab, so none of them is ever part of an online
+ * payment. Executives set the fees on Payments (lib/booking-fees.ts).
  */
 export type BookingFees = {
-  /** Rupees per doctor booking. */
+  /** Rupees per general doctor booking. */
   consultation: number
+  /** Rupees per fast-track doctor booking: seen ahead of general patients once checked in. */
+  fastTrack: number
   /** Per cent of the lab's price for each booked test. */
   diagnosticPercent: number
 }
 
-export const DEFAULT_BOOKING_FEES: BookingFees = { consultation: 119, diagnosticPercent: 11 }
+export const DEFAULT_BOOKING_FEES: BookingFees = { consultation: 119, fastTrack: 349, diagnosticPercent: 11 }
+
+/** A doctor booking's type (appointments.booking_type): the normal queue, or fast track. */
+export type BookingType = 'general' | 'fast_track'
+
+export const isFastTrack = (type: unknown) => type === 'fast_track'
+
+/** The online booking fee for a doctor booking of this type. */
+export const doctorBookingFee = (fees: BookingFees, type: unknown) => (isFastTrack(type) ? fees.fastTrack : fees.consultation)
 
 // Worked in whole paise and hundredths of a per cent, so 11% of ₹350 is exactly ₹38.50 and not a float next to it.
 const testFeePaise = (price: number, percent: number) => Math.round((Math.round(price * 100) * Math.round(percent * 100)) / 10_000)
@@ -82,6 +93,17 @@ export const DEFAULT_DOORSTEP_FEE = 100
 export function labDoorstepFee(center: { doorstep_fee?: number | string | null } | null | undefined): number {
   const fee = Number(center?.doorstep_fee)
   return center?.doorstep_fee != null && Number.isFinite(fee) ? Math.max(0, Math.round(fee)) : DEFAULT_DOORSTEP_FEE
+}
+
+/**
+ * The hospital services stored on a doctor booking (appointments.services), as [{ name, price }]. Anything malformed
+ * is dropped, so a bad row never breaks a page.
+ */
+export function bookedServices(value: unknown): BookedTest[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((s) => ({ name: String(s?.name ?? '').trim(), price: Number(s?.price) }))
+    .filter((s) => s.name && Number.isFinite(s.price) && s.price >= 0)
 }
 
 /**

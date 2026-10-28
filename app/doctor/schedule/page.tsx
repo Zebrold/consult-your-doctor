@@ -41,6 +41,7 @@ export default async function DoctorSchedulePage(props: { searchParams?: Promise
     patient: v.patient ? { id: v.patient.id, name: v.patient.name, phone: v.patient.phone } : null,
     recordUrl: v.records.find((r) => r.fileUrl)?.fileUrl ?? null,
     hasNotes: v.records.length > 0,
+    fastTrack: v.fastTrack,
   }))
 
   const vitals = latestVitals(visits)

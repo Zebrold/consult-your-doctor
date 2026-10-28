@@ -14,6 +14,8 @@ import { startPayuPayment } from "@/lib/payu-client";
 import { appendPatientDetails, DayStrip, FormError, PayuNote, patientDetailsError, RefundNote, type PatientDetails } from "@/components/patient/booking-ui";
 import { directionsHref, doctorName, formatINR, formatLongDate, formatSlot, formatTime, initials, isMorning, istDateKey, upcomingDays } from "@/components/patient/format";
 import { RemoteImage } from "@/components/RemoteImage";
+import { AppointmentTypePicker, PaySummary, ServicePicker, bookingPath } from "@/components/patient/BookingChoices";
+import type { BookedTest, BookingFees } from "@/lib/pricing";
 
 export interface BookingDoctor {
   id: string;
@@ -37,13 +39,32 @@ interface FinalizeBookingClientProps {
   patient: PatientDetails | null;
   now: number;
   payuKey: string;
-  /** The booking fee /api/payu/hash will charge (lib/booking-fees.ts): the whole online payment. */
-  bookingFee: number;
+  /** The booking fees (lib/booking-fees.ts). /api/payu/hash charges the general or fast-track one: the whole online payment. */
+  fees: BookingFees;
+  /** Fast track and services can be stored on a booking (lib/booking-options.ts). */
+  choices: boolean;
+  /** The hospital's priced services, paid at the hospital. */
+  services: BookedTest[];
   /** A slot the patient already picked (on the hospital page), selected when it is still open. */
   initialSlotId?: string | null;
+  /** Fast track and services picked on the hospital page. */
+  initialFastTrack?: boolean;
+  initialServices?: string[];
 }
 
-export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, bookingFee, initialSlotId = null }: FinalizeBookingClientProps) {
+export function FinalizeBookingClient({
+  doctor,
+  slots,
+  patient,
+  now,
+  payuKey,
+  fees,
+  choices,
+  services,
+  initialSlotId = null,
+  initialFastTrack = false,
+  initialServices = [],
+}: FinalizeBookingClientProps) {
   const router = useRouter();
   const name = doctorName(doctor.name);
   const days = useMemo(() => upcomingDays(now, 6), [now]);
@@ -65,10 +86,14 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, bo
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [fastTrack, setFastTrack] = useState(initialFastTrack);
+  const [picked, setPicked] = useState<string[]>(initialServices);
   const customDate = useRef<HTMLInputElement>(null);
 
   const daySlots = slotsByDay.get(date) ?? [];
   const selected = slots.find((s) => s.id === slotId) ?? null;
+  const bookingFee = choices && fastTrack ? fees.fastTrack : fees.consultation;
+  const pickedServices = choices ? services.filter((s) => picked.includes(s.name)) : [];
   const nextOpenAfter = slots.find((s) => !s.booked && istDateKey(s.start) > date) ?? null;
   const openTodayCount = (slotsByDay.get(today) ?? []).filter((s) => !s.booked).length;
 
@@ -89,6 +114,8 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, bo
     const form = new FormData();
     form.append("doctor_id", doctor.id);
     form.append("schedule_id", selected.id);
+    if (choices && fastTrack) form.append("booking_type", "fast_track");
+    for (const s of pickedServices) form.append("services", s.name);
     appendPatientDetails(form, activeDetails);
 
     const res = await finalizeConsultationAppointment(form);
@@ -125,7 +152,7 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, bo
   const canBook = doctor.bookable;
 
   const directions = doctor.hospital ? directionsHref(doctor.hospital.name, doctor.hospital.address, doctor.hospital.city) : null;
-  const signIn = `/login/patient?next=${encodeURIComponent(`/book/${doctor.id}`)}`;
+  const signIn = `/login/patient?next=${encodeURIComponent(bookingPath(doctor.id, { slotId, fastTrack: choices && fastTrack, services: pickedServices.map((s) => s.name) }))}`;
   const ctaLabel = submitting ? "Reserving…" : !canBook ? "Booking unavailable" : !selected ? "Pick a time" : `Pay ${formatINR(bookingFee)}`;
 
   return (
@@ -173,7 +200,7 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, bo
                 <div className="grid grid-cols-3 mt-3.5 border-t border-[#EEF2F7]">
                   <Metric label="Experience" value={doctor.experience ? `${doctor.experience} yrs` : "—"} />
                   <Metric label="Open today" value={openTodayCount ? `${openTodayCount} slot${openTodayCount === 1 ? "" : "s"}` : "None"} border />
-                  <Metric label="Booking fee" value={formatINR(bookingFee)} highlight border />
+                  <Metric label={choices && fastTrack ? "Fast-track fee" : "Booking fee"} value={formatINR(bookingFee)} highlight border />
                 </div>
               </section>
 
@@ -256,6 +283,13 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, bo
                 </div>
               </section>
 
+              {choices && canBook && (
+                <>
+                  <AppointmentTypePicker fees={fees} fastTrack={fastTrack} onChange={setFastTrack} />
+                  <ServicePicker services={services} picked={picked} onToggle={(name) => setPicked((p) => (p.includes(name) ? p.filter((n) => n !== name) : [...p, name]))} />
+                </>
+              )}
+
               <section className={`p-4 lg:p-[22px] ${card} rounded-[20px]! lg:rounded-2xl!`}>
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <h2 className="text-[16px] font-extrabold">Patient details</h2>
@@ -304,24 +338,9 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, bo
               <div className="mt-2.5">
                 <InfoRow label="Doctor" value={name} />
                 <InfoRow label="Time" value={selected ? formatSlot(selected.start, now) : "Not chosen yet"} valueClass={selected ? "" : "text-[#8A94A6]"} />
-                <InfoRow label="Visit" value="In person" />
+                <InfoRow label="Visit" value={choices && fastTrack ? "In person · Fast track" : "In person"} />
               </div>
-              <div className="mt-2.5 px-3.5 py-1 rounded-[14px] bg-[#F6F8FC]">
-                <div className="flex justify-between gap-3 py-2.5 border-b border-[#E6EBF3] text-[13.5px]">
-                  <span>
-                    <span className="block font-extrabold">Pay now online</span>
-                    <span className="block text-[12px] text-[#5B667A]">Booking fee</span>
-                  </span>
-                  <span className="font-extrabold text-[#2A4DD0]">{formatINR(bookingFee)}</span>
-                </div>
-                <div className="flex justify-between gap-3 py-2.5 text-[13.5px]">
-                  <span>
-                    <span className="block font-extrabold">Pay at the hospital</span>
-                    <span className="block text-[12px] text-[#5B667A]">The consultation fee, set by the hospital</span>
-                  </span>
-                  <span className="shrink-0 font-extrabold whitespace-nowrap">At the counter</span>
-                </div>
-              </div>
+              <PaySummary fee={bookingFee} fastTrack={choices && fastTrack} services={pickedServices} />
               <div className="mt-4 flex flex-col gap-3.5">
                 <PayuNote />
                 {error && (
@@ -389,7 +408,9 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, bo
       <div className="lg:hidden fixed z-40 inset-x-0 bottom-0 flex items-center gap-3 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] bg-white border-t border-[#E6EBF3] shadow-[0_-8px_20px_rgba(11,27,63,0.06)]">
         <span className="flex-1 min-w-0">
           <span className="block text-[17px] font-extrabold">{formatINR(bookingFee)}</span>
-          <span className="block text-[11.5px] text-[#5B667A] truncate">{selected ? formatSlot(selected.start, now) : "Booking fee in app · consultation at hospital"}</span>
+          <span className="block text-[11.5px] text-[#5B667A] truncate">
+            {selected ? [choices && fastTrack ? "Fast track" : null, formatSlot(selected.start, now)].filter(Boolean).join(" · ") : "Booking fee in app · consultation at hospital"}
+          </span>
         </span>
         {!patient ? (
           <Link href={signIn} className="shrink-0 flex items-center gap-1.5 h-12 px-[18px] rounded-[14px] bg-[#2A4DD0] text-white text-[15px] font-extrabold shadow-[0_8px_16px_rgba(42,77,208,0.3)]">

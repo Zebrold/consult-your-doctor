@@ -246,7 +246,9 @@ export default function CareMap({
   const icons = useMemo(() => new Map(clinics.map((c) => [c.id, pinIcon(c.doctorCount, c.id === selectedId)])), [clinics, selectedId]);
 
   return (
-    <div className="cyd-map relative w-full h-full">
+    // isolate: Leaflet's panes and the hint below use z-index 400+, which must stay inside the map, under the page's
+    // filter sheets and the desktop top bar.
+    <div className="cyd-map relative isolate w-full h-full">
       <MapContainer center={INDIA} zoom={5} className="w-full h-full z-0" zoomControl={false} scrollWheelZoom={false} style={{ background: "#eef2f8" }}>
         <TileLayer
           attribution='&copy; Google Maps'

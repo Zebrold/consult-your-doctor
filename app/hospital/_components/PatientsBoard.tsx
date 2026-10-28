@@ -18,6 +18,10 @@ export type BoardRow = {
   doctor: string
   department: string
   payment: { label: string; amount: number | null } | null
+  /** Booked as fast track: seen ahead of general patients once checked in. */
+  fastTrack: boolean
+  /** Hospital services picked when booking, to collect at the counter. */
+  services: string[]
 }
 
 export type BoardView = 'today' | 'upcoming' | 'past' | 'unpaid' | 'all'
@@ -48,8 +52,8 @@ function matchesView(r: BoardRow, v: BoardView, today: string) {
 }
 
 function exportCsv(rows: BoardRow[]) {
-  const header = ['Booking ID', 'Date', 'Time', 'Patient', 'Age/Sex', 'Phone', 'Doctor', 'Department', 'Status', 'Payment', 'Amount (INR)']
-  const lines = rows.map((r) => [r.code, r.day ?? '', r.start ? formatTime(r.start) : '', r.patientName, r.ageSex ?? '', r.phone ?? '', r.doctor, r.department, STATUS[r.status]?.label ?? r.status, r.payment?.label ?? '', r.payment?.amount ?? ''])
+  const header = ['Booking ID', 'Date', 'Time', 'Patient', 'Age/Sex', 'Phone', 'Doctor', 'Department', 'Type', 'Services', 'Status', 'Payment', 'Amount (INR)']
+  const lines = rows.map((r) => [r.code, r.day ?? '', r.start ? formatTime(r.start) : '', r.patientName, r.ageSex ?? '', r.phone ?? '', r.doctor, r.department, r.fastTrack ? 'Fast track' : 'General', r.services.join('; '), STATUS[r.status]?.label ?? r.status, r.payment?.label ?? '', r.payment?.amount ?? ''])
   const csv = [header, ...lines].map((l) => l.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
   const a = document.createElement('a')
@@ -173,7 +177,7 @@ export function PatientsBoard({ rows, today, now, initialView, departments }: { 
                             <Avatar name={r.patientName} className="w-9 h-9 text-xs" />
                             <div className="min-w-0">
                               <span className="block font-title-md text-[15px] font-bold text-indigo-gray-900">{r.patientName}</span>
-                              <span className="block text-[12px] text-indigo-gray-600 whitespace-nowrap">{[r.ageSex, `#${r.code}`].filter(Boolean).join(' • ')}</span>
+                              <span className="block text-[12px] text-indigo-gray-600 whitespace-nowrap">{[r.fastTrack ? 'Fast track' : null, r.ageSex, `#${r.code}`, ...r.services].filter(Boolean).join(' • ')}</span>
                             </div>
                           </div>
                         </td>
@@ -221,7 +225,7 @@ export function PatientsBoard({ rows, today, now, initialView, departments }: { 
                         <Avatar name={r.patientName} className="w-10 h-10 text-sm" />
                         <div className="min-w-0">
                           <span className="block font-title-md text-[15px] font-bold text-indigo-gray-900 truncate">{r.patientName}</span>
-                          <span className="block text-[11px] text-indigo-gray-600 truncate">{[r.ageSex, `#${r.code}`].filter(Boolean).join(' • ')}</span>
+                          <span className="block text-[11px] text-indigo-gray-600 truncate">{[r.fastTrack ? 'Fast track' : null, r.ageSex, `#${r.code}`, ...r.services].filter(Boolean).join(' • ')}</span>
                         </div>
                       </div>
                       {status && <Chip tone={status.tone}>{status.label}</Chip>}

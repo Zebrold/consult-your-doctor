@@ -8,6 +8,7 @@ import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { testList } from '@/lib/pricing'
 import { getBookingFees } from '@/lib/booking-fees'
+import { bookingOptionsReady } from '@/lib/booking-options'
 import { PatientDock } from '@/components/PatientDock'
 import { PatientFooter } from '@/components/AppFooter'
 import { VerifiedBadge } from '@/components/home/ui'
@@ -49,10 +50,11 @@ export default async function HospitalProfilePage(props: { params: Promise<{ id:
   const user = await getCurrentUser()
   const now = currentTime()
 
-  const [{ data: hospital, error: hospitalError }, { data: viewer }, fees] = await Promise.all([
+  const [{ data: hospital, error: hospitalError }, { data: viewer }, fees, choices] = await Promise.all([
     supabase.from('hospitals').select('*').eq('id', id).single(),
     user ? supabase.from('profiles').select('full_name, role, email').eq('id', user.id).maybeSingle() : Promise.resolve({ data: null }),
     getBookingFees(),
+    bookingOptionsReady(),
   ])
   if (hospitalError || !hospital) notFound()
 
@@ -192,7 +194,7 @@ export default async function HospitalProfilePage(props: { params: Promise<{ id:
           </section>
 
           <div className="px-3 md:px-6 lg:px-0 pt-3.5 lg:pt-0">
-            <HospitalBooking doctors={doctors} bookingFee={fees.consultation} now={now}>
+            <HospitalBooking doctors={doctors} fees={fees} choices={choices} services={tests} now={now}>
               <Card id="fees" title="Consultation charges">
                 <div className="flex justify-between gap-3 py-2.5 border-b border-[#EEF2F7]">
                   <span>
@@ -201,6 +203,15 @@ export default async function HospitalProfilePage(props: { params: Promise<{ id:
                   </span>
                   <span className="text-[15px] font-extrabold text-[#2A4DD0]">{formatINR(fees.consultation)}</span>
                 </div>
+                {choices && (
+                  <div className="flex justify-between gap-3 py-2.5 border-b border-[#EEF2F7]">
+                    <span>
+                      <span className="block text-[14px] font-bold">Fast-track booking fee</span>
+                      <span className="block text-[12px] text-[#5B667A]">Paid online instead, to be seen ahead once checked in</span>
+                    </span>
+                    <span className="text-[15px] font-extrabold text-[#2A4DD0]">{formatINR(fees.fastTrack)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between gap-3 pt-2.5 pb-0.5">
                   <span>
                     <span className="block text-[14px] font-bold">Consultation fee</span>
@@ -210,7 +221,8 @@ export default async function HospitalProfilePage(props: { params: Promise<{ id:
                 </div>
               </Card>
 
-              {tests.length > 0 && (
+              {/* When patients can pick services with a booking, HospitalBooking lists them as checkboxes instead. */}
+              {tests.length > 0 && !(choices && doctors.length > 0) && (
                 <Card id="tests" title="Tests & services" sub="Prices set by the hospital, paid at the hospital">
                   <div className="lg:grid lg:grid-cols-2 lg:gap-x-6">
                     {tests.map((t) => (

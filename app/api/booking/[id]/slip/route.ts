@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { generateAppointmentSlipPdf } from '@/lib/pdf/appointment-slip'
 import { doctorName, formatLongDate, formatTime } from '@/components/patient/format'
-import { labBookingFee, matchBookedTests } from '@/lib/pricing'
+import { doctorBookingFee, labBookingFee, matchBookedTests } from '@/lib/pricing'
 import { getBookingFees } from '@/lib/booking-fees'
 
 type Joined<T> = T | T[] | null
@@ -42,7 +42,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
     const { data: aptData } = await admin
       .from('appointments')
       .select(`
-        id, status, created_at, patient_id,
+        *,
         patient:profiles!appointments_patient_id_fkey ( full_name, phone_number, email ),
         doctor:doctors (
           id, specialty, hospital_id,
@@ -83,7 +83,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
         .maybeSingle()
       // A PayU payment is the booking fee. A desk payment (cash or UPI) is what the counter took, which the slip doesn't show.
       const online = !paymentRow || paymentRow.gateway === 'payu'
-      const bookingFee = paymentRow ? Number(paymentRow.amount) || 0 : (await getBookingFees()).consultation
+      const bookingFee = paymentRow ? Number(paymentRow.amount) || 0 : doctorBookingFee(await getBookingFees(), apt.booking_type)
 
       const pdfBytes = await generateAppointmentSlipPdf({
         bookingId: id,

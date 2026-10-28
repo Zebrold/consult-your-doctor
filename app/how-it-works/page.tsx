@@ -75,7 +75,7 @@ const features = [
 const faqs = (fees: BookingFees) => [
   {
     q: "What does a consultation cost?",
-    a: `Online you pay only a ${formatINR(fees.consultation)} booking fee. The consultation fee is set by the hospital, shown on the doctor's profile, and paid at the hospital counter when you visit. It is never added to the online payment.`,
+    a: `Online you pay only a ${formatINR(fees.consultation)} booking fee, or ${formatINR(fees.fastTrack)} if you choose fast track where it's offered (you're seen ahead of general patients once checked in). The consultation fee is set by the hospital, shown on the doctor's profile, and paid at the hospital counter when you visit. It is never added to the online payment.`,
   },
   {
     q: "Are consultations online or in person?",

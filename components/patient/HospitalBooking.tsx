@@ -8,6 +8,8 @@ import { SPECIALITIES, specialityIcon } from "@/components/home/specialities";
 import { doctorName, formatINR, formatSlot, initials } from "./format";
 import { InfoRow, card } from "./app-ui";
 import { RemoteImage } from "@/components/RemoteImage";
+import type { BookedTest, BookingFees } from "@/lib/pricing";
+import { AppointmentTypePicker, PaySummary, ServicePicker, bookingPath } from "./BookingChoices";
 
 export type HospitalDoctor = {
   id: string;
@@ -28,10 +30,27 @@ function iconFor(specialty: string) {
 }
 
 /**
- * Booking at one hospital: pick a speciality, a doctor and one of their open times, then continue to the booking page
- * with that time chosen. Phones keep the booking fee and the next step in a bar at the bottom; desktops in a summary.
+ * Booking at one hospital: pick a speciality, a doctor and one of their open times, then (once the database has them,
+ * `choices`) general or fast track and any hospital services, and continue to the booking page with all of it picked.
+ * Phones keep the booking fee and the next step in a bar at the bottom; desktops in a summary.
  */
-export function HospitalBooking({ doctors, bookingFee, now, children }: { doctors: HospitalDoctor[]; bookingFee: number; now: number; children: ReactNode }) {
+export function HospitalBooking({
+  doctors,
+  fees,
+  choices,
+  services,
+  now,
+  children,
+}: {
+  doctors: HospitalDoctor[];
+  fees: BookingFees;
+  /** Fast track and services can be stored on a booking (lib/booking-options.ts). */
+  choices: boolean;
+  /** The hospital's priced services. */
+  services: BookedTest[];
+  now: number;
+  children: ReactNode;
+}) {
   const specialties = useMemo(() => {
     const counts = new Map<string, number>();
     for (const d of doctors) counts.set(d.specialty || "General", (counts.get(d.specialty || "General") ?? 0) + 1);
@@ -40,11 +59,19 @@ export function HospitalBooking({ doctors, bookingFee, now, children }: { doctor
   const [spec, setSpec] = useState(specialties[0] ?? "");
   const [doctorId, setDoctorId] = useState<string | null>(null);
   const [slotId, setSlotId] = useState<string | null>(null);
+  const [fastTrack, setFastTrack] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
   const shown = doctors.filter((d) => (d.specialty || "General") === spec);
   const doctor = doctors.find((d) => d.id === doctorId) ?? null;
   const slot = doctor?.slots.find((s) => s.id === slotId) ?? null;
   const ready = !!doctor && doctor.bookable && !!slot;
-  const href = doctor ? (doctor.bookable ? `/book/${doctor.id}${slot ? `?slot=${slot.id}` : ""}` : `/doctors/${doctor.id}`) : null;
+  const bookingFee = choices && fastTrack ? fees.fastTrack : fees.consultation;
+  const pickedServices = choices ? services.filter((s) => picked.includes(s.name)) : [];
+  const href = doctor
+    ? doctor.bookable
+      ? bookingPath(doctor.id, { slotId: slot?.id, fastTrack: choices && fastTrack, services: pickedServices.map((s) => s.name) })
+      : `/doctors/${doctor.id}`
+    : null;
   const cta = !doctor ? "Select a doctor" : !doctor.bookable ? "View profile" : ready ? "Book now" : doctor.slots.length ? "Pick a time" : "See all times";
 
   const pickSpec = (s: string) => {
@@ -177,6 +204,12 @@ export function HospitalBooking({ doctors, bookingFee, now, children }: { doctor
               </>
             )}
           </section>
+          {choices && doctors.length > 0 && (
+            <>
+              <AppointmentTypePicker fees={fees} fastTrack={fastTrack} onChange={setFastTrack} />
+              <ServicePicker services={services} picked={picked} onToggle={(name) => setPicked((p) => (p.includes(name) ? p.filter((n) => n !== name) : [...p, name]))} />
+            </>
+          )}
           {children}
         </div>
 
@@ -186,23 +219,9 @@ export function HospitalBooking({ doctors, bookingFee, now, children }: { doctor
             <InfoRow label="Doctor" value={doctor ? doctorName(doctor.name) : "Not selected"} valueClass={doctor ? "" : "text-[#8A94A6]"} />
             <InfoRow label="Time" value={slot ? formatSlot(slot.start, now) : "Not selected"} valueClass={slot ? "" : "text-[#8A94A6]"} />
             <InfoRow label="Speciality" value={doctor?.specialty || spec || "—"} />
+            {choices && <InfoRow label="Type" value={fastTrack ? "Fast track" : "General"} />}
           </div>
-          <div className="mt-2.5 px-3.5 py-1 rounded-[14px] bg-[#F6F8FC]">
-            <div className="flex justify-between gap-3 py-2.5 border-b border-[#E6EBF3] text-[13.5px]">
-              <span>
-                <span className="block font-extrabold">Pay now online</span>
-                <span className="block text-[12px] text-[#5B667A]">Booking fee</span>
-              </span>
-              <span className="font-extrabold text-[#2A4DD0]">{formatINR(bookingFee)}</span>
-            </div>
-            <div className="flex justify-between gap-3 py-2.5 text-[13.5px]">
-              <span>
-                <span className="block font-extrabold">Pay at the hospital</span>
-                <span className="block text-[12px] text-[#5B667A]">The doctor&apos;s consultation fee</span>
-              </span>
-              <span className="font-extrabold text-right">At the counter</span>
-            </div>
-          </div>
+          <PaySummary fee={bookingFee} fastTrack={choices && fastTrack} services={pickedServices} />
           {href ? (
             <Link href={href} className={`mt-4 w-full h-[50px] rounded-[11px] flex items-center justify-center gap-1.5 text-[15px] font-extrabold text-white transition-colors ${ready ? "bg-[#2A4DD0] hover:bg-[#2443B8]" : "bg-[#5B76DE] hover:bg-[#2A4DD0]"}`}>
               {cta}
@@ -221,7 +240,9 @@ export function HospitalBooking({ doctors, bookingFee, now, children }: { doctor
         <span className="flex-1 min-w-0">
           <span className="block text-[17px] font-extrabold">{formatINR(bookingFee)}</span>
           <span className="block text-[11.5px] text-[#5B667A] truncate">
-            {ready && doctor && slot ? `${doctorName(doctor.name)} · ${formatSlot(slot.start, now)}` : "Booking fee in app · rest paid at hospital"}
+            {ready && doctor && slot
+              ? [choices && fastTrack ? "Fast track" : null, doctorName(doctor.name), formatSlot(slot.start, now)].filter(Boolean).join(" · ")
+              : "Booking fee in app · rest paid at hospital"}
           </span>
         </span>
         {href ? (

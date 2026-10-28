@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { labDoorstepFee, matchBookedTests, pricedTests } from '@/lib/pricing'
+import { isFastTrack, labDoorstepFee, matchBookedTests, pricedTests, type BookedTest } from '@/lib/pricing'
 import { redirect } from 'next/navigation'
 
 export async function createAppointment(formData: FormData) {
@@ -252,10 +252,17 @@ export async function finalizeConsultationAppointment(formData: FormData) {
   const detailsError = await savePatientBasics(supabase, user.id, formData)
   if (detailsError) return { error: detailsError }
 
-  const result = await claimSlotAndCreateAppointment(user.id, doctorId, scheduleId)
+  const options: BookingOptions = {
+    fastTrack: isFastTrack(formData.get('booking_type')),
+    services: Array.from(new Set(formData.getAll('services').map(String).filter(Boolean))),
+  }
+  const result = await claimSlotAndCreateAppointment(user.id, doctorId, scheduleId, options)
   if ('error' in result) return { error: result.error }
   return { success: true, appointmentId: result.appointmentId }
 }
+
+/** What the patient picked on the hospital page: fast track, and hospital services by name. */
+type BookingOptions = { fastTrack: boolean; services: string[] }
 
 // An unpaid booking holds its slot until it is paid. Without a cap, one account could hold every open slot of every
 // doctor. Patients can't cancel an unpaid booking themselves, so their own holds older than STALE_HOLD_MS are
@@ -292,6 +299,7 @@ async function claimSlotAndCreateAppointment(
   patientId: string,
   doctorId: string,
   scheduleId: string,
+  options: BookingOptions = { fastTrack: false, services: [] },
 ): Promise<{ appointmentId: string } | { error: string }> {
   try {
     const admin = createAdminClient()
@@ -305,6 +313,22 @@ async function claimSlotAndCreateAppointment(
     if (!Number(doctor.consultation_fee)) {
       return { error: "This doctor's consultation fee hasn't been set yet, so they can't be booked online." }
     }
+
+    // Services are stored with the hospital's own prices at booking time, never prices from the browser.
+    let services: BookedTest[] = []
+    if (options.services.length > 0) {
+      const { data: hospital } = doctor.hospital_id
+        ? await admin.from('hospitals').select('test_prices').eq('id', doctor.hospital_id).maybeSingle()
+        : { data: null }
+      const offered = new Map(pricedTests(hospital?.test_prices).map((t) => [t.name, t]))
+      services = options.services.map((name) => offered.get(name)).filter((t): t is BookedTest => !!t)
+      if (services.length !== options.services.length) {
+        return { error: 'Some of the services you picked are no longer offered by this hospital. Please review your selection.' }
+      }
+    }
+    // Only a booking with a choice writes the new columns, so general bookings still work before the migration.
+    const choices = options.fastTrack || services.length ? { booking_type: options.fastTrack ? 'fast_track' : 'general', services } : {}
+
     if (!(await makeRoomForHold(admin, patientId))) {
       return { error: 'You already have unpaid bookings waiting. Please pay for one of them from My Appointments, or try again in 30 minutes.' }
     }
@@ -330,6 +354,7 @@ async function claimSlotAndCreateAppointment(
         hospital_id: doctor.hospital_id ?? null,
         schedule_id: scheduleId,
         status: 'pending_payment',
+        ...choices,
       })
       .select('id')
       .single()

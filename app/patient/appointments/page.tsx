@@ -5,7 +5,7 @@ import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { signRecordFiles } from '@/lib/records'
 import { signReportLinks } from '@/lib/lab-reports'
-import { labBookingFee, matchBookedTests } from '@/lib/pricing'
+import { bookedServices, doctorBookingFee, isFastTrack, labBookingFee, matchBookedTests } from '@/lib/pricing'
 import { getBookingFees } from '@/lib/booking-fees'
 import { siteUrl } from '@/lib/site-url'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
@@ -24,6 +24,9 @@ type VisitRow = {
   id: string
   status: string
   doctor_id: string | null
+  /** Missing until 20261028_fast_track_services.sql runs. */
+  booking_type?: string | null
+  services?: unknown
   doctors: Rel<{ id: string; specialty: string | null; image_url: string | null; profiles: Rel<{ full_name: string | null }> }>
   hospitals: Rel<{ id: string; name: string; city: string | null; address: string | null }>
   schedules: Rel<{ start_time: string }>
@@ -61,8 +64,9 @@ export default async function PatientAppointments() {
     supabase.from('profiles').select('full_name, email').eq('id', user.id).maybeSingle(),
     supabase
       .from('appointments')
+      // `*` so booking_type and services come back once 20261028_fast_track_services.sql has run.
       .select(`
-        id, status, doctor_id,
+        *,
         doctors ( id, specialty, image_url, profiles!doctors_profile_id_fkey ( full_name ) ),
         hospitals ( id, name, city, address ),
         schedules ( start_time ),
@@ -121,7 +125,7 @@ export default async function PatientAppointments() {
       state,
       statusLabel: { ok: 'Confirmed', unpaid: 'Awaiting payment', done: 'Completed', past: 'Date passed', cancelled: 'Cancelled' }[state],
       title: name,
-      sub: `${doctor?.specialty || 'General'} · Consultation`,
+      sub: `${doctor?.specialty || 'General'} · ${isFastTrack(v.booking_type) ? 'Fast track' : 'Consultation'}`,
       image: doctor?.image_url ?? null,
       at,
       date: at ? formatDayLabel(at, now) : 'Date to be set',
@@ -131,8 +135,8 @@ export default async function PatientAppointments() {
       directions: directionsHref(hospital?.name, hospital?.address, hospital?.city),
       token: visitToken(v.id),
       bookingId: v.id.slice(0, 8).toUpperCase(),
-      fee: paid ? formatINR(Number(paid.amount) || 0) : unpaid ? formatINR(fees.consultation) : null,
-      rest: 'Consultation fee',
+      fee: paid ? formatINR(Number(paid.amount) || 0) : unpaid ? formatINR(doctorBookingFee(fees, v.booking_type)) : null,
+      rest: ['Consultation fee', ...bookedServices(v.services).map((s) => `${s.name} ${formatINR(s.price)}`)].join(' · '),
       payHref: unpaid && upcoming ? `/patient/checkout/${v.id}` : null,
       passHref: `/book/confirmation/${v.id}`,
       qr: null,

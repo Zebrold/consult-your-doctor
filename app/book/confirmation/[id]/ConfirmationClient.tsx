@@ -29,6 +29,8 @@ export type ConfirmationData = {
   patientPhone: string | null
   /** The booking fee paid (or to pay) online; null for a booking made and paid at a hospital or lab desk. */
   bookingFee: number | null
+  /** What is paid at the hospital or lab, when it is more than the usual note says (services picked with a doctor booking). */
+  venueNote?: string | null
   paymentStatus: 'success' | 'pending' | 'failed'
   /** Why the last payment didn't go through, from the PayU callback. */
   failureReason: string | null
@@ -217,7 +219,7 @@ export function ConfirmationClient({ data }: { data: ConfirmationData }) {
                 </div>
                 {data.bookingFee != null && (
                   <div className="text-[13px] font-medium text-gray-500 mt-0.5">
-                    {payAtVenueNote(data.isConsultation)}
+                    {data.venueNote || payAtVenueNote(data.isConsultation)}
                   </div>
                 )}
               </div>

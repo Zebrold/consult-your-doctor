@@ -4,8 +4,9 @@ import { Building2, CalendarDays, CircleCheck, CircleX, Clock, SearchX, UserRoun
 import { PayUCheckoutForm } from '@/components/PayUCheckoutForm'
 import { CheckoutCard, CheckoutGrid, CheckoutHeading, CheckoutMessage, CheckoutShell, DetailRow, PaymentSummary } from '@/components/patient/CheckoutShell'
 import { PayAtVenue } from '@/components/patient/booking-ui'
-import { doctorName, formatLongDate, formatTime } from '@/components/patient/format'
+import { doctorName, formatINR, formatLongDate, formatTime } from '@/components/patient/format'
 import { getBookingFees } from '@/lib/booking-fees'
+import { bookedServices, doctorBookingFee, isFastTrack } from '@/lib/pricing'
 
 type Joined<T> = T | T[] | null
 const one = <T,>(v: Joined<T> | undefined) => (Array.isArray(v) ? v[0] : v) ?? null
@@ -19,11 +20,11 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
 
   // Only the patient's own appointment is ever loaded (and RLS enforces the same).
   const [{ data: appointment }, { data: profile }] = await Promise.all([
+    // `*` so booking_type and services come back once 20261028_fast_track_services.sql has run (lib/booking-options.ts).
     supabase
       .from('appointments')
       .select(`
-        id,
-        status,
+        *,
         doctors ( specialty, profiles ( full_name ) ),
         hospitals ( name, address, city ),
         schedules ( start_time )
@@ -65,8 +66,11 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
   const doctor = one(appointment.doctors as Joined<Doctor>)
   const hospital = one(appointment.hospitals as Joined<Hospital>)
   const startTime = one(appointment.schedules as Joined<{ start_time: string }>)?.start_time ?? null
-  // The same amount /api/payu/hash charges: the booking fee only. The consultation fee is paid at the hospital counter.
-  const total = fees.consultation
+  // The same amount /api/payu/hash charges: the booking fee only. The consultation fee and any services are paid at the
+  // hospital counter.
+  const fastTrack = isFastTrack(appointment.booking_type)
+  const total = doctorBookingFee(fees, appointment.booking_type)
+  const services = bookedServices(appointment.services)
 
   return (
     <CheckoutShell name={name} email={email}>
@@ -77,7 +81,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
       <CheckoutGrid
         details={
           <CheckoutCard title="Appointment details">
-            <DetailRow icon={UserRound} label="Doctor" value={doctorName(one(doctor?.profiles)?.full_name)} sub={doctor?.specialty} />
+            <DetailRow icon={UserRound} label="Doctor" value={doctorName(one(doctor?.profiles)?.full_name)} sub={[doctor?.specialty, fastTrack ? 'Fast track' : null].filter(Boolean).join(' · ')} />
             <DetailRow icon={Building2} label="Hospital" value={hospital?.name ?? 'Partner hospital'} sub={[hospital?.address, hospital?.city].filter(Boolean).join(', ')} />
             {startTime && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
@@ -89,12 +93,14 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
         }
         summary={
           <PaymentSummary
-            lines={[{ label: 'Booking fee', sub: 'Consult Your Doctor', amount: fees.consultation }]}
+            lines={[{ label: fastTrack ? 'Fast-track booking fee' : 'Booking fee', sub: 'Consult Your Doctor', amount: total }]}
             total={total}
             isConsultation
             atVenue={
-              <PayAtVenue title="Consultation fee: paid at the hospital counter">
-                Set by the hospital and paid when you visit. It isn&apos;t collected online or added to this total.
+              <PayAtVenue title={services.length ? 'Consultation fee and services: paid at the hospital' : 'Consultation fee: paid at the hospital counter'}>
+                {services.length
+                  ? `The consultation fee and ${services.map((s) => `${s.name} (${formatINR(s.price)})`).join(', ')} are paid when you visit. They aren't collected online or added to this total.`
+                  : <>Set by the hospital and paid when you visit. It isn&apos;t collected online or added to this total.</>}
               </PayAtVenue>
             }
           >

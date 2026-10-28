@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { one } from '@/components/patient/data'
 import { istDateKey } from '@/components/patient/format'
 import type { Tone } from '@/components/portal/ui'
-import { testList } from '@/lib/pricing'
+import { bookedServices, isFastTrack, testList, type BookedTest } from '@/lib/pricing'
 
 type Admin = ReturnType<typeof createAdminClient>
 type Joined<T> = T | T[] | null
@@ -179,6 +179,10 @@ export type HospitalVisit = {
   executiveId: string | null
   patient: { id: string; name: string; phone: string | null; email: string | null } | null
   payment: Payment | null
+  /** Booked as fast track: seen ahead of general patients once checked in. */
+  fastTrack: boolean
+  /** Hospital services the patient picked when booking, to collect at the counter. */
+  services: BookedTest[]
 }
 
 type VisitRow = {
@@ -187,6 +191,9 @@ type VisitRow = {
   created_at: string
   doctor_id: string | null
   executive_id: string | null
+  /** Missing until 20261028_fast_track_services.sql runs. */
+  booking_type?: string | null
+  services?: unknown
   schedules: Joined<{ start_time: string; end_time: string | null }>
   patient: Joined<{ id: string; full_name: string | null; phone_number: string | null; email: string | null }>
 }
@@ -196,8 +203,9 @@ export async function loadHospitalVisits(admin: Admin, hospitalId: string, docto
   const scope = doctorIds.length ? `hospital_id.eq.${hospitalId},doctor_id.in.(${doctorIds.join(',')})` : `hospital_id.eq.${hospitalId}`
   const { data } = await admin
     .from('appointments')
+    // `*` so booking_type and services come back once 20261028_fast_track_services.sql has run.
     .select(`
-      id, status, created_at, doctor_id, executive_id,
+      *,
       schedules ( start_time, end_time ),
       patient:profiles!appointments_patient_id_fkey ( id, full_name, phone_number, email )
     `)
@@ -223,6 +231,8 @@ export async function loadHospitalVisits(admin: Admin, hospitalId: string, docto
         executiveId: r.executive_id,
         patient: patient ? { id: patient.id, name: patient.full_name || 'Patient', phone: patient.phone_number, email: realEmail(patient.email) } : null,
         payment: payments.get(r.id) ?? null,
+        fastTrack: isFastTrack(r.booking_type),
+        services: bookedServices(r.services),
       }
     })
     .sort((a, b) => (a.start ?? a.createdAt).localeCompare(b.start ?? b.createdAt))

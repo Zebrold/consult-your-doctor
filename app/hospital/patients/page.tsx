@@ -52,6 +52,8 @@ export default async function HospitalPatientsPage(props: { searchParams?: Promi
       doctor: doc ? doctorName(doc.name) : 'Doctor',
       department: doc?.department ?? 'Other',
       payment: v.payment ? { label: PAYMENT_METHOD[v.payment.gateway ?? ''] ?? 'Paid', amount: hospitalShare(v.payment, doc?.fee) } : null,
+      fastTrack: v.fastTrack,
+      services: v.services.map((s) => s.name),
     }
   })
 

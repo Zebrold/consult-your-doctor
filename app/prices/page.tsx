@@ -137,7 +137,9 @@ export default async function PricesPage() {
           <div className="rounded-xl bg-slate-50 border border-slate-200 px-6 py-5 text-[15px] text-slate-700">
             <span className="font-semibold text-indigo-gray-900">Example:</span> booking a doctor costs{" "}
             <span className="font-semibold text-indigo-gray-900">{inr(fees.consultation)}</span> online, and you pay the consultation fee at the
-            hospital counter. A {inr(exampleTest)} lab test costs{" "}
+            hospital counter. Fast track, where the booking page offers it, is{" "}
+            <span className="font-semibold text-indigo-gray-900">{inr(fees.fastTrack)}</span> online and you are seen ahead of general patients once
+            checked in. A {inr(exampleTest)} lab test costs{" "}
             <span className="font-semibold text-indigo-gray-900">{inr(labTestBookingFee(exampleTest, fees.diagnosticPercent))}</span> online, and{" "}
             {inr(exampleTest)} at the lab.
           </div>

@@ -2,8 +2,8 @@ import { getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound, redirect } from 'next/navigation'
 import QRCode from 'qrcode'
-import { doctorName, formatLongDate, formatTime } from '@/components/patient/format'
-import { labBookingFee, matchBookedTests } from '@/lib/pricing'
+import { doctorName, formatINR, formatLongDate, formatTime } from '@/components/patient/format'
+import { bookedServices, doctorBookingFee, isFastTrack, labBookingFee, matchBookedTests } from '@/lib/pricing'
 import { getBookingFees } from '@/lib/booking-fees'
 
 // Paid booking states. Payment status always comes from the database: a ?payment=success in the URL proves nothing.
@@ -38,7 +38,7 @@ export default async function BookingConfirmationPage(props: Props) {
   const { data: aptData } = await admin
     .from('appointments')
     .select(`
-      id, status, created_at, patient_id,
+      *,
       patient:profiles!appointments_patient_id_fkey ( full_name, phone_number ),
       doctor:doctors (
         id, specialty,
@@ -73,6 +73,7 @@ export default async function BookingConfirmationPage(props: Props) {
   if (apt) {
     const doc = apt.doctor
     const hosp = apt.hospital
+    const services = bookedServices(apt.services)
     const schedule = apt.schedule
     const patient = apt.patient
 
@@ -108,7 +109,7 @@ export default async function BookingConfirmationPage(props: Props) {
       tokenNumber,
       isConsultation: true,
       title: doc?.profiles?.full_name ? doctorName(doc.profiles.full_name) : 'Medical Specialist',
-      subtitle: doc?.specialty || 'General Consultation',
+      subtitle: [doc?.specialty || 'General Consultation', isFastTrack(apt.booking_type) ? 'Fast track' : null].filter(Boolean).join(' · '),
       providerName: hosp?.name || 'Affiliated Hospital',
       providerCode: hosp?.hospital_code || `CYD-HOSP-${hosp?.id?.slice(0, 4)?.toUpperCase() || '0000'}`,
       location: [hosp?.city, hosp?.address].filter(Boolean).join(', ') || 'Branch Clinic',
@@ -116,7 +117,10 @@ export default async function BookingConfirmationPage(props: Props) {
       dateTime: dateStr,
       patientName: patient?.full_name || 'Patient',
       patientPhone: maskPhone(patient?.phone_number, viewer?.id === apt.patient_id),
-      bookingFee: bookingFeeFrom(paid, fees.consultation),
+      bookingFee: bookingFeeFrom(paid, doctorBookingFee(fees, apt.booking_type)),
+      venueNote: services.length
+        ? `The consultation fee and ${services.map((s) => `${s.name} (${formatINR(s.price)})`).join(', ')} are paid at the hospital counter.`
+        : null,
       paymentStatus,
       failureReason,
       appointmentStatus: apt.status || 'confirmed',

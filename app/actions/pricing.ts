@@ -18,15 +18,20 @@ export async function updateBookingFeesAction(input: BookingFees): Promise<{ suc
 
     // Server actions take any value from the browser, so the amounts are checked here and not only in the form.
     const consultation = Number(input?.consultation)
+    const fastTrack = Number(input?.fastTrack)
     const diagnosticPercent = Number(input?.diagnosticPercent)
+    const max = MAX_CONSULTATION_BOOKING_FEE.toLocaleString('en-IN')
     if (!validConsultationBookingFee(consultation)) {
-      return { success: false, error: `The doctor booking fee must be a whole number of rupees from ₹0 to ₹${MAX_CONSULTATION_BOOKING_FEE.toLocaleString('en-IN')}.` }
+      return { success: false, error: `The doctor booking fee must be a whole number of rupees from ₹0 to ₹${max}.` }
+    }
+    if (!validConsultationBookingFee(fastTrack)) {
+      return { success: false, error: `The fast-track booking fee must be a whole number of rupees from ₹0 to ₹${max}.` }
     }
     if (!validDiagnosticPercent(diagnosticPercent)) {
       return { success: false, error: 'The lab booking fee must be a percentage from 0 to 100, with at most two decimals.' }
     }
 
-    const fees: BookingFees = { consultation, diagnosticPercent }
+    const fees: BookingFees = { consultation, fastTrack, diagnosticPercent }
     await saveBookingFees(fees)
 
     // Every page that shows a fee, and the PayU hash and callback, read it through this tag.

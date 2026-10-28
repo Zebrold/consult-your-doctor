@@ -1,142 +1,101 @@
-import { createClient, getCurrentUser } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Home, Search, Calendar as CalendarIcon, User, Heart, Star, MapPin } from 'lucide-react'
-import { PatientSidebar } from '@/components/PatientSidebar'
-import { PatientNavHeader } from '@/components/PatientNavHeader'
-import { PatientDock } from '@/components/PatientDock'
-import { PatientFooter } from '@/components/AppFooter'
-import { AccountShortcuts } from '@/components/patient/AccountShortcuts'
+import { redirect } from 'next/navigation'
+import { Building2, Search } from 'lucide-react'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { AccountCard, AccountPage } from '@/components/patient/AccountPage'
+import { btnPrimary } from '@/components/patient/app-ui'
+import { one } from '@/components/patient/data'
+import { doctorName, initials } from '@/components/patient/format'
 
-export default async function PatientSaved() {
+export const metadata: Metadata = { title: 'Your doctors & labs | Consult Your Doctor' }
+
+type Rel<T> = T | T[] | null
+
+/** The doctors and labs the patient has booked, newest first, with a quick way to book them again. */
+export default async function SavedPage() {
   const supabase = await createClient()
-
   const user = await getCurrentUser()
-  if (!user) redirect('/login/patient')
+  if (!user) redirect('/login/patient?next=/patient/saved')
 
-  // The name for the header and the upcoming-visit count for the sidebar, fetched together.
-  const [{ data: patientDetails }, { data: profile }, { data: appointments }] = await Promise.all([
-    supabase.from('patient_details').select('*').eq('id', user.id).single(),
-    supabase.from('profiles').select('*').eq('id', user.id).single(),
-    supabase.from('appointments').select('id, status').eq('patient_id', user.id),
+  const [{ data: profile }, { data: visits }, { data: labs }] = await Promise.all([
+    supabase.from('profiles').select('full_name, email').eq('id', user.id).maybeSingle(),
+    supabase
+      .from('appointments')
+      .select('doctors ( id, specialty, image_url, profiles!doctors_profile_id_fkey ( full_name ) ), hospitals ( name, city )')
+      .eq('patient_id', user.id)
+      .order('created_at', { ascending: false }),
+    supabase.from('diagnostic_bookings').select('diagnostic_centers ( id, name, city, address )').eq('patient_id', user.id).order('created_at', { ascending: false }),
   ])
 
-  const upcomingAppointments = appointments?.filter(a => a.status === 'scheduled' || a.status === 'confirmed') || []
+  type Visit = { doctors: Rel<{ id: string; specialty: string | null; image_url: string | null; profiles: Rel<{ full_name: string | null }> }>; hospitals: Rel<{ name: string; city: string | null }> }
+  const doctors = new Map<string, { id: string; name: string; sub: string; image: string | null }>()
+  for (const v of (visits ?? []) as Visit[]) {
+    const d = one(v.doctors)
+    if (!d || doctors.has(d.id)) continue
+    const h = one(v.hospitals)
+    doctors.set(d.id, { id: d.id, name: doctorName(one(d.profiles)?.full_name), sub: [d.specialty, h?.name, h?.city].filter(Boolean).join(' · '), image: d.image_url })
+  }
+  const centers = new Map<string, { id: string; name: string; sub: string }>()
+  for (const b of (labs ?? []) as { diagnostic_centers: Rel<{ id: string; name: string; city: string | null; address: string | null }> }[]) {
+    const c = one(b.diagnostic_centers)
+    if (c && !centers.has(c.id)) centers.set(c.id, { id: c.id, name: c.name, sub: [c.address?.split(',')[0], c.city].filter(Boolean).join(' · ') || 'Diagnostic centre' })
+  }
+
+  const row = 'flex items-center gap-3 py-3 border-t border-[#EEF2F7]'
+  const again = 'shrink-0 h-9 px-3.5 rounded-[10px] border-[1.5px] border-[#D6DDE8] text-[12.5px] font-extrabold text-[#27324A] flex items-center hover:bg-[#F4F6FA] transition-colors'
 
   return (
-    <div className="bg-background font-body-md text-body-md text-on-surface antialiased min-h-screen">
-      <PatientNavHeader
-        name={profile?.full_name}
-        email={profile?.email || user.email}
-        isSignedIn
-        container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop"
-        backHref="/patient/profile"
-        eyebrow="My account"
-        title="Saved Doctors & Labs"
-        subtitle="Your favourite doctors and preferred lab centres."
-      />
-      <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-12 md:pb-16">
-        <div className="flex flex-col w-full">
-          <div className="relative w-full overflow-hidden">
-            <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-5 md:pt-8">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start max-w-[1440px] mx-auto">
-
-                {/* ==================== LEFT COLUMN (30% -> 4 cols) ==================== */}
-                <PatientSidebar user={user} profile={profile} patientDetails={patientDetails} activeAppointmentsCount={upcomingAppointments.length} />
-
-                {/* ==================== RIGHT COLUMN (70% -> 8 cols) ==================== */}
-                <div className="lg:col-span-8 flex flex-col gap-6">
-                  <AccountShortcuts />
-
-                  <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant/30">
-                    <h3 className="font-title-md text-title-md font-bold text-on-surface mb-6 flex items-center gap-2">
-                      <Heart className="w-5 h-5 text-soft-coral fill-soft-coral" /> Saved Doctors
-                    </h3>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Dummy Doctor 1 */}
-                      <div className="p-4 rounded-xl border border-surface-variant flex flex-col gap-4 hover:border-vibrant-blue/50 transition-colors group">
-                        <div className="flex justify-between items-start">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-full bg-primary-fixed flex items-center justify-center text-primary">
-                              <User className="w-6 h-6" />
-                            </div>
-                            <div>
-                              <h4 className="font-title-md text-label-sm font-bold text-on-surface">Dr. Sarah Jenkins</h4>
-                              <p className="font-label-sm text-label-sm text-on-surface-variant">Cardiologist</p>
-                            </div>
-                          </div>
-                          <button className="text-soft-coral hover:text-on-surface-variant transition-colors">
-                            <Heart className="w-5 h-5 fill-soft-coral" />
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2 text-on-surface-variant font-label-sm text-label-sm">
-                          <MapPin className="w-4 h-4" /> Lilavati Hospital, Mumbai
-                        </div>
-                        <button className="w-full py-2 rounded-lg bg-surface-container-low text-vibrant-blue font-label-sm text-label-sm font-bold hover:bg-surface-container-high transition-colors">
-                          Book Appointment
-                        </button>
-                      </div>
-
-                      {/* Dummy Doctor 2 */}
-                      <div className="p-4 rounded-xl border border-surface-variant flex flex-col gap-4 hover:border-vibrant-blue/50 transition-colors group">
-                        <div className="flex justify-between items-start">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-full bg-primary-fixed flex items-center justify-center text-primary">
-                              <User className="w-6 h-6" />
-                            </div>
-                            <div>
-                              <h4 className="font-title-md text-label-sm font-bold text-on-surface">Dr. Marcus Vance</h4>
-                              <p className="font-label-sm text-label-sm text-on-surface-variant">Dermatologist</p>
-                            </div>
-                          </div>
-                          <button className="text-soft-coral hover:text-on-surface-variant transition-colors">
-                            <Heart className="w-5 h-5 fill-soft-coral" />
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2 text-on-surface-variant font-label-sm text-label-sm">
-                          <MapPin className="w-4 h-4" /> Apollo Spectra, Bandra
-                        </div>
-                        <button className="w-full py-2 rounded-lg bg-surface-container-low text-vibrant-blue font-label-sm text-label-sm font-bold hover:bg-surface-container-high transition-colors">
-                          Book Appointment
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant/30">
-                    <h3 className="font-title-md text-title-md font-bold text-on-surface mb-6 flex items-center gap-2">
-                      <Star className="w-5 h-5 text-orange-500 fill-orange-500" /> Preferred Diagnostic Centers
-                    </h3>
-
-                    <div className="flex flex-col gap-4">
-                      {/* Dummy Lab 1 */}
-                      <div className="p-4 rounded-xl border border-surface-variant flex items-center justify-between hover:bg-surface-container-low transition-colors group">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-lg bg-fresh-teal/10 flex items-center justify-center text-fresh-teal">
-                            <Search className="w-6 h-6" />
-                          </div>
-                          <div>
-                            <p className="font-title-md text-label-sm font-bold text-on-surface">Apex Diagnostics &amp; Imaging</p>
-                            <p className="font-label-sm text-label-sm text-on-surface-variant mt-0.5">Andheri West, Mumbai • 4.8/5 Rating</p>
-                          </div>
-                        </div>
-                        <button className="py-2 px-4 rounded-lg bg-vibrant-blue text-on-primary font-label-sm text-label-sm font-bold hover:bg-primary transition-colors">
-                          Book Test
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-            </div>
+    <AccountPage user={user} profile={profile} title="Your doctors & labs" subtitle="Everyone you have booked, for quick re-booking.">
+      {doctors.size === 0 && centers.size === 0 ? (
+        <AccountCard>
+          <div className="py-4 text-center">
+            <p className="text-[15px] font-extrabold">Nobody here yet</p>
+            <p className="mt-1 mb-4 text-[13px] text-[#5B667A]">Doctors and labs you book are kept here so you can book them again in a tap.</p>
+            <Link href="/find" className={btnPrimary}>
+              <Search className="w-4 h-4" /> Find care
+            </Link>
           </div>
+        </AccountCard>
+      ) : (
+        <div className="flex flex-col lg:grid lg:grid-cols-2 gap-3.5 lg:gap-5 lg:items-start">
+          <AccountCard title="Doctors" sub={doctors.size ? `${doctors.size} you have booked` : 'None booked yet'}>
+            {[...doctors.values()].map((d) => (
+              <div key={d.id} className={row}>
+                {d.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={d.image} alt="" className="shrink-0 w-11 h-11 rounded-xl object-cover object-top bg-[#EEF1F5]" />
+                ) : (
+                  <span className="shrink-0 w-11 h-11 rounded-xl bg-[#EEF3FF] text-[#2A4DD0] flex items-center justify-center text-[13px] font-extrabold">{initials(d.name)}</span>
+                )}
+                <Link href={`/doctors/${d.id}`} className="flex-1 min-w-0 hover:text-[#2A4DD0]">
+                  <span className="block text-[14px] font-extrabold truncate">{d.name}</span>
+                  <span className="block text-[12px] text-[#5B667A] truncate">{d.sub}</span>
+                </Link>
+                <Link href={`/book/${d.id}`} className={again}>
+                  Book again
+                </Link>
+              </div>
+            ))}
+          </AccountCard>
+          <AccountCard title="Diagnostic centres" sub={centers.size ? `${centers.size} you have booked` : 'None booked yet'}>
+            {[...centers.values()].map((c) => (
+              <div key={c.id} className={row}>
+                <span className="shrink-0 w-11 h-11 rounded-xl bg-[#F4F6FA] text-[#27324A] flex items-center justify-center">
+                  <Building2 className="w-5 h-5" />
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[14px] font-extrabold truncate">{c.name}</span>
+                  <span className="block text-[12px] text-[#5B667A] truncate">{c.sub}</span>
+                </span>
+                <Link href={`/book/diagnostic/${c.id}`} className={again}>
+                  Book again
+                </Link>
+              </div>
+            ))}
+          </AccountCard>
         </div>
-      </main>
-
-      <PatientFooter isSignedIn />
-      <PatientDock activeTab="profile" name={profile?.full_name} />
-    </div>
+      )}
+    </AccountPage>
   )
 }

@@ -3,8 +3,6 @@ import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { getBookingFees } from "@/lib/booking-fees";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
 import { PatientDock } from "@/components/PatientDock";
 import { PatientFooter, PortalFooter } from "@/components/AppFooter";
 import {
@@ -16,12 +14,12 @@ import { doctorName } from "@/components/patient/format";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { parseEducation } from "@/lib/education";
 import { loadDoctorReviews } from "@/lib/reviews";
+import { currentTime } from "@/components/patient/data";
 
 export const revalidate = 0;
 
 interface DoctorProfilePageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export async function generateMetadata(
@@ -57,12 +55,9 @@ export async function generateMetadata(
 
 export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
   const { id } = await props.params;
-  const sParams = await props.searchParams;
-  const isPreview = sParams?.preview === "patient";
 
   const supabase = await createClient();
   const user = await getCurrentUser();
-  const isLoggedIn = !!user;
   // For the top bar: doctors open this page from their portal ("My public profile"); everyone else is a patient or visitor.
   const { data: viewer } = user
     ? await supabase.from("profiles").select("full_name, email, role").eq("id", user.id).maybeSingle()
@@ -127,13 +122,17 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
     priceRange: doctorData.consultation_fee ? `₹${doctorData.consultation_fee}` : undefined,
   };
 
+  const isDoctor = viewer?.role === "doctor";
+  const name = viewer?.full_name || user?.user_metadata?.full_name || null;
+
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLd(schema) }}
       />
-      {viewer?.role === "doctor" ? (
+      {/* Doctors open this page from their portal ("My public profile") and keep the portal's bar. */}
+      {isDoctor && (
         <TopBar
           homeHref="/doctor/dashboard"
           section="Doctor Portal"
@@ -141,26 +140,20 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
           container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop"
           className="hidden md:block"
         />
-      ) : isLoggedIn ? null : (
-        // Signed-in patients get the blue bar from DoctorProfileClient at every width.
-        <Header />
       )}
       <DoctorProfileClient
         doctor={doctorData}
         bookingFee={(await getBookingFees()).consultation}
-        isLoggedIn={isLoggedIn}
-        showPatientDock={isLoggedIn && isPreview}
-        viewer={viewer?.role === "doctor" ? null : { name: viewer?.full_name ?? null, email: viewer?.email || user?.email || null }}
+        now={currentTime()}
+        account={isDoctor ? null : { isSignedIn: !!user, name, email: viewer?.email || user?.email || null }}
       />
-      {viewer?.role === "doctor" ? (
+      {isDoctor ? (
         <PortalFooter portal="doctor" />
-      ) : isLoggedIn ? (
-        <>
-          <PatientFooter isSignedIn />
-          {isPreview && <PatientDock activeTab="find" isSignedIn={isLoggedIn} name={viewer?.full_name || user?.user_metadata?.full_name} />}
-        </>
       ) : (
-        <Footer />
+        <>
+          <PatientFooter isSignedIn={!!user} />
+          <PatientDock activeTab="find" isSignedIn={!!user} name={name} phoneBar={false} detail={user && (!viewer?.role || viewer.role === "patient") ? `UHID CYD-${user.id.slice(0, 8).toUpperCase()}` : null} />
+        </>
       )}
     </>
   );

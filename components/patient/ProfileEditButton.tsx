@@ -15,9 +15,9 @@ type ProfileDetails = {
   emergency_contact_phone: string | null;
 };
 
-/** Opens the existing profile editor (saves through updatePatientProfile). */
-export function ProfileEditButton({ details, className, children }: { details: ProfileDetails; className: string; children: ReactNode }) {
-  const [open, setOpen] = useState(false);
+/** Opens the existing profile editor (saves through updatePatientProfile). `initialOpen` opens it straight away. */
+export function ProfileEditButton({ details, className, children, initialOpen = false }: { details: ProfileDetails; className: string; children: ReactNode; initialOpen?: boolean }) {
+  const [open, setOpen] = useState(initialOpen);
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className={className}>

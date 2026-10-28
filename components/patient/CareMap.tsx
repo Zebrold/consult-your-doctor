@@ -64,7 +64,7 @@ function geocode(query: string): Promise<[number, number] | null> {
 /** A clean Google Maps style pin with the hospital's doctor count */
 function pinIcon(count: number, selected: boolean) {
   const size = selected ? 44 : 34;
-  const fill = selected ? "#EA4335" : "#1A73E8";
+  const fill = selected ? "#EA4335" : "#2A4DD0";
   const stroke = "#ffffff";
   return L.divIcon({
     className: "cyd-pin",
@@ -185,10 +185,13 @@ export default function CareMap({
   clinics,
   selectedId,
   onSelect,
+  unit = "doctor",
 }: {
   clinics: Clinic[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  /** What each pin's number counts ("doctor", or "test" for labs). */
+  unit?: string;
 }) {
   const [points, setPoints] = useState<Record<string, Point>>({});
   // Which set of hospitals (their ids) has been placed at least roughly; the map fits to it once.
@@ -269,7 +272,7 @@ export default function CareMap({
             >
               <Tooltip key={selected ? "on" : "off"} direction="top" permanent={selected} className="cyd-pin-label">
                 <span className="font-bold">{clinic.name}</span>
-                <span className="text-indigo-gray-600"> • {clinic.doctorCount} {clinic.doctorCount === 1 ? "doctor" : "doctors"}</span>
+                <span className="text-indigo-gray-600"> • {clinic.doctorCount} {clinic.doctorCount === 1 ? unit : `${unit}s`}</span>
               </Tooltip>
             </Marker>
           );

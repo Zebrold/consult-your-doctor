@@ -64,21 +64,25 @@ export function PortalPageSkeleton() {
   )
 }
 
-/** Patient pages draw their own top bar (the blue header on phones), so the placeholder includes one. */
+/**
+ * Patient pages draw their own chrome: the blue header on phones, and on computers the blue side menu and white top
+ * bar. The placeholder draws the same shapes (the data-patient-rail mark makes room for the menu, as on the page).
+ */
 export function PatientPageSkeleton() {
   return (
-    <div className="min-h-screen bg-background">
-      <div className="hidden md:block sticky top-0 z-40 h-16 border-b border-outline-variant/30 bg-surface-container-lowest" />
-      <div className="md:hidden h-[calc(env(safe-area-inset-top)+190px)] rounded-b-[32px] bg-[linear-gradient(160deg,#0758f2_0%,#1570ff_55%,#2b86ff_100%)] shadow-[0_14px_30px_-14px_rgba(0,80,220,0.6)] px-4 pt-[calc(env(safe-area-inset-top)+14px)]">
+    <div className="min-h-screen bg-[#F6F8FC] lg:bg-transparent">
+      <div data-patient-rail className="hidden lg:block fixed inset-y-0 left-0 z-40 w-[260px] bg-[#2A4DD0]" />
+      <div className="hidden lg:block fixed top-0 left-[260px] right-0 z-30 h-[72px] border-b border-[#E6EAF0] bg-white" />
+      <div className="lg:hidden h-[calc(env(safe-area-inset-top)+176px)] rounded-b-[28px] bg-[#2A4DD0] px-4 pt-[calc(env(safe-area-inset-top)+14px)]">
         <div className="flex items-center justify-between">
-          <div className="w-40 h-10 rounded-xl bg-white/15" />
-          <div className="w-24 h-11 rounded-full bg-white/15" />
+          <div className="w-44 h-10 rounded-xl bg-white/15" />
+          <div className="w-[88px] h-11 rounded-full bg-white/15" />
         </div>
         <div className="mt-6 w-24 h-4 rounded-md bg-white/20" />
         <div className="mt-2.5 w-52 h-8 rounded-lg bg-white/25" />
         <div className="mt-2.5 w-64 h-4 rounded-md bg-white/15" />
       </div>
-      <div className="max-w-[1240px] mx-auto px-margin-x-mobile lg:px-12 py-6 md:py-8">
+      <div className="max-w-[1340px] px-4 md:px-6 lg:px-9 py-6 lg:py-7">
         <PortalPageSkeleton />
       </div>
     </div>

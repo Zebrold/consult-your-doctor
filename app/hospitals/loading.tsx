@@ -1,5 +1,5 @@
-import { PublicPageSkeleton } from '@/components/PageSkeleton'
+import { PatientPageSkeleton } from '@/components/PageSkeleton'
 
 export default function Loading() {
-  return <PublicPageSkeleton />
+  return <PatientPageSkeleton />
 }

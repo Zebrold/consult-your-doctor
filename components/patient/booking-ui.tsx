@@ -139,15 +139,15 @@ export function DayStrip({
             type="button"
             onClick={() => onSelect(d.key)}
             aria-pressed={active}
-            className={`flex flex-col items-center min-w-[64px] py-3 px-2 rounded-xl transition-all text-center ${
-              active ? "bg-vibrant-blue text-on-primary shadow-md" : "bg-surface-container-low text-on-surface hover:bg-surface-variant"
+            className={`flex flex-col items-center min-w-[64px] py-2.5 px-2 rounded-[14px] border-[1.5px] transition-colors text-center ${
+              active ? "border-[#2A4DD0] bg-[#2A4DD0] text-white shadow-[0_6px_14px_rgba(42,77,208,0.28)]" : "border-[#E1E7F0] bg-white text-[#0B1B3F] hover:border-[#A9CBFF]"
             }`}
           >
-            <span className={`font-label-sm text-label-sm uppercase font-semibold ${active ? "opacity-80" : "text-outline"}`}>{d.weekday}</span>
-            <span className="font-title-md text-body-lg font-bold mt-0.5">{d.day}</span>
+            <span className={`text-[11.5px] uppercase font-extrabold tracking-[0.04em] ${active ? "text-[#DCE6FF]" : "text-[#5B667A]"}`}>{d.weekday}</span>
+            <span className="text-[19px] font-extrabold leading-tight mt-0.5">{d.day}</span>
             <span
-              className={`font-label-sm text-[10px] font-medium mt-1 ${
-                active ? "bg-surface-container-lowest/20 px-2 py-0.5 rounded-full" : b.tone === "open" ? "text-secondary" : "text-outline"
+              className={`text-[10.5px] font-bold mt-1 whitespace-nowrap ${
+                active ? "bg-white/20 px-2 py-0.5 rounded-full" : b.tone === "open" ? "text-[#067647]" : "text-[#8A94A6]"
               }`}
             >
               {active ? "Selected" : b.text || "\u00a0"}

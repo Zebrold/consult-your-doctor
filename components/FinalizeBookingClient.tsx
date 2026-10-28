@@ -3,22 +3,16 @@
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  BadgeCheck, Building2, CalendarDays, CircleCheck, Clock, IdCard, Lock, LoaderCircle, MapPin,
-  Navigation, Sun, Sunset, type LucideIcon,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2, CalendarDays, CircleCheck, IdCard, Lock, LoaderCircle, LogIn, MapPin, Navigation, Sun, Sunset, type LucideIcon } from "lucide-react";
 import { PatientDock } from "@/components/PatientDock";
 import { PatientFooter } from "@/components/AppFooter";
 import { PatientNavHeader } from "@/components/PatientNavHeader";
+import { VerifiedBadge } from "@/components/home/ui";
+import { InfoRow, btnPrimary, card } from "@/components/patient/app-ui";
 import { finalizeConsultationAppointment } from "@/app/actions/booking";
 import { startPayuPayment } from "@/lib/payu-client";
-import {
-  appendPatientDetails, Breadcrumbs, DayStrip, FormError, PatientDetailsFields, PayAtVenue, PayuNote, patientDetailsError,
-  RefundNote, SignInToBook, StepCard, SummaryRow, type PatientDetails,
-} from "@/components/patient/booking-ui";
-import {
-  doctorName, formatINR, formatLongDate, formatSlot, formatTime, initials, isMorning, istDateKey, upcomingDays,
-} from "@/components/patient/format";
+import { appendPatientDetails, DayStrip, FormError, PayuNote, patientDetailsError, RefundNote, type PatientDetails } from "@/components/patient/booking-ui";
+import { directionsHref, doctorName, formatINR, formatLongDate, formatSlot, formatTime, initials, isMorning, istDateKey, upcomingDays } from "@/components/patient/format";
 
 export interface BookingDoctor {
   id: string;
@@ -44,9 +38,11 @@ interface FinalizeBookingClientProps {
   payuKey: string;
   /** The booking fee /api/payu/hash will charge (lib/booking-fees.ts): the whole online payment. */
   bookingFee: number;
+  /** A slot the patient already picked (on the hospital page), selected when it is still open. */
+  initialSlotId?: string | null;
 }
 
-export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, bookingFee }: FinalizeBookingClientProps) {
+export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, bookingFee, initialSlotId = null }: FinalizeBookingClientProps) {
   const router = useRouter();
   const name = doctorName(doctor.name);
   const days = useMemo(() => upcomingDays(now, 6), [now]);
@@ -60,11 +56,11 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, bo
     }
     return map;
   }, [slots]);
-  const firstOpen = slots.find((s) => !s.booked) ?? null;
+  const firstOpen = (initialSlotId ? slots.find((s) => s.id === initialSlotId && !s.booked) : undefined) ?? slots.find((s) => !s.booked) ?? null;
 
   const [date, setDate] = useState(() => (firstOpen && days.some((d) => d.key === istDateKey(firstOpen.start)) ? istDateKey(firstOpen.start) : today));
   const [slotId, setSlotId] = useState<string | null>(() => (firstOpen && istDateKey(firstOpen.start) === date ? firstOpen.id : null));
-  const [details, setDetails] = useState<PatientDetails>(() => patient ?? { name: "", phone: "", email: "", dateOfBirth: "", gender: "" });
+  const [details] = useState<PatientDetails>(() => patient ?? { name: "", phone: "", email: "", dateOfBirth: "", gender: "" });
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -127,109 +123,82 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, bo
   const later = daySlots.filter((s) => !isMorning(s.start));
   const canBook = doctor.bookable;
 
+  const directions = doctor.hospital ? directionsHref(doctor.hospital.name, doctor.hospital.address, doctor.hospital.city) : null;
+  const signIn = `/login/patient?next=${encodeURIComponent(`/book/${doctor.id}`)}`;
+  const ctaLabel = submitting ? "Reserving…" : !canBook ? "Booking unavailable" : !selected ? "Pick a time" : `Pay ${formatINR(bookingFee)}`;
+
   return (
-    <div className="bg-background text-on-surface antialiased min-h-screen">
+    <div className="bg-[#F6F8FC] lg:bg-transparent min-h-screen font-(family-name:--font-manrope) text-[#0B1B3F]">
       <PatientNavHeader
         isSignedIn={!!patient}
         name={patient?.name}
         email={patient?.email}
-        backHref="/find"
-        container="max-w-[1280px] px-margin-x-mobile lg:px-margin-x-desktop"
+        backHref={`/doctors/${doctor.id}`}
+        container="max-w-[900px] px-4 md:px-6"
         eyebrow="Book appointment"
-        title="Finalize Consultation"
-        subtitle="Pick a time, then pay to confirm your visit."
+        title="Book a visit"
+        subtitle={`${name}${doctor.hospital ? ` · ${doctor.hospital.name}` : ""}`}
+        deskHidden
       />
 
-      <main className="relative w-full overflow-hidden pb-12 md:pb-16 md:pt-8">
-        <div className="relative max-w-[1280px] mx-auto px-margin-x-mobile lg:px-margin-x-desktop pt-5 md:py-8">
-          {/* Breadcrumb & heading */}
-          <div className="hidden md:flex flex-col md:flex-row md:items-center justify-between gap-4 pb-8">
-            <div>
-              <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Find Doctors", href: "/find" }, { label: name, href: `/doctors/${doctor.id}` }, { label: "Book Appointment" }]} />
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container font-label-sm text-label-sm text-indigo-gray-900 font-semibold shadow-sm">
-                <BadgeCheck className="w-4 h-4 text-fresh-teal" /> Verified Doctor
-              </span>
-              <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container font-label-sm text-label-sm text-indigo-gray-900 font-semibold shadow-sm">
-                <Clock className="w-4 h-4 text-vibrant-blue" /> Confirmed on Payment
-              </span>
-            </div>
+      <main className="pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-11">
+        <div className="max-w-[1340px] lg:px-9 lg:pt-7">
+          <Link href={`/doctors/${doctor.id}`} className="hidden lg:inline-flex items-center gap-1.5 mb-3.5 text-[13.5px] font-extrabold text-[#2A4DD0] hover:underline">
+            <ArrowLeft className="w-4 h-4" strokeWidth={2.4} /> Back to {name}
+          </Link>
+          <div className="hidden lg:block mb-[22px]">
+            <h1 className="text-[26px] font-extrabold tracking-[-0.02em]">Book a visit</h1>
+            <p className="mt-1 text-[14px] text-[#5B667A]">Pick a time, then pay the booking fee to confirm.</p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
-            <div className="lg:col-span-8 flex flex-col gap-6">
-              {/* Doctor */}
-              <section className="bg-surface-container-low md:bg-surface-container-lowest rounded-xl p-5 md:p-6 shadow-sm relative overflow-hidden">
-                <div aria-hidden className="hidden md:block absolute top-0 left-0 w-1.5 h-full bg-vibrant-blue" />
-                <div className="flex gap-4 md:gap-6 items-center">
-                  <div className="relative shrink-0">
-                    {doctor.image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img className="w-20 h-20 md:w-28 md:h-28 rounded-full md:rounded-xl object-cover shadow-md bg-surface-container" src={doctor.image} alt={name} />
-                    ) : (
-                      <span className="w-20 h-20 md:w-28 md:h-28 rounded-full md:rounded-xl bg-gradient-to-br from-primary-fixed to-surface-container flex items-center justify-center text-primary font-headline-lg text-2xl md:text-3xl font-bold shadow-md">
-                        {initials(doctor.name)}
-                      </span>
-                    )}
-                    {openTodayCount > 0 && (
-                      <span className="hidden md:flex absolute -bottom-2 -right-2 px-2.5 py-0.5 rounded-full bg-blue-50 text-vibrant-blue border border-blue-200 font-label-sm text-label-sm items-center font-bold shadow-sm">
-                        Today
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="hidden md:inline-block px-2.5 py-0.5 mb-1 rounded-full bg-primary-fixed text-on-primary-fixed-variant font-label-sm text-label-sm font-semibold">
-                      {doctor.specialty || "Specialist"}
+          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-5 lg:items-start px-4 md:px-6 lg:px-0 pt-4 lg:pt-0 max-w-[900px] lg:max-w-none mx-auto">
+            <div className="flex flex-col gap-3.5 lg:gap-5 min-w-0">
+              <section className={`p-4 lg:p-[22px] ${card} rounded-[20px]! lg:rounded-2xl!`}>
+                <div className="flex items-center gap-3.5">
+                  {doctor.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={doctor.image} alt={name} className="shrink-0 w-[72px] h-[78px] lg:w-24 lg:h-24 rounded-[14px] object-cover object-top bg-[#EEF1F5]" />
+                  ) : (
+                    <span className="shrink-0 w-[72px] h-[78px] lg:w-24 lg:h-24 rounded-[14px] bg-[#EEF3FF] text-[#2A4DD0] flex items-center justify-center text-[22px] font-extrabold">{initials(doctor.name)}</span>
+                  )}
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-1.5 text-[17px] lg:text-[19px] font-extrabold min-w-0">
+                      <span className="truncate">{name}</span>
+                      <VerifiedBadge className="w-4 h-4" />
                     </span>
-                    <h2 className="md:hidden font-headline-lg-mobile text-headline-lg-mobile text-on-surface truncate">{name}</h2>
-                    <h2 className="hidden md:block font-title-md text-title-md text-on-surface truncate">{name}</h2>
-                    <p className="font-body-md text-body-md text-on-surface-variant md:text-indigo-gray-600 mt-0.5 line-clamp-2">
-                      <span className="md:hidden">{doctor.specialty || "Specialist"}</span>
-                      <span className="hidden md:inline">{doctor.qualifications || doctor.bio || `${doctor.specialty || "Specialist"} consultations`}</span>
-                    </p>
-                  </div>
+                    <span className="block text-[13.5px] font-bold text-[#2A4DD0]">{doctor.specialty || "Specialist"}</span>
+                    {doctor.qualifications && <span className="block text-[12.5px] text-[#5B667A] line-clamp-2">{doctor.qualifications}</span>}
+                  </span>
                 </div>
-                <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-surface-container-high/40 md:border-surface-container-low text-center md:text-left md:ml-[136px]">
-                  <Metric label="Experience" value={doctor.experience ? `${doctor.experience} Years` : "—"} />
-                  <Metric label="Hospital" value={doctor.hospital?.name || "—"} />
-                  <Metric label="Booking Fee" value={formatINR(bookingFee)} highlight />
+                <div className="grid grid-cols-3 mt-3.5 border-t border-[#EEF2F7]">
+                  <Metric label="Experience" value={doctor.experience ? `${doctor.experience} yrs` : "—"} />
+                  <Metric label="Open today" value={openTodayCount ? `${openTodayCount} slot${openTodayCount === 1 ? "" : "s"}` : "None"} border />
+                  <Metric label="Booking fee" value={formatINR(bookingFee)} highlight border />
                 </div>
               </section>
 
-              {/* 1. Visit type */}
-              <StepCard step={1} title="Consultation Type">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl bg-surface-container-low ring-2 ring-vibrant-blue/60">
-                  <span className="w-10 h-10 rounded-xl bg-vibrant-blue text-on-primary flex items-center justify-center shrink-0">
-                    <Building2 className="w-[22px] h-[22px]" />
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <span className="font-title-md text-body-md font-bold text-on-surface flex items-center gap-2">
-                      In-Person Clinic Visit <CircleCheck className="w-4 h-4 text-vibrant-blue" />
-                    </span>
-                    <span className="font-body-md text-sm text-indigo-gray-600 block mt-0.5">
+              <section className={`p-4 lg:p-[22px] ${card} rounded-[20px]! lg:rounded-2xl!`}>
+                <h2 className="text-[16px] font-extrabold">Where</h2>
+                <div className="flex items-start gap-3 mt-3 p-3 rounded-[14px] border-[1.5px] border-[#2A4DD0] bg-[#F7F9FF]">
+                  <Building2 className="w-5 h-5 text-[#2A4DD0] shrink-0 mt-0.5" />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-[14px] font-extrabold">In person at the hospital</span>
+                    <span className="block text-[12.5px] text-[#5B667A]">
                       {[doctor.hospital?.name, doctor.hospital?.address, doctor.hospital?.city].filter(Boolean).join(", ") || "Hospital address not listed"}
                     </span>
-                  </div>
-                  {doctor.hospital && (
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([doctor.hospital.name, doctor.hospital.address, doctor.hospital.city].filter(Boolean).join(", "))}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="self-start sm:self-center px-3 py-1.5 rounded-full bg-surface-container-lowest text-on-surface font-label-sm text-label-sm font-semibold shadow-sm hover:bg-surface-variant flex items-center gap-1.5 shrink-0"
-                    >
-                      <Navigation className="w-4 h-4 text-vibrant-blue" /> Directions
+                  </span>
+                  {directions && (
+                    <a href={directions} target="_blank" rel="noreferrer" className="shrink-0 inline-flex items-center gap-1 text-[12.5px] font-extrabold text-[#2A4DD0] hover:underline">
+                      <Navigation className="w-3.5 h-3.5" /> Directions
                     </a>
                   )}
                 </div>
-              </StepCard>
+              </section>
 
-              {/* 2. Date & time */}
-              <StepCard
-                step={2}
-                title="Choose Date & Time Slot"
-                aside={
-                  <span className="relative">
+              <section className={`p-4 lg:p-[22px] ${card} rounded-[20px]! lg:rounded-2xl!`}>
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <h2 className="text-[16px] font-extrabold">Date &amp; time</h2>
+                  <span className="relative shrink-0">
                     <button
                       type="button"
                       onClick={() => {
@@ -239,24 +208,13 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, bo
                           customDate.current?.focus();
                         }
                       }}
-                      className="flex items-center gap-1.5 font-label-sm text-label-sm text-vibrant-blue font-semibold hover:underline"
+                      className="flex items-center gap-1.5 text-[13px] font-extrabold text-[#2A4DD0] hover:underline"
                     >
-                      <CalendarDays className="w-[18px] h-[18px]" />
-                      <span className="hidden sm:inline">Choose Custom Date</span>
-                      <span className="sm:hidden">Other date</span>
+                      <CalendarDays className="w-4 h-4" /> Other date
                     </button>
-                    <input
-                      ref={customDate}
-                      type="date"
-                      min={today}
-                      tabIndex={-1}
-                      aria-label="Choose a date"
-                      className="sr-only"
-                      onChange={(e) => e.target.value && chooseDate(e.target.value)}
-                    />
+                    <input ref={customDate} type="date" min={today} tabIndex={-1} aria-label="Choose a date" className="sr-only" onChange={(e) => e.target.value && chooseDate(e.target.value)} />
                   </span>
-                }
-              >
+                </div>
                 <DayStrip
                   days={days}
                   selected={date}
@@ -268,15 +226,12 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, bo
                     return list.length ? { text: "Full", tone: "full" } : { text: "No slots", tone: "none" };
                   }}
                 />
-                {!days.some((d) => d.key === date) && (
-                  <p className="mt-3 font-label-sm text-label-sm text-indigo-gray-600">Showing slots for {formatLongDate(`${date}T12:00:00+05:30`)}</p>
-                )}
-
-                <div className="mt-6 flex flex-col gap-5">
+                {!days.some((d) => d.key === date) && <p className="mt-3 text-[12.5px] text-[#5B667A]">Showing times for {formatLongDate(`${date}T12:00:00+05:30`)}</p>}
+                <div className="mt-5 flex flex-col gap-4">
                   {daySlots.length === 0 ? (
-                    <div className="py-8 px-4 text-center rounded-xl bg-surface-container-low flex flex-col items-center gap-2">
-                      <CalendarDays className="w-8 h-8 text-outline" />
-                      <p className="font-title-md text-body-md font-semibold text-on-surface">No slots scheduled on this date</p>
+                    <div className="py-7 px-4 text-center rounded-[14px] bg-[#F6F8FC] flex flex-col items-center gap-2">
+                      <CalendarDays className="w-7 h-7 text-[#9AA4B5]" />
+                      <p className="text-[14px] font-extrabold">No times on this day</p>
                       {nextOpenAfter ? (
                         <button
                           type="button"
@@ -284,186 +239,199 @@ export function FinalizeBookingClient({ doctor, slots, patient, now, payuKey, bo
                             setDate(istDateKey(nextOpenAfter.start));
                             setSlotId(nextOpenAfter.id);
                           }}
-                          className="mt-1 px-4 py-2 rounded-full bg-vibrant-blue text-on-primary text-sm font-bold hover:bg-primary"
+                          className={`${btnPrimary} mt-1`}
                         >
-                          Next open slot: {formatSlot(nextOpenAfter.start, now)}
+                          Next open time: {formatSlot(nextOpenAfter.start, now)}
                         </button>
                       ) : (
-                        <p className="font-body-md text-sm text-indigo-gray-600 max-w-sm">This doctor has no open slots after this date yet. Please check back later or choose another doctor.</p>
+                        <p className="text-[12.5px] text-[#5B667A] max-w-sm">This doctor has no open times after this day yet. Check back later or choose another doctor.</p>
                       )}
                     </div>
                   ) : (
                     <>
                       <SlotGroup title="Morning" icon={Sun} slots={morning} selectedId={slotId} onPick={setSlotId} />
-                      <SlotGroup title="Afternoon & Evening" icon={Sunset} slots={later} selectedId={slotId} onPick={setSlotId} />
+                      <SlotGroup title="Afternoon & evening" icon={Sunset} slots={later} selectedId={slotId} onPick={setSlotId} />
                     </>
                   )}
                 </div>
-              </StepCard>
+              </section>
 
-              {/* 3. Patient */}
-              <StepCard
-                step={3}
-                title="Patient Details"
-                aside={
-                  patient ? (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
-                      <CircleCheck className="w-3.5 h-3.5 text-emerald-600" /> Auto-Applied from Profile
+              <section className={`p-4 lg:p-[22px] ${card} rounded-[20px]! lg:rounded-2xl!`}>
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <h2 className="text-[16px] font-extrabold">Patient details</h2>
+                  {patient && (
+                    <span className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#ECFDF3] text-[#067647] text-[11.5px] font-extrabold">
+                      <CircleCheck className="w-3.5 h-3.5" /> From your profile
                     </span>
-                  ) : null
-                }
-              >
+                  )}
+                </div>
                 {patient ? (
-                  <div className="flex flex-col gap-3 rounded-xl bg-surface-container-low/70 border border-surface-container-high/60 p-4 sm:p-5">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-title-md text-base sm:text-lg font-bold text-on-surface">
-                          {details.name || patient.name || "Patient"}
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full bg-fresh-teal/15 text-emerald-800 text-xs font-semibold">
-                          Verified Profile
-                        </span>
-                      </div>
-                      <span className="text-xs text-indigo-gray-600">
-                        Automatically taken from your account
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-sm border-t border-surface-container-high/40">
-                      <div className="flex flex-col">
-                        <span className="text-xs text-indigo-gray-600 font-medium">Mobile Number</span>
-                        <span className="font-semibold text-on-surface">
-                          {details.phone || patient.phone || "—"}
-                        </span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs text-indigo-gray-600 font-medium">Email</span>
-                        <span className="font-semibold text-on-surface truncate">
-                          {details.email || patient.email || "—"}
-                        </span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs text-indigo-gray-600 font-medium">Sex / DOB</span>
-                        <span className="font-semibold text-on-surface">
-                          {[details.gender || patient.gender, details.dateOfBirth || patient.dateOfBirth].filter(Boolean).join(" • ") || "Saved in profile"}
-                        </span>
-                      </div>
-                    </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4">
+                    <Detail label="Name" value={details.name || patient.name || "Patient"} />
+                    <Detail label="Mobile" value={details.phone || patient.phone || "—"} />
+                    <Detail label="Email" value={details.email || patient.email || "—"} />
+                    <Detail label="Sex / DOB" value={[details.gender || patient.gender, details.dateOfBirth || patient.dateOfBirth].filter(Boolean).join(" · ") || "In your profile"} />
                   </div>
                 ) : (
-                  <p className="text-sm text-indigo-gray-600">Sign in first and we&apos;ll automatically apply your details from your profile.</p>
+                  <p className="text-[13px] text-[#5B667A]">
+                    <Link href={signIn} className="font-extrabold text-[#2A4DD0] hover:underline">
+                      Sign in
+                    </Link>{" "}
+                    with your mobile number and your details are filled in from your profile.
+                  </p>
                 )}
-              </StepCard>
-            </div>
+              </section>
 
-            {/* Summary */}
-            <aside className="lg:col-span-4 flex flex-col gap-6 lg:sticky lg:top-8">
-              <div className="bg-surface-container-low md:bg-surface-container-lowest rounded-xl p-5 md:p-6 shadow-md">
-                <div className="flex items-center justify-between pb-4 border-b border-surface-container-high/60 md:border-surface-container-low">
-                  <h2 className="font-title-md text-body-lg font-bold text-on-surface">Appointment Summary</h2>
-                  <span className="px-2.5 py-0.5 rounded-full bg-fresh-teal/15 text-secondary font-label-sm text-label-sm font-bold">1 Visit</span>
-                </div>
-                <div className="py-4 flex flex-col gap-3 font-body-md text-body-md">
-                  <SummaryRow label="Booking fee" sub={`${doctor.specialty || "Specialist"} clinic visit`} value={formatINR(bookingFee)} />
-                  <div className="flex items-center justify-between gap-2 text-sm py-2.5 px-3 rounded-lg bg-surface-container-low md:bg-surface-container-low">
-                    <span className="text-indigo-gray-600 font-medium flex items-center gap-1.5">
-                      <CalendarDays className="w-4 h-4 text-vibrant-blue" /> Slot
-                    </span>
-                    <span className="font-bold text-on-surface text-right">{selected ? formatSlot(selected.start, now) : "Not chosen yet"}</span>
-                  </div>
-                </div>
-                <div className="pt-4 border-t border-surface-container flex items-baseline justify-between">
-                  <span className="font-label-sm text-label-sm text-outline uppercase font-semibold">Total Payable Online</span>
-                  <span className="font-headline-lg text-headline-lg-mobile md:text-headline-lg font-extrabold text-vibrant-blue">{formatINR(bookingFee)}</span>
-                </div>
-
-                <div className="mt-5 flex flex-col gap-4">
-                  <PayAtVenue title="Consultation fee: paid at the hospital counter">
-                    Set by the hospital and paid when you visit. It isn&apos;t collected online or added to this total.
-                  </PayAtVenue>
-                  <PayuNote />
-                  {error && (
-                    <FormError>
-                      {error}
-                      {pendingId && (
-                        <>
-                          {" "}
-                          <Link href={`/patient/checkout/${pendingId}`} className="font-bold underline">Pay from checkout</Link>
-                        </>
-                      )}
-                    </FormError>
-                  )}
-                  {!patient ? (
-                    <SignInToBook next={`/book/${doctor.id}`} />
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={submitting || !selected || !canBook}
-                      onClick={confirm}
-                      className="w-full py-4 px-6 rounded-full bg-vibrant-blue text-on-primary font-title-md text-body-lg font-bold shadow-lg shadow-slate-900/10 hover:bg-primary transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {submitting ? (
-                        <>
-                          <LoaderCircle className="w-5 h-5 animate-spin" /> Reserving your slot…
-                        </>
-                      ) : !canBook ? (
-                        "Online booking unavailable"
-                      ) : !selected ? (
-                        "Select a time slot"
-                      ) : (
-                        <>
-                          <Lock className="w-5 h-5" /> Confirm &amp; Pay {formatINR(bookingFee)}
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-
-                <ul className="mt-6 pt-5 border-t border-surface-container-low flex flex-col gap-2.5 font-label-sm text-label-sm text-indigo-gray-600">
-                  <li className="flex items-start gap-2.5">
-                    <CircleCheck className="w-[18px] h-[18px] text-fresh-teal shrink-0" />
-                    Your appointment is confirmed as soon as the payment succeeds.
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <IdCard className="w-[18px] h-[18px] text-vibrant-blue shrink-0" />
-                    Show your booking ID at the hospital reception to check in.
-                  </li>
-                </ul>
-                <div className="mt-4">
-                  <RefundNote isConsultation />
-                </div>
-              </div>
-
-              {doctor.hospital && (
-                <div className="hidden md:flex bg-surface-container-low rounded-xl p-4 items-center gap-4">
-                  <span className="w-12 h-12 rounded-full bg-vibrant-blue/10 text-vibrant-blue flex items-center justify-center shrink-0">
-                    <MapPin className="w-6 h-6" />
-                  </span>
-                  <div className="min-w-0">
-                    <span className="font-title-md text-body-md font-bold text-on-surface block truncate">{doctor.hospital.name}</span>
-                    <Link href={`/hospitals/${doctor.hospital.id}`} className="font-body-md text-label-sm text-vibrant-blue hover:underline">
-                      View hospital details
-                    </Link>
-                  </div>
+              {error && (
+                <div className="lg:hidden">
+                  <FormError>
+                    {error}
+                    {pendingId && (
+                      <>
+                        {" "}
+                        <Link href={`/patient/checkout/${pendingId}`} className="font-bold underline">
+                          Pay from checkout
+                        </Link>
+                      </>
+                    )}
+                  </FormError>
                 </div>
               )}
+            </div>
+
+            <aside className={`hidden lg:block sticky top-[96px] p-[22px] ${card}`}>
+              <h2 className="text-[17px] font-extrabold">Booking summary</h2>
+              <div className="mt-2.5">
+                <InfoRow label="Doctor" value={name} />
+                <InfoRow label="Time" value={selected ? formatSlot(selected.start, now) : "Not chosen yet"} valueClass={selected ? "" : "text-[#8A94A6]"} />
+                <InfoRow label="Visit" value="In person" />
+              </div>
+              <div className="mt-2.5 px-3.5 py-1 rounded-[14px] bg-[#F6F8FC]">
+                <div className="flex justify-between gap-3 py-2.5 border-b border-[#E6EBF3] text-[13.5px]">
+                  <span>
+                    <span className="block font-extrabold">Pay now online</span>
+                    <span className="block text-[12px] text-[#5B667A]">Booking fee</span>
+                  </span>
+                  <span className="font-extrabold text-[#2A4DD0]">{formatINR(bookingFee)}</span>
+                </div>
+                <div className="flex justify-between gap-3 py-2.5 text-[13.5px]">
+                  <span>
+                    <span className="block font-extrabold">Pay at the hospital</span>
+                    <span className="block text-[12px] text-[#5B667A]">The consultation fee, set by the hospital</span>
+                  </span>
+                  <span className="shrink-0 font-extrabold whitespace-nowrap">At the counter</span>
+                </div>
+              </div>
+              <div className="mt-4 flex flex-col gap-3.5">
+                <PayuNote />
+                {error && (
+                  <FormError>
+                    {error}
+                    {pendingId && (
+                      <>
+                        {" "}
+                        <Link href={`/patient/checkout/${pendingId}`} className="font-bold underline">
+                          Pay from checkout
+                        </Link>
+                      </>
+                    )}
+                  </FormError>
+                )}
+                {!patient ? (
+                  <Link href={signIn} className={`${btnPrimary} w-full h-[50px]! text-[15px]!`}>
+                    <LogIn className="w-4 h-4" /> Sign in to book
+                  </Link>
+                ) : (
+                  <button type="button" disabled={submitting || !selected || !canBook} onClick={confirm} className={`${btnPrimary} w-full h-[50px]! text-[15px]! disabled:bg-[#C9D3E6]!`}>
+                    {submitting ? (
+                      <>
+                        <LoaderCircle className="w-5 h-5 animate-spin" /> Reserving your time…
+                      </>
+                    ) : !canBook ? (
+                      "Online booking unavailable"
+                    ) : !selected ? (
+                      "Select a time"
+                    ) : (
+                      <>
+                        <Lock className="w-4 h-4" /> Confirm &amp; pay {formatINR(bookingFee)}
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+              <ul className="mt-5 pt-4 border-t border-[#EEF2F7] flex flex-col gap-2.5 text-[12.5px] text-[#4A5878]">
+                <li className="flex items-start gap-2.5">
+                  <CircleCheck className="w-[17px] h-[17px] text-[#067647] shrink-0" />
+                  Your appointment is confirmed as soon as the payment succeeds.
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <IdCard className="w-[17px] h-[17px] text-[#2A4DD0] shrink-0" />
+                  Show your token or QR pass at the hospital reception to check in.
+                </li>
+                {doctor.hospital && (
+                  <li className="flex items-start gap-2.5">
+                    <MapPin className="w-[17px] h-[17px] text-[#5B667A] shrink-0" />
+                    <Link href={`/hospitals/${doctor.hospital.id}`} className="hover:text-[#2A4DD0] hover:underline">
+                      {doctor.hospital.name}
+                    </Link>
+                  </li>
+                )}
+              </ul>
+              <div className="mt-4">
+                <RefundNote isConsultation />
+              </div>
             </aside>
           </div>
         </div>
       </main>
 
+      {/* Phones: the fee and the next step, fixed at the bottom. */}
+      <div className="lg:hidden fixed z-40 inset-x-0 bottom-0 flex items-center gap-3 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] bg-white border-t border-[#E6EBF3] shadow-[0_-8px_20px_rgba(11,27,63,0.06)]">
+        <span className="flex-1 min-w-0">
+          <span className="block text-[17px] font-extrabold">{formatINR(bookingFee)}</span>
+          <span className="block text-[11.5px] text-[#5B667A] truncate">{selected ? formatSlot(selected.start, now) : "Booking fee in app · consultation at hospital"}</span>
+        </span>
+        {!patient ? (
+          <Link href={signIn} className="shrink-0 flex items-center gap-1.5 h-12 px-[18px] rounded-[14px] bg-[#2A4DD0] text-white text-[15px] font-extrabold shadow-[0_8px_16px_rgba(42,77,208,0.3)]">
+            <LogIn className="w-4 h-4" /> Sign in to book
+          </Link>
+        ) : (
+          <button
+            type="button"
+            disabled={submitting || !selected || !canBook}
+            onClick={confirm}
+            className={`shrink-0 flex items-center gap-1.5 h-12 px-[18px] rounded-[14px] text-white text-[15px] font-extrabold transition-colors disabled:cursor-not-allowed ${
+              selected && canBook ? "bg-[#2A4DD0] shadow-[0_8px_16px_rgba(42,77,208,0.3)]" : "bg-[#C9D3E6]"
+            }`}
+          >
+            {submitting ? <LoaderCircle className="w-4 h-4 animate-spin" /> : selected && canBook ? <Lock className="w-4 h-4" /> : null}
+            {ctaLabel}
+            {!submitting && !selected && canBook && <ArrowRight className="w-4 h-4" strokeWidth={2.6} />}
+          </button>
+        )}
+      </div>
+
       <PatientFooter isSignedIn={!!patient} />
-      <PatientDock activeTab="book" isSignedIn={!!patient} name={patient?.name} />
+      <PatientDock activeTab="find" isSignedIn={!!patient} name={patient?.name} phoneBar={false} />
     </div>
   );
 }
 
-function Metric({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+function Metric({ label, value, highlight, border }: { label: string; value: string; highlight?: boolean; border?: boolean }) {
   return (
-    <div className="flex flex-col min-w-0">
-      <span className="font-label-sm text-label-sm text-on-surface-variant md:text-outline">{label}</span>
-      <span className={`font-title-md text-[15px] md:text-body-md font-bold truncate ${highlight ? "text-primary md:text-vibrant-blue" : "text-on-surface"}`}>{value}</span>
-    </div>
+    <span className={`pt-2.5 min-w-0 ${border ? "pl-3 border-l border-[#EEF2F7]" : ""}`}>
+      <span className="block text-[11.5px] font-bold text-[#5B667A]">{label}</span>
+      <span className={`block text-[14px] font-extrabold truncate ${highlight ? "text-[#2A4DD0]" : ""}`}>{value}</span>
+    </span>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="py-2 min-w-0">
+      <span className="block text-[11.5px] font-bold text-[#5B667A]">{label}</span>
+      <span className="block text-[13.5px] font-extrabold truncate">{value}</span>
+    </span>
   );
 }
 
@@ -484,40 +452,32 @@ function SlotGroup({
   const open = slots.filter((s) => !s.booked).length;
   return (
     <div>
-      <div className="flex items-center gap-2 mb-2.5 text-outline">
-        <Icon className="w-[18px] h-[18px]" />
-        <span className="font-label-sm text-label-sm font-semibold uppercase tracking-wider">
-          {title} ({open} open)
+      <div className="flex items-center gap-2 mb-2 text-[#5B667A]">
+        <Icon className="w-4 h-4" />
+        <span className="text-[12px] font-extrabold tracking-[0.04em] uppercase">
+          {title} · {open} open
         </span>
       </div>
-      <div className="grid grid-cols-3 md:grid-cols-4 gap-2.5">
-        {slots.map((slot) =>
-          slot.booked ? (
+      <div role="radiogroup" aria-label={title} className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+        {slots.map((slot) => {
+          const on = slot.id === selectedId;
+          return (
             <button
               key={slot.id}
               type="button"
-              disabled
-              className="py-2.5 px-2 rounded-lg md:rounded-full bg-surface-container-high/60 text-outline-variant text-sm md:text-body-md cursor-not-allowed line-through"
-            >
-              {formatTime(slot.start)}
-            </button>
-          ) : (
-            <button
-              key={slot.id}
-              type="button"
-              aria-pressed={slot.id === selectedId}
+              role="radio"
+              aria-checked={on}
+              disabled={slot.booked}
               onClick={() => onPick(slot.id)}
-              className={`py-2.5 px-2 rounded-lg md:rounded-full text-sm md:text-body-md font-semibold transition-all flex items-center justify-center gap-1.5 ${
-                slot.id === selectedId ? "bg-vibrant-blue text-on-primary shadow-sm" : "bg-surface-container-low md:bg-surface-container text-on-surface hover:bg-surface-variant"
+              className={`min-h-10 px-2 rounded-[10px] border-[1.5px] text-[13px] font-extrabold transition-colors disabled:cursor-not-allowed disabled:border-[#EEF2F7] disabled:bg-[#F4F6FA] disabled:text-[#B7C1D1] disabled:line-through ${
+                on ? "border-[#2A4DD0] bg-[#2A4DD0] text-white" : "border-[#D6DDE8] bg-white text-[#27324A] hover:border-[#A9CBFF]"
               }`}
             >
-              {slot.id === selectedId && <CircleCheck className="hidden sm:block w-4 h-4" />}
               {formatTime(slot.start)}
             </button>
-          ),
-        )}
+          );
+        })}
       </div>
     </div>
   );
 }
-

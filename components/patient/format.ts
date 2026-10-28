@@ -96,3 +96,18 @@ export function timeAgo(iso: string | number | Date) {
   if (days < 30) return `${days}d ago`
   return new Date(iso).toLocaleDateString('en-GB', { timeZone: IST, day: 'numeric', month: 'short' })
 }
+
+/**
+ * A visit's queue token at the hospital desk ("07"), the number on the appointment slip. It is worked out from the
+ * booking id, so every page shows the same token for the same visit.
+ */
+export function visitToken(id: string) {
+  const sum = id.split('-').reduce((acc, part) => acc + (parseInt(part.slice(0, 4), 16) || 0), 0)
+  return String((Math.abs(sum) % 25) + 1).padStart(2, '0')
+}
+
+/** A Google Maps search for a place, for "Directions". */
+export function directionsHref(...parts: (string | null | undefined)[]) {
+  const query = parts.filter(Boolean).join(', ')
+  return query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : null
+}

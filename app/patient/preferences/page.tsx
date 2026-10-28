@@ -1,190 +1,101 @@
-import { createClient, getCurrentUser } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Home, Search, Calendar as CalendarIcon, User, Bell, Smartphone, Mail, Moon, Globe, ChevronRight, FileText, ShieldCheck } from 'lucide-react'
-import { PatientSidebar } from '@/components/PatientSidebar'
-import { PatientNavHeader } from '@/components/PatientNavHeader'
-import { PatientDock } from '@/components/PatientDock'
-import { PatientFooter } from '@/components/AppFooter'
-import { AccountShortcuts } from '@/components/patient/AccountShortcuts'
+import { redirect } from 'next/navigation'
+import { ChevronRight, Languages, LogOut, Mail, MessageCircle, ShieldCheck, SquarePen, type LucideIcon } from 'lucide-react'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { AccountCard, AccountPage } from '@/components/patient/AccountPage'
+import { ProfileEditButton } from '@/components/patient/ProfileEditButton'
+import { btnOutline } from '@/components/patient/app-ui'
 
-export default async function PatientPreferences() {
+export const metadata: Metadata = { title: 'Settings | Consult Your Doctor' }
+
+/** The patient's settings: their details, where updates go, the assistant's language, privacy and signing out. */
+export default async function SettingsPage() {
   const supabase = await createClient()
-
   const user = await getCurrentUser()
-  if (!user) redirect('/login/patient')
+  if (!user) redirect('/login/patient?next=/patient/preferences')
 
-  // The name for the header and the upcoming-visit count for the sidebar, fetched together.
-  const [{ data: patientDetails }, { data: profile }, { data: appointments }] = await Promise.all([
-    supabase.from('patient_details').select('*').eq('id', user.id).single(),
-    supabase.from('profiles').select('*').eq('id', user.id).single(),
-    supabase.from('appointments').select('id, status').eq('patient_id', user.id),
+  const [{ data: profile }, { data: details }] = await Promise.all([
+    supabase.from('profiles').select('full_name, email, phone_number').eq('id', user.id).maybeSingle(),
+    supabase.from('patient_details').select('*').eq('id', user.id).maybeSingle(),
   ])
-
-  const upcomingAppointments = appointments?.filter(a => a.status === 'scheduled' || a.status === 'confirmed') || []
+  const phone = profile?.phone_number || (user.phone ? `+${user.phone}` : null)
+  const email = profile?.email || user.email || null
+  const editDetails = {
+    full_name: profile?.full_name ?? null,
+    phone_number: phone,
+    blood_group: details?.blood_group ?? null,
+    date_of_birth: details?.date_of_birth ?? null,
+    gender: details?.gender ?? null,
+    address: details?.address ?? null,
+    emergency_contact_name: details?.emergency_contact_name ?? null,
+    emergency_contact_relation: details?.emergency_contact_relation ?? null,
+    emergency_contact_phone: details?.emergency_contact_phone ?? null,
+  }
 
   return (
-    <div className="bg-background font-body-md text-body-md text-on-surface antialiased min-h-screen">
-      <PatientNavHeader
-        name={profile?.full_name}
-        email={profile?.email || user.email}
-        isSignedIn
-        container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop"
-        backHref="/patient/profile"
-        eyebrow="My account"
-        title="Preferences"
-        subtitle="Notifications, channels and app settings."
-      />
-      <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-12 md:pb-16">
-        <div className="flex flex-col w-full">
-          <div className="relative w-full overflow-hidden">
-            <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-5 md:pt-8">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start max-w-[1440px] mx-auto">
+    <AccountPage
+      user={user}
+      profile={profile}
+      title="Settings"
+      subtitle="Your details, updates and privacy."
+      actions={
+        <ProfileEditButton details={editDetails} className={btnOutline}>
+          <SquarePen className="w-[15px] h-[15px]" /> Edit details
+        </ProfileEditButton>
+      }
+    >
+      <div className="flex flex-col lg:grid lg:grid-cols-2 gap-3.5 lg:gap-5 lg:items-start">
+        <AccountCard title="Updates about your visits" sub="Booking slips, prescriptions and lab reports are sent here.">
+          <Line icon={MessageCircle} label="WhatsApp and text" value={phone ?? 'No mobile number yet'} muted={!phone} />
+          <Line icon={Mail} label="Email" value={email ?? 'No email yet'} muted={!email} />
+          <ProfileEditButton details={editDetails} className={`${btnOutline} w-full mt-3`}>
+            <SquarePen className="w-[15px] h-[15px]" /> Change your details
+          </ProfileEditButton>
+        </AccountCard>
 
-                {/* ==================== LEFT COLUMN (30% -> 4 cols) ==================== */}
-                <PatientSidebar user={user} profile={profile} patientDetails={patientDetails} activeAppointmentsCount={upcomingAppointments.length} />
+        <div className="flex flex-col gap-3.5 lg:gap-5">
+          <AccountCard title="Language" sub="The Care Assistant answers in Hindi, Telugu, Tamil, Bengali and more.">
+            <Link href="/ai" className="flex items-center gap-3 py-3 border-t border-[#EEF2F7] text-[14px] font-bold hover:text-[#2A4DD0]">
+              <Languages className="w-[19px] h-[19px] text-[#4A5878]" />
+              <span className="flex-1">Choose it at the top of the chat</span>
+              <ChevronRight className="w-4 h-4 text-[#9AA4B5]" strokeWidth={2.4} />
+            </Link>
+          </AccountCard>
 
-                {/* ==================== RIGHT COLUMN (70% -> 8 cols) ==================== */}
-                <div className="lg:col-span-8 flex flex-col gap-6">
-                  <AccountShortcuts />
-
-                  {/* Notification Channels */}
-                  <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant/30">
-                    <h3 className="font-title-md text-title-md font-bold text-on-surface mb-6 flex items-center gap-2">
-                      <Bell className="w-5 h-5 text-vibrant-blue" /> Notification Channels
-                    </h3>
-
-                    <div className="flex flex-col gap-5">
-                      {/* Toggle Item */}
-                      <div className="flex items-center justify-between p-4 rounded-xl bg-surface-container-low">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-vibrant-blue">
-                            <Smartphone className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <h4 className="font-title-md text-label-sm font-bold text-on-surface">WhatsApp Notifications</h4>
-                            <p className="font-label-sm text-label-sm text-on-surface-variant">Get appointment reminders and Rx directly on WhatsApp.</p>
-                          </div>
-                        </div>
-                        <div className="w-11 h-6 rounded-full bg-fresh-teal flex items-center justify-end px-1 cursor-pointer transition-colors">
-                          <div className="w-4 h-4 rounded-full bg-surface-container-lowest shadow-sm"></div>
-                        </div>
-                      </div>
-
-                      {/* Toggle Item */}
-                      <div className="flex items-center justify-between p-4 rounded-xl bg-surface-container-low">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-vibrant-blue">
-                            <Mail className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <h4 className="font-title-md text-label-sm font-bold text-on-surface">Email Summaries</h4>
-                            <p className="font-label-sm text-label-sm text-on-surface-variant">Receive weekly health summaries and billing invoices via email.</p>
-                          </div>
-                        </div>
-                        <div className="w-11 h-6 rounded-full bg-fresh-teal flex items-center justify-end px-1 cursor-pointer transition-colors">
-                          <div className="w-4 h-4 rounded-full bg-surface-container-lowest shadow-sm"></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* App Settings */}
-                  <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant/30">
-                    <h3 className="font-title-md text-title-md font-bold text-on-surface mb-6 flex items-center gap-2">
-                      <Globe className="w-5 h-5 text-vibrant-blue" /> App Settings
-                    </h3>
-
-                    <div className="flex flex-col gap-5">
-                      {/* Language Selection */}
-                      <div className="flex items-center justify-between p-4 rounded-xl border border-surface-variant">
-                        <div>
-                          <h4 className="font-title-md text-label-sm font-bold text-on-surface">Preferred Language</h4>
-                          <p className="font-label-sm text-label-sm text-on-surface-variant">Choose the language for the portal interface.</p>
-                        </div>
-                        <select className="bg-surface-container-low text-on-surface border border-outline-variant rounded-lg px-4 py-2 font-label-sm text-label-sm focus:outline-none focus:ring-2 focus:ring-vibrant-blue focus:border-transparent">
-                          <option value="en">English</option>
-                          <option value="hi">Hindi (हिंदी)</option>
-                          <option value="mr">Marathi (मराठी)</option>
-                        </select>
-                      </div>
-
-                      {/* Theme Selection */}
-                      <div className="flex items-center justify-between p-4 rounded-xl border border-surface-variant">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant">
-                            <Moon className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <h4 className="font-title-md text-label-sm font-bold text-on-surface">Dark Mode</h4>
-                            <p className="font-label-sm text-label-sm text-on-surface-variant">Switch to a darker theme for better viewing in low light.</p>
-                          </div>
-                        </div>
-                        <div className="w-11 h-6 rounded-full bg-surface-container-high flex items-center justify-start px-1 cursor-pointer transition-colors border border-outline-variant">
-                          <div className="w-4 h-4 rounded-full bg-outline shadow-sm"></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Legal & Platform Policies */}
-                  <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant/30">
-                    <h3 className="font-title-md text-title-md font-bold text-on-surface mb-6 flex items-center gap-2">
-                      <ShieldCheck className="w-5 h-5 text-vibrant-blue" /> Legal &amp; Platform Policies
-                    </h3>
-
-                    <div className="flex flex-col gap-4">
-                      <Link
-                        href="/terms-of-use"
-                        className="group flex items-center justify-between p-4 rounded-xl border border-surface-variant hover:border-vibrant-blue/50 hover:bg-surface-container-low transition-all"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-vibrant-blue transition-transform">
-                            <FileText className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <h4 className="font-title-md text-label-sm font-bold text-on-surface group-hover:text-vibrant-blue transition-colors">
-                              Terms &amp; Conditions
-                            </h4>
-                            <p className="font-label-sm text-label-sm text-on-surface-variant">
-                              Consultation fees, booking rules, refunds, prescription validity, and platform standards.
-                            </p>
-                          </div>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-on-surface-variant group-hover:text-vibrant-blue group-hover:translate-x-0.5 transition-all" />
-                      </Link>
-
-                      <Link
-                        href="/privacy-policy"
-                        className="group flex items-center justify-between p-4 rounded-xl border border-surface-variant hover:border-vibrant-blue/50 hover:bg-surface-container-low transition-all"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-full bg-fresh-teal/10 flex items-center justify-center text-fresh-teal transition-transform">
-                            <ShieldCheck className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <h4 className="font-title-md text-label-sm font-bold text-on-surface group-hover:text-vibrant-blue transition-colors">
-                              Privacy Policy
-                            </h4>
-                            <p className="font-label-sm text-label-sm text-on-surface-variant">
-                              How your health information is encrypted and protected under India’s DPDP Act, 2023.
-                            </p>
-                          </div>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-on-surface-variant group-hover:text-vibrant-blue group-hover:translate-x-0.5 transition-all" />
-                      </Link>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-            </div>
-          </div>
+          <section className="rounded-[20px] lg:rounded-2xl bg-white shadow-[0_0_0_1px_#E6EBF3] lg:shadow-[0_0_0_1px_#E6EAF0,0_1px_2px_rgba(11,27,63,0.04)] overflow-hidden">
+            <Row href="/privacy-policy" icon={ShieldCheck} label="Privacy policy" />
+            <Row href="/legal" icon={ShieldCheck} label="Consent forms and all policies" />
+            <form action="/auth/signout" method="post">
+              <button type="submit" className="w-full flex items-center gap-3 min-h-[52px] px-4 text-[14px] font-extrabold text-[#B42318] text-left hover:bg-[#FEF3F2] transition-colors">
+                <LogOut className="w-[19px] h-[19px]" /> Log out
+              </button>
+            </form>
+          </section>
         </div>
-      </main>
+      </div>
+    </AccountPage>
+  )
+}
 
-      <PatientFooter isSignedIn />
-      <PatientDock activeTab="profile" name={profile?.full_name} />
+function Line({ icon: Icon, label, value, muted }: { icon: LucideIcon; label: string; value: string; muted?: boolean }) {
+  return (
+    <div className="flex items-center gap-3 py-3 border-t border-[#EEF2F7]">
+      <Icon className="w-[19px] h-[19px] text-[#4A5878] shrink-0" />
+      <span className="min-w-0">
+        <span className="block text-[12px] font-bold text-[#5B667A]">{label}</span>
+        <span className={`block text-[14px] truncate ${muted ? 'font-semibold text-[#8A94A6]' : 'font-extrabold'}`}>{value}</span>
+      </span>
     </div>
+  )
+}
+
+function Row({ href, icon: Icon, label }: { href: string; icon: LucideIcon; label: string }) {
+  return (
+    <Link href={href} className="flex items-center gap-3 min-h-[52px] px-4 border-b border-[#EEF2F7] text-[14px] font-bold hover:bg-[#F7F9FC] transition-colors">
+      <Icon className="w-[19px] h-[19px] text-[#4A5878]" />
+      <span className="flex-1">{label}</span>
+      <ChevronRight className="w-4 h-4 text-[#9AA4B5]" strokeWidth={2.4} />
+    </Link>
   )
 }

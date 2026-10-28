@@ -86,7 +86,7 @@ export function PayUCheckoutForm({
       <button 
         onClick={handlePayment} 
         disabled={isLoading}
-        className="w-full py-4 bg-vibrant-blue text-white font-bold text-lg rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-slate-900/10 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+        className="w-full h-[50px] bg-[#2A4DD0] text-white font-extrabold text-[15px] rounded-[11px] hover:bg-[#2443B8] transition-all shadow-[0_8px_16px_rgba(42,77,208,0.3)] flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
       >
         {isLoading ? (
           <>

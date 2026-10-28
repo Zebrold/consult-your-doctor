@@ -461,10 +461,10 @@ export function Composer({ chat, placeholder, wide = false, autoFocus = false }:
         e.preventDefault()
         submit()
       }}
-      className={`shrink-0 border-t border-outline-variant/30 bg-surface-container-lowest pt-3 pb-2 ${wide ? 'px-3 md:px-6' : 'px-3'}`}
+      className={`shrink-0 border-t border-[#E8EAEE] bg-white pt-2.5 pb-2 ${wide ? 'px-3.5 md:px-6' : 'px-3'}`}
     >
       <div className={wide ? 'max-w-3xl mx-auto' : ''}>
-        <div className="flex items-end gap-2 rounded-2xl bg-surface-container-low border border-transparent focus-within:border-vibrant-blue focus-within:bg-surface-container-lowest px-3 py-2 transition-colors">
+        <div className="flex items-end gap-2 min-h-[46px] rounded-[23px] bg-[#F4F5F7] border-[1.5px] border-transparent focus-within:border-[#2A4DD0] focus-within:bg-white pl-4 pr-[5px] py-[3px] transition-colors">
           <textarea
             ref={inputRef}
             value={input}
@@ -481,7 +481,7 @@ export function Composer({ chat, placeholder, wide = false, autoFocus = false }:
               <Square className="w-3.5 h-3.5 fill-current" />
             </button>
           ) : (
-            <button type="submit" disabled={!input.trim()} title="Send" aria-label="Send" className="w-9 h-9 rounded-full bg-vibrant-blue text-on-primary flex items-center justify-center shrink-0 disabled:opacity-40 shadow-sm">
+            <button type="submit" disabled={!input.trim()} title="Send" aria-label="Send message" className="w-9 h-9 rounded-full bg-[#2A4DD0] text-white flex items-center justify-center shrink-0 disabled:opacity-40">
               <ArrowUp className="w-4 h-4" />
             </button>
           )}
@@ -492,17 +492,16 @@ export function Composer({ chat, placeholder, wide = false, autoFocus = false }:
   )
 }
 
-function Bubble({ role, icon: Icon, children }: { role: 'user' | 'assistant'; icon: LucideIcon; children: ReactNode }) {
+export function Bubble({ role, icon: Icon, children }: { role: 'user' | 'assistant'; icon: LucideIcon; children: ReactNode }) {
   if (role === 'user') {
-    return <div className="self-end max-w-[85%] bg-primary text-on-primary rounded-2xl rounded-tr-sm px-3.5 py-2.5 text-[14px] leading-relaxed shadow-sm">{children}</div>
+    return <div className="self-end max-w-[85%] bg-[#2A4DD0] text-white rounded-[18px] rounded-br-[4px] px-3.5 py-[11px] text-[14.5px] leading-[1.45]">{children}</div>
   }
   return (
     <div className="flex items-start gap-2.5 max-w-[92%]">
-      <div className="w-8 h-8 flex items-center justify-center shrink-0 mt-0.5">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/images/ai-doctor.png" alt="Doctor Assistant" className="w-full h-full object-contain drop-shadow-xs" />
-      </div>
-      <div className="min-w-0 bg-surface-container-lowest border border-outline-variant/30 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[14px] leading-relaxed text-on-surface shadow-[0_2px_8px_rgba(15,23,42,0.04)] break-words">
+      <span aria-hidden className="w-[30px] h-[30px] rounded-full bg-[#2A4DD0] text-white flex items-center justify-center shrink-0 mt-0.5">
+        <Icon className="w-4 h-4" strokeWidth={2.3} />
+      </span>
+      <div className="min-w-0 bg-[#F0F2F5] rounded-[18px] rounded-tl-[4px] px-3.5 py-[11px] text-[14.5px] leading-[1.45] text-[#1A1F2B] break-words">
         {children}
       </div>
     </div>

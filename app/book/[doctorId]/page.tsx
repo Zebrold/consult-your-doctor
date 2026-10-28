@@ -8,6 +8,7 @@ import { getBookingFees } from "@/lib/booking-fees";
 
 interface BookDoctorPageProps {
   params: Promise<{ doctorId: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 const DOCTOR_FIELDS = `
@@ -39,8 +40,9 @@ export async function generateMetadata({ params }: BookDoctorPageProps): Promise
   };
 }
 
-export default async function BookDoctorPage({ params }: BookDoctorPageProps) {
+export default async function BookDoctorPage({ params, searchParams }: BookDoctorPageProps) {
   const { doctorId } = await params;
+  const picked = (await searchParams)?.slot;
   const supabase = await createClient();
   const now = currentTime();
 
@@ -85,6 +87,7 @@ export default async function BookDoctorPage({ params }: BookDoctorPageProps) {
       patient={patient}
       now={now}
       bookingFee={fees.consultation}
+      initialSlotId={typeof picked === 'string' ? picked : null}
       payuKey={process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY || "jwoG24"}
     />
   );

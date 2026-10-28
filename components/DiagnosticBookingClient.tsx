@@ -1,22 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import {
-  BadgeCheck, Building2, CalendarDays, Check, CircleCheck, FileText, FlaskConical, Home, IdCard, Lock, LoaderCircle,
-  MapPin, Microscope, Navigation, Plus, Search,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CircleCheck, FileText, FlaskConical, Home, IdCard, Lock, LoaderCircle, LogIn, MapPin, Navigation, Search } from "lucide-react";
 import { PatientDock } from "@/components/PatientDock";
 import { PatientFooter } from "@/components/AppFooter";
-import { PatientNavHeader } from "@/components/PatientNavHeader";
+import { VerifiedBadge } from "@/components/home/ui";
+import { HeroButtons } from "@/components/patient/HospitalBooking";
+import { Dots, btnPrimary, card } from "@/components/patient/app-ui";
 import { createDiagnosticBooking } from "@/app/actions/booking";
 import { startPayuPayment } from "@/lib/payu-client";
 import { DEFAULT_DOORSTEP_FEE, formatPercent, labBookingFee, labTestBookingFee, type BookedTest } from "@/lib/pricing";
 import {
-  appendPatientDetails, Breadcrumbs, DayStrip, FormError, LabChargesAtVenue, PatientDetailsFields, PayuNote, patientDetailsError,
-  RefundNote, SignInToBook, StepCard, SummaryRow, type PatientDetails,
+  appendPatientDetails, DayStrip, FormError, LabChargesAtVenue, PayuNote, patientDetailsError, RefundNote, SummaryRow, type PatientDetails,
 } from "@/components/patient/booking-ui";
-import { formatINR, formatLongDate, upcomingDays } from "@/components/patient/format";
+import { directionsHref, formatINR, formatLongDate, upcomingDays } from "@/components/patient/format";
 
 export interface DiagnosticCenter {
   id: string;
@@ -57,7 +55,7 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, 
   const [date, setDate] = useState(() =>
     Number(new Date(now).toLocaleString("en-US", { timeZone: "Asia/Kolkata", hour: "numeric", hourCycle: "h23" })) >= 17 ? days[1].key : today,
   );
-  const [details, setDetails] = useState<PatientDetails>(() => patient ?? { name: "", phone: "", email: "", dateOfBirth: "", gender: "" });
+  const [details] = useState<PatientDetails>(() => patient ?? { name: "", phone: "", email: "", dateOfBirth: "", gender: "" });
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -121,368 +119,356 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, 
   };
 
   const location = [center.address, center.city].filter(Boolean).join(", ");
+  const directions = directionsHref(center.name, center.address, center.city);
+  const countLabel = selectedTests.length === 0 ? "No tests selected" : `${selectedTests.length} ${selectedTests.length === 1 ? "test" : "tests"} selected`;
+  const signIn = `/login/patient?next=${encodeURIComponent(`/book/diagnostic/${center.id}`)}`;
+
+  const photo = center.image ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={center.image} alt={center.name} className="absolute inset-0 w-full h-full object-cover" />
+  ) : (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src="/images/home/lab-microscope.webp" alt="" className="absolute right-[26px] bottom-[34px] lg:bottom-6 h-[160px] w-auto" />
+  );
+
+  const places = [
+    { key: "walk_in" as const, title: "Visit the lab", sub: "Walk in on your day", icon: FlaskConical, on: !isDoorstep, disabled: false },
+    { key: "doorstep" as const, title: "At home", sub: doorstepEnabled ? `The lab collects it · ${formatINR(doorstepFee)} to the lab` : "Not offered by this lab", icon: Home, on: isDoorstep, disabled: !doorstepEnabled },
+  ];
+
+  const cta = !patient ? (
+    <Link href={signIn} className="shrink-0 flex items-center gap-1.5 h-12 px-[18px] rounded-[14px] bg-[#2A4DD0] text-white text-[15px] font-extrabold shadow-[0_8px_16px_rgba(42,77,208,0.3)]">
+      <LogIn className="w-4 h-4" /> Sign in to book
+    </Link>
+  ) : (
+    <button
+      type="button"
+      onClick={confirm}
+      disabled={submitting || selectedTests.length === 0}
+      className={`shrink-0 flex items-center gap-1.5 h-12 px-[18px] rounded-[14px] text-white text-[15px] font-extrabold transition-colors disabled:cursor-not-allowed ${
+        selectedTests.length ? "bg-[#2A4DD0] shadow-[0_8px_16px_rgba(42,77,208,0.3)] hover:bg-[#2443B8]" : "bg-[#C9D3E6]"
+      }`}
+    >
+      {submitting ? (
+        <>
+          <LoaderCircle className="w-4 h-4 animate-spin" /> Saving…
+        </>
+      ) : selectedTests.length === 0 ? (
+        <>
+          Select tests <ArrowRight className="w-4 h-4" strokeWidth={2.6} />
+        </>
+      ) : (
+        <>
+          <Lock className="w-4 h-4" /> Pay {formatINR(total)}
+        </>
+      )}
+    </button>
+  );
 
   return (
-    <div className="bg-background text-on-surface antialiased min-h-screen">
-      <PatientNavHeader
-        isSignedIn={!!patient}
-        name={patient?.name}
-        email={patient?.email}
-        backHref="/"
-        container="max-w-container-max px-margin-x-mobile md:px-margin-x-desktop"
-        eyebrow="Lab test booking"
-        title="Book a Lab Test"
-        subtitle={center.name}
-      />
+    <div className="bg-[#F6F8FC] lg:bg-transparent min-h-screen font-(family-name:--font-manrope) text-[#0B1B3F]">
+      {/* Phones: the lab's picture with back and share, then its details over the edge. */}
+      <div className="lg:hidden relative h-[220px] md:h-[280px] overflow-hidden bg-[linear-gradient(160deg,#EAF1FF_0%,#D3E0FF_100%)]">
+        {photo}
+        <HeroButtons backHref="/diagnostics" title={center.name} />
+      </div>
+      <section className="lg:hidden relative -mt-9 mx-3 md:mx-6 p-4 rounded-[20px] bg-white shadow-[0_10px_26px_rgba(11,27,63,0.1)]">
+        <LabHeading center={center} tests={tests.length} location={location} doorstep={doorstepEnabled} />
+      </section>
 
-      <main className="w-full pb-12 md:pb-16">
-        <div className="max-w-container-max mx-auto px-margin-x-mobile md:px-margin-x-desktop pt-5 md:pt-4">
-          <div className="hidden md:block pb-6">
-            <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Diagnostics", href: "/diagnostics" }, { label: center.name }, { label: "Book Diagnostic Test" }]} />
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
-            <div className="lg:col-span-8 flex flex-col gap-6">
-              {/* Lab */}
-              <section className="relative bg-surface-container-lowest rounded-xl p-5 md:p-6 shadow-[0_4px_20px_rgba(15,23,42,0.04)] md:shadow-sm overflow-hidden">
-                <div className="relative flex items-start gap-4">
-                  {center.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={center.image} alt={center.name} className="w-16 h-16 md:w-14 md:h-14 rounded-xl object-cover shrink-0 shadow-sm" />
-                  ) : (
-                    <span className="w-16 h-16 md:w-14 md:h-14 rounded-xl bg-primary-fixed flex items-center justify-center text-primary shrink-0">
-                      <Microscope className="w-7 h-7" />
-                    </span>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-col-reverse md:flex-row md:items-center gap-1 md:gap-2">
-                      <h2 className="font-title-md text-title-md text-on-surface md:font-bold truncate">{center.name}</h2>
-                      <span className="self-start md:self-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-fresh-teal/15 text-on-secondary-fixed-variant font-label-sm text-[10px] md:text-label-sm uppercase md:normal-case font-semibold shrink-0">
-                        <BadgeCheck className="w-3.5 h-3.5" /> Partner Lab
-                      </span>
-                    </div>
-                    <p className="font-body-md text-[13px] md:text-body-md text-on-surface-variant mt-0.5 line-clamp-2">{location || "Address not listed"}</p>
-                  </div>
-                </div>
-                <div className="relative grid grid-cols-3 gap-3 mt-4 bg-surface-container-low/60 md:bg-surface-container-low rounded-lg p-3 md:p-3.5 text-center">
-                  <LabMetric label="Tests Offered" value={String(tests.length)} />
-                  <LabMetric label="Booking Fee" value={`${formatPercent(bookingFeePercent)} of price`} accent />
-                  <LabMetric label="City" value={center.city || "—"} />
+      <main className="pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-11">
+        <div className="max-w-[1340px] lg:px-9 lg:pt-7">
+          <Link href="/diagnostics" className="hidden lg:inline-flex items-center gap-1.5 mb-3.5 text-[13.5px] font-extrabold text-[#2A4DD0] hover:underline">
+            <ArrowLeft className="w-4 h-4" strokeWidth={2.4} /> Back to diagnostic centres
+          </Link>
+          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-5 lg:items-start px-3 md:px-6 lg:px-0 pt-3.5 lg:pt-0">
+            <div className="flex flex-col gap-3.5 lg:gap-5 min-w-0">
+              <section className="hidden lg:flex relative overflow-hidden items-end min-h-[200px] p-7 rounded-[22px] bg-[linear-gradient(160deg,#EAF1FF_0%,#D3E0FF_100%)]">
+                {photo}
+                <div className="relative max-w-[560px] p-5 rounded-[18px] bg-white/95 shadow-[0_10px_26px_rgba(11,27,63,0.1)]">
+                  <LabHeading center={center} tests={tests.length} location={location} doorstep={doorstepEnabled} desk />
                 </div>
               </section>
 
-              {/* 1. Visit / Collection Mode */}
-              <StepCard step={1} title="Sample Collection Mode">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {/* Option 1: Walk-In */}
-                  <button
-                    type="button"
-                    onClick={() => setBookingType('walk_in')}
-                    className={`p-4 rounded-xl text-left border-2 transition-all flex flex-col justify-between gap-3 ${
-                      !isDoorstep
-                        ? 'border-vibrant-blue bg-primary-fixed/20 ring-1 ring-vibrant-blue/50'
-                        : 'border-outline-variant/30 bg-surface-container-low hover:bg-surface-container'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center shrink-0 shadow-sm">
-                        <Building2 className="w-5 h-5" />
-                      </span>
-                      {!isDoorstep ? (
-                        <CircleCheck className="w-5 h-5 text-vibrant-blue" />
-                      ) : (
-                        <span className="text-xs font-semibold text-outline">Select</span>
-                      )}
-                    </div>
-                    <div>
-                      <span className="font-title-md text-base font-bold text-on-surface block">
-                        🚶 Lab Centre Visit (Walk-In)
-                      </span>
-                      <span className="text-xs text-on-surface-variant block mt-0.5 line-clamp-2">
-                        Provide sample directly at {location || center.name}.
-                      </span>
-                    </div>
-                    <span className="text-xs font-bold text-primary">₹0 Collection Fee</span>
-                  </button>
+              <Card title="How payment works">
+                <PayRow title="Booking charge" sub={`${formatPercent(bookingFeePercent)} of each test's price, paid online`} value={formatPercent(bookingFeePercent)} accent />
+                <PayRow title="Test price" sub="Paid to the lab at your visit" value="At the lab" />
+                {doorstepEnabled && <PayRow title="Home sample collection" sub="If you choose it, paid to the lab" value={formatINR(doorstepFee)} last />}
+              </Card>
 
-                  {/* Option 2: Doorstep */}
-                  <button
-                    type="button"
-                    onClick={() => doorstepEnabled && setBookingType('doorstep')}
-                    disabled={!doorstepEnabled}
-                    className={`p-4 rounded-xl text-left border-2 transition-all flex flex-col justify-between gap-3 ${
-                      !doorstepEnabled
-                        ? 'opacity-50 cursor-not-allowed border-outline-variant/20 bg-surface-container-low'
-                        : isDoorstep
-                        ? 'border-emerald-600 bg-emerald-50 ring-1 ring-emerald-500/50'
-                        : 'border-outline-variant/30 bg-surface-container-low hover:bg-surface-container'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-                        <Home className="w-5 h-5" />
-                      </span>
-                      {isDoorstep ? (
-                        <CircleCheck className="w-5 h-5 text-emerald-600" />
-                      ) : (
-                        <span className="text-xs font-semibold text-outline">
-                          {doorstepEnabled ? 'Select' : 'Unavailable'}
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <span className="font-title-md text-base font-bold text-on-surface block">
-                        🏠 Doorstep (Home Collection)
-                      </span>
-                      <span className="text-xs text-on-surface-variant block mt-0.5 line-clamp-2">
-                        {doorstepEnabled
-                          ? `A certified phlebotomist visits your address on ${formatLongDate(date)}.`
-                          : 'Doorstep service is currently disabled by this lab.'}
-                      </span>
-                    </div>
-                    <span className="text-xs font-bold text-emerald-700">
-                      {doorstepEnabled ? `${formatINR(doorstepFee)} home visit fee, paid to the lab` : 'Not Available'}
-                    </span>
-                  </button>
+              <Card title="Sample collection" id="where-title">
+                <div role="radiogroup" aria-labelledby="where-title" className="grid grid-cols-2 gap-2">
+                  {places.map((w) => (
+                    <button
+                      key={w.key}
+                      type="button"
+                      role="radio"
+                      aria-checked={w.on}
+                      disabled={w.disabled}
+                      onClick={() => setBookingType(w.key)}
+                      className={`flex flex-col items-start gap-1 p-3 rounded-[14px] border-[1.5px] text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                        w.on ? "border-[#2A4DD0] bg-[#F2F6FF]" : "border-[#E1E7F0] bg-white hover:border-[#A9CBFF]"
+                      }`}
+                    >
+                      <w.icon className="w-5 h-5 text-[#2A4DD0]" />
+                      <span className="text-[13.5px] font-extrabold">{w.title}</span>
+                      <span className="text-[11.5px] text-[#5B667A]">{w.sub}</span>
+                    </button>
+                  ))}
                 </div>
-              </StepCard>
+              </Card>
 
-              {/* 2. Tests */}
-              <StepCard
-                step={2}
-                title="Select Diagnostic Tests"
-                aside={<span className="font-label-sm text-label-sm text-on-surface-variant shrink-0">{chosen.length} Selected</span>}
-              >
+              <Card title="Choose your tests" sub={tests.length ? "Select one or more. Prices are set by the lab." : undefined} aside={tests.length ? <span className="shrink-0 text-[12.5px] font-bold text-[#5B667A]">{chosen.length} selected</span> : undefined}>
                 {tests.length === 0 ? (
-                  <div className="py-8 text-center rounded-xl bg-surface-container-low">
-                    <FlaskConical className="w-8 h-8 text-outline mx-auto mb-2" />
-                    <p className="font-title-md text-body-md font-semibold text-on-surface">This lab hasn&apos;t listed bookable tests yet</p>
-                    <p className="text-sm text-indigo-gray-600 mt-1">Please check back later or choose another lab.</p>
+                  <div className="py-7 text-center rounded-[14px] bg-[#F6F8FC]">
+                    <FlaskConical className="w-8 h-8 text-[#9AA4B5] mx-auto mb-2" />
+                    <p className="text-[14px] font-extrabold">This lab hasn&apos;t listed bookable tests yet</p>
+                    <p className="mt-1 text-[12.5px] text-[#5B667A]">Please check back later or choose another lab.</p>
                   </div>
                 ) : (
                   <>
                     {tests.length > COLLAPSED && (
-                      <label className="relative block mb-3">
-                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-outline pointer-events-none" />
+                      <label className="relative block mb-2">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[17px] h-[17px] text-[#7A8599] pointer-events-none" />
                         <span className="sr-only">Search tests</span>
                         <input
                           type="search"
                           value={filter}
                           onChange={(e) => setFilter(e.target.value)}
-                          placeholder={`Search ${tests.length} tests...`}
-                          className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-surface-container-low text-on-surface text-body-md focus:outline-none focus:ring-2 focus:ring-vibrant-blue/30"
+                          placeholder={`Search ${tests.length} tests`}
+                          className="w-full h-11 pl-10 pr-4 rounded-[11px] bg-[#F4F6FA] shadow-[inset_0_0_0_1px_#E6EAF0] text-[14px] outline-none focus:shadow-[inset_0_0_0_1.5px_#2A4DD0]"
                         />
                       </label>
                     )}
-                    <ul className="flex flex-col gap-2.5 md:gap-3">
+                    <div className="lg:grid lg:grid-cols-2 lg:gap-x-6">
                       {shown.map((t) => {
                         const on = chosen.includes(t.name);
                         return (
-                          <li key={t.name}>
-                            <button
-                              type="button"
-                              role="checkbox"
-                              aria-checked={on}
-                              onClick={() => toggle(t.name)}
-                              className={`w-full text-left p-3.5 md:p-4 rounded-xl flex items-center justify-between gap-4 transition-all ${
-                                on ? "bg-primary-fixed/20 ring-2 ring-vibrant-blue" : "bg-surface-container-lowest md:bg-surface-container-low shadow-[0_2px_8px_rgba(15,23,42,0.04)] md:shadow-none hover:bg-surface-container"
-                              }`}
-                            >
-                              <span className="flex items-center gap-3 min-w-0">
-                                <span className={`w-9 h-9 md:w-6 md:h-6 rounded-full md:rounded flex items-center justify-center shrink-0 ${on ? "bg-vibrant-blue text-on-primary" : "bg-surface-container-high md:bg-surface-container-lowest md:ring-1 md:ring-outline-variant text-on-surface-variant"}`}>
-                                  {on ? <Check className="w-5 h-5 md:w-4 md:h-4" /> : <Plus className="w-5 h-5 md:hidden" />}
-                                </span>
-                                <span className="font-label-sm md:font-title-md text-[14px] md:text-body-lg font-semibold text-on-surface">{t.name}</span>
-                              </span>
-                              <span className="flex flex-col items-end shrink-0 text-right">
-                                <span className={`font-title-md text-[15px] md:text-title-md font-bold ${on ? "text-primary" : "text-on-surface"}`}>{formatINR(feeOf(t))}</span>
-                                <span className="font-label-sm text-[11px] text-indigo-gray-600">booking fee · {formatINR(t.price)} at the lab</span>
-                              </span>
-                            </button>
-                          </li>
+                          <button
+                            key={t.name}
+                            type="button"
+                            role="checkbox"
+                            aria-checked={on}
+                            onClick={() => toggle(t.name)}
+                            className="flex items-center gap-3 w-full py-[11px] border-t border-[#EEF2F7] text-left"
+                          >
+                            <span aria-hidden className={`shrink-0 w-[22px] h-[22px] rounded-[7px] border-2 flex items-center justify-center ${on ? "border-[#2A4DD0] bg-[#2A4DD0]" : "border-[#B7C1D1] bg-white"}`}>
+                              {on && <Check className="w-3 h-3 text-white" strokeWidth={3.6} />}
+                            </span>
+                            <span className="flex-1 min-w-0">
+                              <span className="block text-[14px] font-bold">{t.name}</span>
+                              <span className="block text-[12px] leading-[1.4] text-[#5B667A]">Booking fee {formatINR(feeOf(t))} · rest at the lab</span>
+                            </span>
+                            <span className="shrink-0 text-[14px] font-extrabold">{formatINR(t.price)}</span>
+                          </button>
                         );
                       })}
-                    </ul>
-                    {q && matching.length === 0 && <p className="text-sm text-indigo-gray-600 mt-2">No tests match &ldquo;{filter}&rdquo;.</p>}
+                    </div>
+                    {q && matching.length === 0 && <p className="mt-2 text-[13px] text-[#5B667A]">No tests match &ldquo;{filter}&rdquo;.</p>}
                     {!q && matching.length > COLLAPSED && (
-                      <button type="button" onClick={() => setShowAll((v) => !v)} className="mt-3 font-label-sm text-label-sm text-vibrant-blue font-semibold hover:underline">
+                      <button type="button" onClick={() => setShowAll((v) => !v)} className="mt-2.5 text-[13px] font-extrabold text-[#2A4DD0] hover:underline">
                         {showAll ? "Show fewer tests" : `View all ${matching.length} tests`}
                       </button>
                     )}
                   </>
                 )}
-              </StepCard>
+              </Card>
 
-              {/* 3. Date */}
-              <StepCard
-                step={3}
-                title="Choose Visit Date"
-                aside={
-                  <span className="font-label-sm text-label-sm text-primary font-medium flex items-center gap-1 shrink-0">
-                    <CalendarDays className="w-4 h-4" />
-                    {new Date(now).toLocaleDateString("en-GB", { timeZone: "Asia/Kolkata", month: "long", year: "numeric" })}
-                  </span>
-                }
-              >
+              <Card title="Visit day" sub="Labs book by day, not by time.">
                 <DayStrip days={days} selected={date} onSelect={setDate} />
-                <p className="mt-4 flex items-start gap-2 text-sm text-indigo-gray-600">
-                  <IdCard className="w-4 h-4 mt-0.5 text-vibrant-blue shrink-0" />
-                  Visit the lab on {formatLongDate(`${date}T12:00:00+05:30`)} and show your booking ID at the desk. The lab will advise you if any test needs fasting.
+                <p className="mt-3.5 flex items-start gap-2 text-[12.5px] leading-normal text-[#4A5878]">
+                  <IdCard className="w-4 h-4 mt-px text-[#2A4DD0] shrink-0" />
+                  {isDoorstep
+                    ? `The lab contacts you to collect the sample on ${formatLongDate(`${date}T12:00:00+05:30`)}.`
+                    : `Visit the lab on ${formatLongDate(`${date}T12:00:00+05:30`)} and show your booking ID at the desk.`}{" "}
+                  The lab will tell you if a test needs fasting.
                 </p>
-              </StepCard>
+              </Card>
 
-              {/* 4. Patient */}
-              <StepCard
-                step={4}
-                title="Patient Details"
-                aside={
-                  patient ? (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
-                      <CircleCheck className="w-3.5 h-3.5 text-emerald-600" /> Auto-Applied from Profile
-                    </span>
-                  ) : null
-                }
-              >
+              <Card title="Patient details" aside={patient ? <span className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#ECFDF3] text-[#067647] text-[11.5px] font-extrabold"><CircleCheck className="w-3.5 h-3.5" /> From your profile</span> : undefined}>
                 {patient ? (
-                  <div className="flex flex-col gap-3 rounded-xl bg-surface-container-low/70 border border-surface-container-high/60 p-4 sm:p-5">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-title-md text-base sm:text-lg font-bold text-on-surface">
-                          {details.name || patient.name || "Patient"}
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full bg-fresh-teal/15 text-emerald-800 text-xs font-semibold">
-                          Verified Profile
-                        </span>
-                      </div>
-                      <span className="text-xs text-indigo-gray-600">
-                        Automatically taken from your account
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-sm border-t border-surface-container-high/40">
-                      <div className="flex flex-col">
-                        <span className="text-xs text-indigo-gray-600 font-medium">Mobile Number</span>
-                        <span className="font-semibold text-on-surface">
-                          {details.phone || patient.phone || "—"}
-                        </span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs text-indigo-gray-600 font-medium">Email</span>
-                        <span className="font-semibold text-on-surface truncate">
-                          {details.email || patient.email || "—"}
-                        </span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs text-indigo-gray-600 font-medium">Sex / DOB</span>
-                        <span className="font-semibold text-on-surface">
-                          {[details.gender || patient.gender, details.dateOfBirth || patient.dateOfBirth].filter(Boolean).join(" • ") || "Saved in profile"}
-                        </span>
-                      </div>
-                    </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4">
+                    <Detail label="Name" value={details.name || patient.name || "Patient"} />
+                    <Detail label="Mobile" value={details.phone || patient.phone || "—"} />
+                    <Detail label="Email" value={details.email || patient.email || "—"} />
+                    <Detail label="Sex / DOB" value={[details.gender || patient.gender, details.dateOfBirth || patient.dateOfBirth].filter(Boolean).join(" · ") || "In your profile"} />
                   </div>
                 ) : (
-                  <p className="text-sm text-indigo-gray-600">Sign in first and we&apos;ll automatically apply your details from your profile.</p>
+                  <p className="text-[13px] text-[#5B667A]">
+                    <Link href={signIn} className="font-extrabold text-[#2A4DD0] hover:underline">
+                      Sign in
+                    </Link>{" "}
+                    with your mobile number and your details are filled in from your profile.
+                  </p>
                 )}
-              </StepCard>
+              </Card>
+
+              {error && (
+                <div className="lg:hidden">
+                  <FormError>
+                    {error}
+                    {pendingId && (
+                      <>
+                        {" "}
+                        <Link href={`/patient/checkout/diagnostic/${pendingId}`} className="font-bold underline">
+                          Pay from checkout
+                        </Link>
+                      </>
+                    )}
+                  </FormError>
+                </div>
+              )}
             </div>
 
-            {/* Summary */}
-            <aside className="lg:col-span-4 flex flex-col gap-6 lg:sticky lg:top-8">
-              <div className="bg-surface-container-lowest rounded-xl p-5 md:p-6 shadow-[0_4px_20px_rgba(15,23,42,0.04)] md:shadow-md">
-                <div className="flex items-center justify-between pb-4 mb-4 border-b border-surface-container-high/60">
-                  <h2 className="font-title-md text-body-lg md:text-title-md font-bold text-on-surface">Booking Summary</h2>
-                  <span className="px-2.5 py-0.5 rounded-full bg-fresh-teal/10 text-secondary font-label-sm text-[11px] font-bold">INR</span>
-                </div>
-                <div className="flex flex-col gap-3.5 pb-5 font-body-md text-body-md">
-                  {selectedTests.length === 0 ? (
-                    <p className="text-sm text-indigo-gray-600">No tests selected yet.</p>
-                  ) : (
-                    selectedTests.map((t) => (
-                      <SummaryRow key={t.name} label={`Booking fee: ${t.name}`} sub={`${formatPercent(bookingFeePercent)} of the ${formatINR(t.price)} test price`} value={formatINR(feeOf(t))} />
-                    ))
-                  )}
-                  <SummaryRow label="Sample collection" sub={isDoorstep ? "Home visit by the lab" : "At the lab"} value={isDoorstep ? "Paid to lab" : "Free"} tone={isDoorstep ? undefined : "free"} />
-                </div>
-                <div className="py-4 bg-surface-container-low -mx-5 md:-mx-6 px-5 md:px-6 flex items-center justify-between gap-3">
-                  <div>
-                    <span className="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wide">Total Payable Online</span>
-                    <span className="block font-label-sm text-[11px] text-indigo-gray-600 mt-0.5">Visit on {formatLongDate(`${date}T12:00:00+05:30`)}</span>
-                  </div>
-                  <span className="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary font-extrabold">{selectedTests.length ? formatINR(total) : "—"}</span>
-                </div>
-
-                <div className="mt-5 flex flex-col gap-4">
-                  <LabChargesAtVenue tests={selectedTests} doorstepFee={currentDoorstepFee} />
-                  <PayuNote />
-                  {error && (
-                    <FormError>
-                      {error}
-                      {pendingId && (
-                        <>
-                          {" "}
-                          <Link href={`/patient/checkout/diagnostic/${pendingId}`} className="font-bold underline">Pay from checkout</Link>
-                        </>
-                      )}
-                    </FormError>
-                  )}
-                  {!patient ? (
-                    <SignInToBook next={`/book/diagnostic/${center.id}`} />
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={confirm}
-                      disabled={submitting || selectedTests.length === 0}
-                      className="w-full py-4 px-6 rounded-full bg-primary hover:bg-primary-container text-on-primary font-title-md text-body-lg md:text-title-md font-bold shadow-[0_8px_20px_rgba(15,23,42,0.12)] transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {submitting ? (
-                        <>
-                          <LoaderCircle className="w-5 h-5 animate-spin" /> Saving your booking…
-                        </>
-                      ) : selectedTests.length === 0 ? (
-                        "Select a test to continue"
-                      ) : (
-                        <>
-                          <Lock className="w-5 h-5" /> Confirm &amp; Pay {formatINR(total)}
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-
-                <ul className="mt-6 pt-5 border-t border-surface-container-low flex flex-col gap-2.5 font-label-sm text-label-sm text-indigo-gray-600">
+            {/* Desktops: the summary and the button beside the steps. */}
+            <aside className={`hidden lg:block sticky top-[96px] p-[22px] ${card}`}>
+              <h2 className="text-[17px] font-extrabold">Booking summary</h2>
+              <div className="mt-2.5 flex flex-col gap-3 pb-4">
+                {selectedTests.length === 0 ? (
+                  <p className="text-[13px] text-[#5B667A]">No tests selected yet.</p>
+                ) : (
+                  selectedTests.map((t) => (
+                    <SummaryRow key={t.name} label={`Booking fee: ${t.name}`} sub={`${formatPercent(bookingFeePercent)} of the ${formatINR(t.price)} test price`} value={formatINR(feeOf(t))} />
+                  ))
+                )}
+                <SummaryRow label="Sample collection" sub={isDoorstep ? "Collected by the lab" : "At the lab"} value={isDoorstep ? "Paid to lab" : "Free"} tone={isDoorstep ? undefined : "free"} />
+              </div>
+              <div className="flex items-center justify-between gap-3 -mx-[22px] px-[22px] py-4 bg-[#F6F8FC]">
+                <span>
+                  <span className="block text-[12px] font-extrabold tracking-[0.04em] uppercase text-[#5B667A]">Pay online now</span>
+                  <span className="block mt-0.5 text-[11.5px] text-[#5B667A]">{formatLongDate(`${date}T12:00:00+05:30`)}</span>
+                </span>
+                <span className="text-[24px] font-extrabold text-[#2A4DD0]">{selectedTests.length ? formatINR(total) : "—"}</span>
+              </div>
+              <div className="mt-4 flex flex-col gap-3.5">
+                <LabChargesAtVenue tests={selectedTests} doorstepFee={currentDoorstepFee} />
+                <PayuNote />
+                {error && (
+                  <FormError>
+                    {error}
+                    {pendingId && (
+                      <>
+                        {" "}
+                        <Link href={`/patient/checkout/diagnostic/${pendingId}`} className="font-bold underline">
+                          Pay from checkout
+                        </Link>
+                      </>
+                    )}
+                  </FormError>
+                )}
+                {!patient ? (
+                  <Link href={signIn} className={`${btnPrimary} w-full h-[50px]! text-[15px]!`}>
+                    <LogIn className="w-4 h-4" /> Sign in to book
+                  </Link>
+                ) : (
+                  <button type="button" onClick={confirm} disabled={submitting || selectedTests.length === 0} className={`${btnPrimary} w-full h-[50px]! text-[15px]! disabled:bg-[#C9D3E6]!`}>
+                    {submitting ? (
+                      <>
+                        <LoaderCircle className="w-5 h-5 animate-spin" /> Saving your booking…
+                      </>
+                    ) : selectedTests.length === 0 ? (
+                      "Select a test to continue"
+                    ) : (
+                      <>
+                        <Lock className="w-4 h-4" /> Confirm &amp; pay {formatINR(total)}
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+              <ul className="mt-5 pt-4 border-t border-[#EEF2F7] flex flex-col gap-2.5 text-[12.5px] text-[#4A5878]">
+                <li className="flex items-start gap-2.5">
+                  <CircleCheck className="w-[17px] h-[17px] text-[#067647] shrink-0" />
+                  Your booking is confirmed as soon as the payment succeeds.
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <FileText className="w-[17px] h-[17px] text-[#2A4DD0] shrink-0" />
+                  Track the test and its report from your profile.
+                </li>
+                {directions && (
                   <li className="flex items-start gap-2.5">
-                    <CircleCheck className="w-[18px] h-[18px] text-fresh-teal shrink-0" />
-                    Your booking is confirmed as soon as the payment succeeds.
+                    <Navigation className="w-[17px] h-[17px] text-[#5B667A] shrink-0" />
+                    <a href={directions} target="_blank" rel="noreferrer" className="hover:text-[#2A4DD0] hover:underline">
+                      Directions to {center.name}
+                    </a>
                   </li>
-                  <li className="flex items-start gap-2.5">
-                    <FileText className="w-[18px] h-[18px] text-vibrant-blue shrink-0" />
-                    Track the test and its report from your profile.
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <MapPin className="w-[18px] h-[18px] text-on-surface-variant shrink-0" />
-                    {center.name}{center.city ? `, ${center.city}` : ""}
-                  </li>
-                </ul>
-                <div className="mt-4">
-                  <RefundNote isConsultation={false} />
-                </div>
+                )}
+              </ul>
+              <div className="mt-4">
+                <RefundNote isConsultation={false} />
               </div>
             </aside>
           </div>
         </div>
       </main>
 
+      {/* Phones: what is selected and the next step, fixed at the bottom. */}
+      <div className="lg:hidden fixed z-40 inset-x-0 bottom-0 flex items-center gap-3 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] bg-white border-t border-[#E6EBF3] shadow-[0_-8px_20px_rgba(11,27,63,0.06)]">
+        <span className="flex-1 min-w-0">
+          <span className="block text-[16px] font-extrabold">{selectedTests.length ? `${formatINR(total)} now` : countLabel}</span>
+          <span className="block text-[11.5px] text-[#5B667A] truncate">
+            {selectedTests.length ? `${countLabel} · rest at the lab` : `Pay ${formatPercent(bookingFeePercent)} now · rest at the lab`}
+          </span>
+        </span>
+        {cta}
+      </div>
+
       <PatientFooter isSignedIn={!!patient} />
-      <PatientDock activeTab="book" isSignedIn={!!patient} name={patient?.name} />
+      <PatientDock activeTab="find" isSignedIn={!!patient} name={patient?.name} phoneBar={false} />
     </div>
   );
 }
 
-function LabMetric({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+/** The lab's name, what can be booked, where it is and how. */
+function LabHeading({ center, tests, location, doorstep, desk = false }: { center: DiagnosticCenter; tests: number; location: string; doorstep: boolean; desk?: boolean }) {
   return (
-    <div className="flex flex-col items-center justify-center text-center min-w-0">
-      <span className="font-label-sm text-[11px] md:text-label-sm text-on-surface-variant uppercase md:normal-case tracking-wider md:tracking-normal">{label}</span>
-      <span className={`font-title-md text-[15px] md:text-title-md font-bold mt-0.5 truncate max-w-full ${accent ? "text-primary" : "text-on-surface"}`}>{value}</span>
+    <>
+      <h1 className={`flex items-center gap-1.5 font-extrabold tracking-[-0.02em] leading-[1.2] ${desk ? "text-[26px]" : "text-[19px]"}`}>
+        <span className="min-w-0">{center.name}</span>
+        <VerifiedBadge className={desk ? "w-[22px] h-[22px]" : "w-[18px] h-[18px]"} />
+      </h1>
+      <p className="mt-1.5 text-[13.5px] text-[#4A5878]">{tests ? `${tests} ${tests === 1 ? "test" : "tests"} with prices · Partner lab` : "Partner lab"}</p>
+      {location && (
+        <p className="mt-1 flex items-start gap-1.5 text-[13.5px] text-[#4A5878]">
+          <MapPin className="w-[13px] h-[13px] mt-1 text-[#5B667A] shrink-0" />
+          {location}
+        </p>
+      )}
+      <Dots items={["Book by day", "Reports in your account", doorstep && "Home collection available"]} className="mt-3" />
+    </>
+  );
+}
+
+function Card({ title, sub, aside, id, children }: { title: string; sub?: string; aside?: ReactNode; id?: string; children: ReactNode }) {
+  return (
+    <section className={`p-4 lg:p-[22px] ${card} rounded-[20px]! lg:rounded-2xl!`}>
+      <div className="flex items-start justify-between gap-3">
+        <h2 id={id} className="text-[16px] font-extrabold">{title}</h2>
+        {aside}
+      </div>
+      {sub ? <p className="mt-1 mb-2.5 text-[12.5px] text-[#5B667A]">{sub}</p> : <div className="mb-2" />}
+      {children}
+    </section>
+  );
+}
+
+function PayRow({ title, sub, value, accent = false, last = false }: { title: string; sub: string; value: string; accent?: boolean; last?: boolean }) {
+  return (
+    <div className={`flex justify-between gap-3 py-2.5 ${last ? "" : "border-b border-[#EEF2F7]"}`}>
+      <span>
+        <span className="block text-[14px] font-bold">{title}</span>
+        <span className="block text-[12px] text-[#5B667A]">{sub}</span>
+      </span>
+      <span className={`shrink-0 text-[13.5px] font-extrabold ${accent ? "text-[#2A4DD0]" : ""}`}>{value}</span>
     </div>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="py-2 min-w-0">
+      <span className="block text-[11.5px] font-bold text-[#5B667A]">{label}</span>
+      <span className="block text-[13.5px] font-extrabold truncate">{value}</span>
+    </span>
   );
 }

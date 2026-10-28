@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BrainCircuit, Headset, MessageSquareText, RotateCcw, X } from 'lucide-react'
+import { BrainCircuit, Headset, MessageSquareText, RotateCcw, Stethoscope, X } from 'lucide-react'
 import { ChatThread, Composer, LanguagePicker, chatKey, useChat, useLanguage } from './chat'
 
 // Common support questions per role. Every answer exists on the site (see lib/assistant/knowledge.ts).
@@ -39,6 +39,8 @@ const PORTAL_ROLE: [string, string][] = [
 const isAiPage = (path: string) => /^\/(?:(?:doctor|diagnostic-center|hospital|executive)\/)?ai$/.test(path)
 
 // Pages with the navigation pill along the bottom: lift the button above it.
+const APP_PREFIXES = ['/patient', '/find', '/book', '/hospitals', '/doctors', '/diagnostics', '/specialities']
+
 const BAR_PREFIXES = ['/doctor', '/doctors', '/diagnostic-center', '/hospital', '/executive', '/patient', '/find', '/book']
 
 /**
@@ -58,6 +60,8 @@ export function Support({ role, viewer }: { role: string | null; viewer: string 
   const contactHref = key === 'patient' ? '/patient/support' : key === 'visitor' ? '/contact' : null
   const lifted = BAR_PREFIXES.some((p) => pathname.startsWith(p)) || (pathname === '/' && key === 'patient')
   const hidden = isAiPage(pathname)
+  // Patient pages show the app's round Care Assistant button above the tab bar.
+  const appFab = (key === 'patient' || key === 'visitor') && (APP_PREFIXES.some((p) => pathname.startsWith(p)) || (pathname === '/' && key === 'patient'))
 
   useEffect(() => {
     if (!open || hidden) return
@@ -82,7 +86,19 @@ export function Support({ role, viewer }: { role: string | null; viewer: string 
 
   return (
     <>
-      {!open && (
+      {!open && appFab && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Open Care Assistant"
+          title="Care Assistant"
+          className="fixed z-[35] right-4 bottom-[calc(max(10px,env(safe-area-inset-bottom))+78px)] lg:right-8 lg:bottom-8 w-[52px] h-[52px] rounded-full bg-[#2A4DD0] text-white flex items-center justify-center shadow-[0_0_0_4px_rgba(42,77,208,0.18),0_10px_22px_rgba(11,27,63,0.28)] hover:bg-[#2443B8] active:scale-95 transition-all print:hidden"
+        >
+          <Stethoscope className="w-6 h-6" />
+        </button>
+      )}
+
+      {!open && !appFab && (
         <div
           className={`fixed z-[35] right-3 sm:right-6 md:right-8 ${
             lifted ? 'bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+5.75rem)] md:bottom-24' : 'bottom-[max(1rem,env(safe-area-inset-bottom))] md:bottom-6'

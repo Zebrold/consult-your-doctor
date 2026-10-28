@@ -3,18 +3,16 @@ import type { ReactNode } from 'react'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
-  BedDouble, Building2, CircleAlert, CircleCheck, Download, FileText, FlaskConical, HeartPulse, IdCard, MapPin, Microscope,
-  Pill, Receipt, Siren, SquarePen, Stethoscope, Phone, type LucideIcon,
+  BedDouble, Building2, ChevronRight, CircleAlert, CircleCheck, CircleHelp, Download, FileText, FlaskConical, HeartPulse, LogOut,
+  MapPin, Phone, Pill, Receipt, Settings, ShieldCheck, SquarePen, Stethoscope, type LucideIcon,
 } from 'lucide-react'
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { PatientDock } from '@/components/PatientDock'
 import { PatientFooter } from '@/components/AppFooter'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
-import { PatientSidebar } from '@/components/PatientSidebar'
-import { AccountShortcuts } from '@/components/patient/AccountShortcuts'
-import { HeroStat, HeroStats } from '@/components/patient/PhoneHeader'
 import { ProfileEditButton } from '@/components/patient/ProfileEditButton'
+import { DeskTitle, PageBody, btnOutline, card } from '@/components/patient/app-ui'
 import { currentTime, one } from '@/components/patient/data'
 import { ageFrom, doctorName, formatINR, formatShortDate, initials } from '@/components/patient/format'
 import { matchBookedTests } from '@/lib/pricing'
@@ -61,13 +59,21 @@ const LAB_STATUS: Record<string, { label: string; tone: Tone }> = {
 
 type Tone = 'blue' | 'teal' | 'coral' | 'neutral'
 const TONES: Record<Tone, string> = {
-  blue: 'bg-primary/10 text-primary',
-  teal: 'bg-fresh-teal/10 text-secondary',
-  coral: 'bg-soft-coral/10 text-tertiary',
-  neutral: 'bg-surface-container text-on-surface-variant',
+  blue: 'bg-[#EEF3FF] text-[#2A4DD0]',
+  teal: 'bg-[#ECFDF3] text-[#067647]',
+  coral: 'bg-[#FEF3F2] text-[#B42318]',
+  neutral: 'bg-[#F2F4F7] text-[#475467]',
 }
 
 const bookingId = (id: string) => id.slice(0, 8).toUpperCase()
+
+/** "+91 ••••• ••210": enough to recognise the number without showing it all. */
+function maskPhone(phone: string | null) {
+  const digits = (phone ?? '').replace(/\D/g, '')
+  if (digits.length < 6) return phone
+  const local = digits.slice(-10)
+  return `${digits.length > 10 ? `+${digits.slice(0, digits.length - 10)} ` : ''}••••• ••${local.slice(-3)}`
+}
 
 export default async function PatientProfilePage(props: { searchParams?: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const searchParams = (await props.searchParams) ?? {}
@@ -164,11 +170,6 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
     labBookings.filter((b) => b.status === 'report_sent' && b.center).map((b) => ({ id: b.id, centerId: b.center!.id })),
   )
 
-  const upcoming = visits
-    .filter((v) => (v.status === 'confirmed' || v.status === 'pending_payment') && v.at && Date.parse(v.at) > now)
-    .sort((a, b) => (a.at ?? '').localeCompare(b.at ?? ''))
-  const reportsSent = labBookings.filter((b) => b.status === 'report_sent').length
-  const records = history.filter((h) => h.kind === 'prescription' && h.file).length
   const awaitingPayment = [
     ...visits.filter((v) => v.status === 'pending_payment' && (!v.at || Date.parse(v.at) > now)).map((v) => ({ id: v.id, href: `/patient/checkout/${v.id}`, label: v.doctor ? doctorName(v.doctor.name) : 'Consultation' })),
     ...labBookings.filter((b) => b.status === 'pending_payment').map((b) => ({ id: b.id, href: `/patient/checkout/diagnostic/${b.id}`, label: b.tests })),
@@ -215,391 +216,370 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
 
   const isSetupMandatory = searchParams.setup === 'mandatory' || !profile?.phone_number
 
+  const uhid = `CYD-${user.id.slice(0, 8).toUpperCase()}`
+  const masked = maskPhone(phone)
+  const vitals = latestVitals?.vitals ? vitalsList(latestVitals.vitals) : []
+  const memberSince = typeof profile?.created_at === 'string' ? new Date(profile.created_at).toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', month: 'short', year: 'numeric' }) : null
+  const editButton = 'flex-none inline-flex items-center gap-[5px] h-8 px-2.5 rounded-[9px] border-[1.5px] border-[#D6DDE8] bg-white text-[12.5px] font-extrabold text-[#27324A] hover:bg-[#F4F6FA] transition-colors'
+
   return (
-    <div className="bg-background font-body-md text-body-md text-on-surface antialiased min-h-screen">
+    <div className="bg-[#F6F8FC] lg:bg-transparent min-h-screen">
       <PatientNavHeader
         name={name}
         email={email}
         isSignedIn
-        container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop"
+        container="max-w-[900px] px-4 md:px-6"
         eyebrow="My profile"
         title={name}
-        subtitle={[`UHID CYD-${user.id.slice(0, 8).toUpperCase()}`, phone].filter(Boolean).join(' • ')}
-        hero={
-          <HeroStats>
-            <HeroStat href="/patient/appointments" value={upcoming.length} label="Upcoming visits" />
-            <HeroStat href="#labs" value={reportsSent} label="Lab reports" />
-            <HeroStat href="#records" value={records} label="Prescriptions" />
-          </HeroStats>
-        }
+        subtitle={[`UHID ${uhid}`, masked].filter(Boolean).join(' · ')}
+        deskHidden
       />
-      <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-12 md:pb-16">
-        <div className="relative w-full overflow-hidden">
-          <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-5 md:pt-8">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start max-w-[1440px] mx-auto">
-              <PatientSidebar 
-                user={user} 
-                profile={profile} 
-                patientDetails={details} 
-                activeAppointmentsCount={upcoming.length} 
-                initialOpen={Boolean(isSetupMandatory)}
-                isMandatory={Boolean(isSetupMandatory)}
-              />
+      <PageBody>
+        <div className="max-w-[900px] lg:max-w-none mx-auto lg:mx-0">
+          <DeskTitle
+            title="Profile & records"
+            subtitle="Shared only with the doctors, hospitals and labs you book."
+            actions={
+              <ProfileEditButton details={editDetails} className={btnOutline}>
+                <SquarePen className="w-[15px] h-[15px]" /> Edit details
+              </ProfileEditButton>
+            }
+          />
 
-              <div className="lg:col-span-8 flex flex-col gap-6">
-                <AccountShortcuts />
+          <nav aria-label="Your account" className="lg:hidden grid grid-cols-5 gap-1 pt-[18px] px-4 md:px-6">
+            <QuickLink href="#records" icon={Pill} label="Records" />
+            <QuickLink href="#labs" icon={FlaskConical} label="Reports" />
+            <QuickLink href="#payments" icon={Receipt} label="Payments" />
+            <QuickLink href="/patient/preferences" icon={Settings} label="Settings" />
+            <QuickLink href="/patient/support" icon={CircleHelp} label="Help" />
+          </nav>
 
-                {isSetupMandatory && (
-                  <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-in fade-in duration-300">
-                    <div className="flex items-start gap-3">
-                      <span className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-800 shrink-0">
-                        <Phone className="w-5 h-5 text-amber-700" />
-                      </span>
-                      <div>
-                        <h3 className="font-title-sm font-bold text-amber-950 text-base">Mobile Number is Mandatory</h3>
-                        <p className="font-body-sm text-xs text-amber-900/80 mt-0.5">
-                          Please complete your profile details. A valid phone number is mandatory to receive your appointment booking slips, doctor prescriptions, and live WhatsApp updates.
+          <div className="flex flex-col gap-3 px-4 md:px-6 lg:px-0 pt-4 lg:pt-0 empty:hidden lg:mb-5">
+            {isSetupMandatory && (
+              <div className="p-3.5 rounded-2xl bg-[#FFFAEB] shadow-[0_0_0_1px_#FEDF89] flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <span className="flex items-start gap-3 flex-1 min-w-0">
+                  <span className="shrink-0 w-10 h-10 rounded-full bg-white shadow-[0_0_0_1px_#FEDF89] flex items-center justify-center text-[#B54708]">
+                    <Phone className="w-[18px] h-[18px]" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[14px] font-extrabold text-[#7A2E0E]">Add your mobile number</span>
+                    <span className="block text-[12.5px] leading-snug text-[#93370D]">It is needed for booking slips, prescriptions and WhatsApp updates about your visits.</span>
+                  </span>
+                </span>
+                <ProfileEditButton details={editDetails} initialOpen className="shrink-0 h-10 px-4 rounded-[11px] bg-[#B54708] hover:bg-[#93370D] text-white text-[13px] font-extrabold transition-colors">
+                  Complete profile
+                </ProfileEditButton>
+              </div>
+            )}
+            {payment === 'success' && (
+              <Banner tone="teal" icon={CircleCheck}>Payment received. Your booking is confirmed and listed under My bookings with its booking ID.</Banner>
+            )}
+            {payment === 'failed' && (
+              <Banner tone="coral" icon={CircleAlert}>The payment didn&apos;t go through, so the booking isn&apos;t confirmed yet. You can try again from Payments below.</Banner>
+            )}
+          </div>
+
+          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_440px] lg:gap-5 lg:items-start">
+            <div className="flex flex-col gap-3.5 lg:gap-5 min-w-0 px-4 md:px-6 lg:px-0 pt-1 lg:pt-0">
+              <div className={`hidden lg:flex items-center gap-[18px] p-[22px] ${card}`}>
+                <span className="shrink-0 w-[68px] h-[68px] rounded-full shadow-[inset_0_0_0_1.5px_#D6DDE8] text-[#2A4DD0] flex items-center justify-center text-[22px] font-extrabold">{initials(name)}</span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[22px] font-extrabold truncate">{name}</span>
+                  <span className="block text-[13.5px] text-[#5B667A] truncate">{[`UHID ${uhid}`, masked, email].filter(Boolean).join(' · ')}</span>
+                </span>
+                {memberSince && (
+                  <span className="shrink-0 text-right">
+                    <span className="block text-[12px] font-bold text-[#5B667A]">Member since</span>
+                    <span className="text-[14px] font-extrabold">{memberSince}</span>
+                  </span>
+                )}
+              </div>
+
+              {(admissions.current || admissions.past.length > 0) && (
+                <Panel id="admission" title={admissions.current ? 'Current hospital admission' : 'Hospital stays'} sub={admissions.current ? 'Your bed and care team, updated by the hospital' : 'Your earlier admissions'} action={<LiveRefresh />}>
+                  {admissions.current && (
+                    <div className="p-3.5 rounded-[14px] bg-[#EEF3FF] flex flex-col gap-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="flex items-center gap-3 min-w-0">
+                          <span className="shrink-0 w-11 h-11 rounded-full bg-[#2A4DD0] text-white flex items-center justify-center">
+                            <BedDouble className="w-5 h-5" />
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-[15px] font-extrabold truncate">
+                              {admissions.current.ward} · {admissions.current.bed}
+                            </span>
+                            <span className="block text-[12.5px] text-[#4A5878] truncate">
+                              {admissions.current.bedType} bed at {admissions.current.hospital}
+                            </span>
+                          </span>
+                        </span>
+                        <span className="shrink-0 px-2.5 py-1 rounded-full bg-[#2A4DD0] text-white text-[12px] font-extrabold">Day {stayDays(admissions.current.admittedAt, now)}</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4">
+                        <Field label="Admitted" value={formatShortDate(admissions.current.admittedAt)} />
+                        <Field label="Attending doctor" value={admissions.current.doctor?.name ?? null} />
+                        <Field label="Expected discharge" value={admissions.current.expectedDischarge ? formatShortDate(admissions.current.expectedDischarge) : null} />
+                      </div>
+                      {admissions.current.reason && (
+                        <p className="flex items-start gap-2 text-[13px] text-[#4A5878]">
+                          <Stethoscope className="w-[17px] h-[17px] text-[#2A4DD0] shrink-0" /> {admissions.current.reason}
                         </p>
-                      </div>
-                    </div>
-                    <ProfileEditButton 
-                      details={editDetails} 
-                      className="px-5 py-2.5 rounded-full bg-amber-600 hover:bg-amber-700 text-white font-label-sm text-xs font-bold shrink-0 transition-colors shadow-sm"
-                    >
-                      Complete Profile Details
-                    </ProfileEditButton>
-                  </div>
-                )}
-
-                {payment === 'success' && (
-                  <Banner tone="teal" icon={CircleCheck}>Payment received. Your booking is confirmed. It&apos;s listed under My Appointments &amp; History with its booking ID.</Banner>
-                )}
-                {payment === 'failed' && (
-                  <Banner tone="coral" icon={CircleAlert}>The payment didn&apos;t go through, so the booking isn&apos;t confirmed yet. You can try again from &ldquo;Awaiting payment&rdquo; below.</Banner>
-                )}
-
-                {(admissions.current || admissions.past.length > 0) && (
-                  <Section
-                    id="admission"
-                    icon={BedDouble}
-                    title={admissions.current ? 'Current Hospital Admission' : 'Hospital Stays'}
-                    subtitle={admissions.current ? 'Your bed and care team, updated by the hospital' : 'Your earlier admissions'}
-                    action={<LiveRefresh />}
-                  >
-                    {admissions.current && (
-                      <div className="p-4 rounded-xl bg-primary-fixed/40 border border-vibrant-blue/20 flex flex-col gap-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <span className="flex items-center gap-3 min-w-0">
-                            <span className="w-11 h-11 rounded-full bg-vibrant-blue text-on-primary flex items-center justify-center shrink-0">
-                              <BedDouble className="w-5 h-5" />
-                            </span>
-                            <span className="min-w-0">
-                              <span className="block font-title-md text-[16px] font-bold text-on-surface truncate">
-                                {admissions.current.ward} • {admissions.current.bed}
-                              </span>
-                              <span className="block text-sm text-on-surface-variant truncate">
-                                {admissions.current.bedType} bed at {admissions.current.hospital}
-                              </span>
-                            </span>
-                          </span>
-                          <span className="px-2.5 py-1 rounded-full bg-vibrant-blue text-on-primary font-label-sm text-xs font-bold shrink-0">
-                            Day {stayDays(admissions.current.admittedAt, now)}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                          <Tile label="Admitted" value={formatShortDate(admissions.current.admittedAt)} small />
-                          <Tile label="Attending doctor" value={admissions.current.doctor?.name ?? null} small />
-                          <Tile label="Expected discharge" value={admissions.current.expectedDischarge ? formatShortDate(admissions.current.expectedDischarge) : null} small />
-                        </div>
-                        {admissions.current.reason && (
-                          <p className="flex items-start gap-2 text-sm text-on-surface-variant">
-                            <Stethoscope className="w-[18px] h-[18px] text-primary shrink-0" /> {admissions.current.reason}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                    {admissions.past.length > 0 && (
-                      <ul className="flex flex-col gap-2">
-                        {admissions.past.slice(0, 4).map((a) => (
-                          <li key={a.id} className="p-3 rounded-xl bg-surface-container-low flex items-center justify-between gap-3 text-sm">
-                            <span className="min-w-0">
-                              <span className="block font-semibold text-on-surface truncate">{a.hospital}</span>
-                              <span className="block text-xs text-on-surface-variant truncate">
-                                {a.ward} • {a.bed}
-                                {a.doctor ? ` • ${a.doctor.name}` : ''}
-                              </span>
-                            </span>
-                            <span className="text-right text-xs text-on-surface-variant shrink-0">
-                              {formatShortDate(a.admittedAt)} – {formatShortDate(a.dischargedAt!)}
-                              <span className="block font-semibold text-on-surface">{stayDays(a.admittedAt, a.dischargedAt!)} days</span>
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </Section>
-                )}
-
-                <Section
-                  id="personal"
-                  icon={IdCard}
-                  title="Personal & Medical Details"
-                  subtitle="Shared with the doctors and labs you book"
-                  action={
-                    <ProfileEditButton details={editDetails} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-surface-container-low hover:bg-surface-container text-on-surface font-label-sm text-label-sm font-semibold shrink-0 transition-colors">
-                      <SquarePen className="w-4 h-4" /> Edit
-                    </ProfileEditButton>
-                  }
-                >
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <Tile label="Blood Group" value={details?.blood_group} accent="text-soft-coral" />
-                    <Tile label="Age" value={age != null ? `${age} yrs` : null} />
-                    <Tile label="Sex" value={details?.gender} />
-                    <Tile label="Date of Birth" value={details?.date_of_birth ? formatShortDate(details.date_of_birth) : null} small />
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-surface-container-low text-sm">
-                    <span className="flex items-start sm:items-center gap-2 text-on-surface min-w-0">
-                      <Siren className="w-[18px] h-[18px] text-soft-coral shrink-0" />
-                      <span className="font-semibold shrink-0">Emergency contact:</span>
-                      <span className="text-on-surface-variant truncate">
-                        {details?.emergency_contact_name
-                          ? `${details.emergency_contact_name}${details.emergency_contact_relation ? ` (${details.emergency_contact_relation})` : ''}${details.emergency_contact_phone ? ` • ${details.emergency_contact_phone}` : ''}`
-                          : 'Not added'}
-                      </span>
-                    </span>
-                    <ProfileEditButton details={editDetails} className="self-end sm:self-auto font-label-sm text-label-sm text-primary hover:underline shrink-0">
-                      {details?.emergency_contact_name ? 'Update' : 'Add'}
-                    </ProfileEditButton>
-                  </div>
-                  {latestVitals?.vitals && (
-                    <div className="flex flex-col gap-2">
-                      <span className="font-label-sm text-[11px] text-on-surface-variant uppercase px-1">
-                        Latest vitals{latestVitals.at ? ` • ${formatShortDate(latestVitals.at)}` : ''}
-                      </span>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        {vitalsList(latestVitals.vitals).map((v) => (
-                          <Tile key={v.label} label={v.label} value={v.value} small accent={v.label === 'BMI' ? 'text-primary' : undefined} />
-                        ))}
-                      </div>
+                      )}
                     </div>
                   )}
-                  {details?.address && (
-                    <p className="flex items-start gap-2 px-1 text-sm text-on-surface-variant">
-                      <MapPin className="w-[18px] h-[18px] text-outline shrink-0" /> {details.address}
-                    </p>
-                  )}
-                </Section>
+                  {admissions.past.slice(0, 4).map((a) => (
+                    <Row
+                      key={a.id}
+                      title={a.hospital}
+                      sub={[a.ward, a.bed, a.doctor?.name].filter(Boolean).join(' · ')}
+                      end={
+                        <span className="text-right text-[12px] text-[#5B667A]">
+                          {formatShortDate(a.admittedAt)} – {formatShortDate(a.dischargedAt!)}
+                          <span className="block font-extrabold text-[#0B1B3F]">{stayDays(a.admittedAt, a.dischargedAt!)} days</span>
+                        </span>
+                      }
+                    />
+                  ))}
+                </Panel>
+              )}
 
-                <Section id="records" icon={Pill} title="Prescriptions & Health Records" subtitle="Prescription PDFs from your doctors and health details recorded at the hospital">
-                  {history.length === 0 ? (
-                    <Empty>
-                      Nothing here yet. Prescriptions appear after your consultation, and health details when the hospital records them.
-                    </Empty>
-                  ) : (
-                    <ul className="flex flex-col gap-3">
-                      {history.slice(0, 8).map((h) => {
-                        const health = h.kind === 'health'
-                        return (
-                          <li key={h.id} className="p-3.5 rounded-xl bg-surface-container-low flex flex-col gap-2.5">
-                            <div className="flex items-start justify-between gap-3">
-                              <span className="flex items-center gap-3 min-w-0">
-                                <span className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${health ? 'bg-soft-coral/10 text-soft-coral' : 'bg-primary/10 text-primary'}`}>
-                                  {health ? <HeartPulse className="w-5 h-5" /> : <Pill className="w-5 h-5" />}
-                                </span>
-                                <span className="min-w-0">
-                                  <span className="block font-title-md text-[15px] text-on-surface truncate">
-                                    {health ? `Health record${h.hospital ? ` • ${h.hospital}` : ''}` : `Prescription${h.doctor ? ` • ${doctorName(h.doctor.name)}` : ''}`}
-                                  </span>
-                                  <span className="block text-xs text-on-surface-variant truncate">
-                                    {[h.at ? formatShortDate(h.at) : null, health ? null : h.doctor?.specialty, `ID ${bookingId(h.visitId)}`].filter(Boolean).join(' • ')}
-                                  </span>
-                                </span>
-                              </span>
-                              {h.file && (
-                                <a href={h.file} target="_blank" rel="noreferrer" className="px-3.5 py-1.5 rounded-full bg-primary/10 text-primary font-label-sm text-xs hover:bg-primary/15 shrink-0 flex items-center gap-1">
-                                  <Download className="w-3.5 h-3.5" /> {health ? 'Document' : 'PDF'}
-                                </a>
-                              )}
-                            </div>
-                            {h.vitals && (
-                              <div className="flex flex-wrap gap-1.5">
-                                {vitalsList(h.vitals).map((v) => (
-                                  <span key={v.label} className="px-2.5 py-1 rounded-full bg-surface-container-lowest text-[12px] text-on-surface">
-                                    <span className="text-on-surface-variant">{v.label}:</span> <span className="font-semibold">{v.value}</span>
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                            {h.notes && <p className="text-sm text-on-surface-variant line-clamp-3">{h.notes}</p>}
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  )}
-                </Section>
+              <Panel
+                id="personal"
+                title="Personal & medical details"
+                sub="Shared only with the doctors and labs you book"
+                action={
+                  <ProfileEditButton details={editDetails} className={`${editButton} lg:hidden`}>
+                    <SquarePen className="w-3.5 h-3.5" /> Edit
+                  </ProfileEditButton>
+                }
+              >
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-5 lg:gap-x-6">
+                  <Field label="Blood group" value={details?.blood_group} accent="text-[#B42318]" />
+                  <Field label="Age" value={age != null ? `${age} yrs` : null} />
+                  <Field label="Sex" value={details?.gender} />
+                  <Field label="Date of birth" value={details?.date_of_birth ? formatShortDate(details.date_of_birth) : null} />
+                  <Field
+                    label="Emergency contact"
+                    value={
+                      details?.emergency_contact_name
+                        ? `${details.emergency_contact_name}${details.emergency_contact_relation ? ` (${details.emergency_contact_relation})` : ''}${details.emergency_contact_phone ? ` · ${details.emergency_contact_phone}` : ''}`
+                        : null
+                    }
+                    wide
+                  />
+                </div>
+                {details?.address && (
+                  <p className="flex items-start gap-2 pt-3 text-[13px] text-[#4A5878]">
+                    <MapPin className="w-4 h-4 text-[#7A8599] shrink-0 mt-px" /> {details.address}
+                  </p>
+                )}
+              </Panel>
 
-                <Section id="labs" icon={FlaskConical} title="Lab Tests & Reports" subtitle="Reports appear here as soon as the lab uploads them">
-                  {labBookings.length === 0 ? (
-                    <Empty>
-                      No lab tests booked yet. <Link href="/diagnostics" className="text-primary font-semibold hover:underline">Find a lab</Link> to book one.
-                    </Empty>
-                  ) : (
-                    <ul className="flex flex-col gap-3">
-                      {labBookings.slice(0, 6).map((b) => (
-                        <li key={b.id} className="p-3.5 rounded-xl bg-surface-container-low flex items-center justify-between gap-3">
-                          <span className="flex items-center gap-3 min-w-0">
-                            <span className="w-10 h-10 rounded-full bg-surface-container text-on-surface flex items-center justify-center shrink-0">
-                              <Microscope className="w-5 h-5" />
+              <Panel id="vitals" title="Latest vitals" action={latestVitals?.at ? <span className="shrink-0 text-[12px] text-[#5B667A]">Recorded {formatShortDate(latestVitals.at)}</span> : undefined}>
+                {vitals.length === 0 ? (
+                  <p className="py-2.5 border-t border-[#EEF2F7] text-[13px] text-[#5B667A] leading-relaxed">Your doctor records your blood pressure, pulse and other vitals at your visit; they show here afterwards.</p>
+                ) : (
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-5">
+                    {vitals.map((v) => (
+                      <div key={v.label} className="py-2.5 border-b lg:border-b-0 lg:border-t border-[#EEF2F7]">
+                        <span className="block text-[11.5px] lg:text-[12px] font-bold text-[#5B667A]">{v.label}</span>
+                        <span className="block text-[15px] lg:text-[16px] font-extrabold">{v.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Panel>
+
+              <Panel id="records" title="Prescriptions & health records" sub="Prescription PDFs from your doctors and health details recorded at the hospital">
+                {history.length === 0 ? (
+                  <Empty>Nothing here yet. Prescriptions appear after your consultation, and health details when the hospital records them.</Empty>
+                ) : (
+                  history.slice(0, 8).map((h) => {
+                    const health = h.kind === 'health'
+                    return (
+                      <div key={h.id} className="py-3 border-t border-[#EEF2F7]">
+                        <div className="flex items-center gap-3">
+                          <span className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${health ? 'bg-[#FEF3F2] text-[#B42318]' : 'bg-[#EEF3FF] text-[#2A4DD0]'}`}>
+                            {health ? <HeartPulse className="w-5 h-5" /> : <Pill className="w-5 h-5" />}
+                          </span>
+                          <span className="flex-1 min-w-0">
+                            <span className="block text-[14px] font-extrabold truncate">
+                              {health ? `Health record${h.hospital ? ` · ${h.hospital}` : ''}` : `Prescription${h.doctor ? ` · ${doctorName(h.doctor.name)}` : ''}`}
                             </span>
-                            <span className="min-w-0">
-                              <span className="block font-title-md text-[15px] text-on-surface truncate capitalize">{b.tests}</span>
-                              <span className="block text-xs text-on-surface-variant truncate">
-                                {[b.center?.name, b.date ? formatShortDate(`${b.date}T12:00:00+05:30`) : null, `ID ${bookingId(b.id)}`].filter(Boolean).join(' • ')}
-                              </span>
+                            <span className="block text-[12px] text-[#5B667A] truncate">
+                              {[h.at ? formatShortDate(h.at) : null, health ? null : h.doctor?.specialty, `ID ${bookingId(h.visitId)}`].filter(Boolean).join(' · ')}
                             </span>
                           </span>
-                          {b.status === 'pending_payment' ? (
-                            <Link href={`/patient/checkout/diagnostic/${b.id}`} className="px-3.5 py-1.5 rounded-full bg-primary-container text-on-primary font-label-sm text-xs hover:bg-primary shrink-0">
-                              Pay Now
-                            </Link>
-                          ) : reportLinks[b.id] ? (
-                            <a href={reportLinks[b.id]} target="_blank" rel="noreferrer" className="px-3.5 py-1.5 rounded-full bg-fresh-teal/10 text-secondary font-label-sm text-xs hover:bg-fresh-teal/20 shrink-0 flex items-center gap-1">
-                              <FileText className="w-3.5 h-3.5" /> View Report
+                          {h.file && (
+                            <a href={h.file} target="_blank" rel="noreferrer" className="shrink-0 inline-flex items-center gap-1 text-[12.5px] font-extrabold text-[#2A4DD0] hover:underline">
+                              <Download className="w-3.5 h-3.5" /> {health ? 'Document' : 'PDF'}
                             </a>
-                          ) : (
-                            <StatusChip status={LAB_STATUS[b.status]} small />
                           )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </Section>
+                        </div>
+                        {h.vitals && (
+                          <div className="flex flex-wrap gap-1.5 mt-2 pl-[52px]">
+                            {vitalsList(h.vitals).map((v) => (
+                              <span key={v.label} className="px-2 py-[3px] rounded-full bg-[#F4F6FA] text-[11.5px]">
+                                <span className="text-[#5B667A]">{v.label}:</span> <span className="font-bold">{v.value}</span>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {h.notes && <p className="mt-1.5 pl-[52px] text-[12.5px] text-[#4A5878] line-clamp-3">{h.notes}</p>}
+                      </div>
+                    )
+                  })
+                )}
+              </Panel>
+            </div>
 
-                <Section
-                  id="payments"
-                  icon={Receipt}
-                  title="Payments & Billing"
-                  subtitle="Booking fees paid online through PayU"
-                  action={
-                    payments.length ? (
-                      <span className="px-2.5 py-1 rounded-full bg-fresh-teal/10 text-secondary font-label-sm text-xs font-semibold shrink-0">{formatINR(totalPaid)} paid online</span>
-                    ) : undefined
-                  }
-                >
-                  {awaitingPayment.length > 0 && (
-                    <div className="p-3.5 rounded-xl bg-soft-coral/10 flex flex-col gap-2">
-                      <span className="font-label-sm text-label-sm text-tertiary font-bold">Awaiting payment ({awaitingPayment.length})</span>
-                      {awaitingPayment.slice(0, 3).map((p) => (
-                        <div key={p.id} className="flex items-center justify-between gap-3 text-sm">
-                          <span className="text-on-surface truncate capitalize">{p.label}</span>
-                          <Link href={p.href} className="font-label-sm text-label-sm text-primary hover:underline shrink-0">
+            <div className="flex flex-col gap-3.5 lg:gap-5 px-4 md:px-6 lg:px-0 pt-3.5 lg:pt-0">
+              <Panel id="labs" title="Lab tests & reports" sub="Reports appear here as soon as the lab uploads them">
+                {labBookings.length === 0 ? (
+                  <Empty>
+                    No lab tests booked yet.{' '}
+                    <Link href="/diagnostics" className="font-extrabold text-[#2A4DD0] hover:underline">
+                      Find a lab
+                    </Link>{' '}
+                    to book one.
+                  </Empty>
+                ) : (
+                  labBookings.slice(0, 6).map((b) => (
+                    <Row
+                      key={b.id}
+                      icon={FlaskConical}
+                      title={<span className="capitalize">{b.tests}</span>}
+                      sub={[b.center?.name, b.date ? formatShortDate(`${b.date}T12:00:00+05:30`) : null, `ID ${bookingId(b.id)}`].filter(Boolean).join(' · ')}
+                      end={
+                        b.status === 'pending_payment' ? (
+                          <Link href={`/patient/checkout/diagnostic/${b.id}`} className="text-[12.5px] font-extrabold text-[#B42318] hover:underline">
                             Pay now
                           </Link>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {payments.length === 0 ? (
-                    <Empty>No payments yet.</Empty>
-                  ) : (
-                    <ul className="flex flex-col divide-y divide-surface-container">
-                      {payments.slice(0, 5).map((p, i) => (
-                        <li key={`${p.booking_id}-${i}`} className="flex items-center justify-between gap-3 py-2.5 px-1">
-                          <span className="min-w-0">
-                            <span className="block text-sm text-on-surface truncate capitalize">{describePayment(p.booking_id)}</span>
-                            <span className="block text-xs text-on-surface-variant">
-                              {[p.created_at ? formatShortDate(p.created_at) : null, p.gateway === 'payu' ? 'Booking fee, paid online' : p.gateway ? 'Booked at the desk' : null].filter(Boolean).join(' • ')}
-                            </span>
-                          </span>
-                          {p.gateway === 'payu' ? (
-                            <span className="font-title-md text-[15px] font-bold text-on-surface shrink-0">{formatINR(Number(p.amount) || 0)}</span>
-                          ) : (
-                            <span className="text-xs text-on-surface-variant shrink-0">Paid at the counter</span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </Section>
+                        ) : reportLinks[b.id] ? (
+                          <a href={reportLinks[b.id]} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[12.5px] font-extrabold text-[#2A4DD0] hover:underline">
+                            <FileText className="w-3.5 h-3.5" /> Report
+                          </a>
+                        ) : (
+                          <StatusChip status={LAB_STATUS[b.status]} />
+                        )
+                      }
+                    />
+                  ))
+                )}
+              </Panel>
 
-                <Section
-                  id="care-team"
-                  icon={HeartPulse}
-                  title="My Doctors & Labs"
-                  subtitle="From your bookings, for quick re-booking"
-                  action={
-                    <Link href="/find" className="font-label-sm text-label-sm text-primary hover:underline shrink-0">
-                      Find more
-                    </Link>
-                  }
-                >
-                  {careTeam.size === 0 ? (
-                    <Empty>Doctors and labs you book will appear here.</Empty>
-                  ) : (
-                    Array.from(careTeam.values())
-                      .slice(0, 4)
-                      .map((c) => (
-                        <div key={c.href} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors">
-                          <span className="flex items-center gap-3 min-w-0">
-                            <span className="w-10 h-10 rounded-full bg-surface-container text-primary flex items-center justify-center shrink-0 font-bold text-xs">
-                              {c.kind === 'lab' ? <Building2 className="w-5 h-5 text-on-surface" /> : initials(c.name)}
-                            </span>
-                            <span className="min-w-0">
-                              <span className="block font-title-md text-[15px] text-on-surface truncate">{c.name}</span>
-                              <span className="block text-xs text-on-surface-variant truncate">{c.sub}</span>
-                            </span>
-                          </span>
-                          <Link href={c.href} className="px-3.5 py-1.5 rounded-full bg-primary-container text-on-primary font-label-sm text-xs hover:bg-primary transition-all shrink-0">
-                            Book again
-                          </Link>
-                        </div>
-                      ))
-                  )}
-                </Section>
-              </div>
+              <Panel
+                id="payments"
+                title="Payments"
+                sub="Booking fees paid online through PayU"
+                action={payments.length ? <span className="shrink-0 px-2.5 py-1 rounded-full bg-[#ECFDF3] text-[#067647] text-[12px] font-extrabold">{formatINR(totalPaid)} paid</span> : undefined}
+              >
+                {awaitingPayment.length > 0 && (
+                  <div className="mb-2 p-3 rounded-xl bg-[#FEF3F2] shadow-[0_0_0_1px_#FBD5D1] flex flex-col gap-1.5">
+                    <span className="text-[12.5px] font-extrabold text-[#912018]">Awaiting payment ({awaitingPayment.length})</span>
+                    {awaitingPayment.slice(0, 3).map((p) => (
+                      <div key={p.id} className="flex items-center justify-between gap-3 text-[13px]">
+                        <span className="truncate capitalize text-[#27324A]">{p.label}</span>
+                        <Link href={p.href} className="shrink-0 font-extrabold text-[#B42318] hover:underline">
+                          Pay now
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {payments.length === 0 ? (
+                  <Empty>No payments yet.</Empty>
+                ) : (
+                  payments.slice(0, 5).map((p, i) => (
+                    <div key={`${p.booking_id}-${i}`} className="flex justify-between gap-3 py-[11px] border-t border-[#EEF2F7] text-[13.5px]">
+                      <span className="min-w-0">
+                        <span className="block text-[#27324A] truncate capitalize">{describePayment(p.booking_id)}</span>
+                        <span className="block text-[12px] text-[#5B667A]">
+                          {[p.created_at ? formatShortDate(p.created_at) : null, p.gateway === 'payu' ? 'Paid online' : p.gateway ? 'Booked at the desk' : null].filter(Boolean).join(' · ')}
+                        </span>
+                      </span>
+                      {p.gateway === 'payu' ? (
+                        <span className="shrink-0 font-extrabold">{formatINR(Number(p.amount) || 0)}</span>
+                      ) : (
+                        <span className="shrink-0 text-[12px] text-[#5B667A]">Paid at the counter</span>
+                      )}
+                    </div>
+                  ))
+                )}
+              </Panel>
+
+              <Panel
+                id="care-team"
+                title="My doctors & labs"
+                sub="From your bookings, for quick re-booking"
+                action={
+                  <Link href="/find" className="shrink-0 text-[13px] font-extrabold text-[#2A4DD0] hover:underline">
+                    Find more
+                  </Link>
+                }
+              >
+                {careTeam.size === 0 ? (
+                  <Empty>Doctors and labs you book will appear here.</Empty>
+                ) : (
+                  Array.from(careTeam.values())
+                    .slice(0, 4)
+                    .map((c) => (
+                      <div key={c.href} className="flex items-center gap-3 py-[11px] border-t border-[#EEF2F7]">
+                        <span className="shrink-0 w-10 h-10 rounded-full shadow-[inset_0_0_0_1.5px_#D6DDE8] text-[#2A4DD0] flex items-center justify-center text-[13px] font-extrabold">
+                          {c.kind === 'lab' ? <Building2 className="w-[18px] h-[18px]" /> : initials(c.name)}
+                        </span>
+                        <span className="flex-1 min-w-0">
+                          <span className="block text-[14px] font-extrabold truncate">{c.name}</span>
+                          <span className="block text-[12px] text-[#5B667A] truncate">{c.sub}</span>
+                        </span>
+                        <Link href={c.href} className="shrink-0 h-8 px-3 rounded-[9px] border-[1.5px] border-[#D6DDE8] text-[12.5px] font-extrabold text-[#27324A] flex items-center hover:bg-[#F4F6FA] transition-colors">
+                          Book again
+                        </Link>
+                      </div>
+                    ))
+                )}
+              </Panel>
+
+              <section aria-label="More" className="lg:hidden rounded-[20px] bg-white shadow-[0_0_0_1px_#E6EBF3] overflow-hidden">
+                <MenuRow href="#records" icon={FileText} label="Prescriptions & reports" />
+                <MenuRow href="#payments" icon={Receipt} label="Payment history" />
+                <MenuRow href="/legal" icon={ShieldCheck} label="Privacy & consent" />
+                <form action="/auth/signout" method="post">
+                  <button type="submit" className="w-full flex items-center gap-3 min-h-[52px] px-4 text-[14px] font-extrabold text-[#B42318] text-left">
+                    <LogOut className="w-[19px] h-[19px]" />
+                    Log out
+                  </button>
+                </form>
+              </section>
             </div>
           </div>
         </div>
-      </main>
+      </PageBody>
 
       <PatientFooter isSignedIn />
-      <PatientDock activeTab="profile" name={name} />
+      <PatientDock activeTab="profile" name={name} detail={`UHID ${uhid}`} />
     </div>
   )
 }
 
 function Banner({ tone, icon: Icon, children }: { tone: 'teal' | 'coral'; icon: LucideIcon; children: ReactNode }) {
   return (
-    <div role="status" className={`p-4 rounded-xl flex items-start gap-3 text-sm ${tone === 'teal' ? 'bg-fresh-teal/10 text-on-secondary-fixed-variant' : 'bg-soft-coral/10 text-tertiary'}`}>
-      <Icon className="w-5 h-5 shrink-0" />
+    <div role="status" className={`p-3.5 rounded-2xl flex items-start gap-3 text-[13px] font-bold ${tone === 'teal' ? 'bg-[#ECFDF3] text-[#067647] shadow-[0_0_0_1px_#ABEFC6]' : 'bg-[#FEF3F2] text-[#B42318] shadow-[0_0_0_1px_#FBD5D1]'}`}>
+      <Icon className="w-[18px] h-[18px] shrink-0" />
       <span>{children}</span>
     </div>
   )
 }
 
-/** A card in the right-hand column, styled like the other sidebar pages' sections. */
-function Section({
-  id, icon: Icon, title, subtitle, action, children,
-}: {
-  id: string
-  icon: LucideIcon
-  title: string
-  subtitle: string
-  action?: ReactNode
-  children: ReactNode
-}) {
+/** A white card with a title, an optional line under it and an action on the right. */
+function Panel({ id, title, sub, action, children }: { id: string; title: string; sub?: string; action?: ReactNode; children: ReactNode }) {
   return (
-    <section id={id} className="scroll-mt-24 bg-surface-container-lowest rounded-xl p-6 shadow-sm flex flex-col gap-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="w-10 h-10 rounded-xl bg-surface-container text-primary flex items-center justify-center shrink-0">
-            <Icon className="w-5 h-5" />
-          </span>
-          <div className="min-w-0">
-            <h3 className="font-title-md text-title-md font-bold text-on-surface leading-snug">{title}</h3>
-            <span className="font-body-md text-sm text-on-surface-variant">{subtitle}</span>
-          </div>
-        </div>
+    <section id={id} aria-labelledby={`${id}-title`} className={`scroll-mt-24 lg:scroll-mt-[96px] p-4 lg:p-[22px] ${card} rounded-[20px]! lg:rounded-2xl!`}>
+      <div className="flex items-start gap-3 mb-1.5 lg:mb-3">
+        <span className="flex-1 min-w-0">
+          <h2 id={`${id}-title`} className="text-[16px] font-extrabold tracking-[-0.01em]">{title}</h2>
+          {sub && <p className="mt-0.5 text-[12.5px] lg:text-[13px] text-[#5B667A]">{sub}</p>}
+        </span>
         {action}
       </div>
       {children}
@@ -607,25 +587,64 @@ function Section({
   )
 }
 
-function Tile({ label, value, accent, small }: { label: string; value: string | null | undefined; accent?: string; small?: boolean }) {
+/** A detail: a small grey label and the value, or "Not added". */
+function Field({ label, value, accent, wide }: { label: string; value: string | null | undefined; accent?: string; wide?: boolean }) {
   return (
-    <div className="p-3 rounded-xl bg-surface-container-low flex flex-col min-w-0">
-      <span className="font-label-sm text-[11px] text-on-surface-variant uppercase">{label}</span>
+    <div className={`py-2.5 border-b lg:border-b-0 lg:border-t border-[#EEF2F7] ${wide ? 'col-span-2 lg:col-span-3' : ''}`}>
+      <span className="block text-[11px] lg:text-[12px] font-bold uppercase lg:normal-case tracking-[0.02em] lg:tracking-normal text-[#5B667A]">{label}</span>
       {value ? (
-        <span className={`font-title-md ${small ? 'text-[15px] mt-1' : 'text-title-md mt-0.5'} ${accent ?? 'text-on-surface'} truncate`}>{value}</span>
+        <span className={`block mt-[3px] lg:mt-0.5 text-[14.5px] lg:text-[15px] font-extrabold ${accent ?? ''}`}>{value}</span>
       ) : (
-        <span className="font-body-md text-sm text-outline mt-1">Not added</span>
+        <span className="block mt-[3px] lg:mt-0.5 text-[14.5px] font-semibold text-[#8A94A6]">Not added</span>
       )}
     </div>
   )
 }
 
-function StatusChip({ status, small }: { status: { label: string; tone: Tone } | undefined; small?: boolean }) {
-  const s = status ?? { label: 'Unknown', tone: 'neutral' as Tone }
-  return <span className={`${small ? 'px-2.5 py-0.5 text-[11px]' : 'px-3 py-1 text-xs'} rounded-full font-label-sm font-semibold shrink-0 ${TONES[s.tone]}`}>{s.label}</span>
+/** A list row: an optional icon, a title and a line, and something on the right. */
+function Row({ icon: Icon, title, sub, end }: { icon?: LucideIcon; title: ReactNode; sub: string; end?: ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 py-[11px] border-t border-[#EEF2F7]">
+      {Icon && (
+        <span className="shrink-0 w-10 h-10 rounded-xl bg-[#F4F6FA] text-[#27324A] flex items-center justify-center">
+          <Icon className="w-[18px] h-[18px]" />
+        </span>
+      )}
+      <span className="flex-1 min-w-0">
+        <span className="block text-[14px] font-extrabold truncate">{title}</span>
+        <span className="block text-[12px] text-[#5B667A] truncate">{sub}</span>
+      </span>
+      {end && <span className="shrink-0">{end}</span>}
+    </div>
+  )
+}
+
+function StatusChip({ status }: { status: { label: string; tone: Tone } | undefined }) {
+  if (!status) return null
+  return <span className={`px-2.5 py-1 rounded-full text-[11.5px] font-extrabold ${TONES[status.tone]}`}>{status.label}</span>
 }
 
 function Empty({ children }: { children: ReactNode }) {
-  return <p className="p-4 rounded-xl bg-surface-container-low text-sm text-on-surface-variant">{children}</p>
+  return <p className="py-3 border-t border-[#EEF2F7] text-[13px] text-[#5B667A] leading-relaxed">{children}</p>
 }
 
+function QuickLink({ href, icon: Icon, label }: { href: string; icon: LucideIcon; label: string }) {
+  return (
+    <Link href={href} className="flex flex-col items-center gap-1.5 text-[11.5px] font-bold text-[#27324A]">
+      <span className="w-[52px] h-[52px] rounded-2xl bg-white shadow-[inset_0_0_0_1px_#E1E7F0] flex items-center justify-center text-[#2A4DD0]">
+        <Icon className="w-[22px] h-[22px]" />
+      </span>
+      {label}
+    </Link>
+  )
+}
+
+function MenuRow({ href, icon: Icon, label }: { href: string; icon: LucideIcon; label: string }) {
+  return (
+    <Link href={href} className="flex items-center gap-3 min-h-[52px] px-4 border-b border-[#EEF2F7] text-[14px] font-bold">
+      <Icon className="w-[19px] h-[19px] text-[#4A5878]" />
+      <span className="flex-1">{label}</span>
+      <ChevronRight className="w-4 h-4 text-[#9AA4B5]" strokeWidth={2.4} />
+    </Link>
+  )
+}

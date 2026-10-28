@@ -1,36 +1,33 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import Image from "next/image";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { PatientDock } from "@/components/PatientDock";
-import { PhoneBar, barActionClass } from "@/components/patient/PhoneHeader";
 import {
-  LogOut,
-  BadgeCheck,
-  ShieldCheck,
-  Award,
-  Calendar,
-  CalendarCheck,
-  ArrowRight,
-  Hospital,
-  Phone,
-  GraduationCap,
-  Building,
-  MessageSquare,
-  CreditCard,
-  UserCog,
   Activity,
-  Shield,
-  ExternalLink,
-  Edit3
+  ArrowLeft,
+  ArrowRight,
+  Award,
+  Building,
+  Building2,
+  CalendarDays,
+  GraduationCap,
+  MessageCircleQuestion,
+  Navigation,
+  ShieldCheck,
+  Star,
+  Sun,
+  Sunset,
+  UserRound,
+  type LucideIcon,
 } from "lucide-react";
 import type { EducationEntry } from "@/lib/education";
 import type { Review, ReviewSummary } from "@/lib/reviews";
 import { Stars } from "@/components/Stars";
-import { formatINR } from "@/components/patient/format";
-
+import { VerifiedBadge } from "@/components/home/ui";
+import { BlueHeader, PhoneHeader } from "@/components/patient/PhoneHeader";
+import { DayStrip } from "@/components/patient/booking-ui";
+import { Dots, InfoRow, btnPrimary, card } from "@/components/patient/app-ui";
+import { directionsHref, doctorName as fullName, formatINR, formatSlot, formatTime, initials, isMorning, istDateKey, upcomingDays } from "@/components/patient/format";
 
 export interface ProfileDoctorData {
   id: string;
@@ -75,834 +72,535 @@ export interface ProfileDoctorData {
 
 export interface DoctorProfileClientProps {
   doctor: ProfileDoctorData;
-  isLoggedIn?: boolean;
-  /** The signed-in patient, for the phone header's menu. Null for a doctor looking at a profile. */
-  viewer?: { name: string | null; email: string | null } | null;
-  showPatientDock?: boolean;
-  isDoctorView?: boolean;
-  onEditProfile?: () => void;
-  onManageSchedule?: () => void;
   /** The doctor booking fee: all the patient pays online (lib/booking-fees.ts). */
   bookingFee: number;
+  now: number;
+  /** The patient or visitor, for the header's menu. Null when a doctor looks at a profile from their portal. */
+  account: { isSignedIn: boolean; name: string | null; email: string | null } | null;
 }
 
-function getDoctorInitials(name?: string | null) {
-  if (!name) return "DR";
-  const clean = name.replace(/^Dr\.\s*/i, "").trim();
-  const parts = clean.split(/\s+/);
-  if (parts.length >= 2) {
-    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-  }
-  return clean.slice(0, 2).toUpperCase();
-}
+type Slot = { id: string; start: string };
 
-function getSlotDateString(iso: string) {
-  try {
-    return new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-  } catch {
-    return iso.split("T")[0];
-  }
-}
+const sectionCard = `p-4 lg:p-[22px] ${card} rounded-[20px]! lg:rounded-2xl!`;
 
-function getSlotTimeString(iso: string) {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleTimeString("en-US", {
-      timeZone: "Asia/Kolkata",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-  } catch {
-    return "";
-  }
-}
-
-function getSlotHour(iso: string) {
-  try {
-    const d = new Date(iso);
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: "Asia/Kolkata",
-      hour: "numeric",
-      hour12: false,
-    }).formatToParts(d);
-    const hourPart = parts.find((p) => p.type === "hour");
-    return hourPart ? parseInt(hourPart.value, 10) : d.getHours();
-  } catch {
-    return new Date(iso).getHours();
-  }
-}
-
-export function DoctorProfileClient({
-  doctor,
-  isLoggedIn = false,
-  viewer = null,
-  showPatientDock = false,
-  isDoctorView = false,
-  onEditProfile,
-  onManageSchedule,
-  bookingFee,
-}: DoctorProfileClientProps) {
-  const searchParams = useSearchParams();
-  const isPreview = searchParams.get("preview") === "patient";
-
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  // No time is picked until the patient taps one.
-  const [selectedSlot, setSelectedSlot] = useState<string>("");
-
-  const doctorName = doctor.profiles?.full_name || "Doctor";
-  const rawName = doctorName.replace(/^Dr\.\s*/i, "");
+/**
+ * A doctor's public profile: who they are, where they see patients, what a visit costs, their open times and what
+ * patients wrote after a visit. Picking a time continues to the booking page with that time chosen.
+ */
+export function DoctorProfileClient({ doctor, bookingFee, now, account }: DoctorProfileClientProps) {
+  const name = fullName(doctor.profiles?.full_name);
   const specialty = doctor.departments?.name || doctor.specialty || "Specialist";
   // Shown only when the doctor has filled them in; never replaced with a made-up value.
-  const experienceYears = doctor.experience_years || null;
+  const experience = doctor.experience_years || null;
   // The consultation fee the hospital set. This page is the only place a patient sees it: it is paid at the hospital
   // counter, never online, so booking screens, checkout, slips and messages show only the booking fee.
-  const fee = doctor.consultation_fee || null;
-  const hospital = doctor.hospitals;
+  const fee = Number(doctor.consultation_fee) || null;
+  const bookable = !!fee;
+  const hospital = doctor.hospitals ?? null;
   const qualifications = doctor.qualifications?.trim() || null;
   const education = doctor.education ?? [];
   const insurance = doctor.insurance_accepted ?? [];
-  const reviewSummary = doctor.reviews?.summary ?? null;
-  const reviewList = doctor.reviews?.reviews ?? [];
-  const reviewCount = reviewSummary?.count ?? 0;
-  const reviewAverage = reviewSummary?.average ?? null;
-
-  // Dynamic schedules grouped and split by Morning & Afternoon from DB
-  const scheduleData = useMemo(() => {
-    const schedules = doctor.schedules || [];
-    if (schedules.length === 0) {
-      return {
-        morningRange: "No morning schedule",
-        morningSlots: [] as string[],
-        afternoonRange: "No afternoon schedule",
-        afternoonSlots: [] as string[],
-        hasSchedules: false,
-        activeDate: null as string | null,
-      };
-    }
-
-    const byDate: Record<string, typeof schedules> = {};
-    for (const s of schedules) {
-      const dateKey = getSlotDateString(s.start_time);
-      if (!byDate[dateKey]) byDate[dateKey] = [];
-      byDate[dateKey].push(s);
-    }
-
-    const nowIST = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-    const sortedDates = Object.keys(byDate).sort();
-    // Pick today if available, or first upcoming date with slots, or latest available date
-    const activeDateKey = sortedDates.find((d) => d >= nowIST) || sortedDates[sortedDates.length - 1];
-    const daySlots = byDate[activeDateKey] || [];
-
-    // Separate into Morning (before 13:00) and Afternoon (13:00 or 14:00 onwards)
-    const morningList = daySlots.filter((s) => getSlotHour(s.start_time) < 13);
-    let afternoonList = daySlots.filter((s) => getSlotHour(s.start_time) >= 14);
-    if (afternoonList.length === 0) {
-      afternoonList = daySlots.filter((s) => getSlotHour(s.start_time) >= 13);
-    }
-
-    // Determine morning range and display slots
-    let morningRange = "No morning schedule";
-    let morningSlots: string[] = [];
-    if (morningList.length > 0) {
-      const mStart = getSlotTimeString(morningList[0].start_time);
-      const mEnd = getSlotTimeString(morningList[morningList.length - 1].end_time);
-      morningRange = `${mStart} - ${mEnd}`;
-      const uniqueMorning = Array.from(new Set(morningList.map((s) => getSlotTimeString(s.start_time))));
-      morningSlots = uniqueMorning.slice(0, 4);
-    }
-
-    // Determine afternoon range and display slots
-    let afternoonRange = "No afternoon schedule";
-    let afternoonSlots: string[] = [];
-    if (afternoonList.length > 0) {
-      const aStart = getSlotTimeString(afternoonList[0].start_time);
-      const aEnd = getSlotTimeString(afternoonList[afternoonList.length - 1].end_time);
-      afternoonRange = `${aStart} - ${aEnd}`;
-      const uniqueAfternoon = Array.from(new Set(afternoonList.map((s) => getSlotTimeString(s.start_time))));
-      afternoonSlots = uniqueAfternoon.slice(0, 4);
-    }
-
-    // Format active date label
-    let activeDateLabel = "";
-    if (activeDateKey) {
-      const [y, m, d] = activeDateKey.split("-").map(Number);
-      const dateObj = new Date(y, m - 1, d);
-      activeDateLabel = dateObj.toLocaleDateString("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      });
-    }
-
-    return {
-      morningRange,
-      morningSlots,
-      afternoonRange,
-      afternoonSlots,
-      hasSchedules: true,
-      activeDate: activeDateLabel,
-    };
-  }, [doctor.schedules]);
-
   // Conditions and procedures the doctor lists themselves; nothing is assumed from the specialty.
   const procedures = doctor.symptoms ?? [];
+  const summary = doctor.reviews?.summary ?? null;
+  const reviews = doctor.reviews?.reviews ?? [];
+  const reviewCount = summary?.count ?? 0;
+  const rating = reviewCount ? summary?.average ?? null : null;
+  const registration = doctor.registration_number
+    ? `Reg. No. ${doctor.registration_number}${doctor.registration_council ? `, ${doctor.registration_council}` : ""}`
+    : null;
+  const directions = hospital ? directionsHref(hospital.name, hospital.address, hospital.city) : null;
+  const where = [hospital?.address, hospital?.city].filter(Boolean).join(", ");
 
-  const targetUrl = `/book/${doctor.id}${isPreview
-      ? `?preview=patient${selectedSlot ? `&time=${selectedSlot}` : ""}`
-      : `${selectedSlot ? `?time=${selectedSlot}` : ""}`
-    }`;
-  
-  const bookUrl = isLoggedIn ? targetUrl : `/login?next=${encodeURIComponent(targetUrl)}`;
-  const directoryUrl = isPreview ? "/find?preview=patient" : "/online-doctor";
+  // Open times by day (India time). The page sends only future, unbooked times.
+  const slots: Slot[] = useMemo(() => (doctor.schedules ?? []).filter((s) => !s.is_booked).map((s) => ({ id: s.id, start: s.start_time })), [doctor.schedules]);
+  const byDay = useMemo(() => {
+    const map = new Map<string, Slot[]>();
+    for (const s of slots) {
+      const key = istDateKey(s.start);
+      map.set(key, [...(map.get(key) ?? []), s]);
+    }
+    return map;
+  }, [slots]);
+  const days = useMemo(() => upcomingDays(now, 6), [now]);
+  const today = days[0].key;
+  const [date, setDate] = useState(() => days.find((d) => byDay.has(d.key))?.key ?? today);
+  const [slotId, setSlotId] = useState<string | null>(null);
+  const daySlots = byDay.get(date) ?? [];
+  const selected = slots.find((s) => s.id === slotId) ?? null;
+  const nextAfter = slots.find((s) => istDateKey(s.start) > date) ?? null;
+  const openToday = byDay.get(today)?.length ?? 0;
 
-  return (
-    <div className="bg-background font-body-md text-on-surface antialiased min-h-screen">
-      {/* The blue bar, only for logged-in patient app view. A doctor looking at the page (no viewer) keeps the
-          Doctor Portal bar on wider screens. */}
-      {!isDoctorView && isLoggedIn && (
-        <PhoneBar
-          title={`Dr. ${rawName}`}
-          subtitle={specialty}
-          backHref={directoryUrl}
-          backLabel="Back to Doctor Directory"
-          isSignedIn={isLoggedIn}
-          name={viewer?.name}
-          email={viewer?.email}
-          container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop"
-          phoneOnly={!viewer}
-          menu={!isLoggedIn || !!viewer}
-          action={
-            <Link href={bookUrl} className={barActionClass}>
-              <Calendar className="w-3.5 h-3.5" /> Book
-            </Link>
-          }
-        />
-      )}
-      <main className={`w-full bg-background pb-12 ${!isLoggedIn ? "pt-[calc(var(--header-h)+0.75rem)] md:pt-[calc(var(--header-h)+1.5rem)]" : ""}`}>
-        <div className="flex flex-col w-full">
-          <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop py-stack-lg flex flex-col gap-stack-lg max-w-[1440px] mx-auto">
-            {/* Top Navigation / Status Header */}
-            {isDoctorView ? (
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 pb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs uppercase tracking-wider font-bold text-slate-700">Public Profile Preview</span>
-                </div>
-                <form action="/auth/signout" method="post">
+  const pickDay = (key: string) => {
+    setDate(key);
+    setSlotId(null);
+  };
+
+  const bookHref = `/book/${doctor.id}${selected ? `?slot=${selected.id}` : ""}`;
+  const otherDoctors = hospital ? `/hospitals/${hospital.id}` : "/doctors";
+  const support = account?.isSignedIn ? "/patient/support" : "/contact";
+
+  const photo = (className: string, text: string) =>
+    doctor.image_url ? (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={doctor.image_url} alt={`Portrait of ${name}`} className={`shrink-0 object-cover object-top bg-[#EEF1F5] ${className}`} />
+    ) : (
+      <span className={`shrink-0 bg-[#EEF3FF] text-[#2A4DD0] flex items-center justify-center font-extrabold ${className} ${text}`}>
+        {initials(doctor.profiles?.full_name) || <UserRound className="w-7 h-7" />}
+      </span>
+    );
+
+  // Phones: the doctor in the blue header, with three quick facts under them.
+  const hero = (
+    <>
+      <div className="flex items-center gap-3.5">
+        {photo("w-[76px] h-[84px] md:w-24 md:h-[104px] rounded-[16px] ring-2 ring-white/35", "text-[24px]")}
+        <div className="min-w-0">
+          <p className="text-[12.5px] md:text-[14px] font-bold text-[#CFDCFF] truncate">{specialty}</p>
+          <h1 className="flex items-center gap-1.5 mt-0.5 text-[22px] md:text-[30px] font-extrabold leading-[1.15] tracking-[-0.02em]">
+            <span className="min-w-0 break-words">{name}</span>
+            <span className="shrink-0 rounded-full bg-white p-px">
+              <VerifiedBadge className="w-[18px] h-[18px]" />
+            </span>
+          </h1>
+          {qualifications && <p className="mt-0.5 text-[13px] md:text-[14.5px] text-[#DCE6FF] line-clamp-2">{qualifications}</p>}
+          {hospital && <p className="text-[13px] md:text-[14.5px] text-[#DCE6FF] truncate">{[hospital.name, hospital.city].filter(Boolean).join(", ")}</p>}
+        </div>
+      </div>
+      <div className="mt-4 grid grid-cols-3 rounded-[16px] bg-white/12 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]">
+        <HeroFact label="Experience" value={experience ? `${experience} yrs` : "—"} />
+        <HeroFact label="Rating" value={rating != null ? `${rating.toFixed(1)} ★` : "New"} note={reviewCount ? `${reviewCount} review${reviewCount === 1 ? "" : "s"}` : undefined} border />
+        <HeroFact label="Open today" value={bookable ? (openToday ? `${openToday} slot${openToday === 1 ? "" : "s"}` : "None") : "—"} border />
+      </div>
+    </>
+  );
+
+  const booking = (
+    <section id="appointment-hours" aria-labelledby="times-title" className={`scroll-mt-24 ${sectionCard}`}>
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <span>
+          <h2 id="times-title" className="text-[16px] font-extrabold">Book a visit</h2>
+          <p className="mt-0.5 text-[12.5px] text-[#5B667A]">In person{hospital ? ` at ${hospital.name}` : ""}. Pick a time to continue.</p>
+        </span>
+        {bookable && (
+          <Link href={`/book/${doctor.id}`} className="shrink-0 flex items-center gap-1.5 text-[13px] font-extrabold text-[#2A4DD0] hover:underline">
+            <CalendarDays className="w-4 h-4" /> All dates
+          </Link>
+        )}
+      </div>
+      {!bookable ? (
+        <p className="py-3 border-t border-[#EEF2F7] text-[13px] text-[#5B667A]">
+          Online booking for {name} isn&apos;t open yet.{" "}
+          <Link href={otherDoctors} className="font-extrabold text-[#2A4DD0] hover:underline">
+            {hospital ? `See other doctors at ${hospital.name}` : "See other doctors"}
+          </Link>
+        </p>
+      ) : slots.length === 0 ? (
+        <div className="py-6 px-4 text-center rounded-[14px] bg-[#F6F8FC] flex flex-col items-center gap-1.5">
+          <CalendarDays className="w-7 h-7 text-[#9AA4B5]" />
+          <p className="text-[14px] font-extrabold">No open times right now</p>
+          <p className="text-[12.5px] text-[#5B667A] max-w-sm">New times are added by the hospital. Check back soon, or book another doctor.</p>
+          <Link href={otherDoctors} className="mt-1 text-[13px] font-extrabold text-[#2A4DD0] hover:underline">
+            {hospital ? `Doctors at ${hospital.name}` : "Find another doctor"}
+          </Link>
+        </div>
+      ) : (
+        <>
+          <DayStrip
+            days={days}
+            selected={date}
+            onSelect={pickDay}
+            badge={(key) => {
+              const open = byDay.get(key)?.length ?? 0;
+              return open ? { text: `${open} Slot${open === 1 ? "" : "s"}`, tone: "open" } : { text: "No slots", tone: "none" };
+            }}
+          />
+          <div className="mt-4 flex flex-col gap-4">
+            {daySlots.length === 0 ? (
+              <div className="py-6 px-4 text-center rounded-[14px] bg-[#F6F8FC] flex flex-col items-center gap-2">
+                <p className="text-[14px] font-extrabold">No times on this day</p>
+                {nextAfter && (
                   <button
-                    type="submit"
-                    className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold transition-all cursor-pointer"
+                    type="button"
+                    onClick={() => {
+                      setDate(istDateKey(nextAfter.start));
+                      setSlotId(nextAfter.id);
+                    }}
+                    className={btnPrimary}
                   >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span>Logout</span>
+                    Next open time: {formatSlot(nextAfter.start, now)}
                   </button>
-                </form>
+                )}
               </div>
             ) : (
-              <nav aria-label="Breadcrumbs" className="flex items-center gap-2 text-sm text-slate-500 font-medium pb-2">
-                <Link href="/" className="hover:text-vibrant-blue transition-colors">Home</Link>
-                <span>/</span>
-                <Link href={directoryUrl} className="hover:text-vibrant-blue transition-colors">Doctors</Link>
-                <span>/</span>
-                <span className="text-slate-800 font-semibold truncate">Dr. {rawName}</span>
-              </nav>
+              <>
+                <Times title="Morning" icon={Sun} slots={daySlots.filter((s) => isMorning(s.start))} selectedId={slotId} onPick={setSlotId} />
+                <Times title="Afternoon & evening" icon={Sunset} slots={daySlots.filter((s) => !isMorning(s.start))} selectedId={slotId} onPick={setSlotId} />
+              </>
             )}
+          </div>
+        </>
+      )}
+    </section>
+  );
 
-            {/* Clinician Hero Profile Section */}
-            <section className="bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm relative overflow-hidden border border-slate-200/80">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 relative z-10">
-                {/* Left Column: Doctor Portrait */}
-                <div className="lg:col-span-4 xl:col-span-3 flex flex-col items-center sm:items-start">
-                  <div className="relative w-full aspect-square sm:aspect-[4/5] max-w-[280px] sm:max-w-none rounded-2xl overflow-hidden shadow-xs bg-gradient-to-br from-blue-50 to-indigo-50 border border-slate-200/80">
-                    {doctor.image_url ? (
-                      <Image
-                        src={doctor.image_url}
-                        alt={`Dr. ${rawName}`}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 768px) 280px, 340px"
-                        priority
-                      />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center">
-                        <div className="w-24 h-24 rounded-2xl bg-white border border-blue-100 shadow-sm flex items-center justify-center text-vibrant-blue font-extrabold text-3xl">
-                          {getDoctorInitials(doctorName)}
-                        </div>
-                        <span className="text-xs font-bold text-slate-600 mt-3 tracking-wide">
-                          {specialty}
-                        </span>
-                      </div>
-                    )}
+  const fees = (
+    <Card id="fees" title="What you pay">
+      <div className="flex justify-between gap-3 py-2.5 border-t border-[#EEF2F7]">
+        <span>
+          <span className="block text-[14px] font-bold">Booking fee</span>
+          <span className="block text-[12px] text-[#5B667A]">Paid online when you book</span>
+        </span>
+        <span className="text-[15px] font-extrabold text-[#2A4DD0]">{formatINR(bookingFee)}</span>
+      </div>
+      <div className="flex justify-between gap-3 py-2.5 border-t border-[#EEF2F7]">
+        <span>
+          <span className="block text-[14px] font-bold">Consultation fee</span>
+          <span className="block text-[12px] text-[#5B667A]">Set by the hospital, paid at the counter when you visit</span>
+        </span>
+        <span className="shrink-0 text-[15px] font-extrabold">{fee ? formatINR(fee) : "Not set"}</span>
+      </div>
+      <p className="mt-1 text-[11.5px] leading-normal text-[#5B667A]">The consultation fee isn&apos;t collected online and is never added to your booking total.</p>
+    </Card>
+  );
 
-                    <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 text-slate-800 text-xs font-bold shadow-xs border border-slate-200/60">
-                      <BadgeCheck className="w-4 h-4 text-vibrant-blue inline" />
-                      <span>Verified Doctor</span>
-                    </div>
-                  </div>
+  const details = (
+    <>
+      {hospital && (
+        <Card id="where" title={`Where ${name} sees patients`}>
+          <div className="flex items-start gap-3 p-3 rounded-[14px] border-[1.5px] border-[#E1E7F0]">
+            <span className="shrink-0 w-10 h-10 rounded-xl bg-[#EEF3FF] text-[#2A4DD0] flex items-center justify-center">
+              <Building2 className="w-5 h-5" />
+            </span>
+            <span className="flex-1 min-w-0">
+              <Link href={`/hospitals/${hospital.id}`} className="block text-[14px] font-extrabold hover:text-[#2A4DD0]">
+                {hospital.name}
+              </Link>
+              {where && <span className="block text-[12.5px] text-[#5B667A]">{where}</span>}
+              <span className="mt-1 flex items-center gap-1.5 text-[12px] font-bold text-[#4A5878]">
+                <Building className="w-3.5 h-3.5" /> In-person consultations
+              </span>
+            </span>
+            {directions && (
+              <a href={directions} target="_blank" rel="noreferrer" className="shrink-0 inline-flex items-center gap-1 text-[12.5px] font-extrabold text-[#2A4DD0] hover:underline">
+                <Navigation className="w-3.5 h-3.5" /> Directions
+              </a>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {doctor.bio && (
+        <Card id="about" title={`About ${name}`}>
+          <p className="text-[14px] leading-relaxed text-[#4A5878] whitespace-pre-line">{doctor.bio}</p>
+        </Card>
+      )}
+
+      <Card id="training" title="Qualifications & training">
+        <div className="flex flex-col gap-2.5">
+          {education.length > 0 ? (
+            education.map((e, i) => {
+              const Icon = e.kind === "Fellowship" || e.kind === "Certification" ? Award : e.kind === "Residency" || e.kind === "Training" || e.kind === "Teaching" ? Building : GraduationCap;
+              return (
+                <div key={`${e.title}-${i}`} className="flex items-start gap-3 p-3 rounded-[14px] bg-[#F6F8FC]">
+                  <span className="shrink-0 w-9 h-9 rounded-[10px] bg-white text-[#2A4DD0] flex items-center justify-center shadow-[0_0_0_1px_#E6EBF3]">
+                    <Icon className="w-[18px] h-[18px]" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[11px] font-extrabold uppercase tracking-[0.04em] text-[#067647]">
+                      {e.kind}
+                      {e.year ? ` · ${e.year}` : ""}
+                    </span>
+                    <span className="block text-[14px] font-extrabold">{e.title}</span>
+                    {e.institution && <span className="block text-[12.5px] text-[#5B667A]">{e.institution}</span>}
+                  </span>
                 </div>
+              );
+            })
+          ) : (
+            <div className="flex items-start gap-3 p-3 rounded-[14px] bg-[#F6F8FC]">
+              <span className="shrink-0 w-9 h-9 rounded-[10px] bg-white text-[#2A4DD0] flex items-center justify-center shadow-[0_0_0_1px_#E6EBF3]">
+                <GraduationCap className="w-[18px] h-[18px]" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[11px] font-extrabold uppercase tracking-[0.04em] text-[#067647]">Qualifications</span>
+                <span className="block text-[14px] font-extrabold">{qualifications || "Not listed yet"}</span>
+                <span className="block text-[12.5px] text-[#5B667A]">{specialty}</span>
+              </span>
+            </div>
+          )}
+          {registration && (
+            <p className="flex items-center gap-1.5 text-[12.5px] font-bold text-[#4A5878]">
+              <ShieldCheck className="w-4 h-4 text-[#067647]" /> {registration}
+            </p>
+          )}
+        </div>
+        {procedures.length > 0 && (
+          <>
+            <h3 className="mt-4 mb-2 flex items-center gap-1.5 text-[13.5px] font-extrabold">
+              <Activity className="w-4 h-4 text-[#2A4DD0]" /> Conditions and procedures
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {procedures.map((p) => (
+                <span key={p} className="px-3 py-1.5 rounded-full bg-[#EEF3FF] text-[12.5px] font-bold text-[#27324A]">
+                  {p}
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+      </Card>
 
-                {/* Right Column: Info, Metrics & Actions */}
-                <div className="lg:col-span-8 xl:col-span-9 flex flex-col justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center justify-between gap-2 pb-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">
-                          {specialty}
-                        </span>
-                      </div>
-                      {doctor.registration_number && (
-                        <div className="flex items-center gap-1.5 text-emerald-700 text-xs font-semibold">
-                          <ShieldCheck className="w-4 h-4 inline" />
-                          <span>
-                            Reg. No. {doctor.registration_number}
-                            {doctor.registration_council ? `, ${doctor.registration_council}` : ""}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    <h1 className="text-2xl sm:text-3xl lg:text-4xl text-slate-900 tracking-tight font-extrabold mb-1">
-                      Dr. {rawName}{qualifications ? (
-                        <span className="text-slate-500 text-lg sm:text-xl font-semibold ml-2">
-                          {qualifications}
-                        </span>
-                      ) : null}
-                    </h1>
-
-                    <p className="text-base text-slate-600 mb-3 font-semibold">
-                      {specialty}{hospital?.name ? ` · ${hospital.name}` : ""}
-                    </p>
-
-                    {doctor.bio && (
-                      <p className="text-sm md:text-base text-slate-600 max-w-3xl leading-relaxed">{doctor.bio}</p>
-                    )}
-
-                    {/* Patient-facing facts */}
-                    <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-5">
-                      {[
-                        { label: "Experience", value: experienceYears ? `${experienceYears} years` : "Not listed" },
-                        { label: "Consultation fee", value: fee ? formatINR(fee) : "Not set yet", note: fee ? "Paid at the hospital counter" : undefined },
-                        { label: "Hospital", value: hospital?.name || "Not listed", note: hospital?.city || undefined },
-                        {
-                          label: "Patient rating",
-                          value: reviewAverage != null ? `${reviewAverage.toFixed(1)} / 5` : "No reviews yet",
-                          note: reviewCount ? `${reviewCount} ${reviewCount === 1 ? "review" : "reviews"}` : undefined,
-                        },
-                      ].map((item) => (
-                        <div key={item.label} className="rounded-xl p-3.5 border border-slate-200 bg-slate-50/60 min-w-0">
-                          <dt className="text-xs text-slate-500 font-medium">{item.label}</dt>
-                          <dd className="mt-1 text-base font-semibold text-slate-900 truncate">{item.value}</dd>
-                          {item.note && <dd className="text-xs text-slate-500 truncate">{item.note}</dd>}
-                        </div>
-                      ))}
-                    </dl>
-                  </div>
-
-                  {/* Hero Footer Actions */}
-                  <div className="flex flex-wrap items-center justify-between gap-stack-sm pt-stack-sm border-t border-surface-container">
-                    {isDoctorView ? (
-                      <div className="flex flex-wrap items-center justify-between w-full gap-stack-sm">
-                        <div className="flex flex-wrap items-center gap-stack-sm">
-                          <button
-                            type="button"
-                            onClick={() => onEditProfile ? onEditProfile() : setToastMessage('Profile edit drawer ready')}
-                            className="flex items-center gap-2 bg-vibrant-blue hover:bg-primary text-on-primary font-label-sm text-label-sm px-6 py-2.5 rounded-full font-bold shadow-[0_2px_12px_rgba(15,23,42,0.1)] transition-all cursor-pointer"
-                          >
-                            <Edit3 className="w-4 h-4 inline" />
-                            <span>Edit Public Profile</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => onManageSchedule ? onManageSchedule() : setToastMessage('Opening schedule manager')}
-                            className="flex items-center gap-2 bg-surface-container-high hover:bg-surface-container-highest text-indigo-gray-900 font-label-sm text-label-sm px-5 py-2.5 rounded-full font-semibold transition-colors cursor-pointer"
-                          >
-                            <Calendar className="w-4 h-4 inline" />
-                            <span>Manage Booking Availability</span>
-                          </button>
-                        </div>
-
-                        <div className="flex items-center gap-3 flex-wrap">
-                          <Link
-                            href={`/doctors/${doctor.id}?preview=patient`}
-                            target="_blank"
-                            className="inline-flex items-center gap-1.5 text-primary hover:text-on-primary-fixed-variant font-label-sm text-label-sm font-semibold group cursor-pointer"
-                          >
-                            <span>View Patient-Facing Profile</span>
-                            <ExternalLink className="w-4 h-4 group-hover:translate-x-0.5 transition-transform inline" />
-                          </Link>
-
-                          <form action="/auth/signout" method="post">
-                            <button
-                              type="submit"
-                              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 border border-rose-200 text-xs font-bold transition-all cursor-pointer shadow-sm hover:shadow"
-                              title="Logout completely from account"
-                            >
-                              <LogOut className="w-4 h-4 inline" />
-                              <span>Log Out</span>
-                            </button>
-                          </form>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex flex-wrap items-center gap-stack-sm">
-                          <Link
-                            href={bookUrl}
-                            className="flex items-center gap-2 bg-vibrant-blue hover:bg-primary text-on-primary font-title-md text-body-md px-6 py-3 rounded-full transition-transform active:scale-95 shadow-[0_2px_12px_rgba(15,23,42,0.1)] font-bold cursor-pointer"
-                          >
-                            <Calendar className="w-5 h-5 inline" />
-                            <span>{fee ? `Book consultation · ${formatINR(bookingFee)} booking fee` : "Book consultation"}</span>
-                          </Link>
-
-                          <a
-                            href="#appointment-hours"
-                            className="flex items-center gap-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-sm text-label-sm px-5 py-3 rounded-full transition-colors font-semibold"
-                          >
-                            <CalendarCheck className="w-4 h-4 inline" />
-                            <span>See open times</span>
-                          </a>
-                        </div>
-
-                        <Link
-                          className="inline-flex items-center gap-1.5 text-primary hover:text-on-primary-fixed-variant font-label-sm text-label-sm font-semibold group"
-                          href={directoryUrl}
-                        >
-                          <span>Back to Doctor Directory</span>
-                          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform inline" />
-                        </Link>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* Asymmetric Two-Column Grid */}
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-stack-md">
-              {/* Left Column: Affiliations, Academic acumen, Patient Reviews (8 cols) */}
-              <div className="xl:col-span-8 flex flex-col gap-stack-lg">
-                {/* 1. Where the doctor practises */}
-                {hospital && (
-                  <section className="bg-surface-container-lowest rounded-xl p-stack-md border border-slate-200/80">
-                    <h2 className="text-xl font-bold text-on-surface">Where Dr. {rawName} sees patients</h2>
-                    <div className="mt-4 rounded-xl border border-slate-200 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex items-start gap-3 min-w-0">
-                        <span className="w-10 h-10 rounded-lg bg-primary-fixed/60 text-primary flex items-center justify-center shrink-0">
-                          <Hospital className="w-5 h-5" />
-                        </span>
-                        <div className="min-w-0">
-                          <Link href={`/hospitals/${hospital.id}`} className="font-semibold text-on-surface hover:text-vibrant-blue">
-                            {hospital.name}
-                          </Link>
-                          {(hospital.address || hospital.city) && (
-                            <p className="text-sm text-slate-600">
-                              {[hospital.address, hospital.city].filter(Boolean).join(", ")}
-                            </p>
-                          )}
-                          <p className="mt-1 text-sm text-slate-500 flex items-center gap-1.5">
-                            <Building className="w-4 h-4" /> In-person consultations
-                          </p>
-                        </div>
-                      </div>
-                      {isDoctorView ? (
-                        <button
-                          type="button"
-                          onClick={() => onManageSchedule?.()}
-                          className="text-sm font-semibold text-primary hover:underline shrink-0"
-                        >
-                          Edit times
-                        </button>
-                      ) : (
-                        <Link href={bookUrl} className="text-sm font-semibold text-primary hover:underline shrink-0">
-                          Book a time &rarr;
-                        </Link>
-                      )}
-                    </div>
-                  </section>
-                )}
-
-                {/* 2. Academic & Clinical Acumen */}
-                <section className="bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_2px_12px_rgba(15,23,42,0.04)] border border-surface-container">
-                  <div className="flex items-center justify-between mb-stack-md">
-                    <div>
-                      <h2 className="text-xl font-bold text-on-surface">Qualifications and training</h2>
-                    </div>
-                  </div>
-
-                  <div className={`grid grid-cols-1 gap-stack-md ${procedures.length > 0 ? "md:grid-cols-2" : ""}`}>
-                    {procedures.length > 0 && (
-                    <div>
-                      <h3 className="font-title-md text-title-md text-on-surface mb-3 flex items-center gap-2 font-bold">
-                        <Activity className="w-5 h-5 text-primary inline" />{" "}
-                        Conditions and procedures
-                      </h3>
-                      <div className="flex flex-wrap gap-2">
-                        {procedures.map((proc, i) => (
-                          <div
-                            key={i}
-                            className="px-3.5 py-2 rounded-xl bg-surface-container-low text-on-surface font-label-sm text-label-sm flex items-center gap-2 border border-surface-container"
-                          >
-                            <span
-                              className={`w-2 h-2 rounded-full ${i % 2 === 0 ? "bg-fresh-teal" : "bg-vibrant-blue"
-                                }`}
-                            ></span>
-                            {proc}
-                          </div>
-                        ))}
-                      </div>
-
-                    </div>
-                    )}
-
-                    <div>
-                      <h3 className="font-title-md text-title-md text-on-surface mb-3 flex items-center gap-2 font-bold">
-                        <GraduationCap className="w-5 h-5 text-primary inline" />{" "}
-                        Medical Education &amp; Training
-                      </h3>
-                      {/* The doctor's own entries (Profile → Education & Training); otherwise their listed qualifications. */}
-                      <div className="flex flex-col gap-3">
-                        {education.length > 0 ? (
-                          education.map((e, i) => {
-                            const Icon = e.kind === "Fellowship" || e.kind === "Certification" ? Award : e.kind === "Residency" || e.kind === "Training" || e.kind === "Teaching" ? Building : GraduationCap;
-                            return (
-                              <div key={`${e.title}-${i}`} className="p-3.5 rounded-xl bg-surface-container-low flex items-start gap-3 border border-surface-container">
-                                <div className="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center flex-shrink-0 text-primary">
-                                  <Icon className="w-5 h-5 inline" />
-                                </div>
-                                <div className="min-w-0">
-                                  <span className="font-label-sm text-[11px] text-secondary font-semibold uppercase">
-                                    {e.kind}
-                                    {e.year ? ` • ${e.year}` : ""}
-                                  </span>
-                                  <h4 className="font-title-md text-label-sm font-bold text-on-surface">{e.title}</h4>
-                                  {e.institution && <p className="font-body-md text-[13px] text-on-surface-variant">{e.institution}</p>}
-                                </div>
-                              </div>
-                            );
-                          })
-                        ) : (
-                          <div className="p-3.5 rounded-xl bg-surface-container-low flex items-start gap-3 border border-surface-container">
-                            <div className="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center flex-shrink-0 text-primary">
-                              <GraduationCap className="w-5 h-5 inline" />
-                            </div>
-                            <div>
-                              <span className="font-label-sm text-[11px] text-secondary font-semibold uppercase">Qualifications</span>
-                              <h4 className="font-title-md text-label-sm font-bold text-on-surface">{qualifications || "Not listed yet"}</h4>
-                              <p className="font-body-md text-[13px] text-on-surface-variant">{specialty}</p>
-                            </div>
-                          </div>
-                        )}
-                        {doctor.registration_number && (
-                          <p className="px-1 text-[12px] text-on-surface-variant flex items-center gap-1.5">
-                            <ShieldCheck className="w-4 h-4 text-secondary" /> Reg. No. {doctor.registration_number}
-                            {doctor.registration_council ? `, ${doctor.registration_council}` : ""}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </section>
-
-                {/* 3. Patient Reviews: written by patients after their visits */}
-                <section id="reviews" className="scroll-mt-24 bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_2px_12px_rgba(15,23,42,0.04)] border border-surface-container">
-                  <div className="flex flex-wrap items-center justify-between gap-stack-sm mb-stack-md">
-                    <div>
-                      <div className="flex items-center gap-2 text-fresh-teal">
-                        <MessageSquare className="w-5 h-5 inline" />
-                        <span className="font-label-sm text-label-sm uppercase tracking-wider font-semibold">
-                          Verified Visits
-                        </span>
-                      </div>
-                      <h2 className="font-headline-lg text-headline-lg text-on-surface font-bold mt-1">
-                        Patient Reviews
-                      </h2>
-                    </div>
-                    <span className="font-label-sm text-label-sm text-on-surface-variant">
-                      Written by patients after their consultation
+      <Card id="reviews" title="Patient reviews" sub="Written by patients after their visit">
+        {!summary || rating == null ? (
+          <div className="p-4 rounded-[14px] bg-[#F6F8FC] text-center">
+            <p className="text-[14px] font-extrabold">No reviews yet</p>
+            <p className="mt-1 text-[12.5px] text-[#5B667A]">Patients can rate {name} from their bookings after a visit.</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-4 p-3.5 rounded-[14px] bg-[#F6F8FC]">
+              <span className="shrink-0 text-center px-1">
+                <span className="block text-[34px] leading-none font-extrabold">{rating.toFixed(1)}</span>
+                <Stars value={rating} className="w-3.5 h-3.5" />
+                <span className="block mt-0.5 text-[11.5px] font-bold text-[#5B667A]">
+                  {reviewCount} review{reviewCount === 1 ? "" : "s"}
+                </span>
+              </span>
+              <span className="flex-1 min-w-0 flex flex-col gap-1">
+                {([5, 4, 3, 2, 1] as const).map((n) => {
+                  const count = summary.distribution[n];
+                  return (
+                    <span key={n} className="flex items-center gap-2 text-[11.5px] font-bold">
+                      <span className="w-6 shrink-0">{n} ★</span>
+                      <span className="flex-1 h-1.5 rounded-full bg-[#E6EBF3] overflow-hidden">
+                        <span className="block h-full rounded-full bg-[#F5A524]" style={{ width: `${Math.round((count / reviewCount) * 100)}%` }} />
+                      </span>
+                      <span className="w-5 shrink-0 text-right text-[#5B667A]">{count}</span>
+                    </span>
+                  );
+                })}
+              </span>
+            </div>
+            <div className="mt-1">
+              {reviews.map((r) => (
+                <div key={r.id} className="py-3 border-b last:border-b-0 border-[#EEF2F7]">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span className="text-[13.5px] font-extrabold truncate">{r.patientName}</span>
+                      <span className="shrink-0 px-2 py-0.5 rounded-full bg-[#ECFDF3] text-[#067647] text-[10.5px] font-extrabold">Verified visit</span>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <Stars value={r.rating} className="w-3.5 h-3.5" />
+                      <span className="text-[11.5px] text-[#5B667A]">{new Date(r.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
                     </span>
                   </div>
-
-                  {reviewCount === 0 || !reviewSummary ? (
-                    <div className="p-5 rounded-xl bg-surface-container-low border border-surface-container text-center">
-                      <p className="font-title-md text-[16px] font-bold text-on-surface">No reviews yet</p>
-                      <p className="font-body-md text-label-sm text-on-surface-variant mt-1">
-                        Patients can rate Dr. {rawName} from their Appointments page after a consultation.
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-stack-sm mb-stack-md">
-                        <div className="p-4 rounded-xl bg-surface-container-low flex flex-col items-center justify-center text-center border border-surface-container">
-                          <div className="font-headline-lg text-[40px] leading-none font-extrabold text-on-surface">{reviewAverage?.toFixed(1)}</div>
-                          <Stars value={reviewAverage ?? 0} className="w-5 h-5" />
-                          <span className="font-label-sm text-label-sm text-on-surface-variant mt-1">
-                            {reviewCount} {reviewCount === 1 ? "review" : "reviews"}
-                          </span>
-                        </div>
-                        <div className="md:col-span-2 p-4 rounded-xl bg-surface-container-low border border-surface-container flex flex-col gap-1.5 justify-center">
-                          {([5, 4, 3, 2, 1] as const).map((n) => {
-                            const count = reviewSummary.distribution[n];
-                            const pct = reviewCount ? Math.round((count / reviewCount) * 100) : 0;
-                            return (
-                              <div key={n} className="flex items-center gap-2 text-[12px]">
-                                <span className="w-8 shrink-0 font-semibold text-on-surface">{n} ★</span>
-                                <div className="flex-1 h-2 rounded-full bg-surface-container overflow-hidden">
-                                  <div className="h-full rounded-full bg-amber-500" style={{ width: `${pct}%` }} />
-                                </div>
-                                <span className="w-8 shrink-0 text-right text-on-surface-variant">{count}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-stack-sm">
-                        {reviewList.map((r) => (
-                          <div key={r.id} className="p-4 rounded-xl bg-surface-container-low border border-surface-container">
-                            <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-                              <div className="flex items-center gap-2">
-                                <span className="font-title-md text-label-sm font-bold text-on-surface">{r.patientName}</span>
-                                <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-[11px] font-semibold">
-                                  Verified Visit
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                <Stars value={r.rating} />
-                                <span className="font-label-sm text-[12px] text-on-surface-variant">
-                                  {new Date(r.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                                </span>
-                              </div>
-                            </div>
-                            {r.comment && <p className="font-body-md text-label-sm text-on-surface-variant leading-relaxed">{r.comment}</p>}
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </section>
-              </div>
-
-              {/* Right Column: Fee Structure, Hours, Insurances & Dispatch (4 cols) */}
-              <div className="xl:col-span-4 flex flex-col gap-stack-lg">
-                {/* 1. Fee */}
-                <section className="bg-surface-container-lowest rounded-xl p-stack-md border border-slate-200/80">
-                  <div className="flex items-center justify-between mb-stack-sm">
-                    <h2 className="text-lg font-bold text-on-surface flex items-center gap-2">
-                      <CreditCard className="w-5 h-5 text-primary" /> What you pay
-                    </h2>
-                    {isDoctorView && onEditProfile && (
-                      <button type="button" onClick={onEditProfile} className="text-sm font-semibold text-primary hover:underline">
-                        Edit fee
-                      </button>
-                    )}
-                  </div>
-                  {fee ? (
-                    <div className="flex flex-col gap-3 text-[15px]">
-                      <dl className="divide-y divide-slate-100">
-                        <div className="flex items-center justify-between pb-2">
-                          <dt className="text-slate-600">Booking fee, paid online</dt>
-                          <dd className="text-lg font-bold text-primary">{formatINR(bookingFee)}</dd>
-                        </div>
-                        <div className="pt-3">
-                          <dt className="font-semibold text-slate-900">
-                            Consultation fee {formatINR(fee)}, set by the hospital and paid at the hospital counter
-                          </dt>
-                          <dd className="mt-1 text-sm text-slate-600">
-                            You pay it at the hospital when you visit. It isn&apos;t collected online and is never added to your booking total.
-                          </dd>
-                        </div>
-                      </dl>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-slate-600">This doctor hasn&apos;t set a consultation fee yet, so online booking isn&apos;t open.</p>
-                  )}
-                </section>
-
-                {/* 2. Appointment Hours */}
-                <section
-                  id="appointment-hours"
-                  className="bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_2px_12px_rgba(15,23,42,0.04)] border border-surface-container scroll-mt-24"
-                >
-                  <div className="flex items-center justify-between mb-stack-sm">
-                    <div className="flex items-center gap-2 text-vibrant-blue">
-                      <Calendar className="w-5 h-5 inline" />
-                      <h2 className="font-title-md text-title-md text-on-surface font-bold">
-                        Appointment Hours
-                      </h2>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="p-3 bg-surface-container-low rounded-xl border border-surface-container">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-title-md text-label-sm font-bold text-on-surface">
-                          Morning
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-[11px] font-semibold">
-                          {scheduleData.morningRange}
-                        </span>
-                      </div>
-                      <span className="font-body-md text-[12px] text-on-surface-variant block">
-                        {scheduleData.activeDate ? `Open times on ${scheduleData.activeDate}` : "No open times right now"}
-                      </span>
-                      <div className="mt-2 flex gap-1.5 flex-wrap">
-                        {scheduleData.morningSlots.map((slotTime, i) => {
-                          const isSelected = selectedSlot === slotTime;
-                          return (
-                            <button
-                              key={i}
-                              type="button"
-                              onClick={() => {
-                                setSelectedSlot(slotTime);
-                                setToastMessage(`Selected ${slotTime} consultation slot`);
-                                setTimeout(() => setToastMessage(null), 2500);
-                              }}
-                              className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${isSelected
-                                  ? "bg-primary text-on-primary shadow-sm"
-                                  : "bg-surface-container-highest text-primary hover:bg-surface-container-high"
-                                }`}
-                            >
-                              {slotTime}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="p-3 bg-surface-container-low rounded-xl border border-surface-container">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-title-md text-label-sm font-bold text-on-surface">
-                          Afternoon
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-sm text-[11px] font-semibold">
-                          {scheduleData.afternoonRange}
-                        </span>
-                      </div>
-                      <span className="font-body-md text-[12px] text-on-surface-variant block">
-                        {scheduleData.activeDate ? `Open times on ${scheduleData.activeDate}` : "No open times right now"}
-                      </span>
-                      <div className="mt-2 flex gap-1.5 flex-wrap">
-                        {scheduleData.afternoonSlots.map((slotTime, i) => {
-                          const isSelected = selectedSlot === slotTime;
-                          return (
-                            <button
-                              key={i}
-                              type="button"
-                              onClick={() => {
-                                setSelectedSlot(slotTime);
-                                setToastMessage(`Selected ${slotTime} consultation slot`);
-                                setTimeout(() => setToastMessage(null), 2500);
-                              }}
-                              className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${isSelected
-                                  ? "bg-primary text-on-primary shadow-sm"
-                                  : "bg-surface-container-highest text-primary hover:bg-surface-container-high"
-                                }`}
-                            >
-                              {slotTime}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </section>
-
-                {/* 3. Accepted Insurances: what the doctor lists on their profile */}
-                <section className="bg-surface-container-lowest rounded-xl p-stack-md shadow-[0_2px_12px_rgba(15,23,42,0.04)] border border-surface-container">
-                  <div className="flex items-center justify-between mb-stack-sm">
-                    <div className="flex items-center gap-2 text-fresh-teal">
-                      <Shield className="w-5 h-5 inline" />
-                      <h2 className="font-title-md text-title-md text-on-surface font-bold">
-                        Insurance Accepted
-                      </h2>
-                    </div>
-                    {insurance.length > 0 && (
-                      <span className="font-label-sm text-[12px] text-secondary font-semibold">
-                        {insurance.length} {insurance.length === 1 ? "Insurer" : "Insurers"}
-                      </span>
-                    )}
-                  </div>
-                  {insurance.length > 0 ? (
-                    <>
-                      <p className="font-body-md text-label-sm text-on-surface-variant mb-4">
-                        Cashless or reimbursement claims through {hospital?.name || "the hospital desk"}. Check your policy covers the visit.
-                      </p>
-                      <div className="flex flex-col gap-2">
-                        {insurance.map((name) => (
-                          <div key={name} className="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-surface-container">
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[11px] shrink-0">
-                                {name[0]?.toUpperCase()}
-                              </div>
-                              <span className="font-label-sm text-label-sm font-semibold text-on-surface truncate">{name}</span>
-                            </div>
-                            <span className="px-2 py-0.5 rounded bg-secondary-container text-on-secondary-container font-label-sm text-[10px] font-bold uppercase shrink-0">
-                              Accepted
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <p className="font-body-md text-label-sm text-on-surface-variant">
-                      This doctor hasn’t listed insurers yet. Ask {hospital?.name || "the hospital desk"} about cashless or reimbursement options.
-                    </p>
-                  )}
-                </section>
-
-                {/* 4. Help */}
-                <section className="rounded-xl p-stack-md border border-slate-200/80 bg-slate-50">
-                  <h3 className="text-base font-bold text-on-surface">Questions before you book?</h3>
-                  <p className="mt-1.5 text-sm text-slate-600 leading-relaxed">
-                    Our assistant can help with booking, payments and finding the right specialist, and our support team is a
-                    message away.
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold">
-                    <Link href="/ai" className="text-primary hover:underline">Ask the assistant</Link>
-                    <Link href="/contact" className="text-primary hover:underline">Contact support</Link>
-                    {hospital && (
-                      <Link href={`/hospitals/${hospital.id}`} className="text-primary hover:underline">About {hospital.name}</Link>
-                    )}
-                  </div>
-                </section>
-
-                {/* 5. Account Session Management (Only in Doctor View) */}
-                {isDoctorView && (
-                  <section className="bg-surface-container-lowest rounded-xl p-stack-md border border-surface-container shadow-sm flex flex-col gap-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-indigo-gray-900 font-bold text-sm">
-                        <UserCog className="w-5 h-5 text-rose-600 inline" />
-                        <span>Practitioner Session</span>
-                      </div>
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase border border-emerald-200">
-                        Active
-                      </span>
-                    </div>
-                    <p className="text-xs text-indigo-gray-600 leading-relaxed">
-                      Signed in as <strong>{doctor.profiles?.email || 'Authenticated Doctor'}</strong>. Sign out to terminate your session across all portals.
-                    </p>
-                    <form action="/auth/signout" method="post" className="w-full mt-1">
-                      <button
-                        type="submit"
-                        className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white font-bold text-xs transition-all shadow-md cursor-pointer"
-                      >
-                        <LogOut className="w-4 h-4 inline" />
-                        <span>Log Out Completely</span>
-                      </button>
-                    </form>
-                  </section>
-                )}
-              </div>
+                  {r.comment && <p className="mt-1.5 text-[13px] leading-relaxed text-[#4A5878]">{r.comment}</p>}
+                </div>
+              ))}
             </div>
+          </>
+        )}
+      </Card>
+
+      <div className="flex flex-col lg:grid lg:grid-cols-2 gap-3.5 lg:gap-5">
+        <Card id="insurance" title="Insurance accepted" sub={insurance.length ? "Listed by the doctor" : undefined}>
+          {insurance.length > 0 ? (
+            <>
+              {insurance.map((i) => (
+                <div key={i} className="flex items-center gap-2.5 py-[11px] border-t border-[#EEF2F7] text-[13.5px] font-extrabold">
+                  <ShieldCheck className="w-4 h-4 text-[#067647] shrink-0" /> {i}
+                </div>
+              ))}
+              <p className="mt-2 text-[11.5px] leading-normal text-[#5B667A]">
+                Cashless or reimbursement claims go through {hospital?.name || "the hospital desk"}. Check your policy covers the visit.
+              </p>
+            </>
+          ) : (
+            <p className="text-[13px] leading-relaxed text-[#5B667A]">
+              No insurers listed yet. Ask {hospital?.name || "the hospital desk"} about cashless or reimbursement options.
+            </p>
+          )}
+        </Card>
+        <Card id="help" title="Questions before you book?">
+          <p className="text-[13px] leading-relaxed text-[#5B667A]">The Care Assistant can help with booking, payments and finding the right specialist, and our support team is a message away.</p>
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[13px] font-extrabold text-[#2A4DD0]">
+            <Link href="/ai" className="inline-flex items-center gap-1.5 hover:underline">
+              <MessageCircleQuestion className="w-4 h-4" /> Ask the assistant
+            </Link>
+            <Link href={support} className="hover:underline">
+              Contact support
+            </Link>
+          </div>
+        </Card>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="bg-[#F6F8FC] lg:bg-transparent min-h-screen font-(family-name:--font-manrope) text-[#0B1B3F]">
+      {account ? (
+        <PhoneHeader backHref="/doctors" isSignedIn={account.isSignedIn} name={account.name} email={account.email} container="max-w-[900px] px-4 md:px-6" deskHidden>
+          {hero}
+        </PhoneHeader>
+      ) : (
+        <BlueHeader className="pb-[22px] md:pb-9 md:mt-4 lg:hidden" container="max-w-[900px] px-4 md:px-6">
+          {hero}
+        </BlueHeader>
+      )}
+
+      <main className={account ? "pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-11" : "pb-11"}>
+        <div className={`max-w-[1340px] lg:px-9 lg:pt-7 ${account ? "" : "mx-auto"}`}>
+          {account && (
+            <Link href="/doctors" className="hidden lg:inline-flex items-center gap-1.5 mb-3.5 text-[13.5px] font-extrabold text-[#2A4DD0] hover:underline">
+              <ArrowLeft className="w-4 h-4" strokeWidth={2.4} /> Back to doctors
+            </Link>
+          )}
+
+          {/* Desktops: the doctor in a card across the top. */}
+          <section className={`hidden lg:flex items-center gap-6 mb-5 p-6 ${card}`}>
+            {photo("w-[120px] h-[132px] rounded-[18px]", "text-[34px]")}
+            <div className="flex-1 min-w-0">
+              <p className="text-[14px] font-extrabold text-[#2A4DD0]">{specialty}</p>
+              <h1 className="flex items-center gap-2 mt-0.5 text-[30px] font-extrabold tracking-[-0.02em] leading-tight">
+                <span className="truncate">{name}</span>
+                <VerifiedBadge className="w-6 h-6" />
+              </h1>
+              {qualifications && <p className="mt-0.5 text-[14.5px] text-[#4A5878] truncate">{qualifications}</p>}
+              <Dots items={[experience ? `${experience} yrs experience` : null, hospital ? [hospital.name, hospital.city].filter(Boolean).join(", ") : null, registration]} className="mt-2.5" />
+            </div>
+            <div className="shrink-0 flex gap-3">
+              <DeskFact icon={Star} label="Patient rating" value={rating != null ? rating.toFixed(1) : "New"} note={reviewCount ? `${reviewCount} review${reviewCount === 1 ? "" : "s"}` : "No reviews yet"} />
+              <DeskFact icon={CalendarDays} label="Open today" value={bookable ? String(openToday) : "—"} note={bookable ? (openToday === 1 ? "slot" : "slots") : "Booking not open"} />
+            </div>
+          </section>
+
+          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-5 lg:items-start px-3 md:px-6 lg:px-0 pt-3.5 lg:pt-0 max-w-[900px] lg:max-w-none mx-auto">
+            <div className="flex flex-col gap-3.5 lg:gap-5 min-w-0">
+              {booking}
+              <div className="lg:hidden">{fees}</div>
+              {details}
+            </div>
+
+            <aside className={`hidden lg:block sticky top-[96px] p-[22px] ${card}`}>
+              <h2 className="text-[17px] font-extrabold">Booking summary</h2>
+              <div className="mt-2.5">
+                <InfoRow label="Doctor" value={name} />
+                <InfoRow label="Time" value={selected ? formatSlot(selected.start, now) : "Not chosen yet"} valueClass={selected ? "" : "text-[#8A94A6]"} />
+                <InfoRow label="Visit" value="In person" />
+              </div>
+              <div className="mt-2.5 px-3.5 py-1 rounded-[14px] bg-[#F6F8FC]">
+                <div className="flex justify-between gap-3 py-2.5 border-b border-[#E6EBF3] text-[13.5px]">
+                  <span>
+                    <span className="block font-extrabold">Pay now online</span>
+                    <span className="block text-[12px] text-[#5B667A]">Booking fee</span>
+                  </span>
+                  <span className="font-extrabold text-[#2A4DD0]">{formatINR(bookingFee)}</span>
+                </div>
+                <div className="flex justify-between gap-3 py-2.5 text-[13.5px]">
+                  <span>
+                    <span className="block font-extrabold">Pay at the hospital</span>
+                    <span className="block text-[12px] text-[#5B667A]">Consultation fee, set by the hospital</span>
+                  </span>
+                  <span className="shrink-0 font-extrabold">{fee ? formatINR(fee) : "Not set"}</span>
+                </div>
+              </div>
+              {account &&
+                (bookable ? (
+                  <Link href={bookHref} className={`${btnPrimary} w-full h-[50px]! text-[15px]! mt-4`}>
+                    {selected ? `Book now · ${formatINR(bookingFee)}` : "Book a visit"}
+                  </Link>
+                ) : (
+                  <Link href={otherDoctors} className={`${btnPrimary} w-full h-[50px]! text-[15px]! mt-4 bg-[#5B76DE]!`}>
+                    See other doctors
+                  </Link>
+                ))}
+              <p className="mt-2.5 text-[12px] leading-normal text-[#5B667A]">Only the booking fee is paid online. The consultation fee is paid at the hospital and never added to your booking total.</p>
+            </aside>
           </div>
         </div>
       </main>
 
+      {/* Phones: the fee and the next step, fixed at the bottom. */}
+      {account && (
+        <div className="lg:hidden fixed z-40 inset-x-0 bottom-0 flex items-center gap-3 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] bg-white border-t border-[#E6EBF3] shadow-[0_-8px_20px_rgba(11,27,63,0.06)]">
+          <span className="flex-1 min-w-0">
+            <span className="block text-[17px] font-extrabold">{formatINR(bookingFee)}</span>
+            <span className="block text-[11.5px] text-[#5B667A] truncate">{selected ? formatSlot(selected.start, now) : "Booking fee in app · consultation at hospital"}</span>
+          </span>
+          <Link
+            href={bookable ? bookHref : otherDoctors}
+            className={`shrink-0 flex items-center gap-1.5 h-12 px-[18px] rounded-[14px] text-white text-[15px] font-extrabold ${bookable ? "bg-[#2A4DD0] shadow-[0_8px_16px_rgba(42,77,208,0.3)]" : "bg-[#5B76DE]"}`}
+          >
+            {bookable ? (selected ? "Book now" : "Book a visit") : "Other doctors"} <ArrowRight className="w-4 h-4" strokeWidth={2.6} />
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
 
+function HeroFact({ label, value, note, border }: { label: string; value: string; note?: string; border?: boolean }) {
+  return (
+    <span className={`px-3 py-2.5 min-w-0 ${border ? "border-l border-white/18" : ""}`}>
+      <span className="block text-[11px] font-bold text-[#CFDCFF] truncate">{label}</span>
+      <span className="block text-[15px] font-extrabold truncate">{value}</span>
+      {note && <span className="block text-[10.5px] text-[#CFDCFF] truncate">{note}</span>}
+    </span>
+  );
+}
 
-      {/* FLOATING BOTTOM DOCK: Only shown for authenticated patient app view */}
-      {showPatientDock && isLoggedIn && <PatientDock activeTab="find" isSignedIn={isLoggedIn} name={viewer?.name} />}
+function DeskFact({ icon: Icon, label, value, note }: { icon: LucideIcon; label: string; value: string; note: string }) {
+  return (
+    <span className="w-[140px] p-3.5 rounded-[14px] bg-[#F6F8FC]">
+      <span className="flex items-center gap-1.5 text-[12px] font-bold text-[#5B667A]">
+        <Icon className="w-3.5 h-3.5" /> {label}
+      </span>
+      <span className="block mt-1 text-[24px] font-extrabold leading-none">{value}</span>
+      <span className="block mt-1 text-[11.5px] text-[#5B667A] truncate">{note}</span>
+    </span>
+  );
+}
+
+function Card({ id, title, sub, children }: { id: string; title: string; sub?: string; children: ReactNode }) {
+  return (
+    <section id={id} aria-labelledby={`${id}-title`} className={`scroll-mt-24 ${sectionCard}`}>
+      <h2 id={`${id}-title`} className="text-[16px] font-extrabold">{title}</h2>
+      {sub ? <p className="mt-1 mb-3 text-[12.5px] text-[#5B667A]">{sub}</p> : <div className="mb-2.5" />}
+      {children}
+    </section>
+  );
+}
+
+function Times({ title, icon: Icon, slots, selectedId, onPick }: { title: string; icon: LucideIcon; slots: Slot[]; selectedId: string | null; onPick: (id: string) => void }) {
+  if (slots.length === 0) return null;
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-2 text-[#5B667A]">
+        <Icon className="w-4 h-4" />
+        <span className="text-[12px] font-extrabold tracking-[0.04em] uppercase">
+          {title} · {slots.length} open
+        </span>
+      </div>
+      <div role="radiogroup" aria-label={title} className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+        {slots.map((s) => {
+          const on = s.id === selectedId;
+          return (
+            <button
+              key={s.id}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              onClick={() => onPick(s.id)}
+              className={`min-h-10 px-2 rounded-[10px] border-[1.5px] text-[13px] font-extrabold transition-colors ${
+                on ? "border-[#2A4DD0] bg-[#2A4DD0] text-white" : "border-[#D6DDE8] bg-white text-[#27324A] hover:border-[#A9CBFF]"
+              }`}
+            >
+              {formatTime(s.start)}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

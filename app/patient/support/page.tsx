@@ -1,15 +1,14 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { BrainCircuit, ChevronDown, HelpCircle, MessageCircleQuestion, PhoneCall } from 'lucide-react'
+import { ChevronDown, HelpCircle, MessageCircleQuestion, PhoneCall, Stethoscope } from 'lucide-react'
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
-import { PatientSidebar } from '@/components/PatientSidebar'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
-import { AccountShortcuts } from '@/components/patient/AccountShortcuts'
+import { DeskTitle, PageBody, btnOutline, card } from '@/components/patient/app-ui'
 import { PatientDock } from '@/components/PatientDock'
 import { PatientFooter } from '@/components/AppFooter'
 import { SupportTicketButton } from '@/components/patient/SupportTicket'
-import { currentTime, one } from '@/components/patient/data'
+import { one } from '@/components/patient/data'
 import { formatShortDate } from '@/components/patient/format'
 import { COMPANY } from '@/lib/company'
 import { formatPercent, type BookingFees } from '@/lib/pricing'
@@ -25,7 +24,7 @@ const faqs = (fees: BookingFees): { q: string; a: React.ReactNode }[] => [
     a: (
       <>
         When your doctor finishes the consultation, a prescription PDF is added to{' '}
-        <Link href="/patient/profile#records" className="text-primary font-semibold hover:underline">
+        <Link href="/patient/profile#records" className="font-extrabold text-[#2A4DD0] hover:underline">
           My Profile → Prescriptions &amp; Health Records
         </Link>
         . It is also sent to you on WhatsApp, and by email if you’ve given one.
@@ -37,7 +36,7 @@ const faqs = (fees: BookingFees): { q: string; a: React.ReactNode }[] => [
     a: (
       <>
         As soon as the lab finishes your report it appears under{' '}
-        <Link href="/patient/profile#labs" className="text-primary font-semibold hover:underline">
+        <Link href="/patient/profile#labs" className="font-extrabold text-[#2A4DD0] hover:underline">
           Lab Tests &amp; Reports
         </Link>{' '}
         in your profile, and it is sent to you on WhatsApp and email.
@@ -68,8 +67,7 @@ export default async function PatientSupport() {
   const user = await getCurrentUser()
   if (!user) redirect('/login/patient?next=/patient/support')
 
-  const [{ data: patientDetails }, { data: profile }, { data: appointments }, { data: labs }] = await Promise.all([
-    supabase.from('patient_details').select('*').eq('id', user.id).maybeSingle(),
+  const [{ data: profile }, { data: appointments }, { data: labs }] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
     supabase
       .from('appointments')
@@ -82,9 +80,6 @@ export default async function PatientSupport() {
 
   type Joined<T> = T | T[] | null
   const visits = (appointments ?? []) as unknown as { id: string; status: string; doctors: Joined<{ profiles: Joined<{ full_name: string | null }> }>; schedules: Joined<{ start_time: string }> }[]
-  // Counted as on the profile page: booked or awaiting payment, still ahead.
-  const now = currentTime()
-  const upcomingAppointments = visits.filter((a) => (a.status === 'confirmed' || a.status === 'pending_payment') && Date.parse(one(a.schedules)?.start_time ?? '') > now)
   const bookings = [
     ...visits.map((v) => {
       const at = one(v.schedules)?.start_time
@@ -96,107 +91,95 @@ export default async function PatientSupport() {
     })),
   ]
 
+  const name = profile?.full_name || user.user_metadata?.full_name || 'Patient'
+  const uhid = `CYD-${user.id.slice(0, 8).toUpperCase()}`
+
   return (
-    <div className="bg-background font-body-md text-body-md text-on-surface antialiased min-h-screen">
+    <div className="bg-[#F6F8FC] lg:bg-transparent min-h-screen">
       <PatientNavHeader
-        name={profile?.full_name}
+        name={name}
         email={profile?.email || user.email}
         isSignedIn
-        container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop"
+        container="max-w-[900px] px-4 md:px-6"
         backHref="/patient/profile"
         eyebrow="My account"
-        title="Help & Support"
+        title="Help & support"
         subtitle="Answers to common questions, or reach our support desk."
+        deskHidden
       />
-      <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-12 md:pb-16">
-        <div className="relative w-full overflow-hidden">
-          <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-5 md:pt-8">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start max-w-[1440px] mx-auto">
-              <PatientSidebar user={user} profile={profile} patientDetails={patientDetails} activeAppointmentsCount={upcomingAppointments.length} />
+      <PageBody>
+        <div className="max-w-[900px] lg:max-w-[1080px] mx-auto lg:mx-0 px-4 md:px-6 lg:px-0 pt-4 lg:pt-0 flex flex-col gap-3.5 lg:gap-5">
+          <DeskTitle title="Help & support" subtitle="Answers to common questions, or reach our support desk." />
 
-              <div className="lg:col-span-8 flex flex-col gap-6">
-                <AccountShortcuts />
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-vibrant-blue text-on-primary rounded-xl p-5 shadow-sm flex flex-col items-center text-center gap-2.5">
-                    <span className="w-11 h-11 bg-on-primary/10 rounded-full flex items-center justify-center">
-                      <PhoneCall className="w-5 h-5" />
-                    </span>
-                    <div>
-                      <h2 className="font-title-md text-[17px] font-bold">Support Desk</h2>
-                      <p className="font-label-sm text-label-sm text-on-primary/80 mt-1">Bookings, payments and accounts</p>
-                    </div>
-                    <a href={COMPANY.phoneHref} className="mt-1 py-2 px-5 rounded-full bg-on-primary text-vibrant-blue font-bold text-label-sm whitespace-nowrap">
-                      Call {COMPANY.phone}
-                    </a>
-                  </div>
-
-                  <div className="bg-surface-container-lowest rounded-xl p-5 shadow-sm border border-outline-variant/30 flex flex-col items-center text-center gap-2.5">
-                    <span className="w-11 h-11 bg-fresh-teal/10 text-fresh-teal rounded-full flex items-center justify-center">
-                      <MessageCircleQuestion className="w-5 h-5" />
-                    </span>
-                    <div>
-                      <h2 className="font-title-md text-[17px] font-bold text-on-surface">Support Ticket</h2>
-                      <p className="font-label-sm text-label-sm text-on-surface-variant mt-1">For billing and technical issues</p>
-                    </div>
-                    <SupportTicketButton bookings={bookings} />
-                  </div>
-
-                  <div className="bg-surface-container-lowest rounded-xl p-5 shadow-sm border border-outline-variant/30 flex flex-col items-center text-center gap-2.5">
-                    <span className="w-11 h-11 bg-primary/10 text-vibrant-blue rounded-full flex items-center justify-center">
-                      <BrainCircuit className="w-5 h-5" />
-                    </span>
-                    <div>
-                      <h2 className="font-title-md text-[17px] font-bold text-on-surface">Zebrold AI</h2>
-                      <p className="font-label-sm text-label-sm text-on-surface-variant mt-1">Instant answers, any time</p>
-                    </div>
-                    <Link href="/ai" className="mt-2 py-2 px-6 rounded-full bg-surface-container-low text-on-surface font-bold text-label-sm border border-outline-variant/50 hover:bg-surface-container-high transition-colors">
-                      Ask Zebrold AI
-                    </Link>
-                  </div>
-                </div>
-
-                <section className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant/30">
-                  <h2 className="font-title-md text-title-md font-bold text-on-surface mb-5 flex items-center gap-2">
-                    <HelpCircle className="w-5 h-5 text-vibrant-blue" /> Frequently Asked Questions
-                  </h2>
-                  <div className="flex flex-col gap-3">
-                    {FAQS.map((f, i) => (
-                      <details key={f.q} open={i === 0} className="group border border-surface-variant rounded-xl open:bg-surface-container-low/60 transition-colors">
-                        <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer p-4 flex justify-between items-center gap-3 rounded-xl hover:bg-surface-container-low">
-                          <h3 className="font-title-md text-[15px] font-bold text-on-surface">{f.q}</h3>
-                          <ChevronDown className="w-5 h-5 text-on-surface-variant shrink-0 transition-transform group-open:rotate-180" />
-                        </summary>
-                        <p className="px-4 pb-4 -mt-1 text-[15px] leading-relaxed text-on-surface-variant">{f.a}</p>
-                      </details>
-                    ))}
-                  </div>
-                </section>
-
-                <div className="bg-surface-container-lowest rounded-xl p-5 shadow-sm border border-outline-variant/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div>
-                    <h3 className="font-title-md text-[16px] font-bold text-on-surface">Platform Legal Terms &amp; Privacy</h3>
-                    <p className="font-body-md text-label-sm text-on-surface-variant mt-0.5">
-                      Consultation terms, refund criteria, health record confidentiality, and grievance contacts.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <Link href="/terms-of-use" className="font-label-sm text-xs font-bold text-vibrant-blue hover:underline">
-                      Terms &amp; Conditions
-                    </Link>
-                    <span className="text-outline-variant">•</span>
-                    <Link href="/privacy-policy" className="font-label-sm text-xs font-bold text-vibrant-blue hover:underline">
-                      Privacy Policy
-                    </Link>
-                  </div>
-                </div>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 lg:gap-4">
+            <div className="rounded-[18px] lg:rounded-2xl bg-[#2A4DD0] text-white p-5 flex flex-col items-start gap-2.5">
+              <span className="w-11 h-11 rounded-full bg-white/15 flex items-center justify-center">
+                <PhoneCall className="w-5 h-5" />
+              </span>
+              <span>
+                <span className="block text-[16px] font-extrabold">Support desk</span>
+                <span className="block text-[12.5px] text-[#DCE6FF]">Bookings, payments and accounts</span>
+              </span>
+              <a href={COMPANY.phoneHref} className="mt-1 h-10 px-4 rounded-[11px] bg-white text-[#2A4DD0] text-[13.5px] font-extrabold flex items-center whitespace-nowrap hover:bg-white/90 transition-colors">
+                Call {COMPANY.phone}
+              </a>
+            </div>
+            <div className={`${card} p-5 flex flex-col items-start gap-2.5`}>
+              <span className="w-11 h-11 rounded-full bg-[#ECFDF3] text-[#067647] flex items-center justify-center">
+                <MessageCircleQuestion className="w-5 h-5" />
+              </span>
+              <span>
+                <span className="block text-[16px] font-extrabold">Support ticket</span>
+                <span className="block text-[12.5px] text-[#5B667A]">For billing and technical issues</span>
+              </span>
+              <SupportTicketButton bookings={bookings} />
+            </div>
+            <div className={`${card} p-5 flex flex-col items-start gap-2.5`}>
+              <span className="w-11 h-11 rounded-full bg-[#EEF3FF] text-[#2A4DD0] flex items-center justify-center">
+                <Stethoscope className="w-5 h-5" />
+              </span>
+              <span>
+                <span className="block text-[16px] font-extrabold">Care Assistant</span>
+                <span className="block text-[12.5px] text-[#5B667A]">Instant answers, any time</span>
+              </span>
+              <Link href="/ai" className={`${btnOutline} mt-1`}>
+                Ask the assistant
+              </Link>
             </div>
           </div>
+
+          <section aria-labelledby="faq-title" className={`${card} rounded-[20px]! lg:rounded-2xl! p-4 lg:p-[22px]`}>
+            <h2 id="faq-title" className="flex items-center gap-2 mb-3 text-[16px] font-extrabold">
+              <HelpCircle className="w-[18px] h-[18px] text-[#2A4DD0]" /> Frequently asked questions
+            </h2>
+            {FAQS.map((f, i) => (
+              <details key={f.q} open={i === 0} className="group border-t border-[#EEF2F7]">
+                <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer py-3.5 flex justify-between items-center gap-3">
+                  <h3 className="text-[14.5px] font-extrabold">{f.q}</h3>
+                  <ChevronDown className="w-[18px] h-[18px] text-[#5B667A] shrink-0 transition-transform group-open:rotate-180" />
+                </summary>
+                <p className="pb-4 -mt-1 text-[14px] leading-relaxed text-[#4A5878]">{f.a}</p>
+              </details>
+            ))}
+          </section>
+
+          <div className={`${card} p-4 lg:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3`}>
+            <span>
+              <span className="block text-[15px] font-extrabold">Legal terms &amp; privacy</span>
+              <span className="block mt-0.5 text-[12.5px] text-[#5B667A]">Consultation terms, refunds, record confidentiality and grievance contacts.</span>
+            </span>
+            <span className="flex items-center gap-3 shrink-0 text-[13px] font-extrabold text-[#2A4DD0]">
+              <Link href="/terms-of-use" className="hover:underline">Terms</Link>
+              <span className="text-[#B7C1D1]">·</span>
+              <Link href="/privacy-policy" className="hover:underline">Privacy</Link>
+              <span className="text-[#B7C1D1]">·</span>
+              <Link href="/legal" className="hover:underline">All policies</Link>
+            </span>
+          </div>
         </div>
-      </main>
+      </PageBody>
       <PatientFooter isSignedIn />
-      <PatientDock activeTab="profile" name={profile?.full_name} />
+      <PatientDock activeTab="profile" name={name} detail={`UHID ${uhid}`} />
     </div>
   )
 }

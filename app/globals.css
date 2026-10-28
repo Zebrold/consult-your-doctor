@@ -172,6 +172,25 @@ a, button, summary, label, select, [role="button"], input[type="checkbox"], inpu
   }
 }
 
+/*
+ * Patient pages render the patient navigation (data-patient-rail). On desktops it becomes the blue sidebar and the
+ * top bar, so the page moves right of the sidebar and under the bar; `desk:` styles a page for that layout.
+ */
+@custom-variant desk {
+  @media (min-width: 1024px) {
+    &:is(body:has([data-patient-rail]) *) {
+      @slot;
+    }
+  }
+}
+@media (min-width: 1024px) {
+  body:has([data-patient-rail]) {
+    padding-left: 260px;
+    padding-top: 72px;
+    background: #f4f6fa;
+  }
+}
+
 /* Room above the home indicator for bars fixed to the bottom of the screen. */
 @utility pb-safe {
   padding-bottom: env(safe-area-inset-bottom);

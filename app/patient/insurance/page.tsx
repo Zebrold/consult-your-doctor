@@ -1,152 +1,119 @@
-import { createClient, getCurrentUser } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Home, Search, Calendar as CalendarIcon, User, Wallet, ShieldPlus, FileText, CheckCircle2 } from 'lucide-react'
-import { PatientSidebar } from '@/components/PatientSidebar'
-import { PatientNavHeader } from '@/components/PatientNavHeader'
-import { PatientDock } from '@/components/PatientDock'
-import { PatientFooter } from '@/components/AppFooter'
-import { AccountShortcuts } from '@/components/patient/AccountShortcuts'
+import { redirect } from 'next/navigation'
+import { ShieldCheck } from 'lucide-react'
+import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { AccountCard, AccountPage } from '@/components/patient/AccountPage'
+import { one } from '@/components/patient/data'
+import { doctorName, formatINR, formatShortDate } from '@/components/patient/format'
 
-export default async function PatientInsurance() {
+export const metadata: Metadata = { title: 'Payments & billing | Consult Your Doctor' }
+
+type Rel<T> = T | T[] | null
+type PaymentRow = { appointment_id: string | null; diagnostic_booking_id: string | null; amount: number | string | null; gateway: string | null; created_at: string | null }
+
+/** What the patient has paid: booking fees online, and bookings settled at a hospital or lab desk. */
+export default async function BillingPage() {
   const supabase = await createClient()
-
   const user = await getCurrentUser()
-  if (!user) redirect('/login/patient')
+  if (!user) redirect('/login/patient?next=/patient/insurance')
 
-  // The name for the header and the upcoming-visit count for the sidebar, fetched together.
-  const [{ data: patientDetails }, { data: profile }, { data: appointments }] = await Promise.all([
-    supabase.from('patient_details').select('*').eq('id', user.id).single(),
-    supabase.from('profiles').select('*').eq('id', user.id).single(),
-    supabase.from('appointments').select('id, status').eq('patient_id', user.id),
+  const [{ data: profile }, { data: visits }, { data: labs }] = await Promise.all([
+    supabase.from('profiles').select('full_name, email').eq('id', user.id).maybeSingle(),
+    supabase.from('appointments').select('id, status, doctors ( profiles!doctors_profile_id_fkey ( full_name ) )').eq('patient_id', user.id),
+    supabase.from('diagnostic_bookings').select('id, status, test_name').eq('patient_id', user.id),
   ])
+  type Visit = { id: string; status: string; doctors: Rel<{ profiles: Rel<{ full_name: string | null }> }> }
+  type Lab = { id: string; status: string; test_name: string | null }
+  const visitRows = (visits ?? []) as Visit[]
+  const labRows = (labs ?? []) as Lab[]
 
-  const upcomingAppointments = appointments?.filter(a => a.status === 'scheduled' || a.status === 'confirmed') || []
+  // Payments are read with the service role, limited to this patient's own bookings.
+  const admin = createAdminClient()
+  const [a, b] = await Promise.all([
+    visitRows.length ? admin.from('payments').select('appointment_id, diagnostic_booking_id, amount, gateway, created_at').in('appointment_id', visitRows.map((v) => v.id)).eq('status', 'success') : Promise.resolve({ data: [] }),
+    labRows.length ? admin.from('payments').select('appointment_id, diagnostic_booking_id, amount, gateway, created_at').in('diagnostic_booking_id', labRows.map((l) => l.id)).eq('status', 'success') : Promise.resolve({ data: [] }),
+  ])
+  const payments = [...((a.data ?? []) as PaymentRow[]), ...((b.data ?? []) as PaymentRow[])].sort((x, y) => (y.created_at ?? '').localeCompare(x.created_at ?? ''))
+  const online = payments.filter((p) => p.gateway === 'payu')
+  const total = online.reduce((s, p) => s + (Number(p.amount) || 0), 0)
+  const unpaid = [
+    ...visitRows.filter((v) => v.status === 'pending_payment').map((v) => ({ id: v.id, label: `Consultation · ${doctorName(one(one(v.doctors)?.profiles)?.full_name)}`, href: `/patient/checkout/${v.id}` })),
+    ...labRows.filter((l) => l.status === 'pending_payment').map((l) => ({ id: l.id, label: `Lab test · ${(l.test_name || 'Tests').replace(/-/g, ' ')}`, href: `/patient/checkout/diagnostic/${l.id}` })),
+  ]
+  const describe = (p: PaymentRow) => {
+    if (p.appointment_id) {
+      const v = visitRows.find((x) => x.id === p.appointment_id)
+      return `Consultation · ${doctorName(one(one(v?.doctors)?.profiles)?.full_name)}`
+    }
+    const l = labRows.find((x) => x.id === p.diagnostic_booking_id)
+    return `Lab test · ${(l?.test_name || 'Tests').replace(/-/g, ' ')}`
+  }
 
   return (
-    <div className="bg-background font-body-md text-body-md text-on-surface antialiased min-h-screen">
-      <PatientNavHeader
-        name={profile?.full_name}
-        email={profile?.email || user.email}
-        isSignedIn
-        container="max-w-[1440px] px-margin-x-mobile lg:px-margin-x-desktop"
-        backHref="/patient/profile"
-        eyebrow="My account"
-        title="Insurance & Billing"
-        subtitle="Your insurance policies and billing statements."
-      />
-      <main className="w-full bg-background min-h-[calc(100vh-5rem)] pb-12 md:pb-16">
-        <div className="flex flex-col w-full">
-          <div className="relative w-full overflow-hidden">
-            <div className="w-full px-margin-x-mobile lg:px-margin-x-desktop pb-16 pt-5 md:pt-8">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start max-w-[1440px] mx-auto">
-
-                {/* ==================== LEFT COLUMN (30% -> 4 cols) ==================== */}
-                <PatientSidebar user={user} profile={profile} patientDetails={patientDetails} activeAppointmentsCount={upcomingAppointments.length} />
-
-                {/* ==================== RIGHT COLUMN (70% -> 8 cols) ==================== */}
-                <div className="lg:col-span-8 flex flex-col gap-6">
-                  <AccountShortcuts />
-
-                  {/* Current Active Insurance Card */}
-                  <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant/30">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="w-10 h-10 bg-vibrant-blue/10 rounded-full flex items-center justify-center text-vibrant-blue">
-                        <ShieldPlus className="w-5 h-5" />
-                      </div>
-                      <h3 className="font-title-md text-title-md font-bold text-on-surface">Active Insurance Policy</h3>
-                    </div>
-
-                    <div className="bg-gradient-to-br from-inverse-surface to-indigo-gray-900 rounded-2xl p-6 text-on-error relative overflow-hidden shadow-lg">
-
-                      <div className="flex justify-between items-start mb-8 relative z-10">
-                        <div>
-                          <p className="font-label-sm text-label-sm text-indigo-gray-50/70 uppercase tracking-wider mb-1">Provider</p>
-                          <h4 className="font-title-md text-title-md font-bold text-white">Star Health Comprehensive</h4>
-                        </div>
-                        <span className="px-3 py-1 bg-fresh-teal/20 text-secondary-container rounded-full font-label-sm text-label-sm font-bold border border-fresh-teal/30 flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Active
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-6 relative z-10">
-                        <div>
-                          <p className="font-label-sm text-label-sm text-indigo-gray-50/70 uppercase tracking-wider mb-1">Policy Number</p>
-                          <p className="font-body-md text-body-lg font-medium tracking-wide">SH-400-8842-19</p>
-                        </div>
-                        <div>
-                          <p className="font-label-sm text-label-sm text-indigo-gray-50/70 uppercase tracking-wider mb-1">Coverage Limit</p>
-                          <p className="font-body-md text-body-lg font-medium">₹10,00,000</p>
-                        </div>
-                        <div>
-                          <p className="font-label-sm text-label-sm text-indigo-gray-50/70 uppercase tracking-wider mb-1">Primary Holder</p>
-                          <p className="font-body-md text-body-md">{profile?.full_name}</p>
-                        </div>
-                        <div>
-                          <p className="font-label-sm text-label-sm text-indigo-gray-50/70 uppercase tracking-wider mb-1">Valid Till</p>
-                          <p className="font-body-md text-body-md">31 March 2027</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Billing History */}
-                  <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant/30">
-                    <div className="flex justify-between items-center mb-6">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-secondary-container/30 rounded-full flex items-center justify-center text-secondary">
-                          <Wallet className="w-5 h-5" />
-                        </div>
-                        <h3 className="font-title-md text-title-md font-bold text-on-surface">Recent Billing Statements</h3>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-4">
-                      {/* Dummy Bill 1 */}
-                      <div className="p-4 rounded-xl border border-surface-variant flex items-center justify-between hover:bg-surface-container-low transition-colors cursor-pointer group">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant">
-                            <FileText className="w-6 h-6" />
-                          </div>
-                          <div>
-                            <p className="font-title-md text-label-sm font-bold text-on-surface">OPD Consultation - Dr. Sarah Jenkins</p>
-                            <p className="font-label-sm text-label-sm text-on-surface-variant mt-0.5">Lilavati Hospital • 12 Jan 2026</p>
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-1">
-                          <span className="font-body-md text-body-md font-bold text-on-surface">₹1,500</span>
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-surface-container text-on-surface-variant">Paid</span>
-                        </div>
-                      </div>
-
-                      {/* Dummy Bill 2 */}
-                      <div className="p-4 rounded-xl border border-surface-variant flex items-center justify-between hover:bg-surface-container-low transition-colors cursor-pointer group">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant">
-                            <FileText className="w-6 h-6" />
-                          </div>
-                          <div>
-                            <p className="font-title-md text-label-sm font-bold text-on-surface">Comprehensive Metabolic Panel</p>
-                            <p className="font-label-sm text-label-sm text-on-surface-variant mt-0.5">Apex Labs • 05 Jan 2026</p>
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-1">
-                          <span className="font-body-md text-body-md font-bold text-on-surface">₹2,800</span>
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-fresh-teal/20 text-secondary-container">Insurance Covered</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-            </div>
-          </div>
+    <AccountPage user={user} profile={profile} title="Payments & billing" subtitle="Booking fees you paid online, and bookings paid at the desk.">
+      <div className="grid grid-cols-2 gap-3 lg:gap-4">
+        <div className="rounded-[18px] lg:rounded-2xl bg-white shadow-[0_0_0_1px_#E6EBF3] px-4 lg:px-5 py-4">
+          <span className="block text-[12.5px] font-bold text-[#5B667A]">Paid online</span>
+          <span className="block mt-1.5 text-[24px] lg:text-[28px] font-extrabold tracking-[-0.03em] tabular-nums">{formatINR(total)}</span>
+          <span className="block mt-1 text-[12px] text-[#5B667A]">Booking fees, all time</span>
         </div>
-      </main>
+        <div className="rounded-[18px] lg:rounded-2xl bg-white shadow-[0_0_0_1px_#E6EBF3] px-4 lg:px-5 py-4">
+          <span className="block text-[12.5px] font-bold text-[#5B667A]">Payments</span>
+          <span className="block mt-1.5 text-[24px] lg:text-[28px] font-extrabold tracking-[-0.03em] tabular-nums">{payments.length}</span>
+          <span className="block mt-1 text-[12px] text-[#5B667A]">Online and at the desk</span>
+        </div>
+      </div>
 
-      <PatientFooter isSignedIn />
-      <PatientDock activeTab="profile" name={profile?.full_name} />
-    </div>
+      {unpaid.length > 0 && (
+        <div role="alert" className="p-3.5 rounded-2xl bg-[#FEF3F2] shadow-[0_0_0_1px_#FBD5D1] flex flex-col gap-2">
+          <span className="text-[13.5px] font-extrabold text-[#912018]">Waiting for payment ({unpaid.length})</span>
+          {unpaid.map((u) => (
+            <div key={u.id} className="flex items-center justify-between gap-3 text-[13px]">
+              <span className="truncate capitalize text-[#27324A]">{u.label}</span>
+              <Link href={u.href} className="shrink-0 font-extrabold text-[#B42318] hover:underline">
+                Pay now
+              </Link>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <AccountCard title="Payment history" sub="Online you pay only the booking fee. Consultation fees and test charges are paid at the hospital or lab.">
+        {payments.length === 0 ? (
+          <p className="py-3 border-t border-[#EEF2F7] text-[13px] text-[#5B667A]">No payments yet.</p>
+        ) : (
+          payments.map((p, i) => (
+            <div key={`${p.appointment_id ?? p.diagnostic_booking_id}-${i}`} className="flex justify-between gap-3 py-[11px] border-t border-[#EEF2F7] text-[13.5px]">
+              <span className="min-w-0">
+                <span className="block font-bold truncate capitalize">{describe(p)}</span>
+                <span className="block text-[12px] text-[#5B667A]">
+                  {[p.created_at ? formatShortDate(p.created_at) : null, p.gateway === 'payu' ? 'Booking fee, paid online' : 'Paid at the desk'].filter(Boolean).join(' · ')}
+                </span>
+              </span>
+              {p.gateway === 'payu' ? <span className="shrink-0 font-extrabold">{formatINR(Number(p.amount) || 0)}</span> : <span className="shrink-0 text-[12px] text-[#5B667A]">At the counter</span>}
+            </div>
+          ))
+        )}
+      </AccountCard>
+
+      <AccountCard>
+        <div className="flex items-start gap-3">
+          <span className="shrink-0 w-10 h-10 rounded-full bg-[#ECFDF3] text-[#067647] flex items-center justify-center">
+            <ShieldCheck className="w-5 h-5" />
+          </span>
+          <span>
+            <span className="block text-[15px] font-extrabold">Health insurance</span>
+            <span className="block mt-0.5 text-[13px] leading-relaxed text-[#4A5878]">
+              Insurance claims aren&apos;t handled through Consult your Doctor. Each hospital&apos;s page lists the insurers it works with; check cover with the hospital&apos;s insurance desk.{' '}
+              <Link href="/hospitals" className="font-extrabold text-[#2A4DD0] hover:underline">
+                See hospitals
+              </Link>
+            </span>
+          </span>
+        </div>
+      </AccountCard>
+    </AccountPage>
   )
 }

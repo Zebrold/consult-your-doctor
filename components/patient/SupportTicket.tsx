@@ -35,7 +35,7 @@ export function SupportTicketButton({ bookings }: { bookings: { id: string; labe
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="mt-2 py-2 px-6 rounded-full bg-surface-container-low text-on-surface font-bold text-label-sm border border-outline-variant/50 hover:bg-surface-container-high transition-colors">
+      <button type="button" onClick={() => setOpen(true)} className="mt-1 inline-flex items-center h-10 px-4 rounded-[11px] border-[1.5px] border-[#D6DDE8] bg-white text-[13.5px] font-extrabold text-[#27324A] hover:bg-[#F4F6FA] transition-colors">
         Raise Ticket
       </button>
       {open && (

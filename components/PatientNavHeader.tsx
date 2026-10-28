@@ -24,15 +24,17 @@ interface PatientNavHeaderProps {
   subtitle?: ReactNode;
   /** Inside the blue header, under the title: a search box, stat tiles. */
   hero?: ReactNode;
+  /** Leave the blue header out on desktops, for pages that show their own title there. */
+  deskHidden?: boolean;
 }
 
 /** The patient pages' header: the blue app header (with a title), or the white bar with the logo and the account. */
 export function PatientNavHeader({
-  name, email, isSignedIn = false, backHref, container = "max-w-[1240px] px-margin-x-mobile lg:px-12", className = "", title, blue = !!title, eyebrow, subtitle, hero,
+  name, email, isSignedIn = false, backHref, container = "max-w-[1240px] px-margin-x-mobile lg:px-12", className = "", title, blue = !!title, eyebrow, subtitle, hero, deskHidden,
 }: PatientNavHeaderProps) {
   if (blue) {
     return (
-      <PhoneHeader title={title} eyebrow={eyebrow} subtitle={subtitle} backHref={backHref} isSignedIn={isSignedIn} name={name} email={email} container={container}>
+      <PhoneHeader title={title} eyebrow={eyebrow} subtitle={subtitle} backHref={backHref} isSignedIn={isSignedIn} name={name} email={email} container={container} deskHidden={deskHidden}>
         {hero}
       </PhoneHeader>
     );

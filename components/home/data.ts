@@ -6,7 +6,8 @@ import type { HomeHospital } from './types'
 type Supabase = Awaited<ReturnType<typeof createClient>>
 
 /** A facility that says the hospital never closes: "24/7 Emergency", "24 hours pharmacy", "Round-the-clock ICU". */
-const ALWAYS_OPEN = /24\s*[x×/*]\s*7|24\s*hours?|round[\s-]the[\s-]clock/i
+/** A facility name that means the hospital never closes ("24/7 Emergency", "Open 24 hours"). */
+export const ALWAYS_OPEN = /24\s*[x×/*]\s*7|24\s*hours?|round[\s-]the[\s-]clock/i
 
 // Facilities (20261009_beds_reviews_profiles.sql) and map pins (20261014_facility_locations.sql) come with later
 // migrations; until a database has them, the same list loads without them.

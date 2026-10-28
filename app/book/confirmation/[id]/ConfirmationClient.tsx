@@ -62,7 +62,7 @@ export function ConfirmationClient({ data }: { data: ConfirmationData }) {
   }
 
   return (
-    <div className="bg-[#f4f6fb] text-on-surface antialiased min-h-screen font-body-md">
+    <div className="bg-[#F6F8FC] lg:bg-transparent text-on-surface antialiased min-h-screen font-body-md">
       <PatientNavHeader
         isSignedIn
         name={data.patientName}

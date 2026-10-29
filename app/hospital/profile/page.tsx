@@ -1,31 +1,33 @@
 import type { Metadata } from 'next'
-import { toLatLng } from '@/lib/geo'
 import type { ReactNode } from 'react'
 import Link from 'next/link'
-import {
-  Award, BadgeCheck, BedDouble, Building2, CalendarClock, Check, CircleAlert, CircleCheck, CircleDashed, ExternalLink, FlaskConical, Globe, LogOut, Mail,
-  MapPin, Phone, ShieldCheck, Siren, Sparkles, Stethoscope, Users, type LucideIcon,
-} from 'lucide-react'
+import { Building2, Check, CircleAlert, ExternalLink } from 'lucide-react'
+import { toLatLng } from '@/lib/geo'
 import { currentTime } from '@/components/patient/data'
-import { doctorName, formatINR } from '@/components/patient/format'
-import { Avatar, Card } from '@/components/portal/ui'
+import { IST, formatINR, formatShortDate, istDateKey } from '@/components/patient/format'
+import { RemoteImage } from '@/components/RemoteImage'
 import { StaffAccount } from '@/components/portal/StaffAccount'
 import { loadHospitalBeds, summarizeBeds } from '@/lib/beds'
+import { loadHospitalReviews } from '@/lib/reviews'
 import { removeHospitalTest, saveHospitalTest } from '@/app/actions/hospital-profile'
 import { TestMenu } from '@/app/diagnostic-center/_components/TestMenu'
-import { isPaidVisit, loadHospitalDoctors, loadHospitalVisits, requireHospital } from '../_lib/hospital'
+import { dayOf, isPaidVisit, loadHospitalDoctors, loadHospitalVisits, requireHospital } from '../_lib/hospital'
 import { HospitalProfileEditor } from '../_components/HospitalProfileEditor'
+import { BarChart, EmptyLine, HosBackHeader, HosBody, Meter, MoreLink, Panel, PanelHead, PhoneStats, Row, Verified, btnOutline, btnPrimary, card, plural, telHref } from '../_components/hos-ui'
 
 export const metadata: Metadata = { title: 'Hospital Profile | Hospital Portal' }
 export const dynamic = 'force-dynamic'
 
+const stars = (n: number) => '★'.repeat(Math.round(n))
+
 export default async function HospitalProfilePage() {
-  const { admin, user, hospital, staff } = await requireHospital()
+  const { admin, user, hospital } = await requireHospital()
   const now = currentTime()
   const doctors = await loadHospitalDoctors(admin, hospital.id)
-  const [visits, beds, { data: me }, { data: pin }] = await Promise.all([
+  const [visits, beds, reviews, { data: me }, { data: pin }] = await Promise.all([
     loadHospitalVisits(admin, hospital.id, doctors.map((d) => d.id)),
     loadHospitalBeds(admin, hospital.id),
+    loadHospitalReviews(admin, hospital.id),
     admin.from('profiles').select('full_name, phone_number, staff_id').eq('id', user.id).maybeSingle(),
     // The map pin (20261014_facility_locations.sql); null until that migration has run.
     admin.from('hospitals').select('latitude, longitude').eq('id', hospital.id).maybeSingle(),
@@ -34,12 +36,14 @@ export default async function HospitalProfilePage() {
   const paid = visits.filter(isPaidVisit)
   const patients = new Set(paid.map((v) => v.patient?.id).filter(Boolean)).size
   const thisYear = new Date(now).getFullYear()
+  const { summary, reviews: latest } = reviews
 
   const departments = new Map<string, typeof doctors>()
   for (const d of doctors) departments.set(d.department, [...(departments.get(d.department) ?? []), d])
   const priced = hospital.tests.filter((t) => t.price)
   const live = hospital.status === 'active'
   const place = [hospital.address, hospital.city].filter(Boolean).join(', ')
+  const hospitalId = hospital.id.slice(0, 8).toUpperCase()
 
   const checks = [
     { label: 'Hospital name and address', done: !!hospital.name && !!hospital.address && !!hospital.city },
@@ -52,6 +56,18 @@ export default async function HospitalProfilePage() {
     { label: 'Test charges', done: priced.length > 0 },
   ]
   const completeness = Math.round((checks.filter((c) => c.done).length / checks.length) * 100)
+
+  // Paid consultations in each of the last six months
+  const month = istDateKey(now).slice(0, 7)
+  const months = Array.from({ length: 6 }, (_, i) => {
+    const total = Number(month.slice(0, 4)) * 12 + Number(month.slice(5, 7)) - 1 - (5 - i)
+    return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}`
+  })
+  const monthBars = months.map((m) => ({
+    label: new Date(`${m}-15T12:00:00+05:30`).toLocaleDateString('en-GB', { timeZone: IST, month: 'short' }),
+    value: paid.filter((v) => dayOf(v.start ?? v.createdAt)?.startsWith(m)).length,
+    active: m === month,
+  }))
 
   const editable = {
     name: hospital.name,
@@ -67,332 +83,285 @@ export default async function HospitalProfilePage() {
     accreditations: hospital.accreditations,
     insurance: hospital.insurance,
   }
-  const editButton =
-    'flex-1 lg:flex-initial min-h-[44px] inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface font-label-sm text-label-sm font-semibold transition-colors'
+  const location = toLatLng(pin?.latitude, pin?.longitude)
+  const addLink = (label: string) => <HospitalProfileEditor hospital={editable} location={location} label={label} icon={false} className="shrink-0 text-[13px] font-extrabold text-[#2A4DD0] hover:underline" />
 
-  return (
-    <>
-      {!hospital.profileReady && (
-        <p role="status" className="flex items-start gap-2 p-3.5 rounded-xl bg-error-container/60 text-on-error-container text-sm">
-          <CircleAlert className="w-5 h-5 shrink-0" /> Some profile sections need a database update. Ask your administrator to run supabase/migrations/20261009_beds_reviews_profiles.sql.
-        </p>
-      )}
-
-      {/* Identity banner */}
-      <section className="relative w-full rounded-xl md:rounded-2xl bg-surface-container-lowest shadow-sm md:shadow-[0_4px_24px_rgba(15,23,42,0.04)] border border-surface-container md:border-transparent overflow-hidden">
-        <div className="relative p-4 sm:p-8 flex flex-col lg:flex-row justify-between gap-4 md:gap-6 items-stretch lg:items-center">
-          <div className="flex items-start sm:items-center gap-3.5 sm:gap-5 min-w-0">
-            <div className="relative shrink-0">
-              {hospital.image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={hospital.image} alt={hospital.name} className="w-16 h-16 sm:w-24 sm:h-24 rounded-xl sm:rounded-2xl object-cover shadow-[0_4px_16px_rgba(15,23,42,0.06)]" />
-              ) : (
-                <span className="w-16 h-16 sm:w-24 sm:h-24 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary-fixed to-surface-container text-primary flex items-center justify-center shadow-[0_4px_16px_rgba(15,23,42,0.06)]">
-                  <Building2 className="w-8 h-8 sm:w-11 sm:h-11" />
-                </span>
-              )}
-              {live && (
-                <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-600 ring-4 ring-surface-container-lowest flex items-center justify-center shadow-sm" title="Live for booking">
-                  <Check className="w-3 h-3 text-on-primary" strokeWidth={3} />
-                </span>
-              )}
-            </div>
-            <div className="flex flex-col gap-1 md:gap-1.5 min-w-0">
-              <span className="self-start font-label-sm text-[11px] md:text-label-sm uppercase tracking-wider text-vibrant-blue bg-primary-fixed/50 px-2.5 py-0.5 rounded-full font-semibold">
-                Hospital ID #{hospital.id.slice(0, 8).toUpperCase()}
-              </span>
-              <h1 className="font-headline-lg-mobile text-headline-lg-mobile md:font-headline-lg md:text-headline-lg text-on-surface tracking-tight leading-tight truncate">{hospital.name}</h1>
-              <p className="font-body-md text-[13px] md:text-body-md leading-snug text-on-surface-variant flex items-center gap-x-2 gap-y-0.5 flex-wrap">
-                <span className="font-semibold text-on-surface flex items-center gap-1 min-w-0">
-                  <MapPin className="w-4 h-4 text-vibrant-blue shrink-0" />
-                  <span className="truncate">{place || 'Add your address so patients can find you'}</span>
-                </span>
-                {hospital.establishedYear && (
-                  <>
-                    <span className="hidden sm:inline text-outline-variant">•</span>
-                    <span>
-                      Since {hospital.establishedYear} ({thisYear - hospital.establishedYear} years)
-                    </span>
-                  </>
-                )}
-                <span className="hidden sm:inline text-outline-variant">•</span>
-                <span className="text-vibrant-blue font-medium">Signed in as {staff.name}</span>
-              </p>
-            </div>
-          </div>
-          <div className="flex lg:flex-col gap-2.5 w-full lg:w-auto shrink-0">
-            <Link
-              href={`/hospitals/${hospital.id}`}
-              className="flex-1 lg:flex-initial min-h-[44px] inline-flex items-center justify-center gap-2 px-4 md:px-5 py-2.5 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary font-label-sm text-label-sm font-semibold shadow-[0_4px_16px_rgba(15,23,42,0.1)]"
-            >
-              <ExternalLink className="w-[18px] h-[18px]" /> <span className="truncate">View Patient Page</span>
-            </Link>
-            <HospitalProfileEditor hospital={editable} location={toLatLng(pin?.latitude, pin?.longitude)} className={editButton} />
-          </div>
-        </div>
-        <div className="hidden md:flex relative bg-surface-container-low px-6 py-3.5 flex-wrap items-center gap-x-6 gap-y-2">
-          <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-semibold">Listing:</span>
-          <div className="flex flex-wrap items-center gap-3">
-            <Badge icon={live ? BadgeCheck : CircleDashed} tint={live ? 'text-fresh-teal' : 'text-soft-coral'}>
-              {live ? 'Live for Online Booking' : 'Not Listed Yet'}
-            </Badge>
-            {hospital.accreditations.map((a) => (
-              <Badge key={a} icon={Award} tint="text-vibrant-blue">
-                {a} Accredited
-              </Badge>
-            ))}
-            {hospital.emergencyPhone && (
-              <Badge icon={Siren} tint="text-soft-coral">
-                24x7 Emergency
-              </Badge>
-            )}
-            {completeness < 100 && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-error-container/60 font-label-sm text-label-sm text-tertiary font-semibold">
-                <CircleDashed className="w-4 h-4" /> Profile {completeness}% complete
-              </span>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Metrics */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-4">
-        <Metric label="Doctors" icon={Stethoscope} value={String(doctors.length)} sub={`${departments.size} ${departments.size === 1 ? 'department' : 'departments'}`} />
-        <Metric
-          label="Inpatient Beds"
-          icon={BedDouble}
-          value={beds.ready ? `${bedSummary.occupied} / ${bedSummary.total}` : '—'}
-          sub={beds.ready ? (bedSummary.total ? `${bedSummary.occupancy}% occupied • ${bedSummary.available} free` : 'No beds set up yet') : 'Needs the database update'}
-          href="/hospital/beds"
-        />
-        <Metric label="Patients Served" icon={Users} value={patients.toLocaleString('en-IN')} sub="With a paid consultation" />
-        <Metric label="Test Charges" icon={FlaskConical} value={String(priced.length)} sub={priced.length ? `From ${formatINR(Math.min(...priced.map((t) => t.price!)))}` : 'Add your tests below'} />
-      </section>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-8 items-start">
-        <div className="lg:col-span-7 min-w-0 flex flex-col gap-4 md:gap-6">
-          <Card className="md:!rounded-2xl md:!p-7 flex flex-col gap-4">
-            <Title icon={Building2} title="About the Hospital" sub="Shown on your patient page" />
-            <p className="text-[14px] leading-relaxed text-on-surface-variant whitespace-pre-line">
-              {hospital.about || 'Add a short description of your hospital: specialities, history and what patients can expect.'}
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <Contact icon={Phone} label="Reception" value={hospital.phone} href={hospital.phone ? `tel:${hospital.phone.replace(/[^\d+]/g, '')}` : undefined} />
-              <Contact icon={Siren} label="Emergency" value={hospital.emergencyPhone} href={hospital.emergencyPhone ? `tel:${hospital.emergencyPhone.replace(/[^\d+]/g, '')}` : undefined} />
-              <Contact icon={Mail} label="Email" value={hospital.email} href={hospital.email ? `mailto:${hospital.email}` : undefined} />
-              <Contact icon={Globe} label="Website" value={hospital.website} href={hospital.website && /^https?:\/\//i.test(hospital.website) ? hospital.website : undefined} />
-            </div>
-          </Card>
-
-          <Card className="md:!rounded-2xl md:!p-7 flex flex-col gap-4">
-            <div className="flex items-start justify-between gap-3">
-              <Title icon={Stethoscope} title="Departments & Doctors" sub="Your roster, by department" />
-              <Link href="/hospital/doctors" className="font-label-sm text-label-sm text-primary font-semibold hover:underline shrink-0">
-                Manage Roster
-              </Link>
-            </div>
-            {doctors.length === 0 ? (
-              <p className="p-4 rounded-xl bg-surface-container-low text-sm text-indigo-gray-600 text-center">No doctors yet. Add them from the Duty Roster.</p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {Array.from(departments.entries()).map(([dept, list]) => (
-                  <div key={dept} className="p-3 rounded-xl bg-surface-container-low">
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="font-bold text-[14px] text-on-surface">{dept}</span>
-                      <span className="text-[12px] text-indigo-gray-600">
-                        {list.length} {list.length === 1 ? 'doctor' : 'doctors'}
-                      </span>
-                    </div>
-                    <ul className="flex flex-wrap gap-2">
-                      {list.map((d) => (
-                        <li key={d.id} className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-surface-container-lowest">
-                          <Avatar name={d.name} image={d.image} className="w-7 h-7 text-[10px]" />
-                          <span className="text-[13px] font-semibold text-on-surface">{doctorName(d.name)}</span>
-                          {d.fee != null && <span className="text-[12px] text-indigo-gray-600">{formatINR(d.fee)}</span>}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-
-          <Card id="tests" className="md:!rounded-2xl md:!p-7 flex flex-col gap-4">
-            <Title icon={FlaskConical} title="Test Charges" sub="Lab tests and investigations done at your hospital, with the amount for each" />
-            {hospital.profileReady ? (
-              <TestMenu
-                tests={hospital.tests}
-                actions={{ save: saveHospitalTest, remove: removeHospitalTest }}
-                bookable={false}
-                note="These amounts show on your hospital page so patients know the charges before they come in."
-              />
-            ) : (
-              <p className="p-4 rounded-xl bg-surface-container-low text-sm text-indigo-gray-600">Test charges open up after the database update.</p>
-            )}
-          </Card>
-        </div>
-
-        <div className="lg:col-span-5 min-w-0 flex flex-col gap-4 md:gap-6">
-          <Card className="md:!rounded-2xl md:!p-7 flex flex-col gap-4">
-            <div className="flex items-start justify-between gap-3">
-              <Title icon={ShieldCheck} title="Insurance Accepted" sub="Cashless and reimbursement" />
-              <span className="font-label-sm text-[12px] text-secondary font-semibold shrink-0">{hospital.insurance.length} listed</span>
-            </div>
-            <ChipList items={hospital.insurance} empty="Add the insurers and schemes you accept." />
-          </Card>
-
-          <Card className="md:!rounded-2xl md:!p-7 flex flex-col gap-4">
-            <Title icon={Sparkles} title="Facilities & Accreditations" sub="What your hospital offers" />
-            <ChipList items={hospital.facilities} empty="Add your facilities, e.g. ICU, pharmacy, blood bank." />
-            {hospital.accreditations.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {hospital.accreditations.map((a) => (
-                  <span key={a} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary-container/60 text-on-secondary-container font-label-sm text-[12px] font-bold">
-                    <Award className="w-3.5 h-3.5" /> {a}
-                  </span>
-                ))}
-              </div>
-            )}
-          </Card>
-
-          {completeness < 100 && (
-            <Card className="md:!rounded-2xl md:!p-7">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2 text-fresh-teal">
-                  <CircleCheck className="w-5 h-5" />
-                  <h2 className="font-title-md text-[16px] md:text-title-md text-on-surface font-semibold">Profile Checklist</h2>
-                </div>
-                <span className="font-title-md text-[16px] font-bold text-vibrant-blue">{completeness}%</span>
-              </div>
-              <ul className="flex flex-col gap-2">
-                {checks.map((c) => (
-                  <li key={c.label} className="p-2.5 rounded-lg bg-surface-container-low flex items-center justify-between gap-2.5 text-[13px]">
-                    <span className={c.done ? 'text-indigo-gray-900 font-medium' : 'text-indigo-gray-600'}>{c.label}</span>
-                    {c.done ? <CircleCheck className="w-5 h-5 text-fresh-teal" /> : <CircleDashed className="w-5 h-5 text-outline" />}
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          )}
-
-          <div className="flex items-center gap-2 px-1">
-            <CalendarClock className="w-4 h-4 text-indigo-gray-600" />
-            <h2 className="font-title-md text-[15px] font-bold text-on-surface">My Sign-in Details</h2>
-          </div>
-          <StaffAccount name={me?.full_name ?? ''} phone={me?.phone_number ?? null} staffId={me?.staff_id ?? null} roleLabel="Hospital admin" />
-
-          <div className="bg-surface-container-lowest p-5 rounded-2xl shadow-sm border border-outline-variant/30 flex flex-col gap-3">
-            <div className="flex items-center gap-2 text-fresh-teal">
-              <ShieldCheck className="w-5 h-5" />
-              <h3 className="font-title-md text-[15px] font-bold text-on-surface">Partner Terms &amp; Compliance</h3>
-            </div>
-            <p className="text-label-sm text-on-surface-variant text-[12px]">
-              Review hospital partner agreements, inpatient care standards, and DPDP Act patient confidentiality.
-            </p>
-            <div className="flex flex-col gap-2 pt-1 border-t border-surface-container-high/70">
-              <Link
-                href="/terms-of-use"
-                className="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors text-xs font-semibold text-on-surface"
-              >
-                <span>Terms &amp; Conditions</span>
-                <span className="text-vibrant-blue font-bold">View →</span>
-              </Link>
-              <Link
-                href="/privacy-policy"
-                className="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors text-xs font-semibold text-on-surface"
-              >
-                <span>Privacy Policy</span>
-                <span className="text-vibrant-blue font-bold">View →</span>
-              </Link>
-            </div>
-          </div>
-
-          <form action="/auth/signout" method="post">
-            <button type="submit" className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-error/10 hover:bg-error-container text-error font-label-sm text-label-sm font-bold transition-colors">
-              <LogOut className="w-[18px] h-[18px]" /> Sign Out
-            </button>
-          </form>
-        </div>
-      </div>
-    </>
-  )
-}
-
-function Badge({ icon: Icon, tint, children }: { icon: LucideIcon; tint: string; children: ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-lowest shadow-sm font-label-sm text-label-sm text-on-surface font-medium">
-      <Icon className={`w-4 h-4 ${tint}`} /> {children}
-    </span>
-  )
-}
-
-function Metric({ label, icon: Icon, value, sub, href }: { label: string; icon: LucideIcon; value: string; sub: string; href?: string }) {
-  const body = (
-    <>
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-label-sm text-[11px] md:text-label-sm text-on-surface-variant font-medium truncate">{label}</span>
-        <span className="hidden md:flex w-8 h-8 rounded-xl items-center justify-center shrink-0 bg-primary-fixed/40 text-vibrant-blue">
-          <Icon className="w-[18px] h-[18px]" />
-        </span>
-      </div>
-      <span className="mt-2.5 md:mt-4 font-headline-lg-mobile md:font-title-md text-[22px] md:text-title-md font-bold text-on-surface tracking-tight">{value}</span>
-      <p className="font-label-sm text-[11px] md:text-label-sm text-outline mt-1 truncate">{sub}</p>
-    </>
-  )
-  const cls = 'bg-surface-container-lowest p-3.5 md:p-5 rounded-xl md:rounded-2xl shadow-sm md:shadow-[0_2px_12px_rgba(15,23,42,0.04)] border border-surface-container md:border-transparent flex flex-col min-w-0'
-  return href ? (
-    <Link href={href} className={`${cls} hover:shadow-md transition-shadow`}>
-      {body}
-    </Link>
-  ) : (
-    <div className={cls}>{body}</div>
-  )
-}
-
-function Title({ icon: Icon, title, sub }: { icon: LucideIcon; title: string; sub: string }) {
-  return (
-    <div className="flex items-center gap-3 min-w-0">
-      <span className="hidden sm:flex w-9 h-9 rounded-xl bg-primary-fixed/40 items-center justify-center text-vibrant-blue shrink-0">
-        <Icon className="w-5 h-5" />
+  const rating = summary.average != null ? summary.average.toFixed(1) : '—'
+  const ratingNote = summary.count ? `from ${plural(summary.count, 'review')}` : 'No reviews yet'
+  const photo = (size: number, className: string) =>
+    hospital.image ? (
+      <RemoteImage src={hospital.image} alt={hospital.name} width={size} height={size} load="eager" className={`object-cover shrink-0 ${className}`} />
+    ) : (
+      <span className={`shrink-0 bg-[#EEF3FF] text-[#2A4DD0] flex items-center justify-center ${className}`}>
+        <Building2 className="w-1/2 h-1/2" strokeWidth={1.6} />
       </span>
-      <div className="min-w-0">
-        <h2 className="font-title-md text-title-md text-on-surface font-bold">{title}</h2>
-        <p className="font-label-sm text-[12px] md:text-label-sm text-on-surface-variant">{sub}</p>
-      </div>
-    </div>
-  )
-}
+    )
 
-function Contact({ icon: Icon, label, value, href }: { icon: LucideIcon; label: string; value: string | null; href?: string }) {
-  const inner = (
-    <>
-      <Icon className="w-4 h-4 text-primary shrink-0" />
-      <span className="min-w-0">
-        <span className="block text-[11px] uppercase tracking-wider font-semibold text-indigo-gray-600">{label}</span>
-        <span className={`block text-[13px] font-semibold truncate ${value ? 'text-on-surface' : 'text-outline'}`}>{value || 'Not added'}</span>
-      </span>
-    </>
-  )
-  const cls = 'p-3 rounded-xl bg-surface-container-low flex items-center gap-2.5 min-w-0'
-  return value && href ? (
-    <a href={href} target={href.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer" className={`${cls} hover:bg-surface-container transition-colors`}>
-      {inner}
-    </a>
-  ) : (
-    <div className={cls}>{inner}</div>
-  )
-}
+  const contacts: [string, ReactNode][] = [
+    ['Reception', hospital.phone ? <a href={telHref(hospital.phone)}>{hospital.phone}</a> : null],
+    ['Emergency', hospital.emergencyPhone ? <a href={telHref(hospital.emergencyPhone)}>{hospital.emergencyPhone}</a> : null],
+    ['Email', hospital.email ? <a href={`mailto:${hospital.email}`}>{hospital.email}</a> : null],
+    ['Website', hospital.website && /^https?:\/\//i.test(hospital.website) ? <a href={hospital.website} target="_blank" rel="noopener noreferrer">{hospital.website.replace(/^https?:\/\//i, '')}</a> : hospital.website],
+    ['Address', place || null],
+    ['Established', hospital.establishedYear ? `${hospital.establishedYear} (${thisYear - hospital.establishedYear} years)` : null],
+  ]
 
-function ChipList({ items, empty }: { items: string[]; empty: string }) {
-  if (!items.length) return <p className="p-3 rounded-xl bg-surface-container-low text-sm text-indigo-gray-600">{empty}</p>
-  return (
-    <ul className="flex flex-wrap gap-2">
-      {items.map((i) => (
-        <li key={i} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-low text-[13px] font-semibold text-on-surface">
-          <CircleCheck className="w-3.5 h-3.5 text-fresh-teal" /> {i}
-        </li>
+  const about = (
+    <Panel>
+      <PanelHead title="About the hospital" sub="Shown on your patient page" />
+      <p className="mt-2.5 mb-2 text-[13.5px] leading-[1.55] text-[#27324A] whitespace-pre-line">
+        {hospital.about || 'Add a short description of your hospital: specialities, history and what patients can expect.'}
+      </p>
+      {contacts.map(([label, value]) => (
+        <Row key={label} label={label}>
+          {value ?? <span className="font-bold text-[#98A2B3]">Not added</span>}
+        </Row>
       ))}
-    </ul>
+    </Panel>
+  )
+
+  const departmentsCard = (
+    <Panel>
+      <PanelHead title="Departments & fees" sub="Consultation fee paid at the desk" right={<MoreLink href="/hospital/doctors">Roster</MoreLink>} />
+      {departments.size === 0 ? (
+        <EmptyLine>No doctors yet. Add them from the duty roster.</EmptyLine>
+      ) : (
+        Array.from(departments.entries()).map(([dept, list]) => {
+          const fees = list.map((d) => d.fee).filter((f): f is number => f != null)
+          const low = Math.min(...fees)
+          const high = Math.max(...fees)
+          return (
+            <div key={dept} className="flex items-center justify-between gap-3 py-2.5 border-t border-[#EEF2F7]">
+              <span className="min-w-0">
+                <span className="block text-[13.5px] font-extrabold truncate">{dept}</span>
+                <span className="block text-[12px] text-[#5B667A]">{plural(list.length, 'doctor')}</span>
+              </span>
+              <span className="text-[14px] font-extrabold shrink-0">{fees.length === 0 ? '—' : low === high ? formatINR(low) : `${formatINR(low)} – ${formatINR(high)}`}</span>
+            </div>
+          )
+        })
+      )}
+    </Panel>
+  )
+
+  const tests = (
+    <Panel id="tests" className="scroll-mt-24">
+      <PanelHead title="Test charges" sub="Lab tests and investigations at your hospital, with the amount for each" />
+      {hospital.profileReady ? (
+        <TestMenu
+          tests={hospital.tests}
+          actions={{ save: saveHospitalTest, remove: removeHospitalTest }}
+          bookable={false}
+          note="These amounts show on your hospital page so patients know the charges before they come in."
+        />
+      ) : (
+        <EmptyLine>Test charges open up after the database update.</EmptyLine>
+      )}
+    </Panel>
+  )
+
+  const insurance = (
+    <Panel>
+      <PanelHead title="Insurance accepted" sub="Cashless and reimbursement" right={addLink('+ Add')} />
+      {hospital.insurance.length === 0 ? (
+        <EmptyLine>Add the insurers and schemes you accept.</EmptyLine>
+      ) : (
+        <ul>
+          {hospital.insurance.map((i) => (
+            <li key={i} className="py-2.5 border-t border-[#EEF2F7] text-[13.5px] font-bold">
+              {i}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  )
+
+  const reviewsCard = (
+    <Panel>
+      <PanelHead title="Patient reviews" sub={summary.count ? `${rating} average from ${plural(summary.count, 'review')}` : 'Patients can rate your hospital after a visit'} />
+      {summary.count === 0 ? (
+        <EmptyLine>No reviews yet.</EmptyLine>
+      ) : (
+        <>
+          {([5, 4, 3, 2, 1] as const).map((n) => (
+            <div key={n} className="grid grid-cols-[34px_minmax(0,1fr)_44px] gap-2.5 items-center py-[5px] text-[12.5px] font-bold">
+              <span>{n} ★</span>
+              <span className="block h-1.5 rounded-full bg-[#EEF2F7] overflow-hidden">
+                <span className="block h-full rounded-full bg-[#E0A100]" style={{ width: `${(summary.distribution[n] / summary.count) * 100}%` }} />
+              </span>
+              <span className="text-right text-[#5B667A]">{summary.distribution[n]}</span>
+            </div>
+          ))}
+          {latest.map((r) => (
+            <div key={r.id} className="py-3.5 border-t border-[#EEF2F7] first-of-type:mt-2">
+              <div className="flex justify-between gap-3">
+                <span className="text-[13.5px] font-extrabold">{r.patientName}</span>
+                <span aria-label={`${r.rating} out of 5`} className="text-[12.5px] font-extrabold text-[#B54708]">
+                  {stars(r.rating)}
+                </span>
+              </div>
+              <p className="mt-1 text-[13.5px] leading-[1.5] text-[#27324A]">{r.comment}</p>
+              <p className="mt-1 text-[12px] text-[#5B667A]">{formatShortDate(r.createdAt)}</p>
+            </div>
+          ))}
+        </>
+      )}
+    </Panel>
+  )
+
+  const offers = [...hospital.facilities, ...hospital.accreditations.map((a) => `${a} accredited`)]
+  const facilities = (
+    <Panel>
+      <PanelHead title="Facilities & accreditations" sub="What your hospital offers" right={addLink('+ Add')} />
+      {offers.length === 0 ? (
+        <EmptyLine>Add your facilities, e.g. ICU, pharmacy, blood bank.</EmptyLine>
+      ) : (
+        <ul className="grid grid-cols-2 gap-x-5">
+          {offers.map((f) => (
+            <li key={f} className="py-2.5 border-b border-[#EEF2F7] text-[13.5px] font-bold">
+              {f}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  )
+
+  const checklist = (
+    <Panel>
+      <PanelHead title="Profile checklist" sub={`${completeness}% complete`} />
+      <div className="mt-3 mb-1.5">
+        <Meter pct={completeness} label={`Profile ${completeness}% complete`} />
+      </div>
+      <ul>
+        {checks.map((c) => (
+          <li key={c.label} className={`flex items-center justify-between gap-3 py-3 lg:py-[11px] border-t border-[#EEF2F7] text-[14px] lg:text-[13.5px] font-bold ${c.done ? '' : 'text-[#5B667A]'}`}>
+            {c.label}
+            <span aria-label={c.done ? 'Done' : 'Not done'} className={`w-[22px] h-[22px] lg:w-5 lg:h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${c.done ? 'bg-[#067647] border-[#067647]' : 'bg-white border-[#B7C1D1]'}`}>
+              {c.done && <Check className="w-3 h-3 text-white" strokeWidth={3.2} />}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Panel>
+  )
+
+  const bookings = (
+    <Panel>
+      <PanelHead title="Bookings" sub="Paid consultations, last 6 months" />
+      <BarChart bars={monthBars} label="Paid consultations each month, last 6 months" width={320} height={170} />
+    </Panel>
+  )
+
+  const account = (
+    <section id="account" className="scroll-mt-24">
+      <h2 className="px-1 mb-2 text-[16px] font-extrabold">My sign-in details</h2>
+      <StaffAccount name={me?.full_name ?? ''} phone={me?.phone_number ?? null} staffId={me?.staff_id ?? null} roleLabel="Hospital admin" />
+    </section>
+  )
+
+  return (
+    <>
+      <HosBackHeader backHref="/hospital/more" backLabel="Back to more" title="Hospital profile">
+        <div className="flex items-center gap-3.5 mt-3 mx-1">
+          {photo(72, 'w-[72px] h-[72px] rounded-2xl shadow-[0_0_0_2px_#fff]')}
+          <span className="min-w-0">
+            <span className="block text-[12px] font-bold text-[#CFDCFF]">Hospital ID {hospitalId}</span>
+            <span className="flex items-center gap-1.5 text-[22px] font-extrabold leading-tight">
+              <span className="truncate">{hospital.name}</span>
+              {live && <Verified />}
+            </span>
+            <span className="block text-[13px] text-[#DCE6FF] truncate">{place || 'Add your address so patients can find you'}</span>
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-2 mt-4">
+          <Link href={`/hospitals/${hospital.id}`} className="h-[42px] px-3 rounded-[11px] bg-white text-[#2A4DD0] text-[13.5px] font-extrabold flex items-center justify-center gap-1.5">
+            <ExternalLink className="w-4 h-4" /> View patient page
+          </Link>
+          <HospitalProfileEditor
+            hospital={editable}
+            location={location}
+            label="Edit profile"
+            className="h-[42px] px-3 rounded-[11px] border border-white/40 text-white text-[13.5px] font-extrabold flex items-center justify-center gap-1.5"
+          />
+        </div>
+      </HosBackHeader>
+      <HosBody>
+        {!hospital.profileReady && (
+          <p role="status" className="flex items-start gap-2 mb-3.5 lg:mb-5 p-3.5 rounded-xl bg-[#FEF3F2] text-[#B42318] text-[13px] font-bold">
+            <CircleAlert className="w-5 h-5 shrink-0" /> Some profile sections need a database update. Ask your administrator to run supabase/migrations/20261009_beds_reviews_profiles.sql.
+          </p>
+        )}
+
+        {/* Desktop banner */}
+        <section className={`hidden lg:block ${card} overflow-hidden mb-5`}>
+          <div className="h-[92px] bg-[#2A4DD0]" />
+          <div className="flex items-end gap-5 px-[26px] pb-[22px] -mt-11">
+            {photo(96, 'w-24 h-24 rounded-[20px] shadow-[0_0_0_4px_#fff,0_0_0_5px_#E6EAF0]')}
+            <span className="flex-1 min-w-0 pb-1">
+              <span className="flex items-center gap-2 text-[24px] font-extrabold">
+                <span className="truncate">{hospital.name}</span>
+                {live && <Verified />}
+              </span>
+              <span className="block text-[14px] text-[#5B667A] truncate">
+                {[bedSummary.total ? plural(bedSummary.total, 'bed') : null, place || null, `Hospital ID ${hospitalId}`, live ? 'Live for booking' : 'Not listed yet'].filter(Boolean).join(' · ')}
+              </span>
+            </span>
+            <span className="flex gap-2.5 shrink-0">
+              <Link href={`/hospitals/${hospital.id}`} className={btnOutline}>
+                <ExternalLink className="w-4 h-4" /> View patient page
+              </Link>
+              <HospitalProfileEditor hospital={editable} location={location} label="Edit profile" className={btnPrimary} />
+            </span>
+          </div>
+          <div className="grid grid-cols-5 border-t border-[#EEF2F7]">
+            {[
+              [String(doctors.length), `Doctors · ${plural(departments.size, 'department')}`],
+              [beds.ready && bedSummary.total ? `${bedSummary.occupied} / ${bedSummary.total}` : '—', 'Beds in use'],
+              [patients.toLocaleString('en-IN'), 'Patients served'],
+              [summary.count ? `${rating} ★` : '—', summary.count ? plural(summary.count, 'review') : 'No reviews yet'],
+              [`${completeness}%`, 'Profile complete'],
+            ].map(([value, label], i) => (
+              <div key={label} className={`px-[22px] py-4 ${i ? 'border-l border-[#EEF2F7]' : ''}`}>
+                <span className="block text-[22px] font-extrabold">{value}</span>
+                <span className="block text-[12.5px] font-bold text-[#5B667A]">{label}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <PhoneStats
+          className="mb-3.5"
+          stats={[
+            { label: 'Doctors', value: doctors.length, note: plural(departments.size, 'department') },
+            { label: 'Inpatient beds', value: beds.ready && bedSummary.total ? `${bedSummary.occupied} / ${bedSummary.total}` : '—', note: bedSummary.total ? 'in use' : 'No beds set up', color: '#2A4DD0' },
+            { label: 'Patients served', value: patients.toLocaleString('en-IN'), note: 'with a paid consultation', color: '#067647' },
+            { label: 'Rating', value: rating, note: ratingNote },
+          ]}
+        />
+
+        <div className="flex flex-col gap-3.5 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_360px] lg:gap-5 lg:items-start">
+          <div className="contents lg:flex lg:flex-col lg:gap-5 lg:min-w-0">
+            {about}
+            {departmentsCard}
+          </div>
+          <div className="contents lg:flex lg:flex-col lg:gap-5 lg:min-w-0">
+            {insurance}
+            {reviewsCard}
+            {facilities}
+          </div>
+          <div className="contents lg:flex lg:flex-col lg:gap-5 lg:min-w-0">
+            {checklist}
+            {bookings}
+          </div>
+        </div>
+        {/* Forms that need the room: full width under the cards */}
+        <div className="flex flex-col gap-3.5 mt-3.5 lg:gap-5 lg:mt-5">
+          {tests}
+          {account}
+        </div>
+      </HosBody>
+    </>
   )
 }

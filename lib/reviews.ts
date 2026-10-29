@@ -103,6 +103,26 @@ export async function loadDoctorReviews(admin: Admin, doctorId: string, limit = 
   }
 }
 
+/** A hospital's rating summary and latest written reviews; empty until the hospital_reviews table exists. */
+export async function loadHospitalReviews(admin: Admin, hospitalId: string, limit = 3): Promise<{ summary: ReviewSummary; reviews: Review[] }> {
+  const [ratings, latest] = await Promise.all([
+    admin.from('hospital_reviews').select('rating').eq('hospital_id', hospitalId).eq('is_published', true).limit(10000),
+    admin
+      .from('hospital_reviews')
+      .select('id, rating, comment, created_at, patient:profiles!hospital_reviews_patient_id_fkey ( full_name )')
+      .eq('hospital_id', hospitalId)
+      .eq('is_published', true)
+      .not('comment', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(limit),
+  ])
+  if (ratings.error || latest.error) return { summary: EMPTY, reviews: [] }
+  return {
+    summary: summarize(((ratings.data ?? []) as { rating: number }[]).map((r) => r.rating)),
+    reviews: ((latest.data ?? []) as unknown as HospitalReviewRow[]).map(toHospitalReview).filter((r) => r.comment?.trim()),
+  }
+}
+
 /** The newest reviews across all doctors and hospitals, for the home page. With `withText`, only reviews that have a comment. */
 export async function loadRecentReviews(admin: Admin, limit = 12, withText = true): Promise<{ reviews: Review[]; summary: ReviewSummary }> {
   let docQuery = admin

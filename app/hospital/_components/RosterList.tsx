@@ -1,9 +1,9 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
-import { CalendarPlus, Download, Phone, Search, Stethoscope } from 'lucide-react'
-import { Avatar, Chip, EmptyState, type Tone } from '@/components/portal/ui'
+import { CalendarPlus, ChevronDown, Download, Phone } from 'lucide-react'
+import { EmptyLine, Initials, Panel, PanelHead, btnOutline, btnPrimary, card, plural, telHref } from './hos-ui'
 import { EditDoctorButton, type EditableDoctor } from './DoctorDialogs'
 
 export type RosterState = 'consulting' | 'available' | 'later' | 'done' | 'scheduled' | 'off'
@@ -14,27 +14,36 @@ export type RosterDoctor = {
   image: string | null
   phone: string | null
   department: string
-  credentials: string | null
+  /** "Orthopaedics · 5 yrs" */
+  credentials: string
   shift: string | null
   slots: number
   booked: number
   state: RosterState
   stateNote: string | null
+  /** Morning, afternoon and evening: the hours and how many slots. */
+  periods: { label: string; hours: string; slots: number }[]
+  /** Runs of back-to-back slots on the 8 AM – 9 PM timeline, as percentages. */
+  blocks: { left: number; width: number; slots: number; time: string }[]
   edit: EditableDoctor
 }
 
-const STATE: Record<RosterState, { label: string; tone: Tone; dot: string }> = {
-  consulting: { label: 'In consultation', tone: 'blue', dot: 'bg-vibrant-blue animate-pulse' },
-  available: { label: 'Available', tone: 'teal', dot: 'bg-fresh-teal' },
-  later: { label: 'Shift later', tone: 'neutral', dot: 'bg-outline-variant' },
-  done: { label: 'Done for the day', tone: 'neutral', dot: 'bg-outline-variant' },
-  scheduled: { label: 'Scheduled', tone: 'blue', dot: 'bg-vibrant-blue' },
-  off: { label: 'Not scheduled', tone: 'coral', dot: 'bg-soft-coral' },
+const STATE: Record<RosterState, { label: string; color: string }> = {
+  consulting: { label: 'In consultation', color: '#2A4DD0' },
+  available: { label: 'On duty', color: '#067647' },
+  later: { label: 'Shift later', color: '#5B667A' },
+  done: { label: 'Done for the day', color: '#5B667A' },
+  scheduled: { label: 'On duty', color: '#067647' },
+  off: { label: 'Not scheduled', color: '#B42318' },
 }
+
+const AXIS = [8, 10, 12, 14, 16, 18, 20]
+const axisLabel = (h: number) => `${h > 12 ? h - 12 : h}${h < 12 ? 'a' : 'p'}`
+const timeGrid = 'grid grid-cols-[230px_minmax(0,1fr)_150px] xl:grid-cols-[250px_minmax(0,1fr)_160px] gap-4'
 
 function exportCsv(rows: RosterDoctor[], day: string) {
   const header = ['Doctor', 'Department', 'Phone', 'Shift', 'Slots', 'Booked', 'Status']
-  const lines = rows.map((d) => [d.name, d.department, d.phone ?? '', d.shift ?? 'Not scheduled', d.slots, d.booked, STATE[d.state].label])
+  const lines = rows.map((d) => [d.name, d.department, d.phone ?? '', d.shift ?? 'Not scheduled', d.slots, d.booked, d.stateNote ?? STATE[d.state].label])
   const csv = [header, ...lines].map((l) => l.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
   const a = document.createElement('a')
@@ -44,122 +53,152 @@ function exportCsv(rows: RosterDoctor[], day: string) {
   URL.revokeObjectURL(url)
 }
 
-export function RosterList({ doctors, departments, day }: { doctors: RosterDoctor[]; departments: string[]; day: string }) {
-  const [query, setQuery] = useState('')
-  const [dept, setDept] = useState('all')
+/** Downloads the day's duty sheet (CSV). */
+export function DutySheetButton({ doctors, day, className, label = 'Duty sheet' }: { doctors: RosterDoctor[]; day: string; className: string; label?: string }) {
+  return (
+    <button type="button" onClick={() => exportCsv(doctors, day)} disabled={!doctors.length} className={`${className} disabled:opacity-50`}>
+      <Download className="w-4 h-4" /> {label}
+    </button>
+  )
+}
 
-  const groups = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    const list = doctors.filter(
-      (d) => (dept === 'all' || d.department === dept) && (!q || [d.name, d.department, d.credentials, d.phone].some((s) => s?.toLowerCase().includes(q))),
-    )
-    const byDept = new Map<string, RosterDoctor[]>()
-    for (const d of list) byDept.set(d.department, [...(byDept.get(d.department) ?? []), d])
-    return Array.from(byDept.entries())
-  }, [doctors, query, dept])
+/**
+ * The day's roster after the HosRoster/DeskHosRoster exports: on phones a card per doctor that opens to their
+ * morning, afternoon and evening; on desktops the shift timeline from 8 AM to 9 PM.
+ */
+export function RosterList({ doctors, departments, day }: { doctors: RosterDoctor[]; departments: string[]; day: string }) {
+  const [open, setOpen] = useState<string | null>(doctors[0]?.id ?? null)
+  const empty = 'No doctors yet. Add your first doctor to start publishing slots.'
+  const slotsHref = (d: RosterDoctor) => `/hospital/doctors/${d.id}/schedule?date=${day}`
 
   return (
-    <div className="flex flex-col gap-4 md:gap-stack-md">
-      <div className="p-3 md:p-4 bg-surface-container-lowest rounded-xl shadow-sm border border-surface-container md:border-transparent flex flex-col gap-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <label className="relative flex-1 min-w-0 sm:max-w-sm">
-            <Search className="w-5 h-5 text-indigo-gray-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search doctor, department or phone…"
-              aria-label="Search doctors"
-              className="w-full pl-11 pr-4 py-2.5 rounded-full bg-surface-container-low text-[14px] text-indigo-gray-900 placeholder:text-indigo-gray-600 focus:outline-none focus:ring-2 focus:ring-vibrant-blue/30"
-            />
-          </label>
-          <button type="button" onClick={() => exportCsv(groups.flatMap(([, list]) => list), day)} className="self-end sm:self-auto px-4 py-2 rounded-full bg-surface-container-low hover:bg-surface-container text-indigo-gray-900 font-label-sm text-label-sm flex items-center gap-1.5">
-            <Download className="w-4 h-4 text-vibrant-blue" /> Export Duty Sheet
-          </button>
+    <>
+      {/* Phones */}
+      <section className="lg:hidden">
+        <div className="flex items-center justify-between gap-3 mt-3.5">
+          <h2 className="text-[16px] font-extrabold">Doctors</h2>
+          <DutySheetButton doctors={doctors} day={day} label="Export duty sheet" className="flex items-center gap-[5px] text-[13px] font-extrabold text-[#2A4DD0]" />
         </div>
-        {departments.length > 1 && (
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-3 px-3 md:mx-0 md:px-0">
-            {['all', ...departments].map((d) => (
-              <button
-                key={d}
-                type="button"
-                aria-pressed={dept === d}
-                onClick={() => setDept(d)}
-                className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold whitespace-nowrap ${dept === d ? 'bg-vibrant-blue text-on-primary' : 'bg-surface-container-low text-indigo-gray-600 hover:text-indigo-gray-900'}`}
-              >
-                {d === 'all' ? 'All departments' : d}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {groups.length === 0 ? (
-        <EmptyState icon={Stethoscope}>{doctors.length ? 'No doctor matches your search.' : 'No doctors yet. Add your first doctor to start publishing slots.'}</EmptyState>
-      ) : (
-        groups.map(([department, list]) => {
-          const onDuty = list.filter((d) => d.state !== 'off').length
+        {doctors.length === 0 && <p className="mt-3 text-[13px] text-[#5B667A]">{empty}</p>}
+        {doctors.map((d) => {
+          const isOpen = open === d.id
+          const state = STATE[d.state]
           return (
-            <section key={department} className="bg-surface-container-lowest rounded-2xl md:rounded-xl p-4 md:p-stack-md shadow-sm border border-surface-container md:border-transparent flex flex-col gap-3 md:gap-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                    <Stethoscope className="w-5 h-5" />
+            <article key={d.id} className={`${card} mt-2.5 p-3.5 ${isOpen ? '!shadow-[0_0_0_1.5px_#2A4DD0]' : ''}`}>
+              <button type="button" onClick={() => setOpen(isOpen ? null : d.id)} aria-expanded={isOpen} className="w-full flex items-center gap-3 text-left">
+                <Initials name={d.name} image={d.image} className="w-11 h-11 text-[13px]" />
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[15px] font-extrabold truncate">{d.name}</span>
+                  <span className="block text-[12px] text-[#5B667A] truncate">{d.credentials}</span>
+                </span>
+                <span className="shrink-0 text-right">
+                  <span className="block text-[12px] font-extrabold" style={{ color: state.color }}>
+                    {d.stateNote ?? state.label}
                   </span>
-                  <div className="min-w-0">
-                    <h3 className="font-title-md text-[16px] md:text-title-md font-bold text-indigo-gray-900 truncate">{department}</h3>
-                    <span className="text-[12px] text-indigo-gray-600">
-                      {list.length} {list.length === 1 ? 'doctor' : 'doctors'}
-                    </span>
+                  <span className="block text-[12px] text-[#5B667A]">{d.slots ? `${d.booked} / ${d.slots} booked` : 'No slots'}</span>
+                </span>
+                <ChevronDown className={`w-4 h-4 text-[#8A94A6] shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {isOpen && (
+                <div className="mt-3">
+                  {d.periods.map((p) => (
+                    <div key={p.label} className="flex justify-between gap-2 py-2.5 border-t border-[#EEF2F7] text-[13px]">
+                      <span className="min-w-0">
+                        <span className="block font-extrabold">{p.label}</span>
+                        <span className="block text-[12px] text-[#5B667A]">{p.hours}</span>
+                      </span>
+                      <span className={`font-extrabold shrink-0 ${p.slots ? '' : 'text-[#98A2B3]'}`}>{p.slots ? plural(p.slots, 'slot') : 'No slots'}</span>
+                    </div>
+                  ))}
+                  <div className="grid grid-cols-3 gap-2 mt-2.5">
+                    {d.phone ? (
+                      <a href={telHref(d.phone)} className={`${btnOutline} !h-[38px] !px-2 !text-[12.5px]`}>
+                        <Phone className="w-3.5 h-3.5" /> Call
+                      </a>
+                    ) : (
+                      <span className={`${btnOutline} !h-[38px] !px-2 !text-[12.5px] opacity-50`}>No phone</span>
+                    )}
+                    <EditDoctorButton doctor={d.edit} departments={departments} className={`${btnOutline} !h-[38px] !px-2 !text-[12.5px]`} />
+                    <Link href={slotsHref(d)} className={`${btnPrimary} !h-[38px] !px-2 !text-[12.5px] !shadow-none`}>
+                      <CalendarPlus className="w-3.5 h-3.5" /> Slots
+                    </Link>
                   </div>
                 </div>
-                <Chip tone={onDuty ? 'blue' : 'neutral'}>{onDuty} on duty</Chip>
-              </div>
-              <ul className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-                {list.map((d) => {
-                  const state = STATE[d.state]
-                  return (
-                    <li key={d.id} className="p-3.5 md:p-4 rounded-xl bg-surface-container-low flex flex-col justify-between gap-3">
-                      <div className="flex items-start gap-3">
-                        <Avatar name={d.name} image={d.image} className="w-12 h-12 md:w-14 md:h-14 text-sm" />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <h4 className="font-title-md text-[15px] md:text-[16px] font-bold text-indigo-gray-900 truncate">{d.name}</h4>
-                              {d.credentials && <p className="text-[12px] text-primary font-semibold truncate">{d.credentials}</p>}
-                            </div>
-                            <EditDoctorButton doctor={d.edit} departments={departments} iconOnly className="p-2 rounded-full hover:bg-surface-container text-indigo-gray-600 shrink-0" />
-                          </div>
-                          <p className="text-[12px] text-indigo-gray-600 mt-0.5">
-                            {d.shift ? `Shift: ${d.shift} • ${d.booked}/${d.slots} booked` : 'No slots published for this day'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="flex items-center gap-2 min-w-0">
-                          <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${state.dot}`} />
-                          <span className={`text-[12px] font-bold truncate ${state.tone === 'teal' ? 'text-secondary' : state.tone === 'blue' ? 'text-vibrant-blue' : state.tone === 'coral' ? 'text-soft-coral' : 'text-indigo-gray-600'}`}>
-                            {d.stateNote ?? state.label}
-                          </span>
-                        </span>
-                        <span className="flex items-center gap-1.5 shrink-0">
-                          {d.phone && (
-                            <a href={`tel:${d.phone.replace(/[^\d+]/g, '')}`} className="px-3 py-1.5 rounded-full bg-vibrant-blue text-on-primary text-[12px] font-bold flex items-center gap-1">
-                              <Phone className="w-3.5 h-3.5" /> Call
-                            </a>
-                          )}
-                          <Link href={`/hospital/doctors/${d.id}/schedule?date=${day}`} className="px-3 py-1.5 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-indigo-gray-900 text-[12px] font-bold flex items-center gap-1">
-                            <CalendarPlus className="w-3.5 h-3.5 text-vibrant-blue" /> Slots
-                          </Link>
-                        </span>
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
-            </section>
+              )}
+            </article>
           )
-        })
-      )}
-    </div>
+        })}
+      </section>
+
+      {/* Desktops: the shift timeline */}
+      <Panel className="hidden lg:block">
+        <PanelHead title="Shift timeline" sub="Clinic hours by doctor, 8 AM – 9 PM" />
+        {doctors.length === 0 ? (
+          <EmptyLine>{empty}</EmptyLine>
+        ) : (
+          <div role="table" aria-label="Shift timeline">
+            <div role="row" className={`${timeGrid} pb-2`}>
+              <span />
+              <span className="relative h-4" aria-hidden>
+                {AXIS.map((h) => (
+                  <span key={h} className="absolute -translate-x-1/2 text-[11.5px] font-bold text-[#5B667A]" style={{ left: `${((h - 8) / 13) * 100}%` }}>
+                    {axisLabel(h)}
+                  </span>
+                ))}
+              </span>
+              <span />
+            </div>
+            {doctors.map((d) => {
+              const state = STATE[d.state]
+              return (
+                <div key={d.id} role="row" className={`${timeGrid} items-center py-1.5 border-t border-[#EEF2F7]`}>
+                  <span role="cell" className="flex items-center gap-2.5 min-w-0">
+                    <Initials name={d.name} image={d.image} />
+                    <span className="min-w-0">
+                      <span className="block text-[14px] font-extrabold truncate">{d.name}</span>
+                      <span className="block text-[12px] text-[#5B667A] truncate">
+                        {d.department} ·{' '}
+                        <span className="font-extrabold" style={{ color: state.color }}>
+                          {d.stateNote ?? state.label}
+                        </span>
+                      </span>
+                    </span>
+                  </span>
+                  <span
+                    role="cell"
+                    className="relative h-[52px]"
+                    style={{ background: 'repeating-linear-gradient(to right, #F4F6FA 0, #F4F6FA 1px, transparent 1px, transparent calc(100% / 13))' }}
+                  >
+                    {d.blocks.map((b) => (
+                      <span
+                        key={b.left}
+                        title={`${b.time} · ${plural(b.slots, 'slot')}`}
+                        className="absolute top-[9px] bottom-[9px] rounded-lg bg-[#2A4DD0] text-white px-2.5 flex items-center text-[12px] font-extrabold whitespace-nowrap overflow-hidden"
+                        style={{ left: `${b.left}%`, width: `${b.width}%` }}
+                      >
+                        Clinic · {plural(b.slots, 'slot')}
+                      </span>
+                    ))}
+                    {d.blocks.length === 0 && <span className="absolute inset-y-0 left-2 flex items-center text-[12px] font-bold text-[#98A2B3]">No slots this day</span>}
+                  </span>
+                  <span role="cell" className="flex items-center justify-end gap-2">
+                    <span className="text-[13px] font-extrabold whitespace-nowrap">{d.slots ? `${d.booked} / ${d.slots}` : '—'}</span>
+                    <EditDoctorButton
+                      doctor={d.edit}
+                      departments={departments}
+                      iconOnly
+                      className="w-[34px] h-[34px] rounded-[10px] border border-[#D6DDE8] bg-white flex items-center justify-center text-[#27324A] hover:bg-[#F4F6FA] shrink-0"
+                    />
+                    <Link href={slotsHref(d)} className={`${btnOutline} !h-[34px] !px-3 !text-[12.5px]`}>
+                      Slots
+                    </Link>
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </Panel>
+    </>
   )
 }

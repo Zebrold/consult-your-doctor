@@ -1,5 +1,5 @@
-import { PortalPageSkeleton } from '@/components/PageSkeleton'
+import { WorkSkeleton } from '@/components/portal/WorkSkeleton'
 
 export default function Loading() {
-  return <PortalPageSkeleton />
+  return <WorkSkeleton />
 }

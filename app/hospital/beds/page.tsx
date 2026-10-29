@@ -1,134 +1,77 @@
 import type { Metadata } from 'next'
-import type { LucideIcon } from 'lucide-react'
-import { BedDouble, BedSingle, CircleAlert, Gauge, History, Wrench } from 'lucide-react'
 import { currentTime } from '@/components/patient/data'
-import { doctorName, formatShortDate } from '@/components/patient/format'
-import { LiveRefresh } from '@/components/portal/LiveRefresh'
-import { loadHospitalBeds, loadRecentDischarges, stayDays, summarizeBeds, wardSummaries } from '@/lib/beds'
-import { loadHospitalDoctors, requireHospital } from '../_lib/hospital'
-import { AddBedsButton, BedBoard } from '../_components/BedBoard'
+import { doctorName, formatShortDate, istDateKey } from '@/components/patient/format'
+import { loadHospitalBeds, loadRecentDischarges, stayDays } from '@/lib/beds'
+import { dayOf, loadHospitalDoctors, requireHospital } from '../_lib/hospital'
+import { BedBoard, type BedStats } from '../_components/BedBoard'
 import { BedSyncNotice } from '../_components/BedSyncNotice'
+import { Panel, PanelHead } from '../_components/hos-ui'
 
 export const metadata: Metadata = { title: 'Inpatient Beds | Hospital Portal' }
 export const dynamic = 'force-dynamic'
 
-const card = 'bg-white rounded-xl p-5 border border-slate-200/90 shadow-xs'
-
-function Counter({ icon: Icon, label, value, sub }: { icon: LucideIcon; label: string; value: string; sub: string; tone?: string }) {
-  return (
-    <div className="min-w-[150px] flex-1 p-4 rounded-xl bg-white shadow-xs border border-slate-200/90 flex items-center justify-between gap-2">
-      <div className="min-w-0">
-        <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">{label}</div>
-        <div className="text-2xl font-bold tracking-tight mt-0.5 text-slate-900 tabular-nums">{value}</div>
-        <div className="text-xs text-slate-500 truncate">{sub}</div>
-      </div>
-      <span className="w-9 h-9 rounded-lg bg-slate-100 border border-slate-200/60 flex items-center justify-center text-slate-600 shrink-0">
-        <Icon className="w-4 h-4" />
-      </span>
-    </div>
-  )
-}
+// Discharges read for today's counts and the average stay; the card lists the latest few.
+const DISCHARGES_READ = 40
+const DISCHARGES_SHOWN = 6
 
 export default async function HospitalBedsPage() {
-  const { admin, hospital } = await requireHospital()
+  const { admin, hospital, staff } = await requireHospital()
   const now = currentTime()
-  const [beds, doctors, discharges] = await Promise.all([loadHospitalBeds(admin, hospital.id), loadHospitalDoctors(admin, hospital.id), loadRecentDischarges(admin, hospital.id)])
-  const summary = summarizeBeds(beds.data)
-  const wards = wardSummaries(beds.data)
+  const today = istDateKey(now)
+  const [beds, doctors, discharges] = await Promise.all([
+    loadHospitalBeds(admin, hospital.id),
+    loadHospitalDoctors(admin, hospital.id),
+    loadRecentDischarges(admin, hospital.id, DISCHARGES_READ),
+  ])
+
+  const stays = discharges.map((d) => stayDays(d.admittedAt, d.dischargedAt!))
+  const stats: BedStats = {
+    admittedToday: [...beds.data.flatMap((b) => (b.admission ? [b.admission] : [])), ...discharges].filter((a) => dayOf(a.admittedAt) === today).length,
+    dischargedToday: discharges.filter((d) => dayOf(d.dischargedAt) === today).length,
+    avgStay: stays.length ? stays.reduce((s, n) => s + n, 0) / stays.length : null,
+    staysCounted: stays.length,
+  }
+
+  const recent = (
+    <Panel>
+      <PanelHead title="Recent discharges" sub="Patients who went home from your wards" />
+      {discharges.length === 0 ? (
+        <p className="py-3 text-[13px] text-[#5B667A] border-t border-[#EEF2F7]">Discharged patients appear here.</p>
+      ) : (
+        <ul>
+          {discharges.slice(0, DISCHARGES_SHOWN).map((d) => (
+            <li key={d.id} className="flex items-center justify-between gap-3 py-2.5 border-t border-[#EEF2F7]">
+              <span className="min-w-0">
+                <span className="block text-[13.5px] font-extrabold truncate">{d.patient.name}</span>
+                <span className="block text-[12px] text-[#5B667A] truncate">{[d.bed, d.doctor?.name].filter(Boolean).join(' · ')}</span>
+              </span>
+              <span className="text-right shrink-0">
+                <span className="block text-[12.5px] font-bold">{formatShortDate(d.dischargedAt!)}</span>
+                <span className="block text-[11.5px] text-[#5B667A]">{stayDays(d.admittedAt, d.dischargedAt!)} days</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  )
 
   return (
-    <>
-      <section className="flex flex-col lg:flex-row lg:items-end justify-between gap-3">
-        <div>
-          <span className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-surface-container-high text-primary font-label-sm text-label-sm uppercase tracking-wider">
-            Inpatient care <LiveRefresh label="Live" />
-          </span>
-          <h1 className="font-headline-lg text-[24px] md:text-headline-lg text-indigo-gray-900 font-bold tracking-tight mt-1.5">Inpatient Beds &amp; Bed Allocation</h1>
-          <p className="text-sm md:text-body-md text-indigo-gray-600">
-            Every bed by ward. Admissions show on the attending doctor’s dashboard and in the patient’s profile as soon as you save them.
-          </p>
-        </div>
-        {beds.ready && <AddBedsButton wards={wards.map((w) => w.ward)} />}
-      </section>
-
-      {!beds.persistedInDb && <BedSyncNotice />}
-
-      <>
-          <section className="flex md:grid md:grid-cols-4 gap-2.5 md:gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
-            <Counter icon={BedDouble} label="Total beds" value={String(summary.total)} sub={`${wards.length} ${wards.length === 1 ? 'ward' : 'wards'}`} tone="text-indigo-gray-900" />
-            <Counter icon={Gauge} label="Occupied" value={String(summary.occupied)} sub={`${summary.occupancy}% occupancy`} tone="text-vibrant-blue" />
-            <Counter icon={BedSingle} label="Available" value={String(summary.available)} sub="Ready for a patient" tone="text-secondary" />
-            <Counter icon={Wrench} label="Cleaning / repair" value={String(summary.unavailable)} sub="Not ready yet" tone={summary.unavailable ? 'text-soft-coral' : 'text-indigo-gray-900'} />
-          </section>
-
-          <section className="grid grid-cols-1 xl:grid-cols-12 gap-4 md:gap-6 items-start">
-            <div className="xl:col-span-8 min-w-0">
-              <BedBoard beds={beds.data} doctors={doctors.map((d) => ({ id: d.id, name: doctorName(d.name), department: d.department }))} now={now} />
-            </div>
-
-            <div className="xl:col-span-4 min-w-0 flex flex-col gap-4 md:gap-6">
-              <div className={card}>
-                <div className="flex items-center justify-between gap-3 mb-4">
-                  <div>
-                    <h2 className="font-title-md text-[18px] font-bold text-on-surface">Occupancy by Ward</h2>
-                    <p className="text-[13px] text-indigo-gray-600">Occupied beds out of each ward’s total</p>
-                  </div>
-                  <span className="font-label-sm text-label-sm px-2.5 py-1 rounded bg-surface-container text-on-surface-variant font-bold shrink-0">{summary.occupancy}%</span>
-                </div>
-                {wards.length === 0 ? (
-                  <p className="p-4 rounded-xl bg-surface text-sm text-indigo-gray-600">Add beds to see each ward’s occupancy.</p>
-                ) : (
-                  <div className="space-y-4">
-                    {wards.map((w) => {
-                      const tone = w.occupancy >= 90 ? 'bg-soft-coral' : w.occupancy >= 70 ? 'bg-vibrant-blue' : 'bg-fresh-teal'
-                      return (
-                        <div key={w.ward} className="space-y-1.5">
-                          <div className="flex justify-between items-center gap-2 text-[14px]">
-                            <span className="font-bold text-on-surface truncate">{w.ward}</span>
-                            <span className="font-semibold text-indigo-gray-600 shrink-0">
-                              {w.occupied}/{w.total} • {w.available} free
-                            </span>
-                          </div>
-                          <div className="w-full bg-surface-container rounded-full h-2 overflow-hidden" role="img" aria-label={`${w.occupancy}% occupied`}>
-                            <div className={`${tone} h-full rounded-full`} style={{ width: `${Math.max(w.occupancy, w.occupied ? 4 : 0)}%` }} />
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-
-              <div className={card}>
-                <div className="flex items-center gap-2 mb-4">
-                  <History className="w-5 h-5 text-fresh-teal" />
-                  <h2 className="font-title-md text-[18px] font-bold text-on-surface">Recent Discharges</h2>
-                </div>
-                {discharges.length === 0 ? (
-                  <p className="p-4 rounded-xl bg-surface text-sm text-indigo-gray-600">Discharged patients appear here.</p>
-                ) : (
-                  <ul className="flex flex-col gap-2">
-                    {discharges.map((d) => (
-                      <li key={d.id} className="p-3 rounded-xl bg-surface flex items-center justify-between gap-3">
-                        <span className="min-w-0">
-                          <span className="block font-semibold text-[14px] text-on-surface truncate">{d.patient.name}</span>
-                          <span className="block text-[12px] text-indigo-gray-600 truncate">
-                            {d.bed}
-                            {d.doctor ? ` • ${d.doctor.name}` : ''}
-                          </span>
-                        </span>
-                        <span className="text-right shrink-0">
-                          <span className="block text-[12px] font-semibold text-on-surface">{formatShortDate(d.dischargedAt!)}</span>
-                          <span className="block text-[11px] text-indigo-gray-600">{stayDays(d.admittedAt, d.dischargedAt!)} days</span>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          </section>
-        </>
-    </>
+    <BedBoard
+      beds={beds.data}
+      doctors={doctors.map((d) => ({ id: d.id, name: doctorName(d.name), department: d.department }))}
+      now={now}
+      staff={staff}
+      ready={beds.ready}
+      stats={stats}
+      notice={
+        beds.persistedInDb ? undefined : (
+          <div className="mb-3.5 lg:mb-5 empty:hidden">
+            <BedSyncNotice />
+          </div>
+        )
+      }
+      recent={recent}
+    />
   )
 }

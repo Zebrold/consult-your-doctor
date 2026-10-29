@@ -17,7 +17,20 @@ export type EditableHospital = Pick<
 >
 
 /** Edits everything patients see on the hospital's public page. */
-export function HospitalProfileEditor({ hospital, location, className, label = 'Edit Profile' }: { hospital: EditableHospital; location?: LatLng | null; className: string; label?: string }) {
+export function HospitalProfileEditor({
+  hospital,
+  location,
+  className,
+  label = 'Edit Profile',
+  icon = true,
+}: {
+  hospital: EditableHospital
+  location?: LatLng | null
+  className: string
+  label?: string
+  /** Show the sliders icon before the label (off for the cards' "+ Add" links). */
+  icon?: boolean
+}) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -40,7 +53,7 @@ export function HospitalProfileEditor({ hospital, location, className, label = '
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className={className}>
-        <SlidersHorizontal className="w-[18px] h-[18px]" /> {label}
+        {icon && <SlidersHorizontal className="w-[18px] h-[18px]" />} {label}
       </button>
       {open && (
         <DeskDialog title="Edit Hospital Profile" subtitle="Patients see these details on your hospital page and when they book your doctors." onClose={() => setOpen(false)} wide>

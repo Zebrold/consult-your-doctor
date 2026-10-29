@@ -1,11 +1,11 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { ArrowLeft, CalendarDays, Clock } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { currentTime } from '@/components/patient/data'
-import { doctorName, formatLongDate, formatTime, istDateKey } from '@/components/patient/format'
-import { Avatar, Card, CardHeader, Chip, EmptyState } from '@/components/portal/ui'
+import { doctorName, formatINR, formatLongDate, formatTime, istDateKey } from '@/components/patient/format'
 import { dayStartIso, loadHospitalDoctors, loadHospitalSlots, requireHospital } from '../../../_lib/hospital'
+import { EmptyLine, HosBackHeader, HosBody, Initials, Panel, PanelHead } from '../../../_components/hos-ui'
 import { SlotGeneratorForm } from './SlotGeneratorForm'
 import { DeleteSlotButton } from './DeleteSlotButton'
 import { DatePicker } from './DatePicker'
@@ -28,71 +28,78 @@ export default async function DoctorSchedulePage(props: { params: Promise<{ id: 
   const start = dayStartIso(selected)
   const slots = await loadHospitalSlots(admin, [doctor.id], start, new Date(Date.parse(start) + DAY).toISOString())
   const booked = slots.filter((s) => s.booked).length
+  const name = doctorName(doctor.name)
+  const facts = [doctor.department, doctor.fee != null ? `${formatINR(doctor.fee)} per consultation` : null].filter(Boolean).join(' · ')
+  const rosterHref = `/hospital/doctors${selected === istDateKey(now) ? '' : `?date=${selected}`}`
 
   return (
     <>
-      <Link href="/hospital/doctors" className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-gray-600 hover:text-indigo-gray-900 self-start">
-        <ArrowLeft className="w-4 h-4" /> Back to Roster
-      </Link>
-
-      <Card className="flex items-center gap-3 md:gap-4">
-        <Avatar name={doctor.name} image={doctor.image} className="w-12 h-12 md:w-14 md:h-14 text-base" />
-        <div className="min-w-0">
-          <h1 className="font-title-md text-[18px] md:text-title-md font-bold text-indigo-gray-900 truncate">{doctorName(doctor.name)}</h1>
-          <p className="text-sm text-indigo-gray-600 truncate">
-            {[doctor.department, doctor.fee != null ? `₹${doctor.fee} per consultation` : null].filter(Boolean).join(' • ')}
-          </p>
-        </div>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-gutter items-start">
-        <div className="flex flex-col gap-4 md:gap-gutter">
-          <Card>
-            <CardHeader title="Pick a Day" subtitle="See the slots published for that day" />
-            <DatePicker selectedDate={selected} />
-          </Card>
-          <Card>
-            <CardHeader title="Publish Slots" subtitle="Times are in India time. Existing slots are never duplicated." />
-            <SlotGeneratorForm doctorId={doctor.id} selectedDate={selected} />
-          </Card>
+      <HosBackHeader backHref={rosterHref} backLabel="Back to the roster" title={`${name} · slots`}>
+        <p className="mt-1 ml-[52px] text-[13px] text-[#DCE6FF] truncate">{facts}</p>
+      </HosBackHeader>
+      <HosBody>
+        <div className="hidden lg:flex items-center gap-4 mb-[22px]">
+          <Link href={rosterHref} aria-label="Back to the roster" className="w-[42px] h-[42px] rounded-[11px] border border-[#D6DDE8] bg-white flex items-center justify-center hover:bg-[#F4F6FA]">
+            <ArrowLeft className="w-[18px] h-[18px]" />
+          </Link>
+          <Initials name={name} image={doctor.image} className="w-12 h-12 text-[14px]" />
+          <div className="min-w-0">
+            <h1 className="text-[26px] font-extrabold tracking-[-0.02em] leading-tight truncate">{name}</h1>
+            <p className="text-[14px] text-[#5B667A] truncate">{facts}</p>
+          </div>
         </div>
 
-        <Card className="lg:col-span-2">
-          <CardHeader
-            title={formatLongDate(`${selected}T12:00:00+05:30`)}
-            subtitle="Open slots can be removed; booked ones can’t"
-            action={<Chip tone="blue">{booked}/{slots.length} booked</Chip>}
-          />
-          {slots.length === 0 ? (
-            <EmptyState icon={Clock}>No slots published for this day yet.</EmptyState>
-          ) : (
-            <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 md:gap-3">
-              {slots.map((s) => {
-                const past = Date.parse(s.start) < now
-                return (
-                  <li
-                    key={s.id}
-                    className={`relative rounded-xl p-3 text-center border ${
-                      s.booked ? 'bg-primary-fixed/50 border-primary-fixed text-primary' : past ? 'bg-surface-container-low border-transparent text-indigo-gray-600 opacity-60' : 'bg-surface-container-lowest border-outline-variant/40 text-indigo-gray-900'
-                    }`}
-                  >
-                    <div className="text-[14px] font-bold">{formatTime(s.start)}</div>
-                    <div className="text-[11px] mt-0.5">{s.booked ? 'Booked' : past ? 'Past' : 'Open'}</div>
-                    {!s.booked && !past && (
-                      <div className="absolute top-1 right-1">
-                        <DeleteSlotButton scheduleId={s.id} doctorId={doctor.id} />
-                      </div>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-          <p className="text-[12px] text-indigo-gray-600 mt-4 flex items-center gap-1.5">
-            <CalendarDays className="w-4 h-4" /> Patients can book open slots on the website straight away.
-          </p>
-        </Card>
-      </div>
+        <div className="flex flex-col gap-3.5 lg:grid lg:grid-cols-[360px_minmax(0,1fr)] lg:gap-5 lg:items-start">
+          <div className="flex flex-col gap-3.5 lg:gap-5">
+            <Panel>
+              <PanelHead title="Pick a day" sub="See the slots published for that day" />
+              <DatePicker selectedDate={selected} />
+            </Panel>
+            <Panel>
+              <PanelHead title="Publish slots" sub="Times are in India time. Existing slots are never duplicated." />
+              <SlotGeneratorForm doctorId={doctor.id} selectedDate={selected} />
+            </Panel>
+          </div>
+
+          <Panel>
+            <PanelHead
+              title={formatLongDate(`${selected}T12:00:00+05:30`)}
+              sub="Open slots can be removed; booked ones can’t"
+              right={
+                <span className="shrink-0 text-[13px] font-extrabold text-[#2A4DD0]">
+                  {booked} / {slots.length} booked
+                </span>
+              }
+            />
+            {slots.length === 0 ? (
+              <EmptyLine>No slots published for this day yet.</EmptyLine>
+            ) : (
+              <ul className="grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-6 gap-2 lg:gap-2.5 mt-1">
+                {slots.map((s) => {
+                  const past = Date.parse(s.start) < now
+                  return (
+                    <li
+                      key={s.id}
+                      className={`relative h-[58px] rounded-xl flex flex-col items-center justify-center ${
+                        s.booked ? 'bg-[#2A4DD0] text-white' : past ? 'bg-[#F4F6FA] text-[#8A94A6]' : 'bg-white text-[#067647] shadow-[inset_0_0_0_1.5px_#ABEFC6]'
+                      }`}
+                    >
+                      <span className="text-[13.5px] font-extrabold">{formatTime(s.start)}</span>
+                      <span className="text-[11px] font-bold opacity-85">{s.booked ? 'Booked' : past ? 'Past' : 'Open'}</span>
+                      {!s.booked && !past && (
+                        <span className="absolute top-0.5 right-0.5">
+                          <DeleteSlotButton scheduleId={s.id} doctorId={doctor.id} />
+                        </span>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+            <p className="mt-4 text-[12.5px] text-[#5B667A]">Patients can book open slots on the website straight away.</p>
+          </Panel>
+        </div>
+      </HosBody>
     </>
   )
 }

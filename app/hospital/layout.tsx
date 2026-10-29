@@ -1,10 +1,6 @@
 import type { Metadata } from 'next'
-import { Hospital } from 'lucide-react'
-import { PortalDock } from '@/components/portal/PortalNav'
-import { TopBar } from '@/components/portal/TopBar'
-import { PortalFooter } from '@/components/AppFooter'
-import { TopBarChip } from '@/components/portal/TopBarChip'
 import { requireHospital } from './_lib/hospital'
+import { HospitalDock } from './_components/HospitalDock'
 
 export const metadata: Metadata = {
   title: 'Hospital Portal',
@@ -12,26 +8,13 @@ export const metadata: Metadata = {
 
 export default async function HospitalLayout({ children }: { children: React.ReactNode }) {
   const { hospital, staff } = await requireHospital()
-  const live = hospital.status === 'active'
 
+  // The hospital workspace: the blue sidebar and white top bar on desktops, the tab bar on phones (HospitalDock), and
+  // the pale app background behind every page.
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-on-surface antialiased">
-      <TopBar
-        homeHref="/hospital/dashboard"
-        section="Hospital Portal"
-        person={{ name: staff.name, role: 'Hospital admin' }}
-        chips={
-          <>
-            <TopBarChip icon={Hospital}>{hospital.name}</TopBarChip>
-            <TopBarChip tone={live ? 'live' : 'off'}>{live ? 'Live for Booking' : 'Not Listed'}</TopBarChip>
-          </>
-        }
-      />
-      <PortalDock portal="hospital" />
-      <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 lg:px-margin-x-desktop pt-4 md:pt-6 pb-12 md:pb-16 flex flex-col gap-4 md:gap-stack-md">
-        {children}
-      </main>
-      <PortalFooter portal="hospital" />
+    <div className="min-h-dvh bg-[#F6F8FC] lg:bg-[#F4F6FA] text-[#0B1B3F] font-(family-name:--font-manrope) antialiased lg:pl-[260px] lg:pt-[72px]">
+      <HospitalDock hospital={{ id: hospital.id, name: hospital.name }} staff={{ name: staff.name }} />
+      {children}
     </div>
   )
 }

@@ -10,7 +10,7 @@ export function DatePicker({ selectedDate }: { selectedDate: string }) {
       type="date" 
       name="date"
       value={selectedDate}
-      className="w-full rounded-lg p-3 bg-surface-container-low text-indigo-gray-900 outline-none focus:ring-2 focus:ring-vibrant-blue/30"
+      className="w-full h-12 rounded-xl px-3.5 bg-white border-[1.5px] border-[#D6DDE8] text-[14px] font-bold text-[#0B1B3F] outline-none focus:border-[#2A4DD0]"
       onChange={(e) => {
         router.push(`?date=${e.target.value}`)
       }}

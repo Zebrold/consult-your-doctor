@@ -1,55 +1,85 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { CalendarClock, CalendarDays, ChevronLeft, ChevronRight, Moon, Stethoscope, Sun, Sunrise, Users } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { currentTime } from '@/components/patient/data'
-import { doctorName, formatLongDate, formatTime, istDateKey } from '@/components/patient/format'
-import { Card, CardHeader, Chip, EmptyState, SegmentBar, StatCard } from '@/components/portal/ui'
-import { dayOf, dayStartIso, loadHospitalDoctors, loadHospitalSlots, requireHospital, type Slot } from '../_lib/hospital'
+import { IST, doctorName, formatTime, istDateKey } from '@/components/patient/format'
+import { dayOf, dayStartIso, istHour, loadHospitalDoctors, loadHospitalSlots, requireHospital, shiftDay, type Slot } from '../_lib/hospital'
 import { AddDoctorButton } from '../_components/DoctorDialogs'
-import { RosterList, type RosterDoctor, type RosterState } from '../_components/RosterList'
+import { DutySheetButton, RosterList, type RosterDoctor, type RosterState } from '../_components/RosterList'
+import { BarChart, DeskHead, EmptyLine, HosBody, HosHeader, Meter, Panel, PanelHead, PhoneStats, StatCard, btnOutline, btnPrimary, plural } from '../_components/hos-ui'
 
 export const metadata: Metadata = { title: 'Duty Roster | Hospital Portal' }
 export const dynamic = 'force-dynamic'
 
 const DAY = 86_400_000
-const shift = (key: string, days: number) => istDateKey(Date.parse(`${key}T12:00:00+05:30`) + days * DAY)
-const hourOf = (iso: string) => Number(new Date(iso).toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', hourCycle: 'h23' }))
+const SLOT_MS = 15 * 60_000
+// The timeline runs from 8 AM to 9 PM.
+const OPEN_MIN = 8 * 60
+const CLOSE_MIN = 21 * 60
 
 const PERIODS = [
-  { key: 'morning', label: 'Morning', hours: 'Before 12 PM', icon: Sunrise, test: (h: number) => h < 12 },
-  { key: 'afternoon', label: 'Afternoon', hours: '12 PM – 5 PM', icon: Sun, test: (h: number) => h >= 12 && h < 17 },
-  { key: 'evening', label: 'Evening', hours: 'After 5 PM', icon: Moon, test: (h: number) => h >= 17 },
+  { label: 'Morning', hours: 'Before 12 PM', test: (h: number) => h < 12 },
+  { label: 'Afternoon', hours: '12 – 5 PM', test: (h: number) => h >= 12 && h < 17 },
+  { label: 'Evening', hours: 'After 5 PM', test: (h: number) => h >= 17 },
 ]
+
+/** Minutes past midnight in India for an ISO timestamp. */
+const istMinutes = (ms: number) => Math.floor(((ms + 330 * 60_000) % DAY) / 60_000)
+const endOf = (s: Slot) => (s.end ? Date.parse(s.end) : Date.parse(s.start) + SLOT_MS)
 
 function stateFor(slots: Slot[], isToday: boolean, now: number): { state: RosterState; note: string | null } {
   if (slots.length === 0) return { state: 'off', note: null }
   if (!isToday) return { state: 'scheduled', note: null }
-  const current = slots.find((s) => Date.parse(s.start) <= now && Date.parse(s.end ?? s.start) > now)
+  const current = slots.find((s) => Date.parse(s.start) <= now && endOf(s) > now)
   if (current?.booked) return { state: 'consulting', note: null }
-  const last = slots[slots.length - 1]
-  if (Date.parse(last.end ?? last.start) <= now) return { state: 'done', note: null }
+  if (endOf(slots[slots.length - 1]) <= now) return { state: 'done', note: null }
   if (Date.parse(slots[0].start) > now) return { state: 'later', note: `Starts ${formatTime(slots[0].start)}` }
-  const nextOpen = slots.find((s) => !s.booked && Date.parse(s.start) > now)
-  return { state: 'available', note: nextOpen ? `Available • next open ${formatTime(nextOpen.start)}` : 'Available • fully booked' }
+  return { state: 'available', note: null }
+}
+
+/** Back-to-back slots joined into clinic sessions, placed on the 8 AM – 9 PM line. */
+function timelineBlocks(slots: Slot[]): RosterDoctor['blocks'] {
+  const runs: { start: number; end: number; slots: number }[] = []
+  for (const s of slots) {
+    const start = Date.parse(s.start)
+    const last = runs[runs.length - 1]
+    if (last && start - last.end <= SLOT_MS) {
+      last.end = Math.max(last.end, endOf(s))
+      last.slots += 1
+    } else runs.push({ start, end: endOf(s), slots: 1 })
+  }
+  const span = CLOSE_MIN - OPEN_MIN
+  return runs.flatMap((r) => {
+    const from = Math.max(OPEN_MIN, istMinutes(r.start))
+    const to = Math.min(CLOSE_MIN, istMinutes(r.end) || 24 * 60)
+    if (to <= from) return []
+    const left = ((from - OPEN_MIN) / span) * 100
+    return [{ left, width: Math.max(2, ((to - from) / span) * 100), slots: r.slots, time: `${formatTime(new Date(r.start).toISOString())} – ${formatTime(new Date(r.end).toISOString())}` }]
+  })
 }
 
 export default async function HospitalRosterPage(props: { searchParams?: Promise<{ date?: string }> }) {
   const params = (await props.searchParams) ?? {}
-  const { admin, hospital } = await requireHospital()
+  const { admin, hospital, staff } = await requireHospital()
   const now = currentTime()
   const today = istDateKey(now)
   const day = params.date && /^\d{4}-\d{2}-\d{2}$/.test(params.date) ? params.date : today
   const isToday = day === today
 
+  // The week (Monday to Sunday) around the chosen day, for the bookings chart
+  const weekStart = shiftDay(day, -((new Date(`${day}T12:00:00+05:30`).getUTCDay() + 6) % 7))
+  const week = Array.from({ length: 7 }, (_, i) => shiftDay(weekStart, i))
+
   const doctors = await loadHospitalDoctors(admin, hospital.id)
   const ids = doctors.map((d) => d.id)
-  const windowStart = dayStartIso(day < today ? day : today)
-  const windowEnd = new Date(Math.max(Date.parse(dayStartIso(day)) + DAY, now + 7 * DAY)).toISOString()
-  const slots = await loadHospitalSlots(admin, ids, windowStart, windowEnd)
+  const from = [weekStart, today].sort()[0]
+  const until = Math.max(Date.parse(dayStartIso(shiftDay(week[6], 1))), Date.parse(dayStartIso(shiftDay(day, 1))), now + 7 * DAY)
+  const slots = await loadHospitalSlots(admin, ids, dayStartIso(from), new Date(until).toISOString())
 
   const daySlots = slots.filter((s) => dayOf(s.start) === day)
-  const upcomingOpen = slots.filter((s) => !s.booked && Date.parse(s.start) > now && Date.parse(s.start) < now + 7 * DAY)
-  const scheduledThisWeek = new Set(slots.filter((s) => Date.parse(s.start) > now && Date.parse(s.start) < now + 7 * DAY).map((s) => s.doctorId))
+  const nextWeek = slots.filter((s) => Date.parse(s.start) > now && Date.parse(s.start) < now + 7 * DAY)
+  const openNextWeek = nextWeek.filter((s) => !s.booked).length
+  const scheduledNextWeek = new Set(nextWeek.map((s) => s.doctorId))
   const departments = Array.from(new Set(doctors.map((d) => d.department))).sort()
 
   const roster: RosterDoctor[] = doctors.map((d) => {
@@ -62,12 +92,18 @@ export default async function HospitalRosterPage(props: { searchParams?: Promise
       image: d.image,
       phone: d.phone,
       department: d.department,
-      credentials: [d.qualifications, d.experience ? `${d.experience} yrs` : null].filter(Boolean).join(' • ') || d.specialty,
-      shift: mine.length ? `${formatTime(mine[0].start)} – ${formatTime(last.end ?? last.start)}` : null,
+      credentials: [d.department, d.experience ? `${d.experience} yrs` : null].filter(Boolean).join(' · '),
+      shift: mine.length ? `${formatTime(mine[0].start)} – ${formatTime(new Date(endOf(last)).toISOString())}` : null,
       slots: mine.length,
       booked: mine.filter((s) => s.booked).length,
       state,
       stateNote: note,
+      periods: PERIODS.map((p) => {
+        const inPeriod = mine.filter((s) => p.test(istHour(s.start)))
+        const end = inPeriod.length ? new Date(endOf(inPeriod[inPeriod.length - 1])).toISOString() : null
+        return { label: p.label, hours: end ? `${formatTime(inPeriod[0].start)} – ${formatTime(end)}` : p.hours, slots: inPeriod.length }
+      }),
+      blocks: timelineBlocks(mine),
       edit: {
         id: d.id,
         name: doctorName(d.name),
@@ -85,126 +121,134 @@ export default async function HospitalRosterPage(props: { searchParams?: Promise
   const rank: Record<RosterState, number> = { consulting: 0, available: 1, later: 2, scheduled: 2, done: 3, off: 4 }
   roster.sort((a, b) => rank[a.state] - rank[b.state] || a.name.localeCompare(b.name))
 
-  const onDuty = roster.filter((d) => d.state !== 'off')
-  const bookedToday = daySlots.filter((s) => s.booked).length
-  const nowHour = hourOf(new Date(now).toISOString())
-  const unscheduled = doctors.filter((d) => !scheduledThisWeek.has(d.id))
+  const onDuty = roster.filter((d) => d.state !== 'off').length
+  const booked = daySlots.filter((s) => s.booked).length
+  const fullPct = daySlots.length ? Math.round((booked / daySlots.length) * 100) : 0
+  const unscheduled = doctors.filter((d) => !scheduledNextWeek.has(d.id))
+  const byDept = departments.map((dep) => ({ dep, count: doctors.filter((d) => d.department === dep).length })).sort((a, b) => b.count - a.count)
+  const weekBars = week.map((k) => ({
+    label: new Date(`${k}T12:00:00+05:30`).toLocaleDateString('en-US', { timeZone: IST, weekday: 'short' }),
+    value: slots.filter((s) => s.booked && dayOf(s.start) === k).length,
+    active: k === day,
+  }))
+
+  const dayLabel = `${isToday ? 'Today, ' : ''}${new Date(`${day}T12:00:00+05:30`).toLocaleDateString('en-GB', { timeZone: IST, weekday: isToday ? undefined : 'short', day: 'numeric', month: 'short' })}`
+  const subtitle = 'Who is consulting, when, and how full their day is.'
+  const dayHref = (key: string) => (key === today ? '/hospital/doctors' : `/hospital/doctors?date=${key}`)
 
   return (
     <>
-      <Card className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-        <div>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">
-            Built from published slots
-          </span>
-          <h1 className="font-headline-lg text-[24px] md:text-headline-lg text-indigo-gray-900 font-bold tracking-tight mt-2">Doctors &amp; Duty Roster</h1>
-          <p className="text-sm md:text-body-md text-indigo-gray-600">Who is consulting, when, and how full their day is.</p>
+      <HosHeader staff={staff} title="Doctors & duty roster" subtitle={subtitle}>
+        <div className="flex items-center justify-between p-1.5 rounded-[14px] bg-white text-[#0B1B3F]">
+          <Link href={dayHref(shiftDay(day, -1))} aria-label="Previous day" className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center active:bg-[#F4F6FA]">
+            <ChevronLeft className="w-5 h-5" />
+          </Link>
+          <span className="text-[14.5px] font-extrabold">{dayLabel}</span>
+          <Link href={dayHref(shiftDay(day, 1))} aria-label="Next day" className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center active:bg-[#F4F6FA]">
+            <ChevronRight className="w-5 h-5" />
+          </Link>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center bg-surface-container-low rounded-full p-1">
-            <Link href={`/hospital/doctors?date=${shift(day, -1)}`} aria-label="Previous day" className="w-8 h-8 rounded-full flex items-center justify-center text-indigo-gray-600 hover:bg-surface-container-lowest">
-              <ChevronLeft className="w-[18px] h-[18px]" />
-            </Link>
-            <span className="px-2 md:px-3 font-title-md text-[13px] md:text-[14px] font-bold text-indigo-gray-900 whitespace-nowrap">
-              {isToday ? 'Today, ' : ''}
-              {new Date(`${day}T12:00:00+05:30`).toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', weekday: isToday ? undefined : 'short', day: 'numeric', month: 'short' })}
-            </span>
-            <Link href={`/hospital/doctors?date=${shift(day, 1)}`} aria-label="Next day" className="w-8 h-8 rounded-full flex items-center justify-center text-indigo-gray-600 hover:bg-surface-container-lowest">
-              <ChevronRight className="w-[18px] h-[18px]" />
-            </Link>
-          </div>
-          {!isToday && (
-            <Link href="/hospital/doctors" className="px-3.5 py-2 rounded-full bg-surface-container-low hover:bg-surface-container text-indigo-gray-900 font-label-sm text-label-sm">
-              Today
-            </Link>
-          )}
-          <AddDoctorButton
-            departments={departments}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary hover:bg-on-primary-fixed-variant text-on-primary font-label-sm text-label-sm shadow-md"
-          />
-        </div>
-      </Card>
-
-      <section className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 md:gap-gutter">
-        <StatCard label="Doctors" value={doctors.length} note={`${departments.length} departments`} noteTone="neutral" icon={Users} tone="blue" footer={<span className="text-[11px] text-indigo-gray-600">At {hospital.name}</span>} />
-        <StatCard label={isToday ? 'On Duty Today' : 'On Duty'} value={onDuty.length} note={`of ${doctors.length}`} noteTone="neutral" icon={Stethoscope} tone="teal" footer={<span className="text-[11px] text-indigo-gray-600">With slots on this day</span>} />
-        <StatCard
-          label="Slots Booked"
-          value={bookedToday}
-          note={`of ${daySlots.length}`}
-          noteTone="neutral"
-          icon={CalendarDays}
-          tone="neutral"
-          footer={
-            <SegmentBar
-              parts={[
-                { value: bookedToday, className: 'bg-vibrant-blue', label: 'booked' },
-                { value: daySlots.length - bookedToday, className: 'bg-surface-container-highest', label: 'open' },
-              ]}
-            />
+      </HosHeader>
+      <HosBody>
+        <DeskHead
+          title="Doctors & duty roster"
+          subtitle={subtitle}
+          actions={
+            <>
+              <Link href={dayHref(shiftDay(day, -1))} aria-label="Previous day" className={`${btnOutline} !px-3`}>
+                <ChevronLeft className="w-4 h-4" />
+              </Link>
+              <span className="px-1.5 text-[14.5px] font-extrabold whitespace-nowrap">{dayLabel}</span>
+              <Link href={dayHref(shiftDay(day, 1))} aria-label="Next day" className={`${btnOutline} !px-3`}>
+                <ChevronRight className="w-4 h-4" />
+              </Link>
+              {!isToday && (
+                <Link href="/hospital/doctors" className={btnOutline}>
+                  Today
+                </Link>
+              )}
+              <DutySheetButton doctors={roster} day={day} className={btnOutline} />
+              <AddDoctorButton departments={departments} label="Add doctor" className={btnPrimary} />
+            </>
           }
         />
-        <StatCard label="Open Slots (7 Days)" value={upcomingOpen.length} icon={CalendarClock} tone="coral" footer={<span className="text-[11px] text-indigo-gray-600">Bookable by patients now</span>} />
-      </section>
 
-      <section className="grid grid-cols-1 xl:grid-cols-12 gap-4 md:gap-gutter items-start">
-        <div className="xl:col-span-8">
-          <RosterList doctors={roster} departments={departments} day={day} />
-        </div>
+        <PhoneStats
+          stats={[
+            { label: 'Doctors', value: doctors.length, note: plural(departments.length, 'department') },
+            { label: 'On duty', value: `${onDuty} of ${doctors.length}`, note: 'with slots this day', color: '#067647' },
+            { label: 'Slots booked', value: `${booked} / ${daySlots.length}`, note: `${fullPct}% full`, color: '#2A4DD0' },
+            { label: 'Open, 7 days', value: openNextWeek, note: 'bookable by patients' },
+          ]}
+        />
 
-        <div className="xl:col-span-4 flex flex-col gap-4 md:gap-gutter">
-          <Card>
-            <CardHeader title="Shift Timetable" subtitle={formatLongDate(`${day}T12:00:00+05:30`)} />
-            <ul className="flex flex-col gap-3">
-              {PERIODS.map((p) => {
-                const inPeriod = daySlots.filter((s) => p.test(hourOf(s.start)))
-                const docs = new Set(inPeriod.map((s) => s.doctorId)).size
-                const booked = inPeriod.filter((s) => s.booked).length
-                const current = isToday && p.test(nowHour)
-                return (
-                  <li key={p.key} className={`p-4 rounded-xl flex flex-col gap-2 ${current ? 'bg-primary-fixed/30' : 'bg-surface-container-low'}`}>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="flex items-center gap-2 font-title-md text-[15px] font-bold text-indigo-gray-900">
-                        <p.icon className="w-4 h-4 text-vibrant-blue" /> {p.label}
-                      </span>
-                      {current ? <Chip tone="blue">Now</Chip> : <span className="text-[12px] text-indigo-gray-600">{p.hours}</span>}
-                    </div>
-                    <p className="text-[12px] text-indigo-gray-600">
-                      {docs ? `${docs} ${docs === 1 ? 'doctor' : 'doctors'} • ${booked}/${inPeriod.length} slots booked` : 'No slots'}
-                    </p>
-                    {inPeriod.length > 0 && (
-                      <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
-                        <div className="bg-vibrant-blue h-full rounded-full" style={{ width: `${(booked / inPeriod.length) * 100}%` }} />
-                      </div>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-          </Card>
+        <section className="hidden lg:grid grid-cols-4 gap-4 mb-5">
+          <StatCard label="Doctors" value={doctors.length} note={plural(departments.length, 'department')} />
+          <StatCard label={isToday ? 'On duty today' : 'On duty'} value={`${onDuty} of ${doctors.length}`} note="With slots this day" />
+          <StatCard label="Slots booked" value={`${booked} / ${daySlots.length}`} note={`${fullPct}% full`} />
+          <StatCard label="Open next 7 days" value={openNextWeek} note="Bookable by patients" />
+        </section>
 
-          <Card>
-            <CardHeader title="No Slots This Week" subtitle="Patients can’t book these doctors until slots are published" action={<Chip tone={unscheduled.length ? 'coral' : 'teal'}>{unscheduled.length}</Chip>} />
-            {unscheduled.length === 0 ? (
-              <EmptyState icon={CalendarDays}>Every doctor has bookable slots in the next 7 days.</EmptyState>
+        <RosterList doctors={roster} departments={departments} day={day} />
+
+        {unscheduled.length > 0 && (
+          <Panel className="lg:hidden mt-3.5">
+            <NoSlotsList doctors={unscheduled.map((d) => ({ id: d.id, name: doctorName(d.name), department: d.department }))} />
+          </Panel>
+        )}
+
+        <section className="hidden lg:grid grid-cols-3 gap-5 mt-5 items-start">
+          <Panel>
+            <PanelHead title="Doctors by department" />
+            {byDept.length === 0 ? (
+              <EmptyLine>No doctors yet.</EmptyLine>
             ) : (
-              <ul className="flex flex-col gap-2">
-                {unscheduled.map((d) => (
-                  <li key={d.id} className="p-3 rounded-lg bg-surface-container-low flex items-center justify-between gap-3">
-                    <span className="min-w-0">
-                      <span className="block text-[14px] font-semibold text-indigo-gray-900 truncate">{doctorName(d.name)}</span>
-                      <span className="block text-[12px] text-indigo-gray-600 truncate">{d.department}</span>
-                    </span>
-                    <Link href={`/hospital/doctors/${d.id}/schedule`} className="px-3 py-1.5 rounded-full bg-vibrant-blue text-on-primary text-[12px] font-bold shrink-0">
-                      Publish slots
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              byDept.map(({ dep, count }) => (
+                <div key={dep} className="py-2">
+                  <div className="flex justify-between gap-3 mb-1.5 text-[13px]">
+                    <span className="font-extrabold truncate">{dep}</span>
+                    <span className="font-bold text-[#5B667A] shrink-0">{plural(count, 'doctor')}</span>
+                  </div>
+                  <Meter pct={(count / doctors.length) * 100} label={`${dep}: ${plural(count, 'doctor')}`} />
+                </div>
+              ))
             )}
-          </Card>
-        </div>
-      </section>
+          </Panel>
+          <Panel>
+            <PanelHead title="Bookings this week" sub="Booked slots, Monday to Sunday" />
+            <BarChart bars={weekBars} label="Booked slots each day this week" width={360} height={180} />
+          </Panel>
+          <Panel>
+            <NoSlotsList doctors={unscheduled.map((d) => ({ id: d.id, name: doctorName(d.name), department: d.department }))} />
+          </Panel>
+        </section>
+      </HosBody>
+    </>
+  )
+}
+
+/** Doctors with nothing bookable in the next seven days: patients can't book them until slots are published. */
+function NoSlotsList({ doctors }: { doctors: { id: string; name: string; department: string }[] }) {
+  return (
+    <>
+      <PanelHead title="No slots this week" sub="Patients can’t book these doctors until slots are published" />
+      {doctors.length === 0 ? (
+        <EmptyLine>Every doctor has bookable slots in the next 7 days.</EmptyLine>
+      ) : (
+        <ul>
+          {doctors.map((d) => (
+            <li key={d.id} className="flex items-center justify-between gap-3 py-2.5 border-t border-[#EEF2F7]">
+              <span className="min-w-0">
+                <span className="block text-[13.5px] font-extrabold truncate">{d.name}</span>
+                <span className="block text-[12px] text-[#5B667A] truncate">{d.department}</span>
+              </span>
+              <Link href={`/hospital/doctors/${d.id}/schedule`} className={`${btnPrimary} !h-[34px] !px-3 !text-[12.5px] !shadow-none shrink-0`}>
+                Publish slots
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </>
   )
 }

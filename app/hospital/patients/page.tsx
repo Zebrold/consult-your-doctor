@@ -1,35 +1,21 @@
 import type { Metadata } from 'next'
-import { CalendarCheck, CalendarDays, CircleDollarSign, UserCheck, Users, type LucideIcon } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { currentTime } from '@/components/patient/data'
-import { doctorName, istDateKey } from '@/components/patient/format'
+import { IST, doctorName, istDateKey, visitToken } from '@/components/patient/format'
 import { ageSex, loadPatientFacts } from '@/lib/patient-facts'
-import { dayOf, hospitalShare, isPaidVisit, loadHospitalDoctors, loadHospitalVisits, PAYMENT_METHOD, requireHospital } from '../_lib/hospital'
+import { dayOf, hospitalShare, isPaidVisit, loadHospitalDoctors, loadHospitalVisits, paymentLook, PAYMENT_METHOD, requireHospital, shiftDay } from '../_lib/hospital'
 import { PatientsBoard, type BoardRow, type BoardView } from '../_components/PatientsBoard'
 import { AddPatientButton } from '../_components/PatientDesk'
+import { DeskHead, HosBody, HosHeader, PhoneStats, StatCard, btnPrimary, delta, plural } from '../_components/hos-ui'
 
 export const metadata: Metadata = { title: 'Patients | Hospital Portal' }
 export const dynamic = 'force-dynamic'
 
 const VIEWS: BoardView[] = ['today', 'upcoming', 'past', 'unpaid', 'all']
-const DAY = 86_400_000
 
-function Counter({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: number; tone?: string }) {
-  return (
-    <div className="min-w-[132px] flex-1 p-3.5 md:p-4 rounded-xl bg-white shadow-xs border border-slate-200/90 flex items-center justify-between gap-2">
-      <div>
-        <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">{label}</div>
-        <div className="text-2xl font-bold tracking-tight mt-0.5 text-slate-900 tabular-nums">{value}</div>
-      </div>
-      <span className="w-9 h-9 rounded-lg bg-slate-100 border border-slate-200/60 flex items-center justify-center text-slate-600 shrink-0">
-        <Icon className="w-4 h-4" />
-      </span>
-    </div>
-  )
-}
-
-export default async function HospitalPatientsPage(props: { searchParams?: Promise<{ view?: string }> }) {
+export default async function HospitalPatientsPage(props: { searchParams?: Promise<{ view?: string; q?: string; walkin?: string }> }) {
   const params = (await props.searchParams) ?? {}
-  const { admin, hospital } = await requireHospital()
+  const { admin, hospital, staff } = await requireHospital()
   const now = currentTime()
   const today = istDateKey(now)
 
@@ -40,9 +26,11 @@ export default async function HospitalPatientsPage(props: { searchParams?: Promi
 
   const rows: BoardRow[] = visits.map((v) => {
     const doc = v.doctorId ? doctorById.get(v.doctorId) : undefined
+    const share = v.payment ? hospitalShare(v.payment, doc?.fee) : 0
     return {
       id: v.id,
       code: v.code,
+      token: visitToken(v.id),
       status: v.status,
       start: v.start,
       day: dayOf(v.start ?? v.createdAt),
@@ -51,53 +39,88 @@ export default async function HospitalPatientsPage(props: { searchParams?: Promi
       ageSex: v.patient ? ageSex(facts[v.patient.id], now) : null,
       doctor: doc ? doctorName(doc.name) : 'Doctor',
       department: doc?.department ?? 'Other',
-      payment: v.payment ? { label: PAYMENT_METHOD[v.payment.gateway ?? ''] ?? 'Paid', amount: hospitalShare(v.payment, doc?.fee) } : null,
+      payment: v.payment ? { label: PAYMENT_METHOD[v.payment.gateway ?? ''] ?? 'Paid', amount: share } : null,
+      pay: paymentLook(v, share),
       fastTrack: v.fastTrack,
       services: v.services.map((s) => s.name),
     }
   })
 
   const paid = visits.filter(isPaidVisit)
-  const todayRows = rows.filter((r) => r.day === today)
-  const weekEnd = istDateKey(now + 7 * DAY)
-  const counters = {
-    patients: new Set(paid.map((v) => v.patient?.id).filter(Boolean)).size,
-    today: todayRows.filter((r) => r.status !== 'pending_payment').length,
-    upcoming: rows.filter((r) => r.day && r.day > today && r.day <= weekEnd && r.status !== 'pending_payment').length,
-    checkedIn: todayRows.filter((r) => r.status === 'visited').length,
-    unpaid: rows.filter((r) => r.status === 'pending_payment').length,
+  const paidOn = (key: string) => paid.filter((v) => dayOf(v.start) === key).length
+  const paidToday = paid.filter((v) => dayOf(v.start) === today)
+  const lastWeek = shiftDay(today, -7)
+  const last7 = Array.from({ length: 7 }, (_, i) => shiftDay(today, i - 6))
+  const weekday = new Date(now).toLocaleDateString('en-US', { timeZone: IST, weekday: 'short' })
+
+  // Patients seen for the first time in the last seven days
+  const firstSeen = new Map<string, string>()
+  for (const v of paid) {
+    const id = v.patient?.id
+    const day = dayOf(v.start ?? v.createdAt)
+    if (id && day && (!firstSeen.has(id) || day < firstSeen.get(id)!)) firstSeen.set(id, day)
   }
+  const newThisWeek = [...firstSeen.values()].filter((d) => d >= last7[0] && d <= today).length
+
+  const checkedIn = paidToday.filter((v) => v.status === 'visited' || v.status === 'completed').length
+  const fastToday = paidToday.filter((v) => v.fastTrack).length
+  const unpaid = rows.filter((r) => r.status === 'pending_payment').length
+  const doctorsToday = new Set(paidToday.map((v) => v.doctorId).filter(Boolean)).size
 
   const requested = VIEWS.includes(params.view as BoardView) ? (params.view as BoardView) : null
-  const initialView: BoardView = requested ?? (todayRows.length ? 'today' : 'upcoming')
+  const initialView: BoardView = requested ?? (rows.some((r) => r.day === today) ? 'today' : 'upcoming')
+  const query = (params.q ?? '').trim().slice(0, 80)
+  const walkIn = params.walkin === '1'
+
+  const deskDoctors = doctors.map((d) => ({ id: d.id, name: doctorName(d.name), department: d.department, fee: d.fee }))
+  const subtitle = 'Everyone booked with your doctors: today’s queue, upcoming visits and history.'
 
   return (
     <>
-      <section className="flex flex-col lg:flex-row lg:items-end justify-between gap-3">
-        <div>
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-surface-container-high text-primary font-label-sm text-label-sm uppercase tracking-wider">Outpatient consultations</span>
-          <h1 className="font-headline-lg text-[24px] md:text-headline-lg text-indigo-gray-900 font-bold tracking-tight mt-1.5">Patients &amp; Appointments</h1>
-          <p className="text-sm md:text-body-md text-indigo-gray-600">Everyone booked with your doctors: today’s queue, upcoming visits and history.</p>
+      <HosHeader staff={staff} title="Patients & appointments" subtitle={subtitle}>
+        <form action="/hospital/patients" role="search" className="flex items-center gap-2.5 h-12 px-3.5 rounded-[14px] bg-white text-[#0B1B3F]">
+          <Search className="w-[18px] h-[18px] text-[#5B667A] shrink-0" />
+          <input type="hidden" name="view" value="all" />
+          <input name="q" type="search" defaultValue={query} aria-label="Search patients" placeholder="Name, booking ID, token or phone" className="flex-1 min-w-0 bg-transparent outline-none text-[14.5px] placeholder:text-[#7A8599]" />
+        </form>
+      </HosHeader>
+      <HosBody>
+        <DeskHead
+          title="Patients & appointments"
+          subtitle={subtitle}
+          actions={<AddPatientButton doctors={deskDoctors} label="Add walk-in patient" defaultOpen={walkIn} className={btnPrimary} />}
+        />
+
+        <PhoneStats
+          cols={3}
+          className="mb-3"
+          stats={[
+            { label: 'Patients', value: firstSeen.size, note: `+${newThisWeek} this week`, color: '#067647' },
+            { label: 'Booked today', value: paidToday.length, note: plural(doctorsToday, 'doctor') },
+            { label: 'Checked in', value: checkedIn, note: 'at reception' },
+          ]}
+        />
+        <div className="lg:hidden mb-3.5">
+          <AddPatientButton doctors={deskDoctors} label="Add walk-in patient" defaultOpen={walkIn} className={`${btnPrimary} w-full !h-[46px] !shadow-none`} />
         </div>
-        <AddPatientButton doctors={doctors.map((d) => ({ id: d.id, name: doctorName(d.name), department: d.department, fee: d.fee }))} />
-      </section>
 
-      <section className="flex md:grid md:grid-cols-5 gap-2.5 md:gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
-        <Counter icon={Users} label="Patients" value={counters.patients} tone="text-indigo-gray-900" />
-        <Counter icon={CalendarDays} label="Booked today" value={counters.today} tone="text-vibrant-blue" />
-        <Counter icon={UserCheck} label="Checked in" value={counters.checkedIn} tone="text-secondary" />
-        <Counter icon={CalendarCheck} label="Next 7 days" value={counters.upcoming} tone="text-primary" />
-        <Counter icon={CircleDollarSign} label="Unpaid bookings" value={counters.unpaid} tone={counters.unpaid ? 'text-soft-coral' : 'text-indigo-gray-900'} />
-      </section>
+        <section className="hidden lg:grid grid-cols-4 gap-4 mb-5">
+          <StatCard label="Booked today" value={paidToday.length} change={delta(paidToday.length, paidOn(lastWeek))} note={`vs last ${weekday}`} series={last7.map(paidOn)} />
+          <StatCard label="Checked in" value={checkedIn} note={`of ${paidToday.length} booked today`} />
+          <StatCard label="Fast track today" value={fastToday} note="Seen ahead once checked in" />
+          <StatCard label="Unpaid bookings" value={unpaid} note={unpaid ? 'Awaiting payment' : 'All bookings paid'} />
+        </section>
 
-      <PatientsBoard
-        key={initialView}
-        rows={rows}
-        today={today}
-        now={now}
-        initialView={initialView}
-        departments={Array.from(new Set(doctors.map((d) => d.department))).sort()}
-      />
+        <PatientsBoard
+          key={`${initialView}:${query}`}
+          rows={rows}
+          today={today}
+          now={now}
+          initialView={initialView}
+          initialQuery={query}
+          departments={Array.from(new Set(doctors.map((d) => d.department))).sort()}
+        />
+      </HosBody>
     </>
   )
 }

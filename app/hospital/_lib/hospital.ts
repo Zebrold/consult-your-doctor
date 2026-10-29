@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { one } from '@/components/patient/data'
-import { istDateKey } from '@/components/patient/format'
+import { formatINR, istDateKey } from '@/components/patient/format'
 import type { Tone } from '@/components/portal/ui'
 import { bookedServices, isFastTrack, testList, type BookedTest } from '@/lib/pricing'
 
@@ -263,6 +263,15 @@ export const hospitalShare = (p: Payment, consultationFee: number | null | undef
 
 export const PAYMENT_METHOD: Record<string, string> = { payu: 'Booked online, fee at counter', upi_qr: 'UPI scanner', cash: 'Cash at desk' }
 
+/** A visit's payment column: unpaid, booked online (the fee is still due at the counter) or paid at the desk. */
+export function paymentLook(v: { status: string; payment: Payment | null }, share: number): { label: string; color: string } {
+  if (v.status === 'pending_payment') return { label: 'Not paid', color: '#B54708' }
+  if (!v.payment) return { label: 'Not recorded', color: '#5B667A' }
+  // An online payment is the booking fee; the consultation fee is taken at the counter.
+  if (v.payment.gateway === 'payu') return { label: 'Booking paid', color: '#5B667A' }
+  return { label: `Paid · ${formatINR(share)}`, color: '#067647' }
+}
+
 export type Slot = { id: string; doctorId: string; start: string; end: string | null; booked: boolean }
 
 export async function loadHospitalSlots(admin: Admin, doctorIds: string[], fromIso: string, toIso: string): Promise<Slot[]> {
@@ -298,3 +307,19 @@ export const dayOf = (iso: string | null) => (iso ? istDateKey(iso) : null)
 
 /** Start of a "YYYY-MM-DD" day in India, as an ISO timestamp. */
 export const dayStartIso = (key: string) => new Date(`${key}T00:00:00+05:30`).toISOString()
+
+/** The "YYYY-MM-DD" day `days` after (or before) another. */
+export const shiftDay = (key: string, days: number) => istDateKey(Date.parse(`${key}T12:00:00+05:30`) + days * 86_400_000)
+
+/** The hour (0–23) of a timestamp in India time. */
+export const istHour = (iso: string) => Number(new Date(iso).toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', hourCycle: 'h23' }))
+
+/** "Morning", "Afternoon", "Evening", or "Morning & evening" for a doctor's slots on one day. */
+export function sessionLabel(slots: { start: string }[]): string {
+  const parts = [
+    slots.some((s) => istHour(s.start) < 12) && 'Morning',
+    slots.some((s) => istHour(s.start) >= 12 && istHour(s.start) < 17) && 'Afternoon',
+    slots.some((s) => istHour(s.start) >= 17) && 'Evening',
+  ].filter(Boolean) as string[]
+  return parts.length === 3 ? 'All day' : parts.join(' & ').replace(/^(\w+) & (\w+)$/, (_, a: string, b: string) => `${a} & ${b.toLowerCase()}`)
+}

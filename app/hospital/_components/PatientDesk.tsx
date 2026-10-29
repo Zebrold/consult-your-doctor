@@ -29,13 +29,16 @@ export function AddPatientButton({
   doctors,
   className,
   label = 'Add Patient',
+  defaultOpen = false,
 }: {
   doctors: DeskDoctor[]
   className?: string
   label?: string
+  /** Open the dialog straight away (the dashboard's Walk-in patient link). */
+  defaultOpen?: boolean
 }) {
   const router = useRouter()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
@@ -622,7 +625,7 @@ export function AddPatientButton({
 }
 
 /** Takes payment for an unpaid visit from the patients list. */
-export function TakePaymentButton({ appointmentId }: { appointmentId: string }) {
+export function TakePaymentButton({ appointmentId, className }: { appointmentId: string; className?: string }) {
   const router = useRouter()
   const [payment, setPayment] = useState<DeskPayment | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -643,7 +646,7 @@ export function TakePaymentButton({ appointmentId }: { appointmentId: string }) 
         onClick={open}
         disabled={pending}
         title={error ?? undefined}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#0066ff] text-white text-[12px] font-bold disabled:opacity-60 shadow-xs hover:bg-[#0050cb] transition-colors"
+        className={className ?? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#0066ff] text-white text-[12px] font-bold disabled:opacity-60 shadow-xs hover:bg-[#0050cb] transition-colors'}
       >
         {pending ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />} Take payment
       </button>
@@ -664,7 +667,7 @@ export function TakePaymentButton({ appointmentId }: { appointmentId: string }) 
 }
 
 /** Adds vitals, notes or a document to a visit, for the patient's profile and the doctor. */
-export function HealthRecordButton({ appointmentId, patientName }: { appointmentId: string; patientName: string }) {
+export function HealthRecordButton({ appointmentId, patientName, className }: { appointmentId: string; patientName: string; className?: string }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -695,9 +698,9 @@ export function HealthRecordButton({ appointmentId, patientName }: { appointment
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-[12px] font-semibold text-gray-800 transition-colors"
+        className={className ?? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-[12px] font-semibold text-gray-800 transition-colors'}
       >
-        <HeartPulse className="w-3.5 h-3.5 text-rose-500" /> Health data
+        <HeartPulse className="w-3.5 h-3.5" /> Health data
       </button>
       {open && (
         <DeskDialog title="Health data" subtitle={`For ${patientName}’s visit. The patient and their doctor can see it.`} onClose={close}>

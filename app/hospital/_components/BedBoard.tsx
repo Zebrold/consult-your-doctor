@@ -1,160 +1,382 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useState, useTransition, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowRightLeft, BedDouble, BedSingle, Brush, LogOut, Plus, Search, Settings2, Trash2, UserPlus, Wrench } from 'lucide-react'
+import { ArrowRightLeft, BedSingle, Download, LogOut, Plus, Search, Settings2, Trash2, UserPlus, X } from 'lucide-react'
 import { formatINR, formatShortDate } from '@/components/patient/format'
 import { DeskDialog, ErrorNote, Field, PrimaryButton, QuietButton, deskInput } from '@/components/portal/desk'
 import { addBeds, admitPatient, dischargePatient, findPatientByPhone, hospitalPatientOptions, removeBed, transferPatient, updateBed } from '@/app/actions/beds'
 import { BED_TYPES, stayDays, type Bed, type BedStatus } from '@/lib/beds'
+import { DeskHead, HosBody, HosHeader, Meter, PhoneStats, Row, StatCard, btnOutline, btnPrimary, card, lineTab, plural, segGroup, segTab } from './hos-ui'
 
 export type BoardDoctor = { id: string; name: string; department: string }
 
-type Filter = 'all' | 'available' | 'occupied' | 'unavailable'
+/** Numbers the server works out from admissions and discharges (the board counts the beds itself). */
+export type BedStats = { admittedToday: number; dischargedToday: number; avgStay: number | null; staysCounted: number }
 
-const STATUS_LOOK: Record<'occupied' | BedStatus, { label: string; tile: string; dot: string; icon: typeof BedSingle }> = {
-  occupied: { label: 'Occupied', tile: 'bg-primary-fixed/50 border-vibrant-blue/30 hover:border-vibrant-blue', dot: 'bg-vibrant-blue', icon: BedDouble },
-  available: { label: 'Available', tile: 'bg-secondary-container/25 border-fresh-teal/30 hover:border-fresh-teal', dot: 'bg-fresh-teal', icon: BedSingle },
-  cleaning: { label: 'Cleaning', tile: 'bg-amber-50 border-amber-300/60 hover:border-amber-400', dot: 'bg-amber-400', icon: Brush },
-  maintenance: { label: 'Maintenance', tile: 'bg-surface-container border-outline-variant/60 hover:border-outline', dot: 'bg-outline', icon: Wrench },
+type Filter = 'all' | 'available' | 'occupied' | 'unavailable'
+type Mode = 'main' | 'edit' | 'move' | 'discharge'
+
+const FILTERS: [Filter, string, string][] = [
+  ['all', 'All', 'All beds'],
+  ['available', 'Free', 'Free'],
+  ['occupied', 'In use', 'In use'],
+  ['unavailable', 'Cleaning', 'Cleaning'],
+]
+
+// A bed tile: blue when a patient is in it, white with a coloured ring otherwise.
+const LOOK: Record<'occupied' | BedStatus, { label: string; tile: string; key: string }> = {
+  occupied: { label: 'In use', tile: 'bg-[#2A4DD0] text-white', key: 'bg-[#2A4DD0]' },
+  available: { label: 'Free', tile: 'bg-white text-[#067647] shadow-[inset_0_0_0_1.5px_#ABEFC6] lg:shadow-[inset_0_0_0_1.5px_#12B76A]', key: 'shadow-[inset_0_0_0_1.5px_#12B76A]' },
+  cleaning: { label: 'Cleaning', tile: 'bg-white text-[#B54708] shadow-[inset_0_0_0_1.5px_#FEC84B] lg:shadow-[inset_0_0_0_1.5px_#F79009]', key: 'shadow-[inset_0_0_0_1.5px_#F79009]' },
+  maintenance: { label: 'Repair', tile: 'bg-white text-[#5B667A] shadow-[inset_0_0_0_1.5px_#D0D5DD] lg:shadow-[inset_0_0_0_1.5px_#98A2B3]', key: 'shadow-[inset_0_0_0_1.5px_#98A2B3]' },
 }
 
-const lookOf = (b: Bed) => STATUS_LOOK[b.admission ? 'occupied' : b.status]
+const lookOf = (b: Bed) => LOOK[b.admission ? 'occupied' : b.status]
 
-/** The bed board: every bed by ward, colour-coded, with admitting, moving and discharging patients. */
-export function BedBoard({ beds, doctors, now }: { beds: Bed[]; doctors: BoardDoctor[]; now: number }) {
+function matches(b: Bed, filter: Filter) {
+  if (filter === 'available') return !b.admission && b.status === 'available'
+  if (filter === 'occupied') return !!b.admission
+  if (filter === 'unavailable') return !b.admission && b.status !== 'available'
+  return true
+}
+
+function exportCensus(beds: Bed[], now: number) {
+  const header = ['Ward', 'Bed', 'Type', 'Status', 'Patient', 'Mobile', 'Attending doctor', 'Admitted', 'Day', 'Expected discharge', 'Reason']
+  const lines = beds.map((b) => {
+    const a = b.admission
+    return [
+      b.ward,
+      b.label,
+      BED_TYPES[b.type] ?? b.type,
+      lookOf(b).label,
+      a?.patient.name ?? '',
+      a?.patient.phone ?? '',
+      a?.doctor?.name ?? '',
+      a ? formatShortDate(a.admittedAt) : '',
+      a ? stayDays(a.admittedAt, now) : '',
+      a?.expectedDischarge ? formatShortDate(a.expectedDischarge) : '',
+      a?.reason ?? '',
+    ]
+  })
+  const csv = [header, ...lines].map((l) => l.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'bed-census.csv'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+/**
+ * The beds page after the HosBeds/DeskHosBeds exports: the numbers, every bed by ward as a tile, and the chosen bed's
+ * details with its next step (admit, discharge or mark ready). Admitting, moving and discharging open the bed dialog.
+ */
+export function BedBoard({
+  beds,
+  doctors,
+  now,
+  staff,
+  ready,
+  stats,
+  notice,
+  recent,
+}: {
+  beds: Bed[]
+  doctors: BoardDoctor[]
+  now: number
+  staff: { name: string }
+  /** The beds tables exist, so beds can be added. */
+  ready: boolean
+  stats: BedStats
+  /** Shown above the board, e.g. that beds aren't saved to the database yet. */
+  notice?: ReactNode
+  /** The recent discharges card. */
+  recent: ReactNode
+}) {
   const [filter, setFilter] = useState<Filter>('all')
   const [query, setQuery] = useState('')
-  const [open, setOpen] = useState<Bed | null>(null)
+  const [selId, setSelId] = useState<string | null>(null)
+  const [dialog, setDialog] = useState<{ id: string; mode: Mode } | null>(null)
 
-  const counts = {
-    all: beds.length,
-    available: beds.filter((b) => !b.admission && b.status === 'available').length,
-    occupied: beds.filter((b) => b.admission).length,
-    unavailable: beds.filter((b) => !b.admission && b.status !== 'available').length,
-  }
+  const counts = Object.fromEntries(FILTERS.map(([k]) => [k, beds.filter((b) => matches(b, k)).length])) as Record<Filter, number>
+  const occupancy = beds.length ? Math.round((counts.occupied / beds.length) * 100) : 0
+  const repair = beds.filter((b) => !b.admission && b.status === 'maintenance').length
+
   const q = query.trim().toLowerCase()
-  const shown = beds.filter((b) => {
-    if (filter === 'available' && (b.admission || b.status !== 'available')) return false
-    if (filter === 'occupied' && !b.admission) return false
-    if (filter === 'unavailable' && (b.admission || b.status === 'available')) return false
-    if (!q) return true
-    return [b.ward, b.label, b.admission?.patient.name, b.admission?.patient.phone, b.admission?.doctor?.name].some((s) => s?.toLowerCase().includes(q))
-  })
-  const byWard = new Map<string, Bed[]>()
-  for (const b of shown) byWard.set(b.ward, [...(byWard.get(b.ward) ?? []), b])
-  const wards = Array.from(byWard.entries())
-  const current = open ? beds.find((b) => b.id === open.id) ?? null : null
+  const shown = beds.filter(
+    (b) => matches(b, filter) && (!q || [b.ward, b.label, b.admission?.patient.name, b.admission?.patient.phone, b.admission?.doctor?.name].some((s) => s?.toLowerCase().includes(q))),
+  )
+  const wardNames = Array.from(new Set(beds.map((b) => b.ward)))
+  const wards = wardNames
+    .map((ward) => {
+      const all = beds.filter((b) => b.ward === ward)
+      return {
+        ward,
+        total: all.length,
+        used: all.filter((b) => b.admission).length,
+        free: all.filter((b) => matches(b, 'available')).length,
+        list: shown.filter((b) => b.ward === ward),
+      }
+    })
+    .filter((w) => w.list.length)
+
+  // Phones show the chosen bed's card once one is tapped; desktops always show one in the side panel.
+  const picked = selId ? beds.find((b) => b.id === selId) ?? null : null
+  const deskBed = picked ?? shown[0] ?? beds[0] ?? null
+  const open = dialog ? beds.find((b) => b.id === dialog.id) ?? null : null
+  const act = (b: Bed, mode: Mode) => setDialog({ id: b.id, mode })
+  // On phones the chosen bed's card sits under the wards, so bring it into view.
+  const pick = (id: string) => {
+    setSelId(id)
+    if (window.matchMedia('(max-width: 1023px)').matches) requestAnimationFrame(() => document.getElementById('selected-bed')?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+  }
+
+  const subtitle = 'Every bed by ward. Admissions show on the attending doctor’s dashboard as soon as you save them.'
+  const keys: ('occupied' | BedStatus)[] = ['available', 'occupied', 'cleaning', ...(repair ? (['maintenance'] as const) : [])]
+  const legend = keys.map((k) => (
+    <span key={k} className="flex items-center gap-1.5">
+      <span className={`w-2.5 h-2.5 lg:w-3 lg:h-3 rounded-[3px] lg:rounded-[4px] ${LOOK[k].key}`} />
+      {LOOK[k].label}
+    </span>
+  ))
 
   return (
-    <section className="bg-surface-container-lowest rounded-2xl p-4 md:p-6 shadow-[0_4px_24px_rgba(15,23,42,0.04)] border border-surface-container md:border-transparent flex flex-col gap-4">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        <div>
-          <h2 className="font-title-md text-[18px] md:text-title-md font-bold text-on-surface">Bed Allocation Board</h2>
-          <p className="text-[13px] md:text-body-md text-indigo-gray-600">Tap a bed to admit, move or discharge a patient, or to change the bed.</p>
-        </div>
-        <label className="relative w-full lg:w-72">
-          <Search className="w-4 h-4 text-outline absolute left-3 top-1/2 -translate-y-1/2" aria-hidden />
+    <>
+      <HosHeader staff={staff} title="Inpatient beds" subtitle={subtitle}>
+        <label className="flex items-center gap-2.5 h-12 px-3.5 rounded-[14px] bg-white text-[#0B1B3F]">
+          <Search className="w-[18px] h-[18px] text-[#5B667A] shrink-0" />
           <span className="sr-only">Search beds</span>
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Patient, doctor, ward or bed" className={`${deskInput} pl-9`} />
+          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Patient, doctor, ward or bed" className="flex-1 min-w-0 bg-transparent outline-none text-[14px] placeholder:text-[#7A8599]" />
         </label>
-      </div>
+      </HosHeader>
+      <HosBody>
+        <DeskHead
+          title="Inpatient beds"
+          subtitle={subtitle}
+          actions={
+            <>
+              <button type="button" onClick={() => exportCensus(beds, now)} disabled={!beds.length} className={`${btnOutline} disabled:opacity-50`}>
+                <Download className="w-4 h-4" /> Census report
+              </button>
+              {ready && <AddBedsButton wards={wardNames} className={btnPrimary} />}
+            </>
+          }
+        />
+        {notice}
 
-      <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1" role="tablist" aria-label="Filter beds">
-        {(
-          [
-            ['all', 'All beds'],
-            ['available', 'Available'],
-            ['occupied', 'Occupied'],
-            ['unavailable', 'Cleaning & maintenance'],
-          ] as [Filter, string][]
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={filter === key}
-            onClick={() => setFilter(key)}
-            className={`px-3.5 py-1.5 rounded-full text-[13px] font-semibold whitespace-nowrap transition-colors ${
-              filter === key ? 'bg-vibrant-blue text-on-primary' : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
-            }`}
-          >
-            {label} <span className={filter === key ? 'text-on-primary/80' : 'text-indigo-gray-600'}>{counts[key]}</span>
-          </button>
-        ))}
-      </div>
+        <PhoneStats
+          cols={4}
+          stats={[
+            { label: 'Total', value: beds.length, note: plural(wardNames.length, 'ward') },
+            { label: 'In use', value: counts.occupied, note: `${occupancy}%`, color: '#2A4DD0' },
+            { label: 'Free', value: counts.available, note: 'ready', color: '#067647' },
+            { label: 'Cleaning', value: counts.unavailable, note: repair ? `${repair} in repair` : 'pending', color: '#B54708' },
+          ]}
+        />
+        {ready && (
+          <div className="lg:hidden mt-3.5">
+            <AddBedsButton wards={wardNames} className={`${btnPrimary} w-full !h-[46px] !shadow-none`} />
+          </div>
+        )}
 
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-indigo-gray-600">
-        {(['available', 'occupied', 'cleaning', 'maintenance'] as const).map((k) => (
-          <span key={k} className="flex items-center gap-1.5">
-            <span className={`w-2.5 h-2.5 rounded-full ${STATUS_LOOK[k].dot}`} /> {STATUS_LOOK[k].label}
-          </span>
-        ))}
-      </div>
+        <section className="hidden lg:grid grid-cols-4 gap-4 mb-5">
+          <StatCard label="Total beds" value={beds.length} note={`${plural(wardNames.length, 'ward')} · ${counts.available} free`} />
+          <StatCard label="Occupancy" value={`${occupancy}%`} note={`${counts.occupied} of ${beds.length} beds in use`} />
+          <StatCard label="Admissions today" value={stats.admittedToday} note={`${stats.dischargedToday} discharged today`} />
+          <StatCard
+            label="Avg. length of stay"
+            value={stats.avgStay === null ? '—' : `${stats.avgStay.toFixed(1)} days`}
+            note={stats.staysCounted ? `Last ${plural(stats.staysCounted, 'discharge')}` : 'No discharges yet'}
+          />
+        </section>
 
-      {wards.length === 0 ? (
-        <p className="p-6 rounded-xl bg-surface-container-low text-center text-sm text-indigo-gray-600">
-          {beds.length === 0 ? 'No beds yet. Use Add Beds to set up your wards.' : 'No beds match this filter.'}
-        </p>
-      ) : (
-        <div className="flex flex-col gap-5">
-          {wards.map(([ward, list]) => {
-            const occupied = list.filter((b) => b.admission).length
-            return (
-              <div key={ward} className="flex flex-col gap-2.5">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="font-title-md text-[15px] font-bold text-on-surface">{ward}</h3>
-                  <span className="text-[12px] font-semibold text-indigo-gray-600">
-                    {occupied}/{list.length} occupied
-                  </span>
-                </div>
-                <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2.5">
-                  {list.map((b) => {
-                    const look = lookOf(b)
-                    const Icon = look.icon
-                    return (
-                      <li key={b.id}>
-                        <button
-                          type="button"
-                          onClick={() => setOpen(b)}
-                          className={`w-full h-full min-h-[104px] text-left p-3 rounded-xl border-2 transition-colors flex flex-col gap-1.5 ${look.tile}`}
-                        >
-                          <span className="flex items-center justify-between gap-2">
-                            <span className="font-bold text-[14px] text-on-surface truncate">{b.label}</span>
-                            <Icon className="w-4 h-4 text-indigo-gray-600 shrink-0" aria-hidden />
-                          </span>
-                          <span className="text-[11px] text-indigo-gray-600 truncate">{BED_TYPES[b.type] ?? b.type}{b.dailyRate ? ` • ${formatINR(b.dailyRate)}/day` : ''}</span>
-                          {b.admission ? (
-                            <span className="mt-auto flex flex-col">
-                              <span className="text-[13px] font-semibold text-on-surface truncate">{b.admission.patient.name}</span>
-                              <span className="text-[11px] text-indigo-gray-600 truncate">
-                                Day {stayDays(b.admission.admittedAt, now)}
-                                {b.admission.doctor ? ` • ${b.admission.doctor.name}` : ''}
-                              </span>
-                            </span>
-                          ) : (
-                            <span className="mt-auto flex items-center gap-1.5 text-[12px] font-semibold text-on-surface">
-                              <span className={`w-2 h-2 rounded-full ${look.dot}`} /> {look.label}
-                            </span>
-                          )}
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
-            )
-          })}
+        {/* Phones: underlined tabs and the key */}
+        <div className="lg:hidden mt-3.5">
+          <div role="tablist" aria-label="Filter beds" className="flex border-b border-[#E1E7F0]">
+            {FILTERS.map(([k, label]) => (
+              <button key={k} type="button" role="tab" aria-selected={filter === k} onClick={() => setFilter(k)} className={lineTab(filter === k)}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-x-3.5 gap-y-1 mt-3 text-[12px] font-bold text-[#5B667A]">{legend}</div>
         </div>
-      )}
 
-      {current && <BedDialog bed={current} beds={beds} doctors={doctors} now={now} onClose={() => setOpen(null)} />}
+        {/* Desktops: segmented tabs, search and the key on the right */}
+        <div className="hidden lg:flex items-center justify-between gap-4 mb-4">
+          <div role="tablist" aria-label="Filter beds" className={segGroup}>
+            {FILTERS.map(([k, , label]) => (
+              <button key={k} type="button" role="tab" aria-selected={filter === k} onClick={() => setFilter(k)} className={segTab(filter === k)}>
+                {label} <span className={filter === k ? '' : 'text-[#8A94A6]'}>{counts[k]}</span>
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-4 min-w-0">
+            <label className="flex items-center gap-2 h-[38px] px-3 rounded-xl bg-white shadow-[inset_0_0_0_1px_#E6EAF0] focus-within:shadow-[inset_0_0_0_1.5px_#2A4DD0] w-[220px] min-w-0">
+              <Search className="w-4 h-4 text-[#5B667A] shrink-0" />
+              <span className="sr-only">Search beds</span>
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Patient, doctor, ward or bed" className="flex-1 min-w-0 bg-transparent outline-none text-[13px] placeholder:text-[#7A8599]" />
+            </label>
+            <div className="hidden xl:flex gap-[18px] text-[12.5px] font-bold text-[#5B667A]">{legend}</div>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3.5 lg:grid lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_340px] lg:gap-5 lg:items-start">
+          <div className="flex flex-col gap-3.5 lg:gap-5 min-w-0 mt-3.5 lg:mt-0">
+            {wards.length === 0 ? (
+              <p className={`${card} p-6 text-center text-[13.5px] text-[#5B667A]`}>
+                {beds.length === 0 ? (ready ? 'No beds yet. Use Add beds to set up your wards.' : 'Beds aren’t set up yet.') : 'No beds match this filter.'}
+              </p>
+            ) : (
+              wards.map((w) => (
+                <section key={w.ward} className={`${card} p-4 lg:p-[22px]`}>
+                  <div className="flex items-center justify-between gap-4 mb-3 lg:mb-3.5">
+                    <span className="min-w-0">
+                      <h2 className="text-[16px] font-extrabold truncate">{w.ward}</h2>
+                      <span className="block mt-0.5 text-[12.5px] lg:text-[13px] text-[#5B667A]">
+                        {w.used} of {w.total} in use<span className="hidden lg:inline"> · {w.free} free</span>
+                      </span>
+                    </span>
+                    <span className="hidden lg:block w-[180px] shrink-0">
+                      <Meter pct={w.total ? (w.used / w.total) * 100 : 0} label={`${w.ward}: ${w.used} of ${w.total} beds in use`} />
+                    </span>
+                  </div>
+                  <ul className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8 gap-2 lg:gap-2.5">
+                    {w.list.map((b) => {
+                      const look = lookOf(b)
+                      const ring = picked?.id === b.id ? '!shadow-[0_0_0_3px_#0B1B3F]' : deskBed?.id === b.id ? 'lg:!shadow-[0_0_0_3px_#0B1B3F]' : ''
+                      return (
+                        <li key={b.id}>
+                          <button
+                            type="button"
+                            onClick={() => pick(b.id)}
+                            aria-pressed={picked?.id === b.id}
+                            aria-label={`${b.ward} ${b.label}: ${b.admission ? b.admission.patient.name : look.label}`}
+                            className={`w-full h-[58px] lg:h-[70px] px-1.5 rounded-xl flex flex-col items-center justify-center gap-0.5 text-center transition-shadow ${look.tile} ${ring}`}
+                          >
+                            <span className="max-w-full text-[13px] lg:text-[13.5px] font-extrabold truncate">{b.label}</span>
+                            <span className="max-w-full text-[10.5px] lg:text-[11px] font-bold opacity-85 truncate">{b.admission ? b.admission.patient.name.split(' ')[0] : look.label}</span>
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </section>
+              ))
+            )}
+          </div>
+
+          <div className="flex flex-col gap-3.5 lg:gap-5 min-w-0 lg:sticky lg:top-[96px]">
+            {picked && (
+              <div id="selected-bed" className="lg:hidden">
+                <SelectedBed bed={picked} now={now} onAct={act} onClose={() => setSelId(null)} />
+              </div>
+            )}
+            {deskBed && (
+              <div className="hidden lg:block">
+                <SelectedBed bed={deskBed} now={now} onAct={act} desk />
+              </div>
+            )}
+            {recent}
+          </div>
+        </div>
+      </HosBody>
+
+      {open && dialog && <BedDialog key={`${open.id}:${dialog.mode}`} bed={open} beds={beds} doctors={doctors} now={now} initialMode={dialog.mode} onClose={() => setDialog(null)} />}
+    </>
+  )
+}
+
+/** The chosen bed: who is in it and the next step. Desktops show it as the side panel with a blue head. */
+function SelectedBed({ bed, now, onAct, onClose, desk = false }: { bed: Bed; now: number; onAct: (b: Bed, mode: Mode) => void; onClose?: () => void; desk?: boolean }) {
+  const a = bed.admission
+  const look = lookOf(bed)
+  const title = /^bed\b/i.test(bed.label) ? bed.label : `Bed ${bed.label}`
+  const status = [look.label, BED_TYPES[bed.type], bed.dailyRate ? `${formatINR(bed.dailyRate)}/day` : null].filter(Boolean).join(' · ')
+  const cta = a
+    ? { label: 'Discharge', icon: LogOut, mode: 'discharge' as Mode }
+    : bed.status === 'available'
+      ? { label: 'Admit patient', icon: UserPlus, mode: 'main' as Mode }
+      : { label: 'Mark ready', icon: BedSingle, mode: 'main' as Mode }
+  const second = a ? { label: 'Move bed', icon: ArrowRightLeft, mode: 'move' as Mode } : { label: 'Edit bed', icon: Settings2, mode: 'edit' as Mode }
+  const Cta = cta.icon
+  const Second = second.icon
+
+  const rows = (
+    <>
+      <Row label="Patient">{a?.patient.name ?? '—'}</Row>
+      <Row label="Attending doctor">{a?.doctor?.name ?? '—'}</Row>
+      <Row label="Admitted">{a ? `${formatShortDate(a.admittedAt)} · day ${stayDays(a.admittedAt, now)}` : '—'}</Row>
+      {(desk || a?.reason) && <Row label="Reason">{a?.reason ?? '—'}</Row>}
+      {a?.expectedDischarge && <Row label="Expected discharge">{formatShortDate(a.expectedDischarge)}</Row>}
+      {a && bed.dailyRate ? <Row label="Bed charges so far">{formatINR(bed.dailyRate * stayDays(a.admittedAt, now))}</Row> : null}
+    </>
+  )
+
+  if (desk)
+    return (
+      <aside aria-label="Selected bed" className={`${card} overflow-hidden`}>
+        <div className="px-[22px] py-[18px] bg-[#2A4DD0] text-white">
+          <span className="block text-[11.5px] font-extrabold tracking-[0.08em] text-[#CFDCFF]">SELECTED BED</span>
+          <span className="block text-[22px] font-extrabold truncate">{title}</span>
+          <span className="block text-[13px] text-[#E3EAFF] truncate">
+            {bed.ward} · {status}
+          </span>
+        </div>
+        <div className="px-[22px] pt-3.5 pb-[22px]">
+          {rows}
+          <div className="grid grid-cols-2 gap-2 mt-3.5">
+            <button type="button" onClick={() => onAct(bed, second.mode)} className={`${btnOutline} !px-2`}>
+              <Second className="w-4 h-4" /> {second.label}
+            </button>
+            <button type="button" onClick={() => onAct(bed, cta.mode)} className={`${btnPrimary} !px-2 !shadow-none`}>
+              <Cta className="w-4 h-4" /> {cta.label}
+            </button>
+          </div>
+          {a && (
+            <button type="button" onClick={() => onAct(bed, 'main')} className="w-full mt-3 text-[13px] font-extrabold text-[#2A4DD0] hover:underline">
+              All details and edit bed
+            </button>
+          )}
+          <p className="mt-3 text-[12.5px] text-[#5B667A]">Select any bed to admit, move or discharge a patient.</p>
+        </div>
+      </aside>
+    )
+
+  return (
+    <section aria-label="Selected bed" className={`${card} p-4 !shadow-[0_0_0_1.5px_#2A4DD0]`}>
+      <div className="flex items-start justify-between gap-2.5">
+        <span className="min-w-0">
+          <h2 className="text-[16px] font-extrabold truncate">
+            {title} <span className="font-bold text-[#5B667A]">· {bed.ward}</span>
+          </h2>
+          <span className="block mt-0.5 text-[12.5px] text-[#5B667A] truncate">{status}</span>
+        </span>
+        <button type="button" onClick={() => onAct(bed, a ? 'main' : 'edit')} className="shrink-0 h-8 text-[12.5px] font-extrabold text-[#2A4DD0]">
+          {a ? 'Details' : 'Edit bed'}
+        </button>
+      </div>
+      <div className="mt-2">{rows}</div>
+      <div className="grid grid-cols-2 gap-2 mt-3">
+        <button type="button" onClick={onClose} className={`${btnOutline} !h-[42px]`}>
+          <X className="w-4 h-4" /> Close
+        </button>
+        <button type="button" onClick={() => onAct(bed, cta.mode)} className={`${btnPrimary} !h-[42px] !shadow-none`}>
+          <Cta className="w-4 h-4" /> {cta.label}
+        </button>
+      </div>
+      {a && (
+        <button type="button" onClick={() => onAct(bed, 'move')} className={`${btnOutline} w-full !h-[42px] mt-2`}>
+          <ArrowRightLeft className="w-4 h-4" /> Move to another bed
+        </button>
+      )}
     </section>
   )
 }
 
-function BedDialog({ bed, beds, doctors, now, onClose }: { bed: Bed; beds: Bed[]; doctors: BoardDoctor[]; now: number; onClose: () => void }) {
-  const [mode, setMode] = useState<'main' | 'edit' | 'move' | 'discharge'>('main')
+function BedDialog({ bed, beds, doctors, now, initialMode = 'main', onClose }: { bed: Bed; beds: Bed[]; doctors: BoardDoctor[]; now: number; initialMode?: Mode; onClose: () => void }) {
+  const [mode, setMode] = useState<Mode>(initialMode)
   const look = lookOf(bed)
   const title = `${bed.ward} • ${bed.label}`
 
@@ -541,7 +763,7 @@ function EditBedDialog({ bed, onClose, onBack }: { bed: Bed; onClose: () => void
 }
 
 /** Adds a run of beds to a ward ("Bed 1" to "Bed 10"). */
-export function AddBedsButton({ wards }: { wards: string[] }) {
+export function AddBedsButton({ wards, className }: { wards: string[]; className?: string }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -567,9 +789,12 @@ export function AddBedsButton({ wards }: { wards: string[] }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm font-bold shadow-[0_8px_20px_rgba(15,23,42,0.11)] hover:brightness-105 active:scale-95 transition-all"
+        className={
+          className ??
+          'flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm font-bold shadow-[0_8px_20px_rgba(15,23,42,0.11)] hover:brightness-105 active:scale-95 transition-all'
+        }
       >
-        <Plus className="w-[18px] h-[18px]" /> Add Beds
+        <Plus className="w-[18px] h-[18px]" /> Add beds
       </button>
       {open && (
         <DeskDialog title="Add beds" subtitle="Set up a ward, or add more beds to one." onClose={() => setOpen(false)}>

@@ -225,7 +225,7 @@ export function ExecutivePaymentsClient({ initialTransactions, stats }: Props) {
             className="px-3 py-2 text-sm bg-surface-container-low rounded-lg border border-outline-variant/30 text-on-surface font-medium focus:outline-none"
           >
             <option value="all">All Gateways</option>
-            <option value="payu">PayU Online</option>
+            <option value="payu">Online Payment</option>
             <option value="upi_qr">UPI QR Scanner</option>
             <option value="cash">Cash Desk</option>
           </select>

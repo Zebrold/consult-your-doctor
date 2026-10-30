@@ -31,7 +31,7 @@ export function BookingFeeManager({ initialFees }: { initialFees: BookingFees })
         setConsultation(String(res.fees.consultation))
         setFastTrack(String(res.fees.fastTrack))
         setPercent(String(res.fees.diagnosticPercent))
-        setMessage({ type: 'success', text: 'Booking fees saved. Every booking page, checkout and PayU payment now uses them.' })
+        setMessage({ type: 'success', text: 'Booking fees saved. Every booking page, checkout and online payment now uses them.' })
       } else {
         setMessage({ type: 'error', text: res.error || 'Could not save the booking fees.' })
       }
@@ -48,7 +48,7 @@ export function BookingFeeManager({ initialFees }: { initialFees: BookingFees })
             </span>
             <h2 className="text-base md:text-lg font-bold text-slate-900">Online Booking Fees</h2>
           </div>
-          <p className="text-xs text-slate-500 mt-1">The only amounts patients pay online through PayU.</p>
+          <p className="text-xs text-slate-500 mt-1">The only amounts patients pay online securely.</p>
         </div>
         <span className="inline-flex items-center gap-1.5 self-start sm:self-auto px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200/70 text-xs font-semibold shrink-0">
           <Sparkles className="w-3.5 h-3.5" /> Executive Access Only

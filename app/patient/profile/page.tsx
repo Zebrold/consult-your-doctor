@@ -470,7 +470,7 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
               <Panel
                 id="payments"
                 title="Payments"
-                sub="Booking fees paid online through PayU"
+                sub="Booking fees paid online securely"
                 action={payments.length ? <span className="shrink-0 px-2.5 py-1 rounded-full bg-[#ECFDF3] text-[#067647] text-[12px] font-extrabold">{formatINR(totalPaid)} paid</span> : undefined}
               >
                 {awaitingPayment.length > 0 && (

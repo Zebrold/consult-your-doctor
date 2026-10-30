@@ -3,6 +3,7 @@
 import { useEffect, useRef, type RefObject } from "react";
 import { Check, Globe2, LoaderCircle, MapPin, Navigation } from "lucide-react";
 import { placeLabel, type usePatientLocation } from "@/components/patient/location";
+import { formatCityName } from "@/lib/geo";
 
 type Place = ReturnType<typeof usePatientLocation>;
 
@@ -45,7 +46,8 @@ export function LocationMenu({
       : status === "unavailable"
         ? "Your location isn't available right now. Pick a city below instead."
         : null;
-  const isCurrent = (city: string) => location?.kind === "city" && location.city === city;
+  const normalizedCities = Array.from(new Set(cities.map(formatCityName).filter(Boolean))).sort();
+  const isCurrent = (city: string) => location?.kind === "city" && formatCityName(location.city) === city;
   const row = "w-full flex items-center gap-3.5 px-7 text-left transition-colors hover:bg-[#F5F8FF] focus-visible:bg-[#F5F8FF] focus-visible:outline-none";
 
   return (
@@ -96,14 +98,14 @@ export function LocationMenu({
         </section>
       )}
 
-      {cities.length > 0 && (
+      {normalizedCities.length > 0 && (
         <section aria-labelledby="loc-cities" className="pb-3">
           <div className="mx-7 border-t border-[#E6EBF3]" />
           <h3 id="loc-cities" className="px-7 pt-5 pb-2 text-[13px] font-bold uppercase tracking-[0.14em] text-[#7A8599]">
             Cities we&apos;re in
           </h3>
           <ul className="grid grid-cols-2 sm:grid-cols-3">
-            {cities.map((city) => (
+            {normalizedCities.map((city) => (
               <li key={city}>
                 <button
                   type="button"

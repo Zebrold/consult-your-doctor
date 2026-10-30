@@ -48,7 +48,7 @@ const faqs = (fees: BookingFees): { q: string; a: React.ReactNode }[] => [
   },
   {
     q: 'How do I pay, and is there a booking fee?',
-    a: `Online you pay only the booking fee, through PayU (card, UPI or netbanking): ${formatINR(fees.consultation)} for a doctor appointment (${formatINR(fees.fastTrack)} for fast track), or ${formatPercent(fees.diagnosticPercent)} of each test's price for lab tests. The doctor's consultation fee is set by the hospital and paid at the hospital counter, and lab tests are paid at the lab. If you book at a hospital or lab desk, you pay there by scanning their UPI code or in cash.`,
+    a: `Online you pay only the booking fee securely (card, UPI or netbanking): ${formatINR(fees.consultation)} for a doctor appointment (${formatINR(fees.fastTrack)} for fast track), or ${formatPercent(fees.diagnosticPercent)} of each test's price for lab tests. The doctor's consultation fee is set by the hospital and paid at the hospital counter, and lab tests are paid at the lab. If you book at a hospital or lab desk, you pay there by scanning their UPI code or in cash.`,
   },
   {
     q: 'How do I log in?',

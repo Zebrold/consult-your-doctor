@@ -15,6 +15,7 @@ import { parseVitals, vitalsList } from '@/lib/vitals';
 import { matchBookedTests } from '@/lib/pricing';
 import QRCode from 'qrcode';
 import { siteUrl } from '@/lib/site-url';
+import { formatCityName } from '@/lib/geo';
 
 // The app banner's QR code: the site's address, made once per server.
 let siteQr: Promise<string> | null = null;
@@ -99,7 +100,7 @@ export default async function Home(props: {
       specialty: d.specialty,
       hospital: hospital?.name ?? null,
       hospitalId: hospital?.id ?? null,
-      city: hospital?.city ?? null,
+      city: formatCityName(hospital?.city) || null,
       experience: d.experience_years,
       qualifications: d.qualifications?.trim() || null,
       bookable: Number(d.consultation_fee) > 0,
@@ -138,7 +139,7 @@ export default async function Home(props: {
   }
 
   const cities = Array.from(
-    new Set([...hospitals.map((h) => h.city), ...((labCities ?? []) as { city: string | null }[]).map((l) => l.city)].filter(Boolean) as string[]),
+    new Set([...hospitals.map((h) => formatCityName(h.city)), ...((labCities ?? []) as { city: string | null }[]).map((l) => formatCityName(l.city))].filter(Boolean) as string[]),
   ).sort();
 
   return (
@@ -225,7 +226,7 @@ async function PatientHome({ userId, name, now }: { userId: string | null; name:
       specialty: doctor?.specialty ?? null,
       hospital: hospital?.name ?? null,
       address: hospital?.address ?? null,
-      city: hospital?.city ?? null,
+      city: formatCityName(hospital?.city) || null,
       records: v.medical_records ?? [],
     };
   });
@@ -261,7 +262,7 @@ async function PatientHome({ userId, name, now }: { userId: string | null; name:
   ].sort((a, b) => b.at.localeCompare(a.at));
 
   const cities = Array.from(
-    new Set([...hospitals.map((h) => h.city), ...((labCities ?? []) as { city: string | null }[]).map((l) => l.city)].filter(Boolean) as string[]),
+    new Set([...hospitals.map((h) => formatCityName(h.city)), ...((labCities ?? []) as { city: string | null }[]).map((l) => formatCityName(l.city))].filter(Boolean) as string[]),
   ).sort();
 
   return (

@@ -65,6 +65,14 @@ export function cityKey(name: string | null | undefined): string {
   return CITY_ALIASES[key] ?? key
 }
 
+/** Returns canonical display name for common city abbreviations, e.g. "HYD" → "Hyderabad". */
+export function formatCityName(city: string | null | undefined): string {
+  if (!city) return '';
+  const trimmed = city.trim();
+  if (trimmed.toUpperCase() === 'HYD') return 'Hyderabad';
+  return trimmed;
+}
+
 export const sameCity = (a: string | null | undefined, b: string | null | undefined) => {
   const key = cityKey(a)
   return key !== '' && key === cityKey(b)

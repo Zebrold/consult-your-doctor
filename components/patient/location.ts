@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { distanceKm, sameCity, type LatLng } from "@/lib/geo";
+import { distanceKm, formatCityName, sameCity, type LatLng } from "@/lib/geo";
 
 // Where the patient is looking for care: their device's location, or a city they picked. Kept in this browser only
 // (it never goes to our server); the device location is only used to sort what is already on the page.
@@ -42,8 +42,9 @@ function readRecent(): string | null {
 
 /** "Banjara Hills, Hyderabad" for a device location, the city for a chosen one. */
 export function placeLabel(location: PatientLocation) {
-  if (location.kind === "city") return location.city;
-  return location.city && !sameCity(location.label, location.city) ? `${location.label}, ${location.city}` : location.label;
+  if (location.kind === "city") return formatCityName(location.city);
+  const city = location.city ? formatCityName(location.city) : null;
+  return city && !sameCity(location.label, city) ? `${location.label}, ${city}` : location.label;
 }
 
 const samePlace = (a: PatientLocation, b: PatientLocation) =>
@@ -70,8 +71,14 @@ function write(location: PatientLocation | null) {
 }
 
 function valid(v: PatientLocation | null | undefined): PatientLocation | null {
-  if (v?.kind === "gps" && Number.isFinite(v.lat) && Number.isFinite(v.lng)) return v;
-  if (v?.kind === "city" && typeof v.city === "string" && v.city) return v;
+  if (v?.kind === "gps" && Number.isFinite(v.lat) && Number.isFinite(v.lng)) {
+    return { ...v, city: v.city ? formatCityName(v.city) : undefined };
+  }
+  if (v?.kind === "city" && typeof v.city === "string" && v.city) {
+    const city = formatCityName(v.city);
+    const label = v.label && v.label.toUpperCase() === "HYD" ? "Hyderabad" : (v.label || city);
+    return { ...v, city, label };
+  }
   return null;
 }
 

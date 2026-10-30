@@ -3,9 +3,10 @@ import Link from "next/link";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { StoreBadges } from "@/components/StoreBadges";
 import { COMPANY } from "@/lib/company";
+import { formatCityName } from "@/lib/geo";
 
-// The home page's footer (no other page shows it): the brand with the trust badges and social links, the logins,
-// Contact us and Legal, the cities with partner hospitals and labs, and the app badges.
+// The home page's footer: the brand with the trust badges and social links, the logins,
+// Contact us, Legal, the cities with partner hospitals and labs, and the app badges.
 
 type FooterLinkItem = { label: string; href: string };
 
@@ -111,26 +112,17 @@ function Column({ title, items, className = "" }: { title: string; items: Footer
 
 /** `cities` are the cities with partner hospitals or labs, in the order to show them. */
 export function Footer({ cities = [] }: { cities?: string[] }) {
+  const normalizedCities = Array.from(new Set(cities.map(formatCityName).filter(Boolean))).sort();
   const cityLink = (city: string): FooterLinkItem => ({ label: city, href: `/find?city=${encodeURIComponent(city)}` });
-  const shown = cities.slice(0, CITIES_SHOWN);
-  const more = cities.slice(CITIES_SHOWN);
+  const shown = normalizedCities.slice(0, CITIES_SHOWN);
+  const more = normalizedCities.slice(CITIES_SHOWN);
 
   return (
     <footer className="relative isolate overflow-hidden bg-[#2A4DD0] text-white font-(family-name:--font-manrope)">
-      {/* The stethoscope mark, faint, behind the top right */}
-      <Image
-        src="/logo-icon-white.png"
-        alt=""
-        width={420}
-        height={420}
-        aria-hidden
-        className="absolute -z-10 pointer-events-none select-none object-contain opacity-[0.07] w-[260px] h-[260px] -right-16 -top-6 md:w-[420px] md:h-[420px] md:-right-20 md:top-6"
-      />
-
-      <div className="px-4 md:px-[max(24px,10%)] pt-11 md:pt-16 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:pb-8">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)_minmax(0,0.95fr)_minmax(0,0.8fr)] gap-x-6 md:gap-x-10 gap-y-10">
+      <div className="px-4 md:px-[max(24px,8%)] pt-11 md:pt-16 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:pb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-[1.5fr_1fr_1fr_1fr_1fr] gap-x-6 md:gap-x-8 gap-y-10">
           {/* Brand */}
-          <div className="col-span-2 md:col-span-3 lg:col-span-1 lg:pr-6">
+          <div className="col-span-2 sm:col-span-3 lg:col-span-1 lg:pr-6">
             <Link href="/" aria-label="Consult your Doctor home" className="inline-flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 rounded-lg">
               <Image src="/logo-icon-white.png" alt="" width={96} height={96} className="w-10 h-10 md:w-[46px] md:h-[46px] object-contain" />
               <span className="font-['Helvetica_Neue',Helvetica,Arial,sans-serif] text-[24px] md:text-[28px] font-bold tracking-[-0.01em]">Consult your Doctor</span>
@@ -138,14 +130,14 @@ export function Footer({ cities = [] }: { cities?: string[] }) {
             <p className="mt-4 md:mt-5 max-w-[400px] text-[14.5px] md:text-[15.5px] leading-[1.65] text-white/85">
               Find doctors at partner hospitals and diagnostic labs, book and pay online, and keep your prescriptions and reports in one place.
             </p>
-            <div className="mt-6 flex items-center gap-3">
+            <div className="mt-6 flex items-center gap-4">
               {[
                 { src: "/badge-trustpilot.svg", alt: "Trustpilot" },
                 { src: "/badge-legitscript.svg", alt: "LegitScript" },
               ].map((b) => (
-                <span key={b.src} className="w-[92px] h-[92px] rounded-2xl bg-white/[0.06] ring-1 ring-inset ring-white/20 flex items-center justify-center">
-                  <Image src={b.src} alt={b.alt} width={80} height={86} unoptimized className="h-[70px] w-auto object-contain select-none" />
-                </span>
+                <div key={b.src} className="h-[52px] flex items-center">
+                  <Image src={b.src} alt={b.alt} width={80} height={86} unoptimized className="h-[52px] w-auto object-contain select-none" />
+                </div>
               ))}
             </div>
             {SOCIAL.length > 0 && (
@@ -170,17 +162,20 @@ export function Footer({ cities = [] }: { cities?: string[] }) {
             )}
           </div>
 
+          {/* 1. Login */}
           <Column title="Login" items={LOGINS} />
 
-          <div className="flex flex-col gap-10">
-            <Column title="Contact us" items={CONTACT} />
-            <Column title="Legal" items={LEGAL} />
-          </div>
+          {/* 2. Contact us */}
+          <Column title="Contact us" items={CONTACT} />
 
-          {cities.length > 0 && (
-            <nav aria-label="Available in" className="col-span-2 md:col-span-1">
-              <h2 className="text-[16.5px] md:text-[17px] font-extrabold tracking-[-0.01em]">Available in</h2>
-              <ul className="mt-4 md:mt-5 grid grid-cols-2 md:grid-cols-1 gap-x-6 gap-y-2.5 md:gap-3">
+          {/* 3. Legal */}
+          <Column title="Legal" items={LEGAL} />
+
+          {/* 4. Available in */}
+          {normalizedCities.length > 0 && (
+            <nav aria-label="Available in" className="col-span-2 sm:col-span-1">
+              <h2 className="text-[16.5px] md:text-[17px] font-extrabold tracking-[-0.01em] text-white">Available in</h2>
+              <ul className="mt-4 md:mt-5 flex flex-col gap-2.5 md:gap-3">
                 {shown.map((city) => (
                   <li key={city} className="min-w-0">
                     <FooterLink item={cityLink(city)} />
@@ -189,12 +184,12 @@ export function Footer({ cities = [] }: { cities?: string[] }) {
               </ul>
               {more.length > 0 && (
                 <details className="group mt-4 md:mt-5">
-                  <summary className="inline-flex items-center gap-2 h-10 px-4 rounded-[10px] border border-white/45 text-[14.5px] font-bold cursor-pointer list-none [&::-webkit-details-marker]:hidden hover:bg-white/10 transition-colors">
+                  <summary className="inline-flex items-center gap-2 h-9 px-3.5 rounded-[10px] border border-white/45 text-[14px] font-bold cursor-pointer list-none [&::-webkit-details-marker]:hidden hover:bg-white/10 transition-colors">
                     <span className="group-open:hidden">More cities</span>
                     <span className="hidden group-open:inline">Fewer cities</span>
                     <ChevronDown className="w-4 h-4 group-open:rotate-180 transition-transform" strokeWidth={2.4} />
                   </summary>
-                  <ul className="mt-4 grid grid-cols-2 md:grid-cols-1 gap-x-6 gap-y-2.5 md:gap-3">
+                  <ul className="mt-3 flex flex-col gap-2.5 md:gap-3">
                     {more.map((city) => (
                       <li key={city} className="min-w-0">
                         <FooterLink item={cityLink(city)} />

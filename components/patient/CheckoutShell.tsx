@@ -19,7 +19,7 @@ export function CheckoutShell({ name, email, children }: { name: string | null; 
         container="max-w-[900px] px-4 md:px-6"
         eyebrow="Secure payment"
         title="Checkout"
-        subtitle="Paid securely through PayU."
+        subtitle="Paid securely online."
         deskHidden
       />
       <PageBody>
@@ -110,7 +110,7 @@ export function PaymentSummary({ lines, total, atVenue, isConsultation, children
       <div className="flex flex-col gap-3">
         {children}
         <p className="flex items-center justify-center gap-1.5 text-[12px] text-[#5B667A]">
-          <ShieldCheck className="w-4 h-4 text-[#067647]" /> Paid securely through PayU
+          <ShieldCheck className="w-4 h-4 text-[#067647]" /> Paid securely online (UPI, Cards, NetBanking)
         </p>
         <RefundNote isConsultation={isConsultation} />
       </div>

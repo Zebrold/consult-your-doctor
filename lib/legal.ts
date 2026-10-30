@@ -71,7 +71,7 @@ export const terms = (fees: BookingFees): LegalDocument => ({
         [
           `**Doctor Consultations:** When booking a consultation online, you pay a booking fee of ${inr(fees.consultation)} to Consult Your Doctor, or ${inr(fees.fastTrack)} if you choose fast track (you are seen ahead of general patients once checked in at the hospital). This is the only amount collected online. Hospital services you pick while booking are priced by the hospital and paid at the hospital counter. The doctor’s consultation fee is set by the hospital, shown on the doctor’s profile page, and paid directly at the hospital counter at your visit; it is never collected online or added to the booking total. Consultations take place in person at the doctor’s hospital or clinic.`,
           `**Diagnostic Lab Tests:** When booking lab tests online, you pay a booking fee of ${formatPercent(fees.diagnosticPercent)} of each booked test’s price to Consult Your Doctor. The tests themselves, and any home sample collection fee, are paid to the diagnostic centre at your visit and are never collected online.`,
-          '**Payment Processing:** Online payments are processed through our authorized payment gateway partner, PayU. All online transactions are encrypted via industry-standard protocols. We do not store credit/debit card numbers or netbanking credentials on our servers.',
+          '**Payment Processing:** Online payments are processed through our authorized payment gateway partner. All online transactions are encrypted via industry-standard protocols. We do not store credit/debit card numbers or netbanking credentials on our servers.',
           '**Front-Desk Payments:** When registering or checking in directly at a partner hospital or diagnostic centre front desk, patients settle charges directly with the facility via UPI (scanning the facility’s QR code) or cash. Desk bookings carry no booking fee.',
           '**Booking Confirmation:** An online booking is confirmed once the booking fee is captured; a desk booking once the front desk has taken payment. Unpaid online reservations may be released after a hold period to keep appointment slots open for other patients.',
           '**Taxes:** The booking fees are inclusive of applicable taxes unless explicitly indicated otherwise.',
@@ -254,7 +254,7 @@ export const PRIVACY: LegalDocument = {
           '**Account details:** your name, mobile number, email address, and for partners and staff, a login ID and password (stored only in encrypted form).',
           '**Profile details you add:** date of birth, sex, blood group, address and emergency contact, and the same for family members you book for.',
           '**Health information:** symptoms and complaints, vitals (such as blood pressure, pulse, oxygen, temperature, weight, height and BMI), prescriptions, diagnoses, lab test results and reports, documents you or your providers upload, hospital admission and bed details, and allergies.',
-          '**Bookings and payments:** who you booked, when and where, the amount, the payment method and the transaction reference. Card and bank details are handled by our payment partner PayU; we do not receive or store them.',
+          '**Bookings and payments:** who you booked, when and where, the amount, the payment method and the transaction reference. Card and bank details are handled by our authorized payment partner; we do not receive or store them.',
           '**Reviews** you write about doctors.',
           '**Messages:** what you type to Zebrold AI and support requests you send us.',
           '**Technical information:** the cookies that keep you signed in, your browser type and IP address in our logs, and preferences saved in your browser (such as your chosen language and unsent prescription drafts for doctors).',
@@ -286,7 +286,7 @@ export const PRIVACY: LegalDocument = {
       body: [
         [
           '**The providers you book:** the doctor, hospital or diagnostic centre sees the details and health information they need for your care. Your treating doctor can see records added at the hospital for your visit, including any admission.',
-          '**Service providers who run the platform for us,** under contracts that require them to protect your information and use it only on our instructions: Supabase (database, sign-in and secure file storage), PayU (payments), Meta (WhatsApp messages), our email provider, Cloudflare (Zebrold AI answers; it does not use what it is sent to train its models), and our hosting provider.',
+          '**Service providers who run the platform for us,** under contracts that require them to protect your information and use it only on our instructions: Supabase (database, sign-in and secure file storage), authorized payment gateway providers (payments), Meta (WhatsApp messages), our email provider, Cloudflare (Zebrold AI answers; it does not use what it is sent to train its models), and our hosting provider.',
           '**Authorities,** when the law requires it, or to protect someone’s life or safety in an emergency.',
           '**A buyer or successor,** if our business is reorganised or sold, under the same protections.',
         ],

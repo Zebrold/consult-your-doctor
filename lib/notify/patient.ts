@@ -150,7 +150,7 @@ export function notifyBookingConfirmed(args: BookingConfirmationArgs) {
           amount: numericAmount,
           transactionId: args.transactionId || args.bookingId,
           status: 'PAID',
-          gateway: 'PayU Real-Time',
+          gateway: 'Online (Instant)',
           paidAt: new Date(),
         },
       })
@@ -216,7 +216,7 @@ export function notifyBookingConfirmed(args: BookingConfirmationArgs) {
           `Your appointment for ${args.what} at ${args.where} is confirmed!`,
           `📋 Appointment Token: ${tokenNumber.replace(/^#/, '')}`,
           `🔖 Booking Reference ID: ${args.bookingId.toUpperCase()}`,
-          `💳 Booking fee paid: ${args.amount} (PayU verified)`,
+          `💳 Booking fee paid: ${args.amount} (Verified)`,
           `🏥 ${venueNote}`,
           `📅 Schedule: ${args.dateTimeStr || 'Scheduled Visit'}`,
           `Your official clinical appointment confirmation slip & receipt is attached to this email as a PDF.`,

@@ -8,6 +8,7 @@ import { ArrowRight, Bell, CalendarClock, ChevronDown, ChevronRight, LayoutDashb
 import { GetTheApp } from "@/components/GetTheApp";
 import { initials } from "@/components/patient/format";
 import { locationCity, type usePatientLocation } from "@/components/patient/location";
+import { formatCityName } from "@/lib/geo";
 import { LocationMenu } from "@/components/patient/LocationMenu";
 import { PATIENT_ACCOUNT_LINKS } from "@/components/patient/PhoneHeader";
 import { AccountMenu } from "@/components/portal/TopBar";
@@ -52,14 +53,15 @@ export function HomeHero({ account, place, cities, visitLine, onLocation, onMenu
   const closeLoc = useCallback(() => setLocOpen(false), []);
   const locAnchor = useRef<HTMLButtonElement>(null);
   const location = place.location;
-  const city = locationCity(location);
+  const rawCity = locationCity(location);
+  const city = rawCity ? formatCityName(rawCity) : null;
   const findHref = city ? `/find?city=${encodeURIComponent(city)}` : "/find";
 
   const where =
     place.status === "locating"
       ? "Finding your location…"
       : location
-        ? [location.label, location.city && location.city !== location.label ? location.city : null].filter(Boolean).join(", ")
+        ? [formatCityName(location.label), location.city && location.city !== location.label ? formatCityName(location.city) : null].filter(Boolean).join(", ")
         : null;
 
   const search = (e: FormEvent) => {

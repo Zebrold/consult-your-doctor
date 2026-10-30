@@ -44,7 +44,7 @@ const COPY = {
     signInLabel: 'Log in to the Hospital Portal',
     perks: [
       'Publish each doctor’s slots for online booking',
-      'Register walk-in patients and take PayU, UPI or cash',
+      'Register walk-in patients and take online payments, UPI or cash',
       'Manage wards, beds and admissions',
       'A public hospital page with your facilities and accreditations',
     ],

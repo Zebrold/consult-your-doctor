@@ -48,7 +48,7 @@ const plans = (fees: BookingFees) => [
 const faqs = [
   {
     q: "How can I pay?",
-    a: "The booking fee is paid online through PayU, by UPI, debit or credit card, or net banking. The doctor's consultation fee is paid at the hospital counter and lab tests at the lab. If you book at a hospital or lab front desk, you pay there by UPI or cash.",
+    a: "The booking fee is paid online securely by UPI, debit or credit card, or net banking. The doctor's consultation fee is paid at the hospital counter and lab tests at the lab. If you book at a hospital or lab front desk, you pay there by UPI or cash.",
   },
   {
     q: "Are there subscriptions or membership fees?",

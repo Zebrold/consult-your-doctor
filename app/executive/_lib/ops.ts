@@ -273,7 +273,7 @@ export async function loadPayments(admin: Admin): Promise<Map<string, Payment>> 
   return map
 }
 
-export const PAYMENT_METHOD_LABELS: Record<string, string> = { payu: 'Online (PayU)', cash: 'Cash (walk-in)' }
+export const PAYMENT_METHOD_LABELS: Record<string, string> = { payu: 'Online (Paid)', cash: 'Cash (walk-in)' }
 
 export type Application = {
   id: string

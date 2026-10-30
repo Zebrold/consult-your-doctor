@@ -109,7 +109,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
           amount: online ? bookingFee : 0,
           transactionId: paymentRow?.transaction_id || id,
           status: 'PAID',
-          gateway: online ? 'PayU' : 'Hospital desk',
+          gateway: online ? 'Online (Paid)' : 'Hospital desk',
           paidAt: new Date(apt.created_at || Date.now()),
         },
       })
@@ -178,7 +178,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
           amount: online ? bookingFee : 0,
           transactionId: paymentRow?.transaction_id || id,
           status: 'PAID',
-          gateway: online ? 'PayU' : 'Centre desk',
+          gateway: online ? 'Online (Paid)' : 'Centre desk',
           paidAt: new Date(diag.created_at || Date.now()),
         },
       })

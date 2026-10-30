@@ -178,7 +178,7 @@ export function PayuNote() {
         <CreditCard className="w-[18px] h-[18px]" />
       </span>
       <div className="min-w-0">
-        <p className="font-label-sm text-[12px] font-bold text-on-surface">Pay securely with PayU</p>
+        <p className="font-label-sm text-[12px] font-bold text-on-surface">Pay securely online</p>
         <p className="font-label-sm text-[11px] text-indigo-gray-600">UPI, cards or net banking on the next screen</p>
       </div>
     </div>

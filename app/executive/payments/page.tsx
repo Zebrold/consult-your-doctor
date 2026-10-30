@@ -20,7 +20,7 @@ export default async function ExecutivePaymentsPage() {
       <PageHeader
         eyebrow="Financial Operations"
         title="Executive Panel — Payment Management"
-        description="Comprehensive ledger of online PayU, UPI QR, and desk collections. Reconcile transactions, issue traceable refunds, and set the online booking fees."
+        description="Comprehensive ledger of online payments, UPI QR, and desk collections. Reconcile transactions, issue traceable refunds, and set the online booking fees."
       />
 
       <BookingFeeManager initialFees={fees} />

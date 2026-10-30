@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Bell, CalendarDays, CircleHelp, ExternalLink, LayoutGrid, LogOut, Search, UserRound, Users, type LucideIcon } from 'lucide-react'
 import { initials } from '@/components/patient/format'
+import { FloatingTabBar } from '@/components/FloatingTabBar'
 
 type NavItem = { href: string; label: string; icon: LucideIcon }
 
@@ -28,7 +29,7 @@ function crumb(pathname: string): string[] {
 }
 
 /**
- * The doctor navigation. Phones get the white tab bar along the bottom (pages with their own bottom bar, like a patient
+ * The doctor navigation. Phones get the floating tab bar along the bottom (pages with their own bottom bar, like a patient
  * record, leave it out); desktops get the blue sidebar with the menu and the account, and a white top bar with the
  * page's place, a patient search and the waiting room.
  */
@@ -39,27 +40,7 @@ export function DoctorDock({ doctor }: { doctor: { id: string; name: string; spe
 
   return (
     <>
-      {phoneBar && (
-        <nav
-          aria-label="Doctor navigation"
-          className="lg:hidden fixed z-40 inset-x-0 bottom-0 grid grid-cols-4 px-1 pt-0.5 pb-[max(10px,env(safe-area-inset-bottom))] bg-white border-t border-[#E6EAF0] shadow-[0_-6px_16px_rgba(11,27,63,0.05)] print:hidden"
-        >
-          {MENU.map(({ href, label, icon: Icon }) => {
-            const active = isActive(pathname, href)
-            return (
-              <Link
-                key={href}
-                href={href}
-                aria-current={active ? 'page' : undefined}
-                className={`flex flex-col items-center gap-1.5 pt-2.5 pb-2 text-[11.5px] font-extrabold tracking-[0.02em] uppercase transition-colors ${active ? 'text-[#2A4DD0]' : 'text-[#8A93A3] active:text-[#5B667A]'}`}
-              >
-                <Icon className="w-[26px] h-[26px]" strokeWidth={active ? 2.1 : 1.8} />
-                {label}
-              </Link>
-            )
-          })}
-        </nav>
-      )}
+      {phoneBar && <FloatingTabBar label="Doctor navigation" tabs={MENU.map((m) => ({ ...m, active: isActive(pathname, m.href) }))} />}
 
       <aside
         aria-label="Doctor menu"

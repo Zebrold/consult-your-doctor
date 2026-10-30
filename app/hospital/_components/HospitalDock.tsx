@@ -7,6 +7,7 @@ import {
   BedDouble, Bell, Building2, CalendarDays, CircleHelp, ExternalLink, IndianRupee, LayoutDashboard, LayoutGrid, LogOut, Search, Users, UsersRound, type LucideIcon,
 } from 'lucide-react'
 import { initials } from '@/components/patient/format'
+import { FloatingTabBar } from '@/components/FloatingTabBar'
 
 type NavItem = { href: string; label: string; icon: LucideIcon }
 
@@ -44,7 +45,7 @@ function crumb(pathname: string): string[] {
 }
 
 /**
- * The hospital navigation. Phones get the white tab bar along the bottom (Dashboard, Patients, Beds, Roster, More);
+ * The hospital navigation. Phones get the floating tab bar along the bottom (Dashboard, Patients, Beds, Roster, More);
  * desktops get the blue sidebar with the menu and the account, and a white top bar with the page's place, a search of
  * patients and bookings, and a bell that jumps to what needs attention.
  */
@@ -54,25 +55,10 @@ export function HospitalDock({ hospital, staff }: { hospital: { id: string; name
 
   return (
     <>
-      <nav
-        aria-label="Hospital navigation"
-        className="lg:hidden fixed z-40 inset-x-0 bottom-0 grid grid-cols-5 px-0.5 pt-0.5 pb-[max(10px,env(safe-area-inset-bottom))] bg-white border-t border-[#E6EAF0] shadow-[0_-6px_16px_rgba(11,27,63,0.05)] print:hidden"
-      >
-        {TABS.map(({ href, label, icon: Icon }) => {
-          const active = href === '/hospital/more' ? MORE.some((m) => isActive(pathname, m)) : isActive(pathname, href)
-          return (
-            <Link
-              key={href}
-              href={href}
-              aria-current={active ? 'page' : undefined}
-              className={`flex flex-col items-center gap-1.5 pt-2.5 pb-2 text-[10.5px] font-extrabold tracking-[0.02em] uppercase transition-colors ${active ? 'text-[#2A4DD0]' : 'text-[#8A93A3] active:text-[#5B667A]'}`}
-            >
-              <Icon className="w-6 h-6" strokeWidth={active ? 2.1 : 1.8} />
-              {label}
-            </Link>
-          )
-        })}
-      </nav>
+      <FloatingTabBar
+        label="Hospital navigation"
+        tabs={TABS.map((t) => ({ ...t, active: t.href === '/hospital/more' ? MORE.some((m) => isActive(pathname, m)) : isActive(pathname, t.href) }))}
+      />
 
       <aside
         aria-label="Hospital menu"

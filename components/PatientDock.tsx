@@ -7,6 +7,7 @@ import {
   Bell, CalendarDays, CircleHelp, FlaskConical, Hospital, House, LogIn, LogOut, Search, Settings, Stethoscope, UserRound, type LucideIcon,
 } from "lucide-react";
 import { initials } from "@/components/patient/format";
+import { FloatingTabBar } from "@/components/FloatingTabBar";
 
 type Tab = "home" | "find" | "book" | "ai" | "profile";
 
@@ -61,7 +62,7 @@ function crumb(path: string): string[] {
 }
 
 /**
- * The patient navigation. Phones and tablets get the white tab bar fixed to the bottom; desktops get the blue sidebar
+ * The patient navigation. Phones and tablets get the floating tab bar along the bottom; desktops get the blue sidebar
  * with the menu and the account, and a white top bar with the page's place, search and bookings.
  */
 export function PatientDock({ activeTab = "home", isSignedIn = true, name, detail, phoneBar = true }: PatientDockProps) {
@@ -85,24 +86,7 @@ export function PatientDock({ activeTab = "home", isSignedIn = true, name, detai
 
   return (
     <>
-      {phoneBar && (
-        <nav
-          aria-label="Patient navigation"
-          className="lg:hidden fixed z-40 inset-x-0 bottom-0 grid grid-cols-4 px-1 pt-0.5 pb-[max(10px,env(safe-area-inset-bottom))] bg-white border-t border-[#E6EAF0] shadow-[0_-6px_16px_rgba(11,27,63,0.05)] font-(family-name:--font-manrope) print:hidden"
-        >
-          {tabs.map(({ key, href, label, icon: Icon, active }) => (
-            <Link
-              key={key}
-              href={href}
-              aria-current={active ? "page" : undefined}
-              className={`flex flex-col items-center gap-1.5 pt-2.5 pb-2 text-[11.5px] font-extrabold tracking-[0.02em] uppercase transition-colors ${active ? "text-[#2A4DD0]" : "text-[#8A93A3] active:text-[#5B667A]"}`}
-            >
-              <Icon className="w-[26px] h-[26px]" strokeWidth={active ? 2.1 : 1.8} />
-              {label}
-            </Link>
-          ))}
-        </nav>
-      )}
+      {phoneBar && <FloatingTabBar label="Patient navigation" tabs={tabs} />}
       <Rail pathname={pathname} isSignedIn={isSignedIn} name={name} detail={detail} />
       <TopBar pathname={pathname} isSignedIn={isSignedIn} />
     </>

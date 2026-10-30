@@ -129,7 +129,7 @@ export default async function PricesPage() {
 
         <div className="mt-4 md:mt-5 p-5 md:p-6 rounded-[20px] bg-[#F6F8FC] text-[14.5px] md:text-[15px] leading-[1.65] text-[#27324A]">
           <span className="font-extrabold text-[#0B1B3F]">Example:</span> booking a doctor costs <strong className="text-[#0B1B3F]">{inr(fees.consultation)}</strong> online, and you
-          pay the consultation fee at the hospital counter. Fast track, where the booking page offers it, is <strong className="text-[#0B1B3F]">{inr(fees.fastTrack)}</strong> online and
+          pay the consultation fee at the hospital counter. Fast track, where the hospital offers it, is <strong className="text-[#0B1B3F]">{inr(fees.fastTrack)}</strong> online and
           you are seen ahead of general patients once checked in. A {inr(exampleTest)} lab test costs{" "}
           <strong className="text-[#0B1B3F]">{inr(labTestBookingFee(exampleTest, fees.diagnosticPercent))}</strong> online, and {inr(exampleTest)} at the lab.
         </div>

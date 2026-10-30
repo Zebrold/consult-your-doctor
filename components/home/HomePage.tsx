@@ -46,7 +46,7 @@ export function HomePage({ account, now, nextVisit, doctors, hospitals, cities, 
 
   return (
     <main className="font-(family-name:--font-manrope) text-[#0B1B3F] bg-white">
-      <HomeHero account={account} place={place} visitLine={visitLine} onLocation={() => setSheet("location")} onMenu={() => setSheet("menu")} />
+      <HomeHero account={account} place={place} cities={cities} visitLine={visitLine} onLocation={() => setSheet("location")} onMenu={() => setSheet("menu")} />
       <SpecialitiesSection />
       {hospitals.length > 0 && <HospitalsSection hospitals={shownHospitals} place={place} />}
       {doctors.length > 0 && <DoctorsSection doctors={shownDoctors} place={place} now={now} findHref={findHref} />}

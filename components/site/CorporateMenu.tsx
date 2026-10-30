@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Building2, ChevronDown, FlaskConical, LogIn, Stethoscope, type LucideIcon } from "lucide-react";
+import { Building2, ChevronDown, FlaskConical, Stethoscope, type LucideIcon } from "lucide-react";
 
 /** The three ways to join, shared by the header's Corporate menu and the phone menu. */
 export const JOIN_LINKS: { href: string; title: string; text: string; icon: LucideIcon }[] = [
@@ -12,8 +12,8 @@ export const JOIN_LINKS: { href: string; title: string; text: string; icon: Luci
 ];
 
 /**
- * The blue headers' Corporate item: a menu with the three ways to join, opened on hover or click, plus links to the
- * partner page and the partner login. `className` styles the trigger to match the header's other links.
+ * The blue headers' Corporate item: a simple white menu with the three ways to join, opened on hover or click.
+ * `className` styles the trigger to match the header's other links.
  */
 export function CorporateMenu({ className = "" }: { className?: string }) {
   const [open, setOpen] = useState(false);
@@ -47,43 +47,26 @@ export function CorporateMenu({ className = "" }: { className?: string }) {
         <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${open ? "rotate-180" : ""}`} strokeWidth={2.4} />
       </button>
 
-      {/* The top padding bridges the gap, so the menu stays open while the pointer moves onto it. */}
+      {/* A plain white list with a small notch towards the trigger. The top padding bridges the gap, so the menu stays
+          open while the pointer moves onto it. */}
       <div
         id={menuId}
-        className={`absolute left-1/2 -translate-x-1/2 top-full pt-3.5 z-50 transition-all duration-200 ${open ? "visible opacity-100 translate-y-0" : "invisible opacity-0 -translate-y-1"}`}
+        className={`absolute left-1/2 -translate-x-1/2 top-full pt-3 z-50 transition-all duration-200 ${open ? "visible opacity-100 translate-y-0" : "invisible opacity-0 -translate-y-1"}`}
       >
-        <span aria-hidden className="absolute left-1/2 -translate-x-1/2 top-[9px] w-3 h-3 rotate-45 rounded-[3px] bg-white shadow-[-1px_-1px_0_#E6EBF3]" />
-        <div className="relative w-[392px] rounded-[22px] bg-white text-[#0B1B3F] shadow-[0_0_0_1px_#E6EBF3,0_28px_60px_-12px_rgba(11,27,63,0.35)] p-2.5 font-(family-name:--font-manrope)">
-          <p className="px-3 pt-2 pb-2.5 text-[11.5px] font-extrabold uppercase tracking-[0.1em] text-[#5B667A]">Partner with Consult your Doctor</p>
-          <ul className="flex flex-col">
-            {JOIN_LINKS.map(({ href, title, text, icon: Icon }) => (
-              <li key={href}>
-                <Link
-                  href={href}
-                  onClick={() => setOpen(false)}
-                  className="group flex items-center gap-3.5 p-3 rounded-2xl hover:bg-[#F3F6FD] focus-visible:bg-[#F3F6FD] focus-visible:outline-none transition-colors"
-                >
-                  <span className="shrink-0 w-11 h-11 rounded-[13px] bg-[#EAF1FF] text-[#2A4DD0] flex items-center justify-center group-hover:bg-[#2A4DD0] group-hover:text-white transition-colors">
-                    <Icon className="w-[21px] h-[21px]" strokeWidth={2} />
-                  </span>
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-[15px] font-extrabold tracking-[-0.01em]">{title}</span>
-                    <span className="block mt-0.5 text-[12.5px] leading-snug text-[#5B667A]">{text}</span>
-                  </span>
-                  <ArrowRight className="w-4 h-4 shrink-0 text-[#A3AEC2] group-hover:text-[#2A4DD0] group-hover:translate-x-0.5 transition-all" strokeWidth={2.6} />
-                </Link>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-1.5 mx-1 px-2.5 pt-3 pb-1.5 border-t border-[#EEF2F7] flex items-center justify-between gap-3 text-[13px] font-extrabold">
-            <Link href="/corporate" onClick={() => setOpen(false)} className="text-[#2A4DD0] hover:underline">
-              How partnering works
-            </Link>
-            <Link href="/corporate#login" onClick={() => setOpen(false)} className="inline-flex items-center gap-1.5 text-[#27324A] hover:text-[#2A4DD0]">
-              <LogIn className="w-4 h-4" strokeWidth={2.4} /> Partner login
-            </Link>
-          </div>
-        </div>
+        <span aria-hidden className="absolute left-1/2 -translate-x-1/2 top-[7px] w-2.5 h-2.5 rotate-45 bg-white border-l border-t border-[#E4E7EC]" />
+        <ul className="relative w-[288px] py-2 rounded-lg bg-white border border-[#E4E7EC] shadow-[0_12px_28px_-8px_rgba(11,27,63,0.22)] font-(family-name:--font-manrope)">
+          {JOIN_LINKS.map(({ href, title }) => (
+            <li key={href}>
+              <Link
+                href={href}
+                onClick={() => setOpen(false)}
+                className="block px-6 py-3.5 text-[16px] font-medium text-[#3D4250] hover:bg-[#F4F6FB] hover:text-[#2A4DD0] focus-visible:bg-[#F4F6FB] focus-visible:text-[#2A4DD0] focus-visible:outline-none transition-colors"
+              >
+                {title}
+              </Link>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );

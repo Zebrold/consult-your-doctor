@@ -15,21 +15,23 @@ const manrope = Manrope({
   subsets: ["latin"],
 });
 
+const SITE_TITLE = "Consult Your Doctor | Book Doctors, Hospitals & Lab Tests Near You";
+const SITE_DESCRIPTION =
+  "Find verified doctors at partner hospitals and diagnostic labs, book a hospital visit or lab test online, and keep your prescriptions and reports in one place.";
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://consultyourdoctor.de"),
 
   title: {
-    default: "Consult Your Doctor | AI-Powered Doctors and Personalized Medication Support",
+    default: SITE_TITLE,
     template: "%s | Consult Your Doctor",
   },
 
-  description:
-    "AI-powered doctors provide personalized medical advice and support medication planning to make your healthcare decisions easier.",
+  description: SITE_DESCRIPTION,
 
   openGraph: {
-    title: "Consult Your Doctor | AI-Powered Doctors and Personalized Medication Support",
-    description:
-      "AI-powered doctors provide personalized medical advice and support medication planning to make your healthcare decisions easier.",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
     url: "https://consultyourdoctor.de",
     siteName: "Consult Your Doctor",
     locale: "en_US",
@@ -38,9 +40,8 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title: "Consult Your Doctor | AI-Powered Doctors and Personalized Medication Support",
-    description:
-      "AI-powered doctors provide personalized medical advice and support medication planning to make your healthcare decisions easier.",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
   },
 
 
@@ -51,11 +52,13 @@ export const metadata: Metadata = {
 
 // `cover` lets the page reach under the notch and home indicator; the header, the navigation pill and the assistant
 // pad themselves with env(safe-area-inset-*), which only reports real values with it. Pinch-zoom stays allowed.
+// The theme colour is the headers' blue, so Safari's status bar and Chrome's address bar run into the header instead of
+// showing a white band above it (the home page sets its own, for its dark app strip).
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#ffffff",
+  themeColor: "#2A4DD0",
 };
 
 import { getCurrentUser } from "@/lib/supabase/server";

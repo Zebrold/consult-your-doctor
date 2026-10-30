@@ -139,6 +139,20 @@ body {
   padding-right: env(safe-area-inset-right);
 }
 
+/* Phones: above the page (Safari's status bar, and what shows when the page is pulled down) is the blue of the phone
+   headers, or the app strip's dark on a page that opens with it. The body, at least a screen tall, keeps the page white. */
+@media (max-width: 767px) {
+  html {
+    background-color: #2a4dd0;
+  }
+  html:has([data-top-strip]) {
+    background-color: #0a1022;
+  }
+  body {
+    min-height: 100dvh;
+  }
+}
+
 /* Taps respond at once (no double-tap-zoom wait) and without the grey flash; focus rings still show. */
 a, button, summary, label, select, [role="button"], input[type="checkbox"], input[type="radio"] {
   touch-action: manipulation;

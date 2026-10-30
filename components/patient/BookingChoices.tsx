@@ -7,17 +7,16 @@ import { formatINR } from "./format";
 import { card } from "./app-ui";
 
 // What a patient picks on top of the doctor and time (lib/booking-options.ts): fast track, and hospital services paid
-// at the hospital. The hospital page and the booking page both show these, and the hospital page hands its picks to the
-// booking page in the address.
+// at the hospital. The hospital page, where patients book, shows these; so does the booking page for doctors without a
+// hospital.
 
 /**
- * The booking page for a doctor, with the time, appointment type and services already picked. Without a time it opens
- * on the full calendar (`times=all`); otherwise the booking page sends patients to the doctor's hospital page first.
+ * The booking page for a doctor, with the time, appointment type and services already picked. Only doctors not attached
+ * to a hospital are booked there; the rest book on their hospital's page (lib/booking-links.ts).
  */
 export function bookingPath(doctorId: string, picks: { slotId?: string | null; fastTrack?: boolean; services?: string[] } = {}) {
   const q = new URLSearchParams();
   if (picks.slotId) q.set("slot", picks.slotId);
-  else q.set("times", "all");
   if (picks.fastTrack) q.set("type", "fast_track");
   for (const s of picks.services ?? []) q.append("service", s);
   const query = q.toString();

@@ -155,7 +155,7 @@ export function FinalizeBookingClient({
   const signIn = `/login/patient?next=${encodeURIComponent(bookingPath(doctor.id, { slotId, fastTrack: choices && fastTrack, services: pickedServices.map((s) => s.name) }))}`;
   const ctaLabel = submitting ? "Reserving…" : !canBook ? "Booking unavailable" : !selected ? "Pick a time" : `Pay ${formatINR(bookingFee)}`;
   // Back to the hospital page the booking came through, with the doctor and time still picked.
-  const back = doctor.hospital ? doctorBookingHref(doctor.id, doctor.hospital.id, slotId) : `/doctors/${doctor.id}`;
+  const back = doctor.hospital ? doctorBookingHref(doctor.id, doctor.hospital.id, { slotId }) : `/doctors/${doctor.id}`;
 
   return (
     <div className="bg-[#F6F8FC] lg:bg-transparent min-h-screen font-(family-name:--font-manrope) text-[#0B1B3F]">

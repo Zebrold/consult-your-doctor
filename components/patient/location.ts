@@ -19,6 +19,9 @@ export const NEARBY_KM = 30;
 export const locationCity = (location: PatientLocation | null) => (location?.city ? location.city : null);
 
 const KEY = "cyd-patient-location";
+/** The last few locations picked in this browser, newest first, for the location menu. */
+const RECENT_KEY = "cyd-recent-locations";
+const RECENT_MAX = 4;
 const EVENT = "cyd-location-change";
 
 function read(): string | null {
@@ -28,6 +31,23 @@ function read(): string | null {
     return null;
   }
 }
+
+function readRecent(): string | null {
+  try {
+    return localStorage.getItem(RECENT_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** "Banjara Hills, Hyderabad" for a device location, the city for a chosen one. */
+export function placeLabel(location: PatientLocation) {
+  if (location.kind === "city") return location.city;
+  return location.city && !sameCity(location.label, location.city) ? `${location.label}, ${location.city}` : location.label;
+}
+
+const samePlace = (a: PatientLocation, b: PatientLocation) =>
+  a.kind === "gps" && b.kind === "gps" ? a.lat === b.lat && a.lng === b.lng : a.kind === b.kind && placeLabel(a) === placeLabel(b);
 
 function subscribe(onChange: () => void) {
   window.addEventListener("storage", onChange);
@@ -40,20 +60,38 @@ function subscribe(onChange: () => void) {
 
 function write(location: PatientLocation | null) {
   try {
-    if (location) localStorage.setItem(KEY, JSON.stringify(location));
-    else localStorage.removeItem(KEY);
+    if (location) {
+      localStorage.setItem(KEY, JSON.stringify(location));
+      const recent = parseRecent(readRecent()).filter((l) => !samePlace(l, location));
+      localStorage.setItem(RECENT_KEY, JSON.stringify([location, ...recent].slice(0, RECENT_MAX)));
+    } else localStorage.removeItem(KEY);
   } catch {}
   window.dispatchEvent(new Event(EVENT));
+}
+
+function valid(v: PatientLocation | null | undefined): PatientLocation | null {
+  if (v?.kind === "gps" && Number.isFinite(v.lat) && Number.isFinite(v.lng)) return v;
+  if (v?.kind === "city" && typeof v.city === "string" && v.city) return v;
+  return null;
 }
 
 function parse(raw: string | null): PatientLocation | null {
   if (!raw) return null;
   try {
-    const v = JSON.parse(raw) as PatientLocation;
-    if (v.kind === "gps" && Number.isFinite(v.lat) && Number.isFinite(v.lng)) return v;
-    if (v.kind === "city" && typeof v.city === "string" && v.city) return v;
-  } catch {}
-  return null;
+    return valid(JSON.parse(raw) as PatientLocation);
+  } catch {
+    return null;
+  }
+}
+
+function parseRecent(raw: string | null): PatientLocation[] {
+  if (!raw) return [];
+  try {
+    const list = JSON.parse(raw) as PatientLocation[];
+    return Array.isArray(list) ? list.map(valid).filter((l): l is PatientLocation => !!l) : [];
+  } catch {
+    return [];
+  }
 }
 
 /** The neighbourhood (label) and city for a point, from OpenStreetMap; "Current location" and "" when it can't say. */
@@ -75,6 +113,8 @@ export type LocateStatus = "idle" | "locating" | "denied" | "unavailable";
 export function usePatientLocation() {
   const raw = useSyncExternalStore(subscribe, read, () => null);
   const location = useMemo(() => parse(raw), [raw]);
+  const rawRecent = useSyncExternalStore(subscribe, readRecent, () => null);
+  const recent = useMemo(() => parseRecent(rawRecent), [rawRecent]);
   const [status, setStatus] = useState<LocateStatus>("idle");
 
   // A device location saved before cities were recorded: look its city up once.
@@ -101,9 +141,11 @@ export function usePatientLocation() {
   }, []);
 
   const chooseCity = useCallback((city: string) => write({ kind: "city", city, label: city }), []);
+  /** Goes back to one of the recent locations. */
+  const choose = useCallback((location: PatientLocation) => write(location), []);
   const clear = useCallback(() => write(null), []);
 
-  return { location, status, locate, chooseCity, clear };
+  return { location, recent, status, locate, chooseCity, choose, clear };
 }
 
 type Placeable = { lat: number | null; lng: number | null; city: string | null };

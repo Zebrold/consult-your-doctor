@@ -6,7 +6,7 @@ import { currentTime, loadPatientDefaults, one } from "@/components/patient/data
 import { doctorName } from "@/components/patient/format";
 import { getBookingFees } from "@/lib/booking-fees";
 import { bookingOptionsReady } from "@/lib/booking-options";
-import { isFastTrack, testList, type BookedTest } from "@/lib/pricing";
+import { isFastTrack, type BookedTest } from "@/lib/pricing";
 import { doctorBookingHref } from "@/lib/booking-links";
 
 interface BookDoctorPageProps {
@@ -17,7 +17,7 @@ interface BookDoctorPageProps {
 const DOCTOR_FIELDS = `
   id, specialty, experience_years, consultation_fee, image_url, bio, qualifications,
   profiles!doctors_profile_id_fkey ( full_name ),
-  hospitals ( * )
+  hospitals ( id )
 `;
 
 type DoctorRow = {
@@ -29,12 +29,8 @@ type DoctorRow = {
   bio: string | null;
   qualifications: string | null;
   profiles: { full_name: string | null } | { full_name: string | null }[] | null;
-  hospitals: HospitalRow | HospitalRow[] | null;
+  hospitals: { id: string } | { id: string }[] | null;
 };
-
-// The whole row: available_tests and test_prices come from a later migration, and naming them would fail the query
-// on a database without it.
-type HospitalRow = NonNullable<BookingDoctor["hospital"]> & { available_tests?: string[] | null; test_prices?: Record<string, number | string> | null };
 
 export async function generateMetadata({ params }: BookDoctorPageProps): Promise<Metadata> {
   const { doctorId } = await params;
@@ -54,8 +50,17 @@ export default async function BookDoctorPage({ params, searchParams }: BookDocto
   const supabase = await createClient();
   const now = currentTime();
 
-  const [{ data: row }, { data: schedules }, patient, fees, choices] = await Promise.all([
-    supabase.from("doctors").select(DOCTOR_FIELDS).eq("id", doctorId).maybeSingle(),
+  const { data: row } = await supabase.from("doctors").select(DOCTOR_FIELDS).eq("id", doctorId).maybeSingle();
+  if (!row) notFound();
+  const d = row as unknown as DoctorRow;
+  const hospital = one(d.hospitals);
+  // Doctors are booked on their hospital's page, start to finish; this page is only for doctors without one.
+  if (hospital) {
+    const services = ([] as string[]).concat(query.service ?? []);
+    redirect(doctorBookingHref(d.id, hospital.id, { slotId: typeof picked === "string" ? picked : null, fastTrack: isFastTrack(query.type), services }));
+  }
+
+  const [{ data: schedules }, patient, fees, choices] = await Promise.all([
     supabase
       .from("schedules")
       .select("id, start_time, is_booked")
@@ -68,17 +73,8 @@ export default async function BookDoctorPage({ params, searchParams }: BookDocto
     bookingOptionsReady(),
   ]);
 
-  if (!row) notFound();
-  const d = row as unknown as DoctorRow;
-  const hospital = one(d.hospitals);
-  // Doctors are booked through their hospital's page; this page is the last step, once a time is picked there (or the
-  // full calendar it links to for doctors with no open times on it).
-  if (hospital && typeof picked !== "string" && query.times !== "all") redirect(doctorBookingHref(d.id, hospital.id));
-  // The hospital's priced services, in its own order, as on the hospital page.
-  const services = choices
-    ? testList(hospital?.available_tests, hospital?.test_prices).filter((t): t is BookedTest => !!t.price && t.price > 0)
-    : [];
-  const asked = ([] as string[]).concat(query.service ?? []);
+  // Without a hospital there are no hospital services to add.
+  const services: BookedTest[] = [];
 
   const doctor: BookingDoctor = {
     id: d.id,
@@ -89,7 +85,7 @@ export default async function BookDoctorPage({ params, searchParams }: BookDocto
     experience: d.experience_years,
     bookable: Number(d.consultation_fee) > 0,
     image: d.image_url,
-    hospital: hospital && { id: hospital.id, name: hospital.name, city: hospital.city, address: hospital.address },
+    hospital: null,
   };
 
   const slots: BookingSlot[] = ((schedules ?? []) as { id: string; start_time: string; is_booked: boolean }[]).map((s) => ({
@@ -109,7 +105,6 @@ export default async function BookDoctorPage({ params, searchParams }: BookDocto
       services={services}
       initialSlotId={typeof picked === 'string' ? picked : null}
       initialFastTrack={choices && isFastTrack(query.type)}
-      initialServices={services.filter((s) => asked.includes(s.name)).map((s) => s.name)}
       payuKey={process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY || "jwoG24"}
     />
   );

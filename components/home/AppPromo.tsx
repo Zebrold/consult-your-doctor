@@ -67,44 +67,20 @@ export function AppPromo({ qr }: { qr: string }) {
   );
 }
 
-/** Phones: the same banner as a strip at the very top of the home page. */
+/**
+ * Phones: a slim dark strip at the very top of the home page, with the app's icon and Open app. `data-top-strip` gives
+ * the top of the page (Safari's status bar and the pull-down area) the strip's colour (globals.css).
+ */
 export function AppPromoStrip() {
   return (
-    // Only the glows and the art are clipped, so the Get the app card can open below the strip.
-    <section aria-labelledby="app-strip-title" className="md:hidden relative isolate z-10 text-white bg-[linear-gradient(135deg,#0B2075_0%,#1638B5_55%,#1D4ED8_100%)] border-b border-white/10">
-      <div aria-hidden className="absolute -z-10 inset-0 overflow-hidden">
-        <span className="absolute -right-16 -top-24 w-[260px] h-[260px] rounded-full bg-[radial-gradient(circle,rgba(169,203,255,0.34),rgba(169,203,255,0)_62%)]" />
-        <span className="absolute -left-20 -bottom-28 w-[220px] h-[220px] rounded-full border-[34px] border-white/[0.05]" />
-      </div>
-      <div className="flex items-stretch min-h-[156px]">
-        <div className="flex-1 min-w-0 pl-4 pr-1 pt-3.5 pb-4 flex flex-col">
-          <div className="flex items-center gap-2">
-            <Image src="/logo-icon-white.png" alt="" width={48} height={48} className="w-[22px] h-[22px] object-contain" />
-            <Wordmark className="text-[13.5px]" />
-          </div>
-          <p id="app-strip-title" className="mt-2.5 text-[18px] leading-[1.18] font-extrabold tracking-[-0.02em] text-balance">
-            Get the Consult your Doctor app
-          </p>
-          <p className="mt-1 text-[12.5px] leading-[1.4] text-[#CFDCFF] text-balance">Appointments, diagnostics and care in one place.</p>
-          <div className="mt-auto pt-3 flex items-center gap-2.5">
-            <GetTheApp variant="promo" />
-          </div>
-        </div>
-
-        <div className="relative w-[118px] shrink-0 overflow-hidden">
-          <Image src={`${ART}/plus.webp`} alt="" width={89} height={85} className={`absolute left-[-2px] top-[14px] w-[34px] -rotate-6 ${glow}`} />
-          <Image src={`${ART}/kit.webp`} alt="" width={122} height={113} className={`absolute right-[2px] bottom-[4px] w-[44px] z-[1] ${glow}`} />
-          {/* A small phone with the logo on its screen, cut off by the strip's bottom edge */}
-          <div className="absolute bottom-0 left-[16px] w-[80px] rounded-t-[20px] bg-[#0A1022] p-[5px] pb-0 shadow-[0_16px_30px_rgba(4,14,52,0.5)] ring-1 ring-white/15">
-            <div className="h-[112px] rounded-t-[15px] bg-[linear-gradient(180deg,#FFFFFF_0%,#EEF3FF_100%)] pt-1.5 flex flex-col items-center">
-              <span aria-hidden className="w-7 h-2 rounded-full bg-[#0A1022]" />
-              {/* The app's icon, as it will sit on a home screen */}
-              <span className="mt-4 w-11 h-11 rounded-[12px] bg-white shadow-[0_4px_10px_rgba(11,27,63,0.14),0_0_0_1px_#E6EBF3] flex items-center justify-center">
-                <Image src="/logo-icon.png" alt="" width={96} height={96} className="w-7 h-7 object-contain" />
-              </span>
-            </div>
-          </div>
-        </div>
+    <section data-top-strip aria-label="Consult your Doctor app" className="md:hidden relative z-20 bg-[#0A1022] text-white border-b border-white/[0.06] font-(family-name:--font-manrope)">
+      <div className="flex items-center gap-3 pl-4 pr-3 py-3">
+        {/* The app's icon, as it sits on a home screen */}
+        <span className="shrink-0 w-11 h-11 rounded-[12px] bg-[#2A4DD0] flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_6px_14px_rgba(42,77,208,0.35)]">
+          <Image src="/logo-icon-white.png" alt="" width={96} height={96} className="w-7 h-7 object-contain" />
+        </span>
+        <p className="flex-1 min-w-0 text-[13.5px] leading-[1.3] font-bold tracking-[-0.01em] text-balance">Open in app for faster bookings &amp; a smoother experience!</p>
+        <GetTheApp variant="open" />
       </div>
     </section>
   );

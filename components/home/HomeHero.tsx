@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useCallback, useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -8,6 +8,7 @@ import { ArrowRight, Bell, CalendarClock, ChevronDown, ChevronRight, LayoutDashb
 import { GetTheApp } from "@/components/GetTheApp";
 import { initials } from "@/components/patient/format";
 import { locationCity, type usePatientLocation } from "@/components/patient/location";
+import { LocationMenu } from "@/components/patient/LocationMenu";
 import { PATIENT_ACCOUNT_LINKS } from "@/components/patient/PhoneHeader";
 import { AccountMenu } from "@/components/portal/TopBar";
 import { CorporateMenu } from "@/components/site/CorporateMenu";
@@ -19,8 +20,11 @@ type Place = ReturnType<typeof usePatientLocation>;
 type Props = {
   account: HomeAccount;
   place: Place;
+  /** Cities with partner hospitals or labs, for the desktop location menu. */
+  cities: string[];
   /** "Your next visit: ..." for a signed-in patient with one coming up. */
   visitLine: string | null;
+  /** Phones: opens the location sheet. */
   onLocation: () => void;
   onMenu: () => void;
 };
@@ -41,9 +45,12 @@ type Service = {
   alt: string;
 };
 
-export function HomeHero({ account, place, visitLine, onLocation, onMenu }: Props) {
+export function HomeHero({ account, place, cities, visitLine, onLocation, onMenu }: Props) {
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [locOpen, setLocOpen] = useState(false);
+  const closeLoc = useCallback(() => setLocOpen(false), []);
+  const locAnchor = useRef<HTMLButtonElement>(null);
   const location = place.location;
   const city = locationCity(location);
   const findHref = city ? `/find?city=${encodeURIComponent(city)}` : "/find";
@@ -166,17 +173,23 @@ export function HomeHero({ account, place, visitLine, onLocation, onMenu }: Prop
           {visitLine && <VisitPill line={visitLine} />}
 
           <form role="search" onSubmit={search} className="mt-1.5 w-full max-w-[900px] flex flex-wrap gap-4">
-            <button
-              type="button"
-              onClick={onLocation}
-              aria-haspopup="dialog"
-              aria-label={`Your location: ${where ?? "not set"}. Change`}
-              className="flex-[1_1_280px] flex items-center gap-3 min-h-[58px] px-5 bg-white rounded-2xl text-left hover:shadow-[0_0_0_3px_rgba(169,203,255,0.6)] transition-shadow"
-            >
-              <MapPin className="w-[22px] h-[22px] text-[#1D4ED8] shrink-0" strokeWidth={2.2} />
-              <span className={`flex-1 min-w-0 truncate text-[17px] font-semibold ${where ? "text-[#0B1B3F]" : "text-slate-400"}`}>{where ?? "Set your location"}</span>
-              <ChevronDown className="w-5 h-5 text-[#0B1B3F] shrink-0" strokeWidth={2.2} />
-            </button>
+            {/* The location: a dropdown under the field (phones use the location sheet). */}
+            <div className="relative flex-[1_1_280px] flex">
+              <button
+                ref={locAnchor}
+                type="button"
+                onClick={() => setLocOpen((v) => !v)}
+                aria-haspopup="dialog"
+                aria-expanded={locOpen}
+                aria-label={`Your location: ${where ?? "not set"}. Change`}
+                className={`w-full flex items-center gap-3 min-h-[58px] px-5 bg-white rounded-2xl text-left transition-shadow ${locOpen ? "shadow-[0_0_0_3px_rgba(169,203,255,0.8)]" : "hover:shadow-[0_0_0_3px_rgba(169,203,255,0.6)]"}`}
+              >
+                <MapPin className="w-[22px] h-[22px] text-[#1D4ED8] shrink-0" strokeWidth={2.2} />
+                <span className={`flex-1 min-w-0 truncate text-[17px] font-semibold ${where ? "text-[#0B1B3F]" : "text-slate-400"}`}>{where ?? "Set your location"}</span>
+                <ChevronDown className={`w-5 h-5 text-[#0B1B3F] shrink-0 transition-transform duration-200 ${locOpen ? "rotate-180" : ""}`} strokeWidth={2.2} />
+              </button>
+              {locOpen && <LocationMenu place={place} cities={cities} anchor={locAnchor} onClose={closeLoc} />}
+            </div>
             <div className="flex-[2_1_380px] flex items-center gap-3 min-h-[58px] pl-5 pr-1.5 bg-white rounded-2xl focus-within:shadow-[0_0_0_3px_rgba(169,203,255,0.6)] transition-shadow">
               <label htmlFor="home-search" className="sr-only">{searchLabel}</label>
               <input

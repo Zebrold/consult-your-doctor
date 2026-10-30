@@ -1,3 +1,4 @@
+import type { Viewport } from 'next';
 import { redirect } from 'next/navigation';
 import { createClient, getCurrentUser } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -18,6 +19,11 @@ import { siteUrl } from '@/lib/site-url';
 // The app banner's QR code: the site's address, made once per server.
 let siteQr: Promise<string> | null = null;
 const siteQrSvg = () => (siteQr ??= QRCode.toString(siteUrl(), { type: 'svg', margin: 0, errorCorrectionLevel: 'M', color: { dark: '#0B1B3F', light: '#FFFFFF' } }));
+
+// Phones open on the dark app strip, tablets and desktops on the blue header: the browser's bars take the same colour.
+export const viewport: Viewport = {
+  themeColor: [{ media: '(max-width: 767px)', color: '#0A1022' }, { color: '#1D4ED8' }],
+};
 
 /** Each staff account's own portal, for the header's Dashboard link. */
 const PORTAL_HOME: Record<string, string> = {

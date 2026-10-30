@@ -29,7 +29,6 @@ import { DayStrip } from "@/components/patient/booking-ui";
 import { Dots, InfoRow, btnPrimary, card } from "@/components/patient/app-ui";
 import { directionsHref, doctorName as fullName, formatINR, formatSlot, formatTime, initials, isMorning, istDateKey, upcomingDays } from "@/components/patient/format";
 import { RemoteImage } from "@/components/RemoteImage";
-import { bookingPath } from "@/components/patient/BookingChoices";
 import { doctorBookingHref } from "@/lib/booking-links";
 
 export interface ProfileDoctorData {
@@ -88,7 +87,7 @@ const sectionCard = `p-4 lg:p-[22px] ${card} rounded-[20px]! lg:rounded-2xl!`;
 
 /**
  * A doctor's public profile: who they are, where they see patients, what a visit costs, their open times and what
- * patients wrote after a visit. Picking a time continues to the booking page with that time chosen.
+ * patients wrote after a visit. Picking a time continues to their hospital's page, where the booking is made, with that time chosen.
  */
 export function DoctorProfileClient({ doctor, bookingFee, now, account }: DoctorProfileClientProps) {
   const name = fullName(doctor.profiles?.full_name);
@@ -140,7 +139,7 @@ export function DoctorProfileClient({ doctor, bookingFee, now, account }: Doctor
   };
 
   // Booking goes through the hospital's page, which opens with this doctor and the picked time selected.
-  const bookHref = doctorBookingHref(doctor.id, hospital?.id, selected?.id);
+  const bookHref = doctorBookingHref(doctor.id, hospital?.id, { slotId: selected?.id });
   const otherDoctors = hospital ? `/hospitals/${hospital.id}` : "/doctors";
   const support = account?.isSignedIn ? "/patient/support" : "/contact";
 
@@ -186,7 +185,7 @@ export function DoctorProfileClient({ doctor, bookingFee, now, account }: Doctor
           <p className="mt-0.5 text-[12.5px] text-[#5B667A]">In person{hospital ? ` at ${hospital.name}` : ""}. Pick a time to continue.</p>
         </span>
         {bookable && (
-          <Link href={bookingPath(doctor.id)} className="shrink-0 flex items-center gap-1.5 text-[13px] font-extrabold text-[#2A4DD0] hover:underline">
+          <Link href={doctorBookingHref(doctor.id, hospital?.id)} className="shrink-0 flex items-center gap-1.5 text-[13px] font-extrabold text-[#2A4DD0] hover:underline">
             <CalendarDays className="w-4 h-4" /> All dates
           </Link>
         )}

@@ -4,27 +4,21 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { StoreBadges } from "@/components/StoreBadges";
 import { COMPANY } from "@/lib/company";
 
-// The home page's footer (no other page shows it): the brand with the trust badges and social links, Services,
+// The home page's footer (no other page shows it): the brand with the trust badges and social links, the logins,
 // Contact us and Legal, the cities with partner hospitals and labs, and the app badges.
 
 type FooterLinkItem = { label: string; href: string };
 
-const SERVICES: FooterLinkItem[] = [
-  { label: "Find a doctor", href: "/find" },
-  { label: "Book a doctor online", href: "/online-doctor" },
-  { label: "Hospitals", href: "/hospitals" },
-  { label: "Lab tests", href: "/diagnostics" },
-  { label: "What we treat", href: "/what-we-treat" },
-  { label: "Prices", href: "/prices" },
-  { label: "Join as a doctor", href: "/signup/doctor" },
-  { label: "Join as a hospital", href: "/signup/hospital" },
-  { label: "Join as a diagnostic centre", href: "/signup/diagnostic-centre" },
+const LOGINS: FooterLinkItem[] = [
+  { label: "Patient login", href: "/login/patient" },
+  { label: "Doctor login", href: "/login/doctor" },
+  { label: "Hospital login", href: "/login/hospital" },
+  { label: "Diagnostic centre login", href: "/login/diagnostic" },
 ];
 
 const CONTACT: FooterLinkItem[] = [
   { label: "Help & Support", href: "/contact" },
   { label: "Partner With Us", href: "/corporate" },
-  { label: "Work With Us", href: `mailto:${COMPANY.email}?subject=${encodeURIComponent("Working at Consult your Doctor")}` },
 ];
 
 const LEGAL: FooterLinkItem[] = [
@@ -176,7 +170,7 @@ export function Footer({ cities = [] }: { cities?: string[] }) {
             )}
           </div>
 
-          <Column title="Services" items={SERVICES} />
+          <Column title="Login" items={LOGINS} />
 
           <div className="flex flex-col gap-10">
             <Column title="Contact us" items={CONTACT} />

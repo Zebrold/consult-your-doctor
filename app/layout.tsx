@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Manrope } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
 import { ConditionalLayout } from "@/components/ConditionalLayout";
 import { Support } from "@/components/assistant/Support";
 
@@ -72,8 +71,6 @@ export default async function RootLayout({
   const user = await getCurrentUser();
   const userRole = user ? readRoleCookie(cookieStore.get(ROLE_COOKIE)?.value, user.id) : null;
 
-  const isPatientLoggedIn = !!user && (userRole === "patient" || !userRole);
-
   return (
     <html
       lang="en"
@@ -84,10 +81,7 @@ export default async function RootLayout({
         suppressHydrationWarning
         className="font-sans overflow-x-hidden text-on-surface bg-background"
       >
-        <ConditionalLayout
-          header={<Header />}
-          footer={<Footer />}
-        >
+        <ConditionalLayout header={<Header />}>
           {children}
         </ConditionalLayout>
         <Support role={user ? userRole ?? "patient" : null} viewer={user?.id ?? null} />

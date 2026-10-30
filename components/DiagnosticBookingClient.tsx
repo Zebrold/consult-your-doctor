@@ -4,7 +4,6 @@ import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, CircleCheck, FileText, FlaskConical, Home, IdCard, Lock, LoaderCircle, LogIn, MapPin, Navigation, Search } from "lucide-react";
 import { PatientDock } from "@/components/PatientDock";
-import { PatientFooter } from "@/components/AppFooter";
 import { VerifiedBadge } from "@/components/home/ui";
 import { HeroButtons } from "@/components/patient/HospitalBooking";
 import { Dots, btnPrimary, card } from "@/components/patient/app-ui";
@@ -413,7 +412,6 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, 
         {cta}
       </div>
 
-      <PatientFooter isSignedIn={!!patient} />
       <PatientDock activeTab="find" isSignedIn={!!patient} name={patient?.name} phoneBar={false} />
     </div>
   );

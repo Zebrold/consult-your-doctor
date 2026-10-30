@@ -10,7 +10,6 @@ import { getBookingFees } from '@/lib/booking-fees'
 import { siteUrl } from '@/lib/site-url'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
 import { PatientDock } from '@/components/PatientDock'
-import { PatientFooter } from '@/components/AppFooter'
 import { PageBody } from '@/components/patient/app-ui'
 import { BookingsClient, type BookingItem, type BookingTab } from '@/components/patient/BookingsClient'
 import type { ExistingReview } from '@/components/patient/ReviewButton'
@@ -232,7 +231,6 @@ export default async function PatientAppointments() {
           <BookingsClient items={items} stats={stats} patient={{ name, uhid }} />
         </div>
       </PageBody>
-      <PatientFooter isSignedIn />
       <PatientDock activeTab="book" name={name} detail={`UHID ${uhid}`} />
     </div>
   )

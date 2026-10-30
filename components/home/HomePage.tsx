@@ -7,6 +7,7 @@ import { LocationSheet } from "@/components/patient/LocationSheet";
 import { MenuSheet } from "@/components/patient/PhoneSheet";
 import { HomeHero } from "./HomeHero";
 import { DoctorsSection, HospitalsSection, SpecialitiesSection, TreatSection } from "./HomeSections";
+import { AppPromo } from "./AppPromo";
 import type { HomeAccount, HomeDoctor, HomeHospital, NextVisit } from "./types";
 
 type Props = {
@@ -22,11 +23,13 @@ type Props = {
   cities: string[];
   /** The doctor booking fee, shown in the app preview. */
   bookingFee: number;
+  /** An SVG QR code of the site's address, for the app banner. */
+  appQr: string;
 };
 
 const SHOWN = 10;
 
-export function HomePage({ account, now, nextVisit, doctors, hospitals, cities, bookingFee }: Props) {
+export function HomePage({ account, now, nextVisit, doctors, hospitals, cities, bookingFee, appQr }: Props) {
   const place = usePatientLocation();
   const [sheet, setSheet] = useState<"location" | "menu" | null>(null);
   const closeSheet = useCallback(() => setSheet(null), []);
@@ -48,6 +51,7 @@ export function HomePage({ account, now, nextVisit, doctors, hospitals, cities, 
       {hospitals.length > 0 && <HospitalsSection hospitals={shownHospitals} place={place} />}
       {doctors.length > 0 && <DoctorsSection doctors={shownDoctors} place={place} now={now} findHref={findHref} />}
       <TreatSection bookingFee={bookingFee} />
+      <AppPromo qr={appQr} />
 
       {sheet === "location" && <LocationSheet place={place} cities={cities} onClose={closeSheet} />}
       {sheet === "menu" && (

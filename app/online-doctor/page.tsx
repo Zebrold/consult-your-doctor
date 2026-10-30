@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 import { OnlineDoctorRoster, type RosterDoctor } from "@/components/OnlineDoctorRoster";
 import { getBookingFees } from "@/lib/booking-fees";
 import { doctorName, formatINR } from "@/components/patient/format";
+import { FeatureCard, IconTile, PageHero, Section, SitePage, TextLink, btnBlue, btnGhost, btnWhite, card } from "@/components/site/ui";
 
 export const metadata: Metadata = {
   title: "Book a Doctor Online",
@@ -93,109 +94,77 @@ export default async function OnlineDoctorPage() {
   });
 
   return (
-    <div className="w-full bg-background">
-      {/* Hero */}
-      <section className="w-full border-b border-slate-100">
-        <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop py-12 md:py-16 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
-          <div className="lg:col-span-7 flex flex-col gap-6">
-            <p className="text-sm font-semibold text-vibrant-blue">Book a doctor online</p>
-            <h1 className="font-display-lg text-4xl md:text-5xl lg:text-[56px] lg:leading-[1.08] font-bold tracking-tight text-indigo-gray-900">
-              Book online, see your doctor in person
-            </h1>
-            <p className="text-base md:text-lg leading-relaxed text-slate-600 max-w-xl">
-              Choose a specialist at a partner hospital, pick a time that suits you and pay online. No queue at the
-              counter, and your prescription is waiting in your account afterwards.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <a
-                href="#doctors"
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-vibrant-blue px-6 py-3 text-[15px] font-semibold text-white hover:bg-primary transition-colors"
-              >
-                Find a doctor <ArrowRight className="w-4 h-4" />
-              </a>
-              <Link
-                href="/ai"
-                className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-6 py-3 text-[15px] font-semibold text-slate-800 hover:bg-slate-50 transition-colors"
-              >
-                Not sure who to see?
-              </Link>
-            </div>
+    <SitePage>
+      <PageHero
+        eyebrow="Book a doctor online"
+        title="Book online, see your doctor in person"
+        lead="Choose a specialist at a partner hospital, pick a time that suits you and pay online. No queue at the counter, and your prescription is waiting in your account afterwards."
+        actions={
+          <>
+            <a href="#doctors" className={btnWhite}>
+              Find a doctor <ArrowRight className="w-4 h-4" strokeWidth={2.6} />
+            </a>
+            <Link href="/ai" className={btnGhost}>
+              Not sure who to see?
+            </Link>
+          </>
+        }
+        aside={
+          <div className={`${card} p-6 md:p-7 text-[#0B1B3F] shadow-[0_24px_50px_-20px_rgba(4,16,70,0.55)]`}>
+            <h2 className="text-[17px] font-extrabold">After you book</h2>
+            <ul className="mt-5 space-y-4">
+              {afterBooking.map(({ icon, text }) => (
+                <li key={text} className="flex items-center gap-3.5">
+                  <IconTile icon={icon} className="!w-11 !h-11" />
+                  <p className="text-[14.5px] leading-[1.55] text-[#27324A]">{text}</p>
+                </li>
+              ))}
+            </ul>
           </div>
+        }
+      />
 
-          <div className="lg:col-span-5">
-            <div className="rounded-xl border border-slate-200 bg-white p-6 md:p-7">
-              <h2 className="text-base font-semibold text-indigo-gray-900">After you book</h2>
-              <ul className="mt-5 space-y-5">
-                {afterBooking.map(({ icon: Icon, text }) => (
-                  <li key={text} className="flex gap-3.5">
-                    <span className="w-9 h-9 rounded-lg bg-primary-fixed/60 text-primary flex items-center justify-center shrink-0">
-                      <Icon className="w-[18px] h-[18px]" />
-                    </span>
-                    <p className="text-[15px] leading-relaxed text-slate-700 pt-1.5">{text}</p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
+      <Section id="doctors" tint>
+        <OnlineDoctorRoster doctors={doctors} bookingFee={bookingFee} />
+        <div className="mt-8">
+          <TextLink href="/find">See all doctors</TextLink>
         </div>
-      </section>
+      </Section>
 
-      {/* Doctors */}
-      <section id="doctors" className="w-full py-16 md:py-20 bg-slate-50 border-b border-slate-100 scroll-mt-20">
-        <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop">
-          <OnlineDoctorRoster doctors={doctors} bookingFee={bookingFee} />
-          <div className="mt-8">
-            <Link href="/doctors" className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-vibrant-blue hover:underline">
-              See all doctors <ArrowRight className="w-4 h-4" />
+      <Section>
+        <div className="grid lg:grid-cols-2 gap-4 md:gap-5 items-stretch">
+          <div className={`${card} p-6 md:p-8`}>
+            <IconTile icon={MessageCircleQuestion} />
+            <h2 className="mt-5 text-[22px] md:text-[26px] font-extrabold tracking-[-0.02em]">Not sure which specialist you need?</h2>
+            <p className="mt-2 text-[14.5px] md:text-[15px] leading-[1.6] text-[#4A5878]">
+              Describe what&apos;s bothering you and our assistant tells you which kind of doctor usually sees it, then finds who has open times near you. It doesn&apos;t
+              diagnose: a doctor will always assess you in person.
+            </p>
+            <Link href="/ai" className={`${btnBlue} mt-6`}>
+              Ask the assistant <ArrowRight className="w-4 h-4" strokeWidth={2.6} />
             </Link>
           </div>
-        </div>
-      </section>
-
-      {/* Assistant */}
-      <section className="w-full py-16 md:py-20">
-        <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-          <div className="lg:col-span-6">
-            <span className="w-11 h-11 rounded-lg bg-primary-fixed/60 text-primary flex items-center justify-center">
-              <MessageCircleQuestion className="w-5 h-5" />
+          <div className="rounded-[20px] bg-[#FEF3F2] shadow-[0_0_0_1px_#FECDCA] p-6 md:p-8 flex flex-col">
+            <span className="w-12 h-12 rounded-[14px] bg-[#D92D20] text-white flex items-center justify-center">
+              <Siren className="w-6 h-6" />
             </span>
-            <h2 className="mt-5 font-headline-lg text-2xl md:text-3xl font-bold tracking-tight text-indigo-gray-900">Not sure which specialist you need?</h2>
-            <p className="mt-3 text-slate-600 leading-relaxed max-w-xl">
-              Describe what&apos;s bothering you and our assistant tells you which kind of doctor usually sees it, then finds
-              who has open times near you. It doesn&apos;t diagnose: a doctor will always assess you in person.
+            <h3 className="mt-5 text-[20px] md:text-[22px] font-extrabold text-[#7A271A]">In an emergency, don&apos;t book online</h3>
+            <p className="mt-2 text-[14.5px] md:text-[15px] leading-[1.6] text-[#4A5878]">
+              For chest pain, trouble breathing, signs of a stroke, heavy bleeding or a serious injury, call 108 or go to the nearest emergency department now.
             </p>
-            <Link
-              href="/ai"
-              className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-gray-900 px-5 py-2.5 text-[15px] font-semibold text-white hover:bg-slate-800 transition-colors"
-            >
-              Ask the assistant <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-          <div className="lg:col-span-6 rounded-xl border border-soft-coral/30 bg-soft-coral/5 p-6 flex gap-4">
-            <Siren className="w-6 h-6 text-soft-coral shrink-0" />
-            <div>
-              <h3 className="font-semibold text-indigo-gray-900">In an emergency, don&apos;t book online</h3>
-              <p className="mt-1.5 text-[15px] leading-relaxed text-slate-700">
-                For chest pain, trouble breathing, signs of a stroke, heavy bleeding or a serious injury, call{" "}
-                <a href="tel:108" className="font-semibold text-soft-coral underline">108</a> or go to the nearest emergency department now.
-              </p>
-            </div>
+            <a href="tel:108" className="mt-6 self-start inline-flex items-center gap-2 h-12 px-5 rounded-xl bg-[#D92D20] text-white text-[15px] font-extrabold hover:bg-[#B42318] transition-colors">
+              Call 108
+            </a>
           </div>
         </div>
-      </section>
-
-      {/* Assurances */}
-      <section className="w-full pb-16 md:pb-20">
-        <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop grid grid-cols-1 md:grid-cols-3 gap-5">
-          {assurances(bookingFee).map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="rounded-xl border border-slate-200 bg-white p-6">
-              <Icon className="w-6 h-6 text-primary" />
-              <h3 className="mt-4 text-lg font-semibold text-indigo-gray-900">{title}</h3>
-              <p className="mt-1.5 text-[15px] leading-relaxed text-slate-600">{desc}</p>
-            </div>
+        <div className="mt-4 md:mt-5 grid md:grid-cols-3 gap-3.5 md:gap-5">
+          {assurances(bookingFee).map((a) => (
+            <FeatureCard key={a.title} icon={a.icon} title={a.title}>
+              {a.desc}
+            </FeatureCard>
           ))}
         </div>
-      </section>
-    </div>
+      </Section>
+    </SitePage>
   );
 }

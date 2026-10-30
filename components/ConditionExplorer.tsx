@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { IconTile, PageHero, SIDES, SectionHead, btnBlue, card } from '@/components/site/ui'
 import {
   Activity,
   BadgeCheck,
@@ -112,108 +113,70 @@ export function ConditionExplorer() {
 
   return (
     <>
-      {/* Hero */}
-      <section className="relative isolate w-full max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop pt-8 pb-12">
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-center">
-          <div className="lg:col-span-7 flex flex-col gap-4">
-            <span className="inline-flex items-center gap-2 self-start px-3.5 py-1.5 rounded-full bg-surface-container text-primary font-label-sm text-label-sm uppercase tracking-wider">
-              What we treat
-            </span>
-            <h1 className="font-display-lg text-4xl md:text-display-lg text-indigo-gray-900 tracking-tight">
-              Conditions our <br className="hidden sm:block" />
-              <span className="text-vibrant-blue">doctors treat</span>
-            </h1>
-            <p className="font-body-lg text-base md:text-body-lg text-indigo-gray-600 max-w-xl">
-              From everyday illnesses to long-term conditions and mental health, find the right specialist and book a visit at a partner hospital.
-            </p>
-
-            {/* Search bar with live filter */}
-            <div className="relative w-full max-w-xl mt-3">
-              <div className="relative flex items-center bg-surface-container-lowest rounded-full shadow-lg shadow-slate-900/5 p-1.5 transition-all focus-within:shadow-xl focus-within:shadow-slate-900/5">
-                <Search className="w-5 h-5 text-indigo-gray-600 ml-4 mr-2 shrink-0" />
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search condition, symptom, or treatment (e.g. Cough, Asthma, UTI)..."
-                  aria-label="Search conditions"
-                  className="w-full bg-transparent font-body-md text-sm md:text-body-md text-on-surface placeholder:text-outline focus:outline-none py-2 min-w-0"
-                />
-                {isFiltering && (
-                  <button
-                    type="button"
-                    onClick={() => setQuery('')}
-                    className="px-3 py-1 font-label-sm text-label-sm text-indigo-gray-600 hover:text-on-surface"
-                  >
-                    Clear
-                  </button>
-                )}
-                <a
-                  href="#clinical-grid"
-                  className="px-5 md:px-6 py-2.5 rounded-full bg-vibrant-blue text-on-primary font-label-sm text-label-sm hover:bg-primary transition-all shrink-0"
-                >
-                  Browse All
-                </a>
-              </div>
+      <PageHero
+        eyebrow="What we treat"
+        title="Conditions our doctors treat"
+        lead="From everyday illnesses to long-term conditions and mental health, find the right specialist and book a visit at a partner hospital."
+        actions={
+          <div className="w-full max-w-xl">
+            <div className="flex items-center gap-2 h-14 pl-4 pr-2 rounded-2xl bg-white text-[#0B1B3F] shadow-[0_12px_28px_rgba(4,16,70,0.25)]">
+              <Search className="w-5 h-5 text-[#5B667A] shrink-0" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search a condition, e.g. cough, asthma"
+                aria-label="Search conditions"
+                className="flex-1 min-w-0 bg-transparent text-[15px] placeholder:text-[#8A94A6] outline-none [&::-webkit-search-cancel-button]:hidden"
+              />
               {isFiltering && (
-                <p className="text-xs font-label-sm text-primary mt-2 ml-4" aria-live="polite">
-                  Found {matchesTotal} condition{matchesTotal === 1 ? '' : 's'} matching &quot;{query.trim()}&quot;
-                </p>
+                <button type="button" onClick={() => setQuery('')} className="shrink-0 px-2.5 h-9 text-[13px] font-extrabold text-[#5B667A] hover:text-[#0B1B3F]">
+                  Clear
+                </button>
               )}
+              <a href="#clinical-grid" className="hidden sm:inline-flex shrink-0 items-center h-10 px-4 rounded-xl bg-[#2A4DD0] text-white text-[13.5px] font-extrabold hover:bg-[#2443B8] transition-colors">
+                Browse all
+              </a>
             </div>
-
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-2">
-              <span className="flex items-center gap-2 font-body-md text-body-md text-indigo-gray-900 font-semibold">
-                <BadgeCheck className="w-5 h-5 text-fresh-teal" /> Verified doctors
-              </span>
-              <span className="flex items-center gap-2 font-body-md text-body-md text-indigo-gray-900 font-semibold">
-                <Zap className="w-5 h-5 text-vibrant-blue" /> Book in minutes
-              </span>
-              <span className="flex items-center gap-2 font-body-md text-body-md text-indigo-gray-900 font-semibold">
-                <Pill className="w-5 h-5 text-fresh-teal" /> Prescriptions in your account
-              </span>
-            </div>
-          </div>
-
-          <div className="lg:col-span-5">
-            <div className="rounded-xl border border-slate-200 bg-white p-6 md:p-7">
-              <h2 className="text-base font-semibold text-indigo-gray-900">How booking works</h2>
-              <ol className="mt-5 space-y-5">
-                {[
-                  'Find a specialist for your condition below, or ask our assistant which kind of doctor you need.',
-                  'Pick an open time at a partner hospital and pay online.',
-                  'See the doctor in person. Your prescription is saved to your account.',
-                ].map((text, i) => (
-                  <li key={text} className="flex gap-3.5">
-                    <span className="w-7 h-7 rounded-full bg-primary-fixed/60 text-primary text-sm font-semibold flex items-center justify-center shrink-0">
-                      {i + 1}
-                    </span>
-                    <p className="text-[15px] leading-relaxed text-slate-700">{text}</p>
-                  </li>
-                ))}
-              </ol>
-              <Link href="/doctors" className="mt-6 inline-flex items-center justify-center gap-1.5 w-full sm:w-auto h-12 sm:h-auto px-6 sm:px-0 rounded-xl sm:rounded-none bg-vibrant-blue sm:bg-transparent text-on-primary sm:text-vibrant-blue text-[15px] font-semibold sm:hover:underline">
-                Find a doctor
-              </Link>
+            {isFiltering && (
+              <p className="mt-2.5 ml-1 text-[13px] font-bold text-[#DCE7FF]" aria-live="polite">
+                Found {matchesTotal} condition{matchesTotal === 1 ? '' : 's'} matching &quot;{query.trim()}&quot;
+              </p>
+            )}
+            <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2.5 text-[14px] font-bold">
+              <span className="flex items-center gap-2"><BadgeCheck className="w-[18px] h-[18px] text-[#7CF2B0]" /> Verified doctors</span>
+              <span className="flex items-center gap-2"><Zap className="w-[18px] h-[18px] text-[#A9CBFF]" /> Book in minutes</span>
+              <span className="flex items-center gap-2"><Pill className="w-[18px] h-[18px] text-[#7CF2B0]" /> Prescriptions in your account</span>
             </div>
           </div>
-        </div>
-      </section>
+        }
+        aside={
+          <div className={`${card} p-6 md:p-7 text-[#0B1B3F] shadow-[0_24px_50px_-20px_rgba(4,16,70,0.55)]`}>
+            <h2 className="text-[17px] font-extrabold">How booking works</h2>
+            <ol className="mt-5 space-y-4">
+              {[
+                'Find a specialist for your condition below, or ask our assistant which kind of doctor you need.',
+                'Pick an open time at a partner hospital and pay the booking fee online.',
+                'See the doctor in person. Your prescription is saved to your account.',
+              ].map((text, i) => (
+                <li key={text} className="flex gap-3.5">
+                  <span className="w-8 h-8 rounded-full bg-[#EEF3FF] text-[#2A4DD0] text-[14px] font-extrabold flex items-center justify-center shrink-0">{i + 1}</span>
+                  <p className="text-[14.5px] leading-[1.55] text-[#27324A]">{text}</p>
+                </li>
+              ))}
+            </ol>
+            <Link href="/find" className={`${btnBlue} w-full mt-6`}>
+              Find a doctor
+            </Link>
+          </div>
+        }
+      />
 
       {/* Clinical categories grid */}
-      <section id="clinical-grid" className="w-full max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop py-8 scroll-mt-24">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
-          <div>
-            <span className="text-sm font-semibold text-vibrant-blue">Browse by specialty</span>
-            <h2 className="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-indigo-gray-900 mt-1">Find care for your condition</h2>
-          </div>
-          <p className="font-body-md text-body-md text-indigo-gray-600 max-w-md">
-            Choose a category to see the doctors who treat it. Use the search above to find a condition quickly.
-          </p>
-        </div>
+      <section id="clinical-grid" className={`${SIDES} py-12 md:py-20 scroll-mt-24`}>
+        <SectionHead eyebrow="Browse by specialty" title="Find care for your condition" lead="Choose a category to see the doctors who treat it. Use the search above to find a condition quickly." />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="mt-8 md:mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
           {categories.map((category) => {
             const Icon = category.icon
             const NoteIcon = category.note.icon
@@ -222,31 +185,27 @@ export function ConditionExplorer() {
             return (
               <article
                 key={category.title}
-                className={`rounded-3xl p-6 shadow-sm hover:shadow-xl hover:shadow-slate-900/5 transition-all flex flex-col justify-between ${
-                  category.featured ? 'bg-surface-container' : 'bg-surface-container-lowest'
-                } ${isFiltering ? (hasMatch ? 'ring-2 ring-vibrant-blue' : 'opacity-40') : ''}`}
+                className={`${card} overflow-hidden p-6 flex flex-col justify-between transition-all ${isFiltering ? (hasMatch ? '!shadow-[0_0_0_2px_#2A4DD0]' : 'opacity-40') : ''}`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <div className={`w-12 h-12 rounded-2xl text-primary flex items-center justify-center ${category.featured ? 'bg-surface-container-lowest' : 'bg-surface-container'}`}>
-                      <Icon className="w-7 h-7" />
-                    </div>
+                    <IconTile icon={Icon} />
                     <span className={`px-3 py-1 rounded-full font-label-sm text-label-sm font-semibold flex items-center gap-1 ${badgeTones[category.badge.tone]}`}>
                       {category.badge.label}
                     </span>
                   </div>
-                  <h3 className="font-title-md text-title-md font-bold text-indigo-gray-900">{category.title}</h3>
-                  <p className="font-body-md text-body-md text-indigo-gray-600 mt-1 mb-5">{category.desc}</p>
+                  <h3 className="text-[19px] font-extrabold">{category.title}</h3>
+                  <p className="text-[14.5px] leading-[1.55] text-[#4A5878] mt-1.5 mb-5">{category.desc}</p>
                   <ul className="space-y-2.5">
                     {category.conditions.map((item) => {
                       const dimmed = isFiltering && !item.toLowerCase().includes(q)
                       return (
                         <li
                           key={item}
-                          className={`flex items-center gap-2.5 font-body-md text-[15px] text-indigo-gray-900 transition-opacity ${dimmed ? 'opacity-25' : ''}`}
+                          className={`flex items-center gap-2.5 text-[14.5px] font-semibold transition-opacity ${dimmed ? 'opacity-25' : ''}`}
                         >
-                          <span className={`w-5 h-5 rounded-full flex items-center justify-center text-vibrant-blue shrink-0 ${category.featured ? 'bg-surface-container-lowest' : 'bg-surface-container'}`}>
-                            <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                          <span className="w-5 h-5 rounded-full bg-[#E7F7EE] text-[#067647] flex items-center justify-center shrink-0">
+                            <Check className="w-3 h-3" strokeWidth={3.2} />
                           </span>
                           {item}
                         </li>
@@ -254,15 +213,12 @@ export function ConditionExplorer() {
                     })}
                   </ul>
                 </div>
-                <div className={`mt-6 -mx-6 -mb-6 p-6 rounded-b-3xl ${category.featured ? 'bg-surface-container-lowest/60' : 'bg-surface-container-low/60'}`}>
-                  <div className="flex items-center gap-2 text-indigo-gray-600 font-label-sm text-label-sm mb-3">
-                    <NoteIcon className="w-4 h-4 text-primary" />
+                <div className="mt-6 -mx-6 -mb-6 p-6 bg-[#F6F8FC] border-t border-[#EEF2F7]">
+                  <div className="flex items-center gap-2 text-[13px] font-bold text-[#5B667A] mb-3">
+                    <NoteIcon className="w-4 h-4 text-[#2A4DD0]" />
                     {category.note.text}
                   </div>
-                  <Link
-                    href={category.cta.href}
-                    className="block w-full py-2.5 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary text-center font-label-sm text-label-sm font-semibold transition-all"
-                  >
+                  <Link href={category.cta.href} className={`${btnBlue} w-full !h-11 !text-[14px]`}>
                     {category.cta.label}
                   </Link>
                 </div>

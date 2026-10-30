@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { PatientDock } from '@/components/PatientDock'
-import { PatientFooter } from '@/components/AppFooter'
 import { AssistantPage } from '@/components/assistant/AssistantPage'
 
 export const metadata: Metadata = {
@@ -26,7 +25,6 @@ export default async function AiPage() {
         <AssistantPage role={user ? 'patient' : null} viewer={user?.id ?? null} />
       </main>
       <div className="hidden lg:block">
-        <PatientFooter isSignedIn={!!user} />
       </div>
       <PatientDock activeTab="ai" isSignedIn={!!user} name={name} detail={user ? `UHID CYD-${user.id.slice(0, 8).toUpperCase()}` : null} />
     </div>

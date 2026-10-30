@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 import { PatientNavHeader } from "@/components/PatientNavHeader";
 import { PatientDock } from "@/components/PatientDock";
-import { PatientFooter } from "@/components/AppFooter";
 import { DeskTitle, PageBody } from "./app-ui";
 
 /** The frame of a patient account page: the blue header on phones, the title on desktops, the navigation. */
@@ -42,7 +41,6 @@ export function AccountPage({
           {children}
         </div>
       </PageBody>
-      <PatientFooter isSignedIn />
       <PatientDock activeTab="profile" name={name} detail={`UHID CYD-${user.id.slice(0, 8).toUpperCase()}`} />
     </div>
   );

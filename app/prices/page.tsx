@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Check, ChevronDown, FlaskConical, Stethoscope } from "lucide-react";
+import { ArrowRight, Check, FlaskConical, Stethoscope } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatPercent, labTestBookingFee, pricedTests, type BookingFees } from "@/lib/pricing";
 import { getBookingFees } from "@/lib/booking-fees";
 import { formatINR as inr } from "@/components/patient/format";
+import { Faq, IconTile, PageHero, Section, SectionHead, SitePage, TextLink, btnBlue, card } from "@/components/site/ui";
 
 export async function generateMetadata(): Promise<Metadata> {
   const fees = await getBookingFees();
@@ -19,19 +20,21 @@ const plans = (fees: BookingFees) => [
   {
     icon: Stethoscope,
     name: "Doctor consultation",
-    price: `${inr(fees.consultation)} booking fee`,
+    price: inr(fees.consultation),
+    unit: "booking fee",
     points: [
       "The booking fee is all you pay online",
       "The consultation fee is set by the hospital, shown on the doctor's profile and paid at the hospital counter",
       "In person, at the doctor's partner hospital",
       "Booking slip and token number on WhatsApp and email",
     ],
-    cta: { label: "Find a doctor", href: "/online-doctor" },
+    cta: { label: "Find a doctor", href: "/find" },
   },
   {
     icon: FlaskConical,
     name: "Lab tests",
-    price: `${formatPercent(fees.diagnosticPercent)} booking fee`,
+    price: formatPercent(fees.diagnosticPercent),
+    unit: "of each test",
     points: [
       `${formatPercent(fees.diagnosticPercent)} of each test's price, paid online to book`,
       "The test prices themselves, and any home collection, are paid at the lab",
@@ -88,134 +91,108 @@ export default async function PricesPage() {
   const exampleTest = 350;
 
   return (
-    <div className="w-full bg-background">
-      {/* Hero */}
-      <section className="w-full border-b border-slate-100">
-        <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop py-12 md:py-16">
-          <p className="text-sm font-semibold text-vibrant-blue">Prices</p>
-          <h1 className="mt-3 max-w-3xl font-display-lg text-4xl md:text-5xl font-bold tracking-tight text-indigo-gray-900">
-            You pay a small booking fee online, and the rest at your visit
-          </h1>
-          <p className="mt-5 max-w-2xl text-base md:text-lg leading-relaxed text-slate-600">
-            Each hospital and lab sets its own prices, and you pay those at the counter. Online you pay only our booking
-            fee. No subscriptions, no membership.
-          </p>
-        </div>
-      </section>
+    <SitePage>
+      <PageHero
+        eyebrow="Prices"
+        title="A small booking fee online, the rest at your visit"
+        lead="Each hospital and lab sets its own prices, and you pay those at the counter. Online you pay only our booking fee. No subscriptions, no membership."
+      />
 
-      {/* Plans */}
-      <section className="w-full py-12 md:py-16">
-        <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop grid grid-cols-1 md:grid-cols-2 gap-5">
-          {plans(fees).map(({ icon: Icon, name, price, points, cta }) => (
-            <div key={name} className="rounded-xl border border-slate-200 bg-white p-6 md:p-8 flex flex-col">
-              <div className="flex items-center gap-3">
-                <span className="w-10 h-10 rounded-lg bg-primary-fixed/60 text-primary flex items-center justify-center">
-                  <Icon className="w-5 h-5" />
-                </span>
-                <h2 className="text-lg font-semibold text-indigo-gray-900">{name}</h2>
+      <Section>
+        <div className="grid md:grid-cols-2 gap-4 md:gap-5">
+          {plans(fees).map(({ icon, name, price, unit, points, cta }) => (
+            <div key={name} className={`${card} p-6 md:p-8 flex flex-col`}>
+              <div className="flex items-center gap-3.5">
+                <IconTile icon={icon} />
+                <h2 className="text-[18px] font-extrabold">{name}</h2>
               </div>
-              <p className="mt-6 text-2xl md:text-3xl font-bold tracking-tight text-indigo-gray-900">{price}</p>
+              <p className="mt-6 flex items-baseline gap-2">
+                <span className="text-[40px] md:text-[46px] leading-none font-extrabold tracking-[-0.03em]">{price}</span>
+                <span className="text-[15px] font-bold text-[#5B667A]">{unit}</span>
+              </p>
               <ul className="mt-6 space-y-3 flex-1">
                 {points.map((p) => (
-                  <li key={p} className="flex gap-3 text-[15px] text-slate-700">
-                    <Check className="w-5 h-5 text-vibrant-blue shrink-0 mt-px" />
+                  <li key={p} className="flex gap-3 text-[14.5px] md:text-[15px] leading-[1.55] text-[#27324A]">
+                    <span className="mt-0.5 w-5 h-5 rounded-full bg-[#E7F7EE] text-[#067647] flex items-center justify-center shrink-0">
+                      <Check className="w-3 h-3" strokeWidth={3.2} />
+                    </span>
                     {p}
                   </li>
                 ))}
               </ul>
-              <Link
-                href={cta.href}
-                className="mt-8 inline-flex items-center justify-center gap-2 rounded-lg bg-vibrant-blue px-5 py-3 text-[15px] font-semibold text-white hover:bg-primary transition-colors"
-              >
-                {cta.label} <ArrowRight className="w-4 h-4" />
+              <Link href={cta.href} className={`${btnBlue} mt-8`}>
+                {cta.label} <ArrowRight className="w-4 h-4" strokeWidth={2.6} />
               </Link>
             </div>
           ))}
         </div>
 
-        <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop mt-5">
-          <div className="rounded-xl bg-slate-50 border border-slate-200 px-6 py-5 text-[15px] text-slate-700">
-            <span className="font-semibold text-indigo-gray-900">Example:</span> booking a doctor costs{" "}
-            <span className="font-semibold text-indigo-gray-900">{inr(fees.consultation)}</span> online, and you pay the consultation fee at the
-            hospital counter. Fast track, where the booking page offers it, is{" "}
-            <span className="font-semibold text-indigo-gray-900">{inr(fees.fastTrack)}</span> online and you are seen ahead of general patients once
-            checked in. A {inr(exampleTest)} lab test costs{" "}
-            <span className="font-semibold text-indigo-gray-900">{inr(labTestBookingFee(exampleTest, fees.diagnosticPercent))}</span> online, and{" "}
-            {inr(exampleTest)} at the lab.
-          </div>
+        <div className="mt-4 md:mt-5 p-5 md:p-6 rounded-[20px] bg-[#F6F8FC] text-[14.5px] md:text-[15px] leading-[1.65] text-[#27324A]">
+          <span className="font-extrabold text-[#0B1B3F]">Example:</span> booking a doctor costs <strong className="text-[#0B1B3F]">{inr(fees.consultation)}</strong> online, and you
+          pay the consultation fee at the hospital counter. Fast track, where the booking page offers it, is <strong className="text-[#0B1B3F]">{inr(fees.fastTrack)}</strong> online and
+          you are seen ahead of general patients once checked in. A {inr(exampleTest)} lab test costs{" "}
+          <strong className="text-[#0B1B3F]">{inr(labTestBookingFee(exampleTest, fees.diagnosticPercent))}</strong> online, and {inr(exampleTest)} at the lab.
         </div>
-      </section>
+      </Section>
 
-      {/* Lab prices */}
       {commonTests.length > 0 && (
-        <section className="w-full py-12 md:py-16 bg-slate-50 border-y border-slate-100">
-          <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-              <div className="max-w-2xl">
-                <h2 className="font-headline-lg text-2xl md:text-3xl font-bold tracking-tight text-indigo-gray-900">Common lab tests</h2>
-                <p className="mt-2 text-slate-600">
-                  The lowest price at our partner labs today, which you pay at the lab, and the {formatPercent(fees.diagnosticPercent)} booking fee you pay online.
-                </p>
-              </div>
-              <Link href="/diagnostics" className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-vibrant-blue hover:underline shrink-0">
-                See all labs <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-
-            <div className="mt-8 overflow-hidden rounded-xl border border-slate-200 bg-white">
-              <table className="w-full text-left text-[15px]">
-                <thead className="bg-slate-50 text-sm text-slate-500">
-                  <tr>
-                    <th scope="col" className="px-5 py-3 font-medium">Test</th>
-                    <th scope="col" className="px-5 py-3 font-medium hidden sm:table-cell">Available at</th>
-                    <th scope="col" className="px-5 py-3 font-medium text-right">From, at the lab</th>
-                    <th scope="col" className="px-5 py-3 font-medium text-right">Booking fee</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {commonTests.map((t) => (
-                    <tr key={t.name}>
-                      <td className="px-5 py-3.5 text-indigo-gray-900">{t.name}</td>
-                      <td className="px-5 py-3.5 text-slate-500 hidden sm:table-cell">
-                        {t.labs} {t.labs === 1 ? "lab" : "labs"}
-                      </td>
-                      <td className="px-5 py-3.5 text-right font-semibold text-indigo-gray-900 tabular-nums">{inr(t.from)}</td>
-                      <td className="px-5 py-3.5 text-right text-slate-600 tabular-nums">{inr(labTestBookingFee(t.from, fees.diagnosticPercent))}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+        <Section tint>
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <SectionHead
+              eyebrow="Lab tests"
+              title="Common lab tests"
+              lead={`The lowest price at our partner labs today, which you pay at the lab, and the ${formatPercent(fees.diagnosticPercent)} booking fee you pay online.`}
+            />
+            <TextLink href="/diagnostics">See all labs</TextLink>
           </div>
-        </section>
+
+          <div className={`${card} mt-8 overflow-hidden`}>
+            <table className="w-full text-left text-[14.5px] md:text-[15px]">
+              <thead className="bg-[#F7F9FC] text-[12px] font-extrabold uppercase tracking-[0.06em] text-[#5B667A]">
+                <tr>
+                  <th scope="col" className="px-4 md:px-6 py-3.5">Test</th>
+                  <th scope="col" className="px-4 md:px-6 py-3.5 hidden sm:table-cell">Available at</th>
+                  <th scope="col" className="px-4 md:px-6 py-3.5 text-right">From, at the lab</th>
+                  <th scope="col" className="px-4 md:px-6 py-3.5 text-right">Booking fee</th>
+                </tr>
+              </thead>
+              <tbody>
+                {commonTests.map((t) => (
+                  <tr key={t.name} className="border-t border-[#EEF2F7]">
+                    <td className="px-4 md:px-6 py-4 font-bold">{t.name}</td>
+                    <td className="px-4 md:px-6 py-4 text-[#5B667A] hidden sm:table-cell">
+                      {t.labs} {t.labs === 1 ? "lab" : "labs"}
+                    </td>
+                    <td className="px-4 md:px-6 py-4 text-right font-extrabold tabular-nums">{inr(t.from)}</td>
+                    <td className="px-4 md:px-6 py-4 text-right text-[#2A4DD0] font-bold tabular-nums">{inr(labTestBookingFee(t.from, fees.diagnosticPercent))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
       )}
 
-      {/* FAQ */}
-      <section className="w-full py-12 md:py-16">
-        <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop grid grid-cols-1 lg:grid-cols-12 gap-10">
-          <div className="lg:col-span-4">
-            <h2 className="font-headline-lg text-2xl md:text-3xl font-bold tracking-tight text-indigo-gray-900">Payment questions</h2>
-            <p className="mt-3 text-slate-600 leading-relaxed">
-              Something else?{" "}
-              <Link href="/contact" className="font-semibold text-vibrant-blue hover:underline">
-                Contact us
-              </Link>
-              .
-            </p>
-          </div>
-          <div className="lg:col-span-8 divide-y divide-slate-200 border-y border-slate-200">
-            {faqs.map((faq) => (
-              <details key={faq.q} className="group py-5">
-                <summary className="flex items-center justify-between gap-4 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-                  <span className="text-base md:text-lg font-semibold text-indigo-gray-900">{faq.q}</span>
-                  <ChevronDown className="w-5 h-5 text-slate-500 shrink-0 transition-transform duration-200 group-open:rotate-180" />
-                </summary>
-                <p className="mt-3 text-[15px] leading-relaxed text-slate-600 max-w-2xl">{faq.a}</p>
-              </details>
-            ))}
+      <Section>
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)] lg:gap-14">
+          <SectionHead
+            eyebrow="Payments"
+            title="Payment questions"
+            lead={
+              <>
+                Something else?{" "}
+                <Link href="/contact" className="font-extrabold text-[#2A4DD0] hover:underline underline-offset-4">
+                  Contact us
+                </Link>
+                .
+              </>
+            }
+          />
+          <div className="mt-8 lg:mt-0">
+            <Faq items={faqs} />
           </div>
         </div>
-      </section>
-    </div>
+      </Section>
+    </SitePage>
   );
 }

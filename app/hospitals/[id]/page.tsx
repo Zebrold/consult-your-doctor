@@ -10,10 +10,11 @@ import { testList } from '@/lib/pricing'
 import { getBookingFees } from '@/lib/booking-fees'
 import { bookingOptionsReady } from '@/lib/booking-options'
 import { PatientDock } from '@/components/PatientDock'
-import { PatientFooter } from '@/components/AppFooter'
-import { VerifiedBadge } from '@/components/home/ui'
+import { AppBanner, VerifiedBadge } from '@/components/home/ui'
 import { ALWAYS_OPEN } from '@/components/home/data'
-import { HospitalBooking, HeroButtons, type HospitalDoctor } from '@/components/patient/HospitalBooking'
+import { SPECIALITIES } from '@/components/home/specialities'
+import { HospitalBooking, HospitalDistance, HeroButtons, type HospitalDoctor } from '@/components/patient/HospitalBooking'
+import { toLatLng } from '@/lib/geo'
 import { Dots, btnOutline, card } from '@/components/patient/app-ui'
 import { currentTime, one } from '@/components/patient/data'
 import { directionsHref, formatINR } from '@/components/patient/format'
@@ -44,8 +45,11 @@ export async function generateMetadata(
   }
 }
 
-export default async function HospitalProfilePage(props: { params: Promise<{ id: string }> }) {
+export default async function HospitalProfilePage(props: { params: Promise<{ id: string }>; searchParams?: Promise<{ speciality?: string }> }) {
   const { id } = await props.params
+  // Arriving from a speciality's hospitals (/specialities/<slug>): open on that speciality and go back there.
+  const fromSlug = (await props.searchParams)?.speciality
+  const from = SPECIALITIES.find((s) => s.slug === fromSlug) ?? null
   const supabase = await createClient()
   const user = await getCurrentUser()
   const now = currentTime()
@@ -105,6 +109,7 @@ export default async function HospitalProfilePage(props: { params: Promise<{ id:
       quals: [d.specialty, d.qualifications?.trim(), d.experience_years ? `${d.experience_years}+ yrs` : null].filter(Boolean).join(' · '),
       image: d.image_url,
       bookable: Number(d.consultation_fee) > 0,
+      fee: Number(d.consultation_fee) > 0 ? Number(d.consultation_fee) : null,
       slots: slotsBy.get(d.id) ?? [],
     }))
     .sort((a, b) => Number(b.bookable) - Number(a.bookable) || (a.slots[0]?.start ?? '￿').localeCompare(b.slots[0]?.start ?? '￿'))
@@ -114,8 +119,16 @@ export default async function HospitalProfilePage(props: { params: Promise<{ id:
   const address = [hospital.address, hospital.city].filter(Boolean).join(', ')
   const directions = directionsHref(hospital.name, hospital.address, hospital.city)
   const openAllDay = facilities.some((f) => ALWAYS_OPEN.test(f))
-  const highlights = [openAllDay ? 'Open 24/7' : null, ...facilities.filter((f) => !ALWAYS_OPEN.test(f)).slice(0, openAllDay ? 2 : 3)].filter(Boolean) as string[]
+  // What the hospital offers at a glance: round the clock, fast-track tokens, insurance; then its facilities.
+  const offers = [openAllDay ? 'Open 24/7' : null, choices && doctors.some((d) => d.bookable) ? 'Priority appointments' : null, insurance.length ? 'Cashless & insurance' : null].filter(Boolean) as string[]
+  const highlights = [...offers, ...facilities.filter((f) => !ALWAYS_OPEN.test(f))].slice(0, 3)
+  const pin = toLatLng(hospital.latitude, hospital.longitude)
+  const startOn = from ? (doctors.map((d) => d.specialty || 'General').find((name) => from.match.test(name.trim().toLowerCase())) ?? null) : null
+  const back = from ? { href: `/specialities/${from.slug}`, label: `Back to ${from.name} hospitals` } : { href: '/hospitals', label: 'Back to hospitals' }
+  const INSURERS_SHOWN = 5
   const phone = hospital.phone || hospital.contact_phone
+  // Generated placeholder addresses (…@x.internal) are not real inboxes.
+  const email = typeof hospital.contact_email === 'string' && !hospital.contact_email.endsWith('.internal') ? hospital.contact_email : null
   const isPatient = !!user && (!viewer?.role || viewer.role === 'patient')
   const name = viewer?.full_name || user?.user_metadata?.full_name || null
 
@@ -132,7 +145,7 @@ export default async function HospitalProfilePage(props: { params: Promise<{ id:
       postalCode: hospital.zip_code || '',
     },
     telephone: hospital.contact_phone || '',
-    email: hospital.contact_email || '',
+    email: email || '',
     url: `https://consultyourdoctor.de/hospitals/${id}`,
   }
 
@@ -148,11 +161,12 @@ export default async function HospitalProfilePage(props: { params: Promise<{ id:
     <div className="bg-[#F6F8FC] lg:bg-transparent min-h-screen font-(family-name:--font-manrope) text-[#0B1B3F]">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(schema) }} />
 
+      <AppBanner />
       {/* Phones: the photo with back and share, then the details card over its edge. */}
       <div className="lg:hidden relative h-[230px] md:h-[300px] overflow-hidden">
         {photo}
         <span aria-hidden className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(8,20,51,0.35)_0%,rgba(8,20,51,0)_40%)]" />
-        <HeroButtons backHref="/hospitals" title={hospital.name} />
+        <HeroButtons backHref={back.href} backLabel={back.label} title={hospital.name} />
       </div>
       <section className="lg:hidden relative -mt-9 mx-3 md:mx-6 p-4 rounded-[20px] bg-white shadow-[0_10px_26px_rgba(11,27,63,0.1)]">
         <div className="flex items-start justify-between gap-2.5">
@@ -166,7 +180,10 @@ export default async function HospitalProfilePage(props: { params: Promise<{ id:
         {address && (
           <p className="mt-1 flex items-start gap-1.5 text-[13.5px] text-[#4A5878]">
             <MapPin className="w-[13px] h-[13px] mt-1 text-[#5B667A] shrink-0" />
-            {address}
+            <span>
+              {address}
+              <HospitalDistance at={pin} />
+            </span>
           </p>
         )}
         <Dots items={highlights} className="mt-3" />
@@ -175,8 +192,8 @@ export default async function HospitalProfilePage(props: { params: Promise<{ id:
       <main className="pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-11">
         <div className="max-w-[1340px] lg:px-9 lg:pt-7">
           {/* Desktops: back link, then the photo with the name over it. */}
-          <Link href="/hospitals" className="hidden lg:inline-flex items-center gap-1.5 mb-3.5 text-[13.5px] font-extrabold text-[#2A4DD0] hover:underline">
-            <ArrowLeft className="w-4 h-4" strokeWidth={2.4} /> Back to hospitals
+          <Link href={back.href} className="hidden lg:inline-flex items-center gap-1.5 mb-3.5 text-[13.5px] font-extrabold text-[#2A4DD0] hover:underline">
+            <ArrowLeft className="w-4 h-4" strokeWidth={2.4} /> {back.label}
           </Link>
           <section className="hidden lg:block relative h-[260px] rounded-[22px] overflow-hidden mb-5">
             {photo}
@@ -194,32 +211,34 @@ export default async function HospitalProfilePage(props: { params: Promise<{ id:
           </section>
 
           <div className="px-3 md:px-6 lg:px-0 pt-3.5 lg:pt-0">
-            <HospitalBooking doctors={doctors} fees={fees} choices={choices} services={tests} now={now}>
-              <Card id="fees" title="Consultation charges">
-                <div className="flex justify-between gap-3 py-2.5 border-b border-[#EEF2F7]">
-                  <span>
-                    <span className="block text-[14px] font-bold">Booking fee</span>
-                    <span className="block text-[12px] text-[#5B667A]">Paid online when you book</span>
-                  </span>
-                  <span className="text-[15px] font-extrabold text-[#2A4DD0]">{formatINR(fees.consultation)}</span>
-                </div>
-                {choices && (
+            <HospitalBooking
+              doctors={doctors}
+              fees={fees}
+              choices={choices}
+              services={tests}
+              now={now}
+              initialSpeciality={startOn}
+              intro={
+                <Card id="fees" title="Consultation charges">
                   <div className="flex justify-between gap-3 py-2.5 border-b border-[#EEF2F7]">
                     <span>
-                      <span className="block text-[14px] font-bold">Fast-track booking fee</span>
-                      <span className="block text-[12px] text-[#5B667A]">Paid online instead, to be seen ahead once checked in</span>
+                      <span className="block text-[14px] font-bold">Booking fee</span>
+                      <span className="block text-[12px] text-[#5B667A]">
+                        {choices ? `General ${formatINR(fees.consultation)} · Fast track ${formatINR(fees.fastTrack)}, paid in the app` : 'Paid in the app when you book'}
+                      </span>
                     </span>
-                    <span className="text-[15px] font-extrabold text-[#2A4DD0]">{formatINR(fees.fastTrack)}</span>
+                    <span className="shrink-0 text-[15px] font-extrabold text-[#2A4DD0] whitespace-nowrap">{choices ? `from ${formatINR(Math.min(fees.consultation, fees.fastTrack))}` : formatINR(fees.consultation)}</span>
                   </div>
-                )}
-                <div className="flex justify-between gap-3 pt-2.5 pb-0.5">
-                  <span>
-                    <span className="block text-[14px] font-bold">Consultation fee</span>
-                    <span className="block text-[12px] text-[#5B667A]">Set by the hospital, on each doctor&apos;s profile</span>
-                  </span>
-                  <span className="shrink-0 text-[13px] font-extrabold text-right whitespace-nowrap">At the counter</span>
-                </div>
-              </Card>
+                  <div className="flex justify-between gap-3 pt-2.5 pb-0.5">
+                    <span>
+                      <span className="block text-[14px] font-bold">Consultation fee</span>
+                      <span className="block text-[12px] text-[#5B667A]">Set by the hospital for each doctor, paid at your visit</span>
+                    </span>
+                    <span className="shrink-0 text-[13px] font-extrabold text-right whitespace-nowrap">At the hospital</span>
+                  </div>
+                </Card>
+              }
+            >
 
               {/* When patients can pick services with a booking, HospitalBooking lists them as checkboxes instead. */}
               {tests.length > 0 && !(choices && doctors.length > 0) && (
@@ -241,7 +260,7 @@ export default async function HospitalProfilePage(props: { params: Promise<{ id:
               {(facilities.length > 0 || insurance.length > 0) && (
                 <div className="flex flex-col lg:grid lg:grid-cols-2 gap-3.5 lg:gap-5">
                   {facilities.length > 0 && (
-                    <Card id="facilities" title="Facilities" sub="Listed by the hospital">
+                    <Card id="facilities" title="Facilities" sub="Available at this hospital.">
                       <div className="grid grid-cols-2 rounded-[14px] shadow-[0_0_0_1px_#E6EBF3] overflow-hidden">
                         {[...facilities, ...accreditations].map((f) => (
                           <span key={f} className="px-3.5 py-3 shadow-[inset_-1px_-1px_0_#EEF2F7] text-[13px] font-extrabold leading-tight">
@@ -252,13 +271,23 @@ export default async function HospitalProfilePage(props: { params: Promise<{ id:
                     </Card>
                   )}
                   {insurance.length > 0 && (
-                    <Card id="insurance" title="Insurance accepted" sub="Insurers and schemes this hospital works with">
-                      {insurance.map((i) => (
-                        <div key={i} className="flex items-center gap-2.5 py-[11px] border-t border-[#EEF2F7] text-[13.5px] font-extrabold">
-                          <ShieldCheck className="w-4 h-4 text-[#067647] shrink-0" /> {i}
-                        </div>
-                      ))}
-                      <p className="mt-2.5 text-[11.5px] leading-normal text-[#5B667A]">Cover depends on your policy. Check with the hospital&apos;s insurance desk before your visit.</p>
+                    <Card id="insurance" title="Insurance accepted" sub={`${insurance.length} ${insurance.length === 1 ? 'insurer or scheme' : 'insurers and schemes'} this hospital works with.`}>
+                      <div role="list">
+                        {insurance.slice(0, INSURERS_SHOWN).map((i) => (
+                          <Insurer key={i} name={i} />
+                        ))}
+                      </div>
+                      {insurance.length > INSURERS_SHOWN && (
+                        <details className="group">
+                          <summary className={`${btnOutline} !h-10 w-full mt-2 list-none cursor-pointer group-open:hidden [&::-webkit-details-marker]:hidden`}>View all {insurance.length} insurers</summary>
+                          <div role="list">
+                            {insurance.slice(INSURERS_SHOWN).map((i) => (
+                              <Insurer key={i} name={i} />
+                            ))}
+                          </div>
+                        </details>
+                      )}
+                      <p className="mt-2.5 text-[11.5px] leading-normal text-[#5B667A]">Coverage depends on your policy. The hospital&apos;s insurance desk confirms cashless approval before admission.</p>
                     </Card>
                   )}
                 </div>
@@ -275,7 +304,7 @@ export default async function HospitalProfilePage(props: { params: Promise<{ id:
                 {address && <ContactRow icon={MapPin} label="Address" value={address} />}
                 {phone && <ContactRow icon={Phone} label="Phone" value={phone} href={`tel:${String(phone).replace(/\s+/g, '')}`} />}
                 {hospital.emergency_phone && <ContactRow icon={Siren} label="Emergency" value={hospital.emergency_phone} href={`tel:${String(hospital.emergency_phone).replace(/\s+/g, '')}`} danger />}
-                {hospital.contact_email && <ContactRow icon={Mail} label="Email" value={hospital.contact_email} href={`mailto:${hospital.contact_email}`} />}
+                {email && <ContactRow icon={Mail} label="Email" value={email} href={`mailto:${email}`} />}
                 {directions && (
                   <a href={directions} target="_blank" rel="noreferrer" className={`${btnOutline} w-full mt-3`}>
                     <Navigation className="w-4 h-4" /> Directions
@@ -287,8 +316,15 @@ export default async function HospitalProfilePage(props: { params: Promise<{ id:
         </div>
       </main>
 
-      <PatientFooter isSignedIn={!!user} />
       <PatientDock activeTab="find" isSignedIn={!!user} name={name} phoneBar={false} detail={isPatient ? `UHID CYD-${user!.id.slice(0, 8).toUpperCase()}` : null} />
+    </div>
+  )
+}
+
+function Insurer({ name }: { name: string }) {
+  return (
+    <div role="listitem" className="flex items-center gap-2.5 py-[11px] border-t border-[#EEF2F7] text-[13.5px] font-extrabold">
+      <ShieldCheck className="w-4 h-4 text-[#067647] shrink-0" /> {name}
     </div>
   )
 }

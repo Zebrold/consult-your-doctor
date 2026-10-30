@@ -4,13 +4,13 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BrainCircuit, Headset, MessageSquareText, RotateCcw, Stethoscope, X } from 'lucide-react'
+import { Maximize2, RotateCcw, Stethoscope, X } from 'lucide-react'
 import { ChatThread, Composer, LanguagePicker, chatKey, useChat, useLanguage } from './chat'
 
 // Common support questions per role. Every answer exists on the site (see lib/assistant/knowledge.ts).
 const SUGGESTIONS: Record<string, string[]> = {
-  visitor: ['I didn’t get my sign-in code', 'How do I book a lab test?', 'How do refunds work?'],
-  patient: ['My payment didn’t go through', 'Where is my lab report?', 'How do I cancel a booking?'],
+  visitor: ['Book a lab test', 'Track a booking or refund', 'Book a doctor or hospital visit'],
+  patient: ['Book a lab test', 'Track a booking or refund', 'Book a doctor or hospital visit'],
   doctor: ['A patient isn’t in my schedule', 'Who sets my slots?', 'How do I upload a prescription file?'],
   diagnostic_admin: ['A test can’t be booked online', 'How do I upload a report?', 'How do I book a walk-in?'],
   hospital_admin: ['Patients can’t book our doctor', 'How do I publish slots?', 'Where do I see revenue?'],
@@ -43,9 +43,13 @@ const APP_PREFIXES = ['/patient', '/find', '/book', '/hospitals', '/doctors', '/
 
 const BAR_PREFIXES = ['/doctor', '/doctors', '/diagnostic-center', '/hospital', '/executive', '/patient', '/find', '/book']
 
+const pill = 'max-w-[300px] px-4 py-[9px] rounded-[20px] border-[1.5px] border-[#2A4DD0] text-[14px] font-semibold leading-[1.35] text-left transition-colors'
+const headerButton = 'w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0 hover:bg-[#F0F2F5] transition-colors'
+
 /**
- * The help-center chat behind the Human AI button on every page, answered by Zebrold AI. Each panel (patient, doctor,
- * lab, hospital, front desk) and each signed-in person keeps a separate conversation.
+ * The help-center chat behind the assistant button on every page, answered by Zebrold AI, after the Care Assistant
+ * chat design. Each panel (patient, doctor, lab, hospital, front desk) and each signed-in person keeps a separate
+ * conversation.
  */
 export function Support({ role, viewer }: { role: string | null; viewer: string | null }) {
   const pathname = usePathname() ?? '/'
@@ -58,10 +62,12 @@ export function Support({ role, viewer }: { role: string | null; viewer: string 
   const aiHref = AI_PAGE[key]
   // Staff accounts can only open their own portal, so the public contact pages are offered to patients and visitors.
   const contactHref = key === 'patient' ? '/patient/support' : key === 'visitor' ? '/contact' : null
+  const isPatient = key === 'patient' || key === 'visitor'
+  const title = isPatient ? 'Care Assistant' : 'Zebrold AI'
   const lifted = BAR_PREFIXES.some((p) => pathname.startsWith(p)) || (pathname === '/' && key === 'patient')
   const hidden = isAiPage(pathname)
   // Patient pages show the app's round Care Assistant button above the tab bar.
-  const appFab = (key === 'patient' || key === 'visitor') && (APP_PREFIXES.some((p) => pathname.startsWith(p)) || (pathname === '/' && key === 'patient'))
+  const appFab = isPatient && (APP_PREFIXES.some((p) => pathname.startsWith(p)) || (pathname === '/' && key === 'patient'))
 
   useEffect(() => {
     if (!open || hidden) return
@@ -90,8 +96,8 @@ export function Support({ role, viewer }: { role: string | null; viewer: string 
         <button
           type="button"
           onClick={() => setOpen(true)}
-          aria-label="Open Care Assistant"
-          title="Care Assistant"
+          aria-label={`Open ${title}`}
+          title={title}
           className="fixed z-[35] right-4 bottom-[calc(max(10px,env(safe-area-inset-bottom))+78px)] lg:right-8 lg:bottom-8 w-[52px] h-[52px] rounded-full bg-[#2A4DD0] text-white flex items-center justify-center shadow-[0_0_0_4px_rgba(42,77,208,0.18),0_10px_22px_rgba(11,27,63,0.28)] hover:bg-[#2443B8] active:scale-95 transition-all print:hidden"
         >
           <Stethoscope className="w-6 h-6" />
@@ -108,7 +114,7 @@ export function Support({ role, viewer }: { role: string | null; viewer: string 
           <button
             type="button"
             onClick={() => setOpen(true)}
-            aria-label="Doctor Assistant - How can I help you?"
+            aria-label={`${title}: how can I help you?`}
             className="pointer-events-auto flex flex-col items-end gap-1 p-0 bg-transparent border-0 outline-none cursor-pointer select-none transition-transform duration-200 active:scale-95 group focus-visible:outline-none shrink-0"
           >
             {/* Thinking text bubble - sits neatly ABOVE the doctor */}
@@ -121,7 +127,7 @@ export function Support({ role, viewer }: { role: string | null; viewer: string 
             {/* Doctor avatar */}
             <Image
               src="/images/ai-doctor.png"
-              alt="Doctor Assistant"
+              alt=""
               width={208}
               height={190}
               sizes="(min-width: 768px) 84px, (min-width: 640px) 76px, 56px"
@@ -134,97 +140,68 @@ export function Support({ role, viewer }: { role: string | null; viewer: string 
       {open && (
         <section
           role="dialog"
-          aria-label="Doctor Assistant"
-          className="fixed z-[70] inset-0 md:inset-auto md:right-6 md:bottom-6 md:w-[400px] md:h-[min(640px,calc(100dvh-48px))] bg-background md:rounded-2xl shadow-[0_16px_48px_rgba(15,23,42,0.09)] md:border md:border-outline-variant/40 flex flex-col overflow-hidden pb-[env(safe-area-inset-bottom)] print:hidden"
+          aria-label={title}
+          className="fixed z-[70] inset-0 md:inset-auto md:right-6 md:bottom-6 md:w-[400px] md:h-[min(720px,calc(100dvh-48px))] bg-white text-[#1A1F2B] font-(family-name:--font-manrope) md:rounded-[22px] md:shadow-[0_0_0_1px_#E4E7EC,0_16px_48px_rgba(15,23,42,0.12)] flex flex-col overflow-hidden pb-[env(safe-area-inset-bottom)] print:hidden"
         >
-          <header className="bg-gradient-to-r from-primary via-[#0052cc] to-vibrant-blue text-on-primary px-4 py-3 flex items-center justify-between gap-3 shrink-0 shadow-sm">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="relative w-11 h-11 flex items-center justify-center shrink-0">
-                <Image src="/images/ai-doctor.png" alt="Doctor Assistant" width={88} height={80} sizes="44px" className="w-full h-full object-contain drop-shadow-sm" />
-              </div>
-              <div className="min-w-0">
-                <p className="font-title-md text-[15px] font-bold leading-tight">
-                  Doctor Assistant
-                </p>
-                <p className="text-[11.5px] text-on-primary/80 truncate">How can I help you today?</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <LanguagePicker value={language} onChange={setLanguage} tone="onPrimary" />
-              {aiHref && (
-                <Link href={aiHref} onClick={close} title="Open Help Center" aria-label="Open Help Center" className="w-8 h-8 rounded-full bg-on-primary/15 hover:bg-on-primary/25 flex items-center justify-center">
-                  <BrainCircuit className="w-4 h-4" />
-                </Link>
-              )}
-              {chat.messages.length > 0 && (
-                <button type="button" onClick={chat.reset} title="New chat" aria-label="Start a new chat" className="w-8 h-8 rounded-full bg-on-primary/15 hover:bg-on-primary/25 flex items-center justify-center">
-                  <RotateCcw className="w-4 h-4" />
-                </button>
-              )}
-              <button type="button" onClick={close} title="Close" aria-label="Close Assistant" className="w-8 h-8 rounded-full bg-on-primary/15 hover:bg-on-primary/25 flex items-center justify-center">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+          <header className="shrink-0 flex items-center gap-3 pl-5 pr-4 pt-[calc(env(safe-area-inset-top)+16px)] md:pt-4 pb-3.5 border-b border-[#E8EAEE]">
+            <span aria-hidden className="w-8 h-8 rounded-full bg-[#2A4DD0] text-white flex items-center justify-center shrink-0">
+              <Stethoscope className="w-[18px] h-[18px]" strokeWidth={2.2} />
+            </span>
+            <h2 className="flex-1 min-w-0 text-[17px] font-extrabold tracking-[-0.01em] truncate">{title}</h2>
+            <LanguagePicker value={language} onChange={setLanguage} className="!h-9 min-w-9 !rounded-[10px] !bg-transparent hover:!bg-[#F0F2F5] !text-[#5A6272]" />
+            <button type="button" onClick={chat.reset} disabled={chat.messages.length === 0} title="Restart conversation" aria-label="Restart conversation" className={`${headerButton} text-[#2A4DD0] disabled:opacity-40 disabled:hover:bg-transparent`}>
+              <RotateCcw className="w-[19px] h-[19px]" strokeWidth={2.3} />
+            </button>
+            {aiHref && (
+              <Link href={aiHref} onClick={close} title="Expand chat" aria-label="Expand chat" className={`${headerButton} hidden md:flex text-[#5A6272]`}>
+                <Maximize2 className="w-[18px] h-[18px]" strokeWidth={2.1} />
+              </Link>
+            )}
+            <button type="button" onClick={close} title="Close" aria-label="Close chat" className={`${headerButton} text-[#5A6272]`}>
+              <X className="w-[18px] h-[18px]" strokeWidth={2.2} />
+            </button>
           </header>
 
           <ChatThread
             chat={chat}
-            icon={Headset}
+            icon={Stethoscope}
+            name={title}
+            today
             onNavigate={closeOnPhone}
-            intro={
-              <>
-                <p className="font-semibold text-primary text-[15px]">Hello! How can I help you today?</p>
-                <p className="mt-1.5">Ask questions about finding doctors, booking appointments, lab tests, or managing your health records.</p>
-                <p className="mt-1.5 text-on-surface-variant text-[12px]">For medical emergencies, please call 108 immediately.</p>
-              </>
-            }
+            intro={[
+              isPatient ? (
+                <p key="hi">Hi! I&apos;m your Care Assistant from Consult your Doctor. I&apos;ll help you book care today.</p>
+              ) : (
+                <p key="hi">Hi! I&apos;m Zebrold AI. I can help with your portal: bookings, slots, payments and more.</p>
+              ),
+              <p key="ask">What can I help you with?</p>,
+            ]}
             empty={
-              <div className="pl-9 flex flex-col gap-3">
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant mb-1.5">Common questions</p>
-                  <div className="flex flex-wrap gap-2">
-                    {suggestions.map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => void chat.send(s)}
-                        className="px-3 py-1.5 rounded-full bg-surface-container-lowest border border-outline-variant/50 text-[12px] font-semibold text-primary hover:bg-primary-fixed/40 transition-colors text-left"
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {(aiHref || contactHref) && (
-                  <div className="flex flex-col gap-2">
-                    {aiHref && (
-                      <Link href={aiHref} onClick={close} className="flex items-center gap-3 p-3 rounded-xl bg-surface-container-lowest border border-outline-variant/40 hover:border-primary/30 hover:bg-primary-fixed/20 transition-colors">
-                        <span className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-vibrant-blue text-on-primary flex items-center justify-center shrink-0">
-                          <BrainCircuit className="w-4 h-4" />
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block text-[13px] font-bold text-on-surface">Health Knowledge Base</span>
-                          <span className="block text-[11.5px] text-on-surface-variant">Browse health guides, diagnostic info, and FAQs</span>
-                        </span>
-                      </Link>
-                    )}
-                    {contactHref && (
-                      <Link href={contactHref} onClick={close} className="flex items-center gap-3 p-3 rounded-xl bg-surface-container-lowest border border-outline-variant/40 hover:border-primary/30 hover:bg-primary-fixed/20 transition-colors">
-                        <span className="w-9 h-9 rounded-lg bg-secondary-fixed/60 text-on-secondary-fixed flex items-center justify-center shrink-0">
-                          <MessageSquareText className="w-4 h-4" />
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block text-[13px] font-bold text-on-surface">Contact our team</span>
-                          <span className="block text-[11.5px] text-on-surface-variant">For refunds, cancellations and account changes</span>
-                        </span>
-                      </Link>
-                    )}
-                  </div>
+              <div className="flex flex-col items-end gap-2 mt-1.5 mb-2">
+                {suggestions.map((s) => (
+                  <button key={s} type="button" onClick={() => void chat.send(s)} className={`${pill} bg-white text-[#2A4DD0] hover:bg-[#2A4DD0] hover:text-white`}>
+                    {s}
+                  </button>
+                ))}
+                {contactHref && (
+                  <Link href={contactHref} onClick={close} className={`${pill} bg-white text-[#2A4DD0] hover:bg-[#2A4DD0] hover:text-white`}>
+                    Talk to our team
+                  </Link>
                 )}
+                {isPatient && <p className="mt-1 text-[11.5px] text-[#6B7280]">In a medical emergency, call 108.</p>}
               </div>
             }
           />
-          <Composer chat={chat} placeholder="Describe your problem or question…" autoFocus />
+          <Composer
+            chat={chat}
+            placeholder="Type a message…"
+            autoFocus
+            note={
+              <>
+                Powered by <strong className="text-[#1A1F2B]">Consult your Doctor</strong>
+              </>
+            }
+          />
         </section>
       )}
     </>

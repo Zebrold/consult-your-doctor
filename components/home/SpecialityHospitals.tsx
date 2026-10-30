@@ -126,7 +126,7 @@ export function SpecialityHospitals({
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-3.5 md:gap-x-6 gap-y-[22px] md:gap-y-8 px-4 md:px-6 pb-8 md:pb-14">
             {shown.map(({ item, km, inArea }) => (
-              <HospitalTile key={item.id} hospital={item} km={km} far={!!place.location && !inArea} />
+              <HospitalTile key={item.id} hospital={item} km={km} far={!!place.location && !inArea} slug={s.slug} />
             ))}
           </div>
         )}
@@ -153,12 +153,12 @@ function Chip({ pressed, haspopup, onClick, children }: { pressed?: boolean; has
   );
 }
 
-function HospitalTile({ hospital: h, km, far }: { hospital: SpecialityHospital; km: number | null; far: boolean }) {
+function HospitalTile({ hospital: h, km, far, slug }: { hospital: SpecialityHospital; km: number | null; far: boolean; slug: string }) {
   const rated = h.rating != null;
   const facts = [rated ? h.rating!.toFixed(1) : null, plural(h.specialityDoctors, "doctor"), km != null ? formatDistance(km) : null].filter(Boolean).join(" · ");
   const tags = [...h.matched, h.specialties.length >= 3 ? "Multi-speciality" : null].filter(Boolean).join(", ");
   return (
-    <Link href={`/hospitals/${h.id}`} className="group flex flex-col gap-[3px] min-w-0">
+    <Link href={`/hospitals/${h.id}?speciality=${slug}`} className="group flex flex-col gap-[3px] min-w-0">
       <span className="relative block aspect-[1/1.08] md:aspect-[4/3.4] rounded-[18px] overflow-hidden bg-[linear-gradient(160deg,#F2F6FF_0%,#DCE7FF_100%)] mb-2">
         {h.image ? (
           <RemoteImage src={h.image} alt={`Exterior of ${h.name}`} fill sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw" className="object-cover group-hover:scale-[1.03] transition-transform duration-300" />

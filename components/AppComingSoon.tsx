@@ -9,7 +9,7 @@ function Logo({ className = "" }: { className?: string }) {
   return <Image src="/logo-icon.png" alt="" width={96} height={96} className={`object-contain shrink-0 ${className}`} />;
 }
 
-function AppleLogo({ className = "" }: { className?: string }) {
+export function AppleLogo({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className={className}>
       <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701" />
@@ -17,7 +17,7 @@ function AppleLogo({ className = "" }: { className?: string }) {
   );
 }
 
-function GooglePlayLogo({ className = "" }: { className?: string }) {
+export function GooglePlayLogo({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden className={className} strokeLinejoin="round" strokeWidth={0.8}>
       <path d="M3 1.5 13.5 12 3 22.5Z" fill="#00B4FF" stroke="#00B4FF" />
@@ -36,9 +36,19 @@ const stores = [
 /**
  * The header's "Get the app" button. The mobile app isn't out yet, so it opens a "coming soon" card: on hover or
  * keyboard focus on desktop, and on tap on touch screens. `hero` is the outlined white button on the home page's blue
- * header, `banner` the pill in the home page's phone banner.
+ * header, `banner` the pill in the home page's phone banner, `promo` the white pill in the home page's app banner.
  */
-export function AppComingSoon({ compact = false, variant }: { compact?: boolean; variant?: "hero" | "banner" }) {
+export function AppComingSoon({
+  compact = false,
+  variant,
+  align,
+}: {
+  compact?: boolean;
+  variant?: "hero" | "banner" | "promo";
+  /** Which edge of the button the card lines up with; it opens towards the other side. */
+  align?: "left" | "right";
+}) {
+  const side = align ?? (variant === "promo" ? "left" : "right");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const cardId = useId();
@@ -69,6 +79,8 @@ export function AppComingSoon({ compact = false, variant }: { compact?: boolean;
             ? "flex items-center gap-1.5 min-h-[38px] px-4 rounded-[10px] border-[1.5px] border-white/85 text-white text-sm font-bold whitespace-nowrap hover:bg-white/10 transition-colors"
             : variant === "banner"
               ? "flex items-center min-h-9 px-4 rounded-full bg-[#1D4ED8] text-white text-[13px] font-extrabold whitespace-nowrap active:scale-95 transition-transform"
+              : variant === "promo"
+                ? "flex items-center gap-1 h-9 pl-4 pr-3.5 rounded-full bg-white text-[#1D4ED8] text-[13px] font-extrabold whitespace-nowrap shadow-[0_6px_14px_rgba(5,20,80,0.28)] active:scale-95 transition-transform"
               : `relative flex items-center gap-2 rounded-full text-on-surface transition-colors ${compact
                   ? "w-10 h-10 justify-center hover:bg-surface-container"
                   : "pl-3 pr-4 py-2 border border-slate-200 hover:border-slate-300 hover:bg-slate-50"
@@ -81,6 +93,10 @@ export function AppComingSoon({ compact = false, variant }: { compact?: boolean;
           </>
         ) : variant === "banner" ? (
           "GET THE APP"
+        ) : variant === "promo" ? (
+          <>
+            Get the app <ArrowUpRight className="w-[14px] h-[14px]" strokeWidth={2.6} />
+          </>
         ) : (
           <>
             <Smartphone className={compact ? "w-6 h-6" : "w-[18px] h-[18px] text-vibrant-blue"} strokeWidth={1.9} />
@@ -95,7 +111,7 @@ export function AppComingSoon({ compact = false, variant }: { compact?: boolean;
         id={cardId}
         role="dialog"
         aria-label="Consult Your Doctor app"
-        className={`absolute ${compact ? "-right-[38px]" : "right-0"} top-full pt-3 z-50 transition-all duration-200 ${open ? "visible opacity-100 translate-y-0" : "invisible opacity-0 -translate-y-1 lg:group-hover:visible lg:group-hover:opacity-100 lg:group-hover:translate-y-0 lg:group-focus-within:visible lg:group-focus-within:opacity-100 lg:group-focus-within:translate-y-0"
+        className={`absolute ${compact ? "-right-[38px]" : side === "left" ? "left-0" : "right-0"} top-full pt-3 z-50 transition-all duration-200 ${open ? "visible opacity-100 translate-y-0" : "invisible opacity-0 -translate-y-1 lg:group-hover:visible lg:group-hover:opacity-100 lg:group-hover:translate-y-0 lg:group-focus-within:visible lg:group-focus-within:opacity-100 lg:group-focus-within:translate-y-0"
           }`}
       >
         <div className="w-[min(20rem,calc(100vw-2.5rem))] max-h-[calc(100dvh-var(--header-h)-1.5rem)] overflow-y-auto rounded-2xl bg-surface-container-lowest border border-slate-200 shadow-[0_16px_40px_rgba(15,23,42,0.14)] p-5">

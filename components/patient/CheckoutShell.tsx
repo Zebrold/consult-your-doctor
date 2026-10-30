@@ -3,7 +3,6 @@ import Link from "next/link";
 import { ArrowLeft, ShieldCheck, type LucideIcon } from "lucide-react";
 import { PatientNavHeader } from "@/components/PatientNavHeader";
 import { PatientDock } from "@/components/PatientDock";
-import { PatientFooter } from "@/components/AppFooter";
 import { formatINR } from "@/components/patient/format";
 import { RefundNote } from "@/components/patient/booking-ui";
 import { PageBody, btnPrimary, card } from "@/components/patient/app-ui";
@@ -31,7 +30,6 @@ export function CheckoutShell({ name, email, children }: { name: string | null; 
           {children}
         </div>
       </PageBody>
-      <PatientFooter isSignedIn />
       <PatientDock activeTab="book" name={name} />
     </div>
   );

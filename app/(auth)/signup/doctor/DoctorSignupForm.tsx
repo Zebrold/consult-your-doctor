@@ -118,7 +118,7 @@ export function DoctorSignupForm({ hospitals }: { hospitals: { id: string; name:
             Create Your Doctor Account &amp; License Verification
           </h1>
           <p className="font-body-md text-body-md text-indigo-gray-600">
-            Join our verified clinical network. Submit your medical registration details and our credentialing team will verify them before activating your tele-consultation privileges.
+            Join our verified clinical network. Submit your medical registration details and our credentialing team will verify them before your account goes live for bookings.
           </p>
         </div>
 

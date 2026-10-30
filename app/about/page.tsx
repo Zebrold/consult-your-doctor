@@ -4,6 +4,7 @@ import { ArrowRight, FolderLock, Mail, MapPin, Navigation, Phone, ReceiptIndianR
 import { GoogleMap } from "@/components/GoogleMap";
 import { COMPANY, directionsUrl } from "@/lib/company";
 import { LEGAL_ENTITY } from "@/lib/legal";
+import { CtaBand, FeatureCard, IconTile, PageHero, Section, SectionHead, SitePage, btnBlue, btnGhost, btnWhite, card } from "@/components/site/ui";
 
 export const metadata: Metadata = {
   title: "About Us",
@@ -31,107 +32,83 @@ const principles = [
 
 export default function AboutPage() {
   return (
-    <div className="w-full bg-background">
-      {/* Intro */}
-      <section className="w-full border-b border-slate-100">
-        <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop py-12 md:py-20 grid grid-cols-1 lg:grid-cols-12 gap-10 items-end">
-          <div className="lg:col-span-8">
-            <p className="text-sm font-semibold text-vibrant-blue">About us</p>
-            <h1 className="mt-3 font-display-lg text-4xl md:text-5xl font-bold tracking-tight text-indigo-gray-900">
-              Making it simple to see the right doctor
-            </h1>
-            <p className="mt-5 max-w-2xl text-base md:text-lg leading-relaxed text-slate-600">
-              Consult Your Doctor is built by {LEGAL_ENTITY}. We work with hospitals and diagnostic labs in India so
-              patients can find the right specialist, book and pay online, and keep every prescription and report in one
-              place. Hospitals and labs use the same platform to run their front desk, schedules and records.
-            </p>
-          </div>
-        </div>
-      </section>
+    <SitePage>
+      <PageHero
+        eyebrow="About us"
+        title="Making it simple to see the right doctor"
+        lead={`Consult Your Doctor is built by ${LEGAL_ENTITY}. We work with hospitals and diagnostic labs in India so patients can find the right specialist, book and pay online, and keep every prescription and report in one place. Hospitals and labs use the same platform to run their front desk, schedules and records.`}
+        actions={
+          <>
+            <Link href="/find" className={btnWhite}>
+              Find a doctor <ArrowRight className="w-4 h-4" strokeWidth={2.6} />
+            </Link>
+            <Link href="/how-it-works" className={btnGhost}>
+              How it works
+            </Link>
+          </>
+        }
+      />
 
-      {/* Principles */}
-      <section className="w-full py-16 md:py-20">
-        <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop">
-          <h2 className="font-headline-lg text-2xl md:text-3xl font-bold tracking-tight text-indigo-gray-900">How we work</h2>
-          <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-5">
-            {principles.map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="rounded-xl border border-slate-200 bg-white p-6">
-                <Icon className="w-6 h-6 text-primary" />
-                <h3 className="mt-4 text-lg font-semibold text-indigo-gray-900">{title}</h3>
-                <p className="mt-1.5 text-[15px] leading-relaxed text-slate-600">{desc}</p>
-              </div>
-            ))}
-          </div>
+      <Section>
+        <SectionHead eyebrow="How we work" title="Three things we never compromise on" />
+        <div className="mt-8 md:mt-12 grid md:grid-cols-3 gap-3.5 md:gap-5">
+          {principles.map((p) => (
+            <FeatureCard key={p.title} icon={p.icon} title={p.title}>
+              {p.desc}
+            </FeatureCard>
+          ))}
         </div>
-      </section>
+      </Section>
 
-      {/* Partners */}
-      <section className="w-full pb-16 md:pb-20">
-        <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop">
-          <div className="rounded-xl bg-slate-50 border border-slate-200 p-6 md:p-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="max-w-2xl">
-              <h2 className="text-xl md:text-2xl font-bold tracking-tight text-indigo-gray-900">For doctors, hospitals and labs</h2>
-              <p className="mt-2 text-slate-600 leading-relaxed">
-                Publish your schedule, take bookings and payments, and send prescriptions and reports to patients from one
-                portal.
-              </p>
+      <Section tint>
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] lg:gap-12 lg:items-center">
+          <div>
+            <SectionHead eyebrow="Our office" title="Where to find us" lead="Our company is based in Frankfurt. Write to us or call during office hours." />
+            <div className={`${card} mt-6 p-2`}>
+              {[
+                { icon: MapPin, value: COMPANY.address, href: directionsUrl },
+                { icon: Mail, value: COMPANY.email, href: `mailto:${COMPANY.email}` },
+                { icon: Phone, value: COMPANY.phone, href: COMPANY.phoneHref },
+              ].map((c) => (
+                <a
+                  key={c.value}
+                  href={c.href}
+                  {...(c.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                  className="flex items-center gap-3.5 p-3 rounded-2xl hover:bg-[#F4F7FE] transition-colors"
+                >
+                  <IconTile icon={c.icon} className="!w-11 !h-11" />
+                  <span className="text-[15px] font-bold break-words min-w-0">{c.value}</span>
+                </a>
+              ))}
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 shrink-0">
-              <Link
-                href="/signup/doctor"
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-vibrant-blue px-5 py-3 text-[15px] font-semibold text-white hover:bg-primary transition-colors"
-              >
-                Join as a doctor <ArrowRight className="w-4 h-4" />
-              </Link>
-              <Link
-                href="/contact"
-                className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-5 py-3 text-[15px] font-semibold text-slate-800 hover:bg-slate-50 transition-colors"
-              >
-                Partner as a hospital or lab
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Contact & Location Map */}
-      <section className="w-full py-16 md:py-20 border-t border-slate-100">
-        <div className="max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop flex flex-col md:flex-row gap-10">
-          <div className="w-full md:w-1/3 flex flex-col justify-center">
-            <h2 className="font-headline-lg text-2xl md:text-3xl font-bold tracking-tight text-indigo-gray-900">Our office</h2>
-            <p className="mt-3 mb-6 text-slate-600 leading-relaxed">
-              Our company is based in Frankfurt. Write to us or call during office hours.
-            </p>
-            <div className="flex flex-col gap-3 text-[15px] text-indigo-gray-900">
-              <div className="flex items-start gap-3">
-                <MapPin className="w-5 h-5 text-vibrant-blue shrink-0 mt-[3px]" />
-                <span>{COMPANY.address}</span>
-              </div>
-              <a href={`mailto:${COMPANY.email}`} className="flex items-center gap-3 hover:text-vibrant-blue transition-colors">
-                <Mail className="w-5 h-5 text-vibrant-blue shrink-0" />
-                <span>{COMPANY.email}</span>
-              </a>
-              <a href={COMPANY.phoneHref} className="flex items-center gap-3 hover:text-vibrant-blue transition-colors">
-                <Phone className="w-5 h-5 text-vibrant-blue shrink-0" />
-                <span>{COMPANY.phone}</span>
-              </a>
-            </div>
-            <a
-              href={directionsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-6 inline-flex items-center gap-2 self-start rounded-lg bg-vibrant-blue px-5 py-2.5 text-[15px] font-semibold text-white hover:bg-primary transition-colors"
-            >
+            <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className={`${btnBlue} mt-5`}>
               <Navigation className="w-4 h-4" /> Get directions
             </a>
           </div>
           <GoogleMap
             query={COMPANY.address}
             title="Consult Your Doctor office on Google Maps"
-            className="w-full md:w-2/3 h-[400px] md:h-[440px] rounded-xl border border-slate-200"
+            className="mt-8 lg:mt-0 w-full h-[300px] md:h-[440px] rounded-[20px] shadow-[0_0_0_1px_#E6EBF3]"
           />
         </div>
-      </section>
-    </div>
+      </Section>
+
+      <div className="pt-12 md:pt-20">
+        <CtaBand
+          title="For doctors, hospitals and labs"
+          lead="Publish your schedule, take bookings and payments, and send prescriptions and reports to patients from one portal."
+          actions={
+            <>
+              <Link href="/corporate" className={btnWhite}>
+                Partner with us <ArrowRight className="w-4 h-4" strokeWidth={2.6} />
+              </Link>
+              <Link href="/contact" className={btnGhost}>
+                Talk to our team
+              </Link>
+            </>
+          }
+        />
+      </div>
+    </SitePage>
   );
 }

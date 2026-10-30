@@ -282,7 +282,9 @@ export default function CareMap({
         {you && <Marker position={you} icon={youIcon} title="You are here" />}
       </MapContainer>
       <div className="pointer-events-none absolute bottom-2 left-2 z-[400] flex flex-col items-start gap-1">
-        {!wheel && <span className="text-[10px] text-indigo-gray-600 bg-surface-container-lowest/85 px-1.5 py-0.5 rounded">Click the map to zoom with your mouse wheel</span>}
+        {/* With a mouse the wheel zooms once the map is clicked; touch screens pinch. */}
+        {!wheel && <span className="hidden [@media(pointer:fine)]:inline text-[10px] text-indigo-gray-600 bg-surface-container-lowest/85 px-1.5 py-0.5 rounded">Click the map to zoom with your mouse wheel</span>}
+        <span className="[@media(pointer:fine)]:hidden text-[10px] text-indigo-gray-600 bg-surface-container-lowest/85 px-1.5 py-0.5 rounded">Pinch to zoom the map</span>
         {anyApproximate && <span className="text-[10px] text-indigo-gray-600 bg-surface-container-lowest/85 px-1.5 py-0.5 rounded">Some pins are at the city centre until the exact address is found</span>}
       </div>
       <style>{`

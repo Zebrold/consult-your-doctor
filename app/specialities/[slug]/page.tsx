@@ -5,7 +5,6 @@ import { loadHospitals } from '@/components/home/data'
 import { findSpeciality, isOf } from '@/components/home/specialities'
 import { SpecialityHospitals, type SpecialityHospital } from '@/components/home/SpecialityHospitals'
 import { PatientDock } from '@/components/PatientDock'
-import { Footer } from '@/components/Footer'
 
 export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const speciality = findSpeciality((await props.params).slug)
@@ -56,7 +55,6 @@ export default async function SpecialityPage(props: { params: Promise<{ slug: st
         findHref={findHref}
         doctorCount={[...byName.values()].reduce((a, b) => a + b, 0)}
       />
-      <Footer dockRoom={isPatient} />
       {isPatient && <PatientDock activeTab="find" isSignedIn name={name} />}
     </>
   )

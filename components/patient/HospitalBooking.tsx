@@ -8,8 +8,10 @@ import { SPECIALITIES, specialityIcon } from "@/components/home/specialities";
 import { doctorName, formatINR, formatSlot, initials } from "./format";
 import { InfoRow, card } from "./app-ui";
 import { RemoteImage } from "@/components/RemoteImage";
-import type { BookedTest, BookingFees } from "@/lib/pricing";
+import { sumPrices, type BookedTest, type BookingFees } from "@/lib/pricing";
+import { distanceKm, formatDistance, type LatLng } from "@/lib/geo";
 import { AppointmentTypePicker, PaySummary, ServicePicker, bookingPath } from "./BookingChoices";
+import { usePatientLocation } from "./location";
 
 export type HospitalDoctor = {
   id: string;
@@ -20,6 +22,8 @@ export type HospitalDoctor = {
   image: string | null;
   /** The hospital has set the consultation fee, so the doctor can be booked online. */
   bookable: boolean;
+  /** The consultation fee, paid at the hospital. */
+  fee: number | null;
   slots: { id: string; start: string }[];
 };
 
@@ -40,6 +44,8 @@ export function HospitalBooking({
   choices,
   services,
   now,
+  initialSpeciality = null,
+  intro,
   children,
 }: {
   doctors: HospitalDoctor[];
@@ -49,6 +55,10 @@ export function HospitalBooking({
   /** The hospital's priced services. */
   services: BookedTest[];
   now: number;
+  /** The speciality tab to open on, e.g. when the patient came from that speciality's hospitals. */
+  initialSpeciality?: string | null;
+  /** Cards above the doctors (the consultation charges). */
+  intro?: ReactNode;
   children: ReactNode;
 }) {
   const specialties = useMemo(() => {
@@ -56,7 +66,7 @@ export function HospitalBooking({
     for (const d of doctors) counts.set(d.specialty || "General", (counts.get(d.specialty || "General") ?? 0) + 1);
     return Array.from(counts.keys()).sort((a, b) => counts.get(b)! - counts.get(a)! || a.localeCompare(b));
   }, [doctors]);
-  const [spec, setSpec] = useState(specialties[0] ?? "");
+  const [spec, setSpec] = useState(initialSpeciality && specialties.includes(initialSpeciality) ? initialSpeciality : (specialties[0] ?? ""));
   const [doctorId, setDoctorId] = useState<string | null>(null);
   const [slotId, setSlotId] = useState<string | null>(null);
   const [fastTrack, setFastTrack] = useState(false);
@@ -73,6 +83,11 @@ export function HospitalBooking({
       : `/doctors/${doctor.id}`
     : null;
   const cta = !doctor ? "Select a doctor" : !doctor.bookable ? "View profile" : ready ? "Book now" : doctor.slots.length ? "Pick a time" : "See all times";
+  // Waiting on a choice made on this page (a doctor, then a time) keeps the button off; the rest go elsewhere.
+  const linkable = !!doctor && (!doctor.bookable || ready || doctor.slots.length === 0);
+  const servicesTotal = sumPrices(pickedServices);
+  const payLater = pickedServices.length ? `Consultation + ${pickedServices.length} ${pickedServices.length === 1 ? "service" : "services"}` : "Consultation fee";
+  const payLaterAmount = doctor?.fee ? formatINR(doctor.fee + servicesTotal) : servicesTotal ? `${formatINR(servicesTotal)} + consultation` : "At the hospital";
 
   const pickSpec = (s: string) => {
     setSpec(s);
@@ -125,9 +140,10 @@ export function HospitalBooking({
     <>
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-5 lg:items-start">
         <div className="flex flex-col gap-3.5 lg:gap-5 min-w-0">
+          {intro}
           <section aria-labelledby="book-title" className={`p-4 lg:p-[22px] ${card} rounded-[20px]! lg:rounded-2xl!`}>
-            <h2 id="book-title" className="text-[16px] font-extrabold">Book a doctor here</h2>
-            <p className="mt-1 mb-3 text-[12.5px] text-[#5B667A]">Pick a speciality, choose a doctor, then a time.</p>
+            <h2 id="book-title" className="text-[16px] font-extrabold">Choose your doctor</h2>
+            <p className="mt-1 mb-3 text-[12.5px] text-[#5B667A]">{specialties.length > 1 ? "Pick a speciality, select a doctor, then pick a time." : "Select a doctor, then pick a time."}</p>
             {doctors.length === 0 ? (
               <p className="py-3 border-t border-[#EEF2F7] text-[13px] text-[#5B667A]">No doctors are listed at this hospital yet.</p>
             ) : (
@@ -207,7 +223,25 @@ export function HospitalBooking({
           {choices && doctors.length > 0 && (
             <>
               <AppointmentTypePicker fees={fees} fastTrack={fastTrack} onChange={setFastTrack} />
-              <ServicePicker services={services} picked={picked} onToggle={(name) => setPicked((p) => (p.includes(name) ? p.filter((n) => n !== name) : [...p, name]))} />
+              <ServicePicker services={services} picked={picked} onToggle={(name) => setPicked((p) => (p.includes(name) ? p.filter((n) => n !== name) : [...p, name]))}>
+                {/* Phones: what is paid where (desktops have it in the summary) */}
+                <div className="lg:hidden mt-3 px-3.5 py-1 rounded-[14px] bg-[#F6F8FC]">
+                  <div className="flex justify-between gap-3 py-2.5 border-b border-[#E6EBF3] text-[13px]">
+                    <span>
+                      <span className="block font-extrabold">Pay now in the app</span>
+                      <span className="block text-[11.5px] text-[#5B667A]">{fastTrack ? "Fast track" : "General"} booking fee</span>
+                    </span>
+                    <span className="font-extrabold text-[#2A4DD0]">{formatINR(bookingFee)}</span>
+                  </div>
+                  <div className="flex justify-between gap-3 py-2.5 text-[13px]">
+                    <span>
+                      <span className="block font-extrabold">Pay at the hospital</span>
+                      <span className="block text-[11.5px] text-[#5B667A]">{payLater}</span>
+                    </span>
+                    <span className="font-extrabold text-right">{payLaterAmount}</span>
+                  </div>
+                </div>
+              </ServicePicker>
             </>
           )}
           {children}
@@ -222,7 +256,7 @@ export function HospitalBooking({
             {choices && <InfoRow label="Type" value={fastTrack ? "Fast track" : "General"} />}
           </div>
           <PaySummary fee={bookingFee} fastTrack={choices && fastTrack} services={pickedServices} />
-          {href ? (
+          {href && linkable ? (
             <Link href={href} className={`mt-4 w-full h-[50px] rounded-[11px] flex items-center justify-center gap-1.5 text-[15px] font-extrabold text-white transition-colors ${ready ? "bg-[#2A4DD0] hover:bg-[#2443B8]" : "bg-[#5B76DE] hover:bg-[#2A4DD0]"}`}>
               {cta}
               {ready ? ` · ${formatINR(bookingFee)}` : ""}
@@ -245,7 +279,7 @@ export function HospitalBooking({
               : "Booking fee in app · rest paid at hospital"}
           </span>
         </span>
-        {href ? (
+        {href && linkable ? (
           <Link
             href={href}
             className={`shrink-0 flex items-center gap-1.5 h-12 px-[18px] rounded-[14px] text-white text-[15px] font-extrabold ${ready ? "bg-[#2A4DD0] shadow-[0_8px_16px_rgba(42,77,208,0.3)]" : "bg-[#5B76DE]"}`}
@@ -262,8 +296,15 @@ export function HospitalBooking({
   );
 }
 
+/** " · 1.2 km" from the patient's device location, when both it and the hospital's map pin are known. */
+export function HospitalDistance({ at }: { at: LatLng | null }) {
+  const { location } = usePatientLocation();
+  if (!at || location?.kind !== "gps") return null;
+  return <> · {formatDistance(distanceKm({ lat: location.lat, lng: location.lng }, at))}</>;
+}
+
 /** The phone hero's round buttons: back, and share (the system share sheet, or copy the link). */
-export function HeroButtons({ backHref, title }: { backHref: string; title: string }) {
+export function HeroButtons({ backHref, backLabel = "Back", title }: { backHref: string; backLabel?: string; title: string }) {
   const share = async () => {
     try {
       if (navigator.share) await navigator.share({ title, url: window.location.href });
@@ -275,7 +316,7 @@ export function HeroButtons({ backHref, title }: { backHref: string; title: stri
   const cls = "absolute top-3 w-11 h-11 rounded-full bg-white text-[#0B1B3F] flex items-center justify-center shadow-[0_4px_12px_rgba(11,27,63,0.2)] active:scale-95 transition-transform";
   return (
     <>
-      <Link href={backHref} aria-label="Back" className={`${cls} left-3`}>
+      <Link href={backHref} aria-label={backLabel} className={`${cls} left-3`}>
         <ArrowLeft className="w-5 h-5" strokeWidth={2.4} />
       </Link>
       <button type="button" onClick={share} aria-label={`Share ${title}`} className={`${cls} right-3`}>

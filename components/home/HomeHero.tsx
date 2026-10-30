@@ -10,7 +10,7 @@ import { initials } from "@/components/patient/format";
 import { locationCity, type usePatientLocation } from "@/components/patient/location";
 import { PATIENT_ACCOUNT_LINKS } from "@/components/patient/PhoneHeader";
 import { AccountMenu } from "@/components/portal/TopBar";
-import { AppBanner } from "./ui";
+import { AppPromoStrip } from "./AppPromo";
 import type { HomeAccount } from "./types";
 
 type Place = ReturnType<typeof usePatientLocation>;
@@ -72,7 +72,7 @@ export function HomeHero({ account, place, visitLine, onLocation, onMenu }: Prop
 
   return (
     <>
-      <AppBanner />
+      <AppPromoStrip />
 
       {/* Phones */}
       <section className="md:hidden bg-[#1D4ED8] px-4 pt-[18px] pb-7 flex flex-col gap-[18px] overflow-hidden">
@@ -146,8 +146,8 @@ export function HomeHero({ account, place, visitLine, onLocation, onMenu }: Prop
             <span className="font-['Helvetica_Neue',Helvetica,Arial,sans-serif] text-[28px] font-bold tracking-[-0.01em]">Consult your Doctor</span>
           </Link>
           <nav aria-label="Main" className="flex flex-wrap items-center gap-7">
-            <Link href="/how-it-works" className="hidden lg:block text-white text-base font-semibold hover:text-[#DCE7FF] transition-colors">How it works</Link>
-            <Link href="/signup" className="hidden lg:block text-white text-base font-semibold hover:text-[#DCE7FF] transition-colors">Partner with Us</Link>
+            <Link href="/corporate" className="hidden lg:block text-white text-base font-semibold hover:text-[#DCE7FF] transition-colors">Corporate</Link>
+            <Link href="/corporate#join" className="hidden lg:block text-white text-base font-semibold hover:text-[#DCE7FF] transition-colors">Partner with Us</Link>
             <AppComingSoon variant="hero" />
             <DesktopAccount account={account} hasVisit={!!visitLine} />
           </nav>
@@ -216,7 +216,7 @@ function VisitPill({ line }: { line: string }) {
 }
 
 /** The round navy button on phones: the menu (with sign-in or the patient's account), or staff's own portal. */
-function PhoneAccountButton({ account, onMenu }: { account: HomeAccount; onMenu: () => void }) {
+export function PhoneAccountButton({ account, onMenu }: { account: HomeAccount; onMenu: () => void }) {
   const cls = "w-[46px] h-[46px] rounded-full bg-[#0B1B3F] text-white flex items-center justify-center shrink-0 active:scale-95 transition-transform";
   if (account.kind === "staff") {
     return (
@@ -236,7 +236,7 @@ function PhoneAccountButton({ account, onMenu }: { account: HomeAccount; onMenu:
   );
 }
 
-function DesktopAccount({ account, hasVisit }: { account: HomeAccount; hasVisit: boolean }) {
+export function DesktopAccount({ account, hasVisit }: { account: HomeAccount; hasVisit: boolean }) {
   const pill = "flex items-center gap-1.5 min-h-[38px] px-[22px] rounded-[10px] bg-[#0B1B3F] text-white text-sm font-bold hover:bg-[#13285A] transition-colors";
   if (account.kind === "guest") {
     return (

@@ -9,7 +9,6 @@ import {
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { PatientDock } from '@/components/PatientDock'
-import { PatientFooter } from '@/components/AppFooter'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
 import { ProfileEditButton } from '@/components/patient/ProfileEditButton'
 import { DeskTitle, PageBody, btnOutline, card } from '@/components/patient/app-ui'
@@ -556,7 +555,6 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
         </div>
       </PageBody>
 
-      <PatientFooter isSignedIn />
       <PatientDock activeTab="profile" name={name} detail={`UHID ${uhid}`} />
     </div>
   )

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Building2, CalendarDays, CircleCheck, IdCard, Lock, LoaderCircle, LogIn, MapPin, Navigation, Sun, Sunset, type LucideIcon } from "lucide-react";
 import { PatientDock } from "@/components/PatientDock";
-import { PatientFooter } from "@/components/AppFooter";
 import { PatientNavHeader } from "@/components/PatientNavHeader";
 import { VerifiedBadge } from "@/components/home/ui";
 import { InfoRow, btnPrimary, card } from "@/components/patient/app-ui";
@@ -432,7 +431,6 @@ export function FinalizeBookingClient({
         )}
       </div>
 
-      <PatientFooter isSignedIn={!!patient} />
       <PatientDock activeTab="find" isSignedIn={!!patient} name={patient?.name} phoneBar={false} />
     </div>
   );

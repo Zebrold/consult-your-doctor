@@ -4,7 +4,6 @@ import { getBookingFees } from "@/lib/booking-fees";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { PatientDock } from "@/components/PatientDock";
-import { PatientFooter, PortalFooter } from "@/components/AppFooter";
 import {
   DoctorProfileClient,
   ProfileDoctorData,
@@ -147,13 +146,8 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
         now={currentTime()}
         account={isDoctor ? null : { isSignedIn: !!user, name, email: viewer?.email || user?.email || null }}
       />
-      {isDoctor ? (
-        <PortalFooter portal="doctor" />
-      ) : (
-        <>
-          <PatientFooter isSignedIn={!!user} />
-          <PatientDock activeTab="find" isSignedIn={!!user} name={name} phoneBar={false} detail={user && (!viewer?.role || viewer.role === "patient") ? `UHID CYD-${user.id.slice(0, 8).toUpperCase()}` : null} />
-        </>
+      {!isDoctor && (
+        <PatientDock activeTab="find" isSignedIn={!!user} name={name} phoneBar={false} detail={user && (!viewer?.role || viewer.role === "patient") ? `UHID CYD-${user.id.slice(0, 8).toUpperCase()}` : null} />
       )}
     </>
   );

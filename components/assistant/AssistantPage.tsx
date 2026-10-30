@@ -26,7 +26,7 @@ import {
   UserRoundCheck,
   Wallet,
 } from 'lucide-react'
-import { Bubble, ChatThread, Composer, LanguagePicker, PdfCard, chatKey, useChat, useLanguage } from './chat'
+import { ChatThread, Composer, LanguagePicker, PdfCard, chatKey, useChat, useLanguage } from './chat'
 
 type Prompt = { text: string; icon: LucideIcon }
 
@@ -149,13 +149,18 @@ export function AssistantPage({ role, viewer }: { role: string | null; viewer: s
           chat={chat}
           icon={Stethoscope}
           wide
-          intro={isPatient ? <p>Hi! I&apos;m your Care Assistant from Consult your Doctor. I can find doctors, hospitals and labs, check fees and open slots, and help you book.</p> : undefined}
+          intro={
+            isPatient
+              ? [
+                  <p key="hi">Hi! I&apos;m your Care Assistant from Consult your Doctor. I can find doctors, hospitals and labs, check fees and open slots, and help you book.</p>,
+                  // The question goes once the conversation starts.
+                  ...(chat.messages.length ? [] : [<p key="ask">What can I help you with?</p>]),
+                ]
+              : undefined
+          }
           empty={
             isPatient ? (
               <>
-                <Bubble role="assistant" icon={Stethoscope}>
-                  <p>What can I help you with?</p>
-                </Bubble>
                 <div className="flex flex-col items-end gap-2 mt-1.5 mb-1">
                   {prompts.map(({ text }) => (
                     <button

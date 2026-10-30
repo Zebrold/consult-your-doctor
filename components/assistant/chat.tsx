@@ -12,7 +12,7 @@ import type { PdfDoc } from '@/lib/assistant/pdf-doc'
 // full-page Zebrold AI tab (AssistantPage.tsx). Replies stream from app/api/assistant as newline-delimited JSON.
 
 /** `local` replies (errors, "not set up") are shown but never sent back to the model. */
-export type Msg = { role: 'user' | 'assistant'; content: string; local?: boolean; pdf?: PdfDoc; translations?: Record<string, string> }
+export type Msg = { role: 'user' | 'assistant'; content: string; local?: boolean; pdf?: PdfDoc; translations?: Record<string, string>; /** When it was sent (ms). */ at?: number }
 /** Support answers problems with the site; assistant is the open-ended Zebrold AI page. */
 export type ChatMode = 'support' | 'assistant'
 
@@ -150,12 +150,13 @@ export function useChat(storeKey: string, mode: ChatMode, language = 'auto') {
     const content = text.trim()
     if (!content || busy) return
     const run = runRef.current
-    const history: Msg[] = [...messages, { role: 'user', content }]
+    const at = Date.now()
+    const history: Msg[] = [...messages, { role: 'user', content, at }]
     let pdf: PdfDoc | undefined
     const show = (reply: string, local = false) => {
-      if (runRef.current === run) setMessages([...history, { role: 'assistant', content: reply, local, pdf }])
+      if (runRef.current === run) setMessages([...history, { role: 'assistant', content: reply, local, pdf, at }])
     }
-    setMessages([...history, { role: 'assistant', content: '' }])
+    setMessages([...history, { role: 'assistant', content: '', at }])
     setBusy(true)
     setStatus(null)
 
@@ -274,9 +275,13 @@ export function useChat(storeKey: string, mode: ChatMode, language = 'auto') {
 
 export type Chat = ReturnType<typeof useChat>
 
+/** "10:42 AM" */
+const clock = (at?: number) => (at ? new Date(at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : undefined)
+
 /**
- * The scrolling list of messages. `intro` is a first assistant bubble that is always shown; `empty` is shown below it
- * until the first message is sent.
+ * The scrolling list of messages. `intro` is the assistant's welcome, always shown: one bubble, or several in a row
+ * (the avatar sits by the last). `empty` is shown below it until the first message is sent. `name` labels the
+ * assistant's replies, and `today` starts the thread with a "Today" divider.
  */
 export function ChatThread({
   chat,
@@ -285,18 +290,23 @@ export function ChatThread({
   empty,
   wide = false,
   onNavigate,
+  name,
+  today = false,
 }: {
   chat: Chat
   icon: LucideIcon
-  intro?: ReactNode
+  intro?: ReactNode | ReactNode[]
   empty?: ReactNode
   wide?: boolean
   onNavigate?: () => void
+  name?: string
+  today?: boolean
 }) {
   const listRef = useRef<HTMLDivElement>(null)
   const { messages, busy, status } = chat
   const last = messages[messages.length - 1]
   const waiting = busy && last?.role === 'assistant' && !last.content
+  const welcome = intro == null ? [] : Array.isArray(intro) ? intro : [intro]
 
   useEffect(() => {
     // Follow the conversation as it grows; an empty chat stays at the top so its welcome is read from the start.
@@ -305,16 +315,23 @@ export function ChatThread({
 
   return (
     <div ref={listRef} aria-live="polite" className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
-      <div className={`min-h-full flex flex-col gap-3 ${wide ? 'w-full max-w-3xl mx-auto px-4 md:px-6 py-5' : 'px-4 py-4'}`}>
-        {intro && (
-          <Bubble role="assistant" icon={icon}>
-            {intro}
-          </Bubble>
+      <div className={`min-h-full flex flex-col gap-2.5 ${wide ? 'w-full max-w-3xl mx-auto px-4 md:px-6 py-5' : 'px-[18px] pt-3.5 pb-[18px]'}`}>
+        {today && (
+          <div className="flex items-center gap-3 mt-0.5 mb-1.5 text-[13px] font-bold text-[#6B7280]">
+            <span className="flex-1 h-px bg-[#E5E7EB]" />
+            Today
+            <span className="flex-1 h-px bg-[#E5E7EB]" />
+          </div>
         )}
+        {welcome.map((part, i) => (
+          <Bubble key={`intro-${i}`} role="assistant" icon={icon} name={i === 0 ? name : undefined} avatar={i === welcome.length - 1}>
+            {part}
+          </Bubble>
+        ))}
         {messages.length === 0 && empty}
         {messages.map((m, i) =>
           m.role === 'assistant' && !m.content && !m.pdf ? null : (
-            <Bubble key={i} role={m.role} icon={icon}>
+            <Bubble key={i} role={m.role} icon={icon} name={m.role === 'assistant' ? name : undefined} time={clock(m.at)}>
               {m.role === 'assistant' ? (
                 <Answer chat={chat} index={i} message={m} done={!(busy && i === messages.length - 1)} question={messages[i - 1]?.role === 'user' ? messages[i - 1].content : null} onNavigate={onNavigate} />
               ) : (
@@ -324,13 +341,13 @@ export function ChatThread({
           ),
         )}
         {busy && (waiting || status) && (
-          <div className="pl-9 flex items-center gap-2 text-[12px] text-on-surface-variant" role="status">
+          <div className="pl-[46px] flex items-center gap-2 text-[12px] text-[#6B7280]" role="status">
             {status ? (
               <>
                 <LoaderCircle className="w-4 h-4 animate-spin text-vibrant-blue" /> {status}
               </>
             ) : (
-              <span className="flex gap-1 px-3 py-2.5 rounded-2xl bg-surface-container-lowest border border-outline-variant/30" aria-label="Zebrold AI is typing">
+              <span className="flex gap-1 px-3.5 py-3 rounded-[18px] bg-[#F0F2F5]" aria-label="Zebrold AI is typing">
                 {[0, 150, 300].map((d) => (
                   <span key={d} className="w-1.5 h-1.5 rounded-full bg-vibrant-blue/70 animate-bounce" style={{ animationDelay: `${d}ms` }} />
                 ))}
@@ -433,8 +450,22 @@ export function LanguagePicker({
   )
 }
 
-/** The message box. Enter sends; Shift+Enter starts a new line. */
-export function Composer({ chat, placeholder, wide = false, autoFocus = false }: { chat: Chat; placeholder: string; wide?: boolean; autoFocus?: boolean }) {
+const SAFETY_NOTE = 'For general healthcare guidance. In an emergency, call 108. Do not share passwords or payment OTPs.'
+
+/** The message box. Enter sends; Shift+Enter starts a new line. `note` is the line under it. */
+export function Composer({
+  chat,
+  placeholder,
+  wide = false,
+  autoFocus = false,
+  note = SAFETY_NOTE,
+}: {
+  chat: Chat
+  placeholder: string
+  wide?: boolean
+  autoFocus?: boolean
+  note?: ReactNode
+}) {
   const [input, setInput] = useState('')
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -461,7 +492,7 @@ export function Composer({ chat, placeholder, wide = false, autoFocus = false }:
         e.preventDefault()
         submit()
       }}
-      className={`shrink-0 border-t border-[#E8EAEE] bg-white pt-2.5 pb-2 ${wide ? 'px-3.5 md:px-6' : 'px-3'}`}
+      className={`shrink-0 border-t border-[#E8EAEE] bg-white pt-2.5 pb-3 ${wide ? 'px-3.5 md:px-6' : 'px-3.5'}`}
     >
       <div className={wide ? 'max-w-3xl mx-auto' : ''}>
         <div className="flex items-end gap-2 min-h-[46px] rounded-[23px] bg-[#F4F5F7] border-[1.5px] border-transparent focus-within:border-[#2A4DD0] focus-within:bg-white pl-4 pr-[5px] py-[3px] transition-colors">
@@ -474,7 +505,7 @@ export function Composer({ chat, placeholder, wide = false, autoFocus = false }:
             maxLength={2000}
             placeholder={placeholder}
             aria-label="Message Zebrold AI"
-            className="flex-1 resize-none bg-transparent text-[14px] text-on-surface placeholder:text-outline focus:outline-none max-h-32 py-1.5 field-sizing-content"
+            className="flex-1 resize-none bg-transparent text-[14.5px] text-[#1A1F2B] placeholder:text-[#8A909C] focus:outline-none max-h-32 py-1.5 field-sizing-content"
           />
           {chat.busy ? (
             <button type="button" onClick={chat.stop} title="Stop" aria-label="Stop the reply" className="w-9 h-9 rounded-full bg-surface-container-high text-on-surface flex items-center justify-center shrink-0">
@@ -486,23 +517,53 @@ export function Composer({ chat, placeholder, wide = false, autoFocus = false }:
             </button>
           )}
         </div>
-        <p className="text-[10.5px] text-on-surface-variant text-center mt-1.5">For general healthcare guidance. In an emergency, call 108. Do not share passwords or payment OTPs.</p>
+        <p className="mt-[9px] text-center text-[11.5px] text-[#6B7280]">{note}</p>
       </div>
     </form>
   )
 }
 
-export function Bubble({ role, icon: Icon, children }: { role: 'user' | 'assistant'; icon: LucideIcon; children: ReactNode }) {
+/**
+ * One message. The assistant's carry `name` above them, the round avatar beside the bubble (or a space the same width
+ * when `avatar` is off, for the earlier bubbles in a row) and the `time` after it.
+ */
+export function Bubble({
+  role,
+  icon: Icon,
+  children,
+  name,
+  time,
+  avatar = true,
+}: {
+  role: 'user' | 'assistant'
+  icon: LucideIcon
+  children: ReactNode
+  name?: string
+  time?: string
+  avatar?: boolean
+}) {
+  const stamp = time && <span className="shrink-0 text-[11px] text-[#8A909C]">{time}</span>
   if (role === 'user') {
-    return <div className="self-end max-w-[85%] bg-[#2A4DD0] text-white rounded-[18px] rounded-br-[4px] px-3.5 py-[11px] text-[14.5px] leading-[1.45]">{children}</div>
+    return (
+      <div className="self-end flex items-end gap-2.5 max-w-[88%]">
+        {stamp}
+        <div className="min-w-0 bg-[#2A4DD0] text-white rounded-[18px] px-3.5 py-[10px] text-[14.5px] leading-[1.45] break-words">{children}</div>
+      </div>
+    )
   }
   return (
-    <div className="flex items-start gap-2.5 max-w-[92%]">
-      <span aria-hidden className="w-[30px] h-[30px] rounded-full bg-[#2A4DD0] text-white flex items-center justify-center shrink-0 mt-0.5">
-        <Icon className="w-4 h-4" strokeWidth={2.3} />
-      </span>
-      <div className="min-w-0 bg-[#F0F2F5] rounded-[18px] rounded-tl-[4px] px-3.5 py-[11px] text-[14.5px] leading-[1.45] text-[#1A1F2B] break-words">
-        {children}
+    <div className="flex flex-col gap-1.5">
+      {name && <p className="ml-[46px] text-[12.5px] font-bold text-[#6B7280]">{name}</p>}
+      <div className="flex items-end gap-2.5 max-w-full">
+        {avatar ? (
+          <span aria-hidden className="w-[30px] h-[30px] mx-[3px] rounded-full bg-[#2A4DD0] text-white flex items-center justify-center shrink-0">
+            <Icon className="w-4 h-4" strokeWidth={2.3} />
+          </span>
+        ) : (
+          <span aria-hidden className="w-9 shrink-0" />
+        )}
+        <div className="min-w-0 bg-[#F0F2F5] rounded-[18px] px-3.5 py-[11px] text-[14.5px] leading-[1.45] text-[#1A1F2B] break-words">{children}</div>
+        {stamp}
       </div>
     </div>
   )
@@ -511,7 +572,8 @@ export function Bubble({ role, icon: Icon, children }: { role: 'user' | 'assista
 /** Renders the small subset of markdown replies use (paragraphs, lists, bold, links) without injecting HTML. */
 function Rich({ text, onNavigate }: { text: string; onNavigate?: () => void }) {
   const blocks: ReactNode[] = []
-  let list: { ordered: boolean; items: string[] } | null = null
+  // start: the number an ordered list begins at, so steps split up by bullet points keep counting (1, 2, 3).
+  let list: { ordered: boolean; items: string[]; start?: number } | null = null
   let para: string[] = []
   const flushPara = () => {
     if (para.length) blocks.push(<p key={blocks.length}>{para.flatMap((l, i) => (i ? [<br key={`br${i}`} />, ...inline(l, onNavigate)] : inline(l, onNavigate)))}</p>)
@@ -521,7 +583,7 @@ function Rich({ text, onNavigate }: { text: string; onNavigate?: () => void }) {
     if (!list) return
     const Tag = list.ordered ? 'ol' : 'ul'
     blocks.push(
-      <Tag key={blocks.length} className={`${list.ordered ? 'list-decimal' : 'list-disc'} pl-5 space-y-1`}>
+      <Tag key={blocks.length} start={list.ordered ? list.start : undefined} className={`${list.ordered ? 'list-decimal' : 'list-disc'} pl-5 space-y-1`}>
         {list.items.map((item, i) => (
           <li key={i}>{inline(item, onNavigate)}</li>
         ))}
@@ -541,7 +603,7 @@ function Rich({ text, onNavigate }: { text: string; onNavigate?: () => void }) {
       const ordered = !!bullet[1]
       if (!list || list.ordered !== ordered) {
         flushList()
-        list = { ordered, items: [] }
+        list = { ordered, items: [], start: ordered ? Number(bullet[1]) || 1 : undefined }
       }
       list.items.push(bullet[2])
     } else {

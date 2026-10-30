@@ -6,7 +6,6 @@ import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
 import { DeskTitle, PageBody, btnOutline, card } from '@/components/patient/app-ui'
 import { PatientDock } from '@/components/PatientDock'
-import { PatientFooter } from '@/components/AppFooter'
 import { SupportTicketButton } from '@/components/patient/SupportTicket'
 import { one } from '@/components/patient/data'
 import { formatShortDate } from '@/components/patient/format'
@@ -178,7 +177,6 @@ export default async function PatientSupport() {
           </div>
         </div>
       </PageBody>
-      <PatientFooter isSignedIn />
       <PatientDock activeTab="profile" name={name} detail={`UHID ${uhid}`} />
     </div>
   )

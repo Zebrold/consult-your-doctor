@@ -9,7 +9,6 @@ import {
 } from 'lucide-react'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
 import { PatientDock } from '@/components/PatientDock'
-import { PatientFooter } from '@/components/AppFooter'
 import { formatINR } from '@/components/patient/format'
 import { payAtVenueNote } from '@/lib/pricing'
 
@@ -305,7 +304,6 @@ export function ConfirmationClient({ data }: { data: ConfirmationData }) {
 
       </main>
 
-      <PatientFooter isSignedIn />
       <PatientDock activeTab="book" name={data.patientName} />
     </div>
   )

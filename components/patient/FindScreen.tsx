@@ -7,7 +7,6 @@ import { pricedTests } from "@/lib/pricing";
 import { getBookingFees } from "@/lib/booking-fees";
 import { toLatLng } from "@/lib/geo";
 import { PatientDock } from "@/components/PatientDock";
-import { PatientFooter } from "@/components/AppFooter";
 
 type DoctorRow = {
   id: string;
@@ -131,7 +130,6 @@ export function FindScreen({ data, initial }: { data: FindData; initial: FindIni
         account={{ isSignedIn: !!user, name: user?.name ?? null, email: user?.email ?? null }}
         fees={data.fees}
       />
-      <PatientFooter isSignedIn={!!user} />
       <PatientDock activeTab="find" isSignedIn={!!user} name={user?.name} detail={user ? `UHID CYD-${user.id.slice(0, 8).toUpperCase()}` : null} />
     </div>
   );

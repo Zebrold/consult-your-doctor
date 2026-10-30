@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { Building2, LogOut, MapPin } from 'lucide-react'
 import { PortalDock } from '@/components/portal/PortalNav'
 import { TopBar } from '@/components/portal/TopBar'
-import { PortalFooter } from '@/components/AppFooter'
 import { TopBarChip } from '@/components/portal/TopBarChip'
 import { requireLab } from './_lib/lab'
 
@@ -52,7 +51,6 @@ export default async function DiagnosticCenterLayout({ children }: { children: R
       <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 lg:px-margin-x-desktop pt-4 md:pt-6 pb-12 md:pb-16 flex flex-col gap-4 md:gap-stack-md">
         {children}
       </main>
-      <PortalFooter portal="lab" />
     </div>
   )
 }

@@ -12,6 +12,12 @@ import { PatientAppHome, type PatientRecord, type PatientVisit } from '@/compone
 import { IST, doctorName, formatShortDate, visitToken } from '@/components/patient/format';
 import { parseVitals, vitalsList } from '@/lib/vitals';
 import { matchBookedTests } from '@/lib/pricing';
+import QRCode from 'qrcode';
+import { siteUrl } from '@/lib/site-url';
+
+// The app banner's QR code: the site's address, made once per server.
+let siteQr: Promise<string> | null = null;
+const siteQrSvg = () => (siteQr ??= QRCode.toString(siteUrl(), { type: 'svg', margin: 0, errorCorrectionLevel: 'M', color: { dark: '#0B1B3F', light: '#FFFFFF' } }));
 
 /** Each staff account's own portal, for the header's Dashboard link. */
 const PORTAL_HOME: Record<string, string> = {
@@ -54,7 +60,7 @@ export default async function Home(props: {
     return <PatientHome userId={user?.id ?? null} name={account.kind === 'patient' ? account.name : null} now={now} />;
   }
 
-  const [{ data: dbDoctors }, hospitals, { data: labCities }, availability, fees] = await Promise.all([
+  const [{ data: dbDoctors }, hospitals, { data: labCities }, availability, fees, appQr] = await Promise.all([
     supabase
       .from('doctors')
       .select(`
@@ -67,6 +73,7 @@ export default async function Home(props: {
     supabase.from('diagnostic_centers').select('city').eq('status', 'active'),
     loadAvailability(supabase, now),
     getBookingFees(),
+    siteQrSvg(),
   ]);
 
   // Doctors are seen at their hospital, so they are as near as its pin.
@@ -137,6 +144,7 @@ export default async function Home(props: {
         hospitals={hospitals.filter((h) => h.doctors > 0)}
         cities={cities}
         bookingFee={fees.consultation}
+        appQr={appQr}
       />
       <Footer />
     </>

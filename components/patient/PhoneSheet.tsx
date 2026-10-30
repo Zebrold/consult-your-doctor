@@ -2,7 +2,8 @@
 
 import { useEffect, type ReactNode } from "react";
 import Link from "next/link";
-import { Building2, CalendarDays, ChevronRight, FlaskConical, Handshake, Info, LifeBuoy, LogIn, LogOut, Stethoscope, UserRound, X, type LucideIcon } from "lucide-react";
+import { Building2, CalendarDays, ChevronDown, ChevronRight, FlaskConical, Handshake, Info, LifeBuoy, LogIn, LogOut, Stethoscope, UserRound, X, type LucideIcon } from "lucide-react";
+import { JOIN_LINKS } from "@/components/site/CorporateMenu";
 
 /** A panel that slides up from the bottom over a dimmed page (a centred dialog on wider screens). */
 export function Sheet({ title, subtitle, onClose, children }: { title: string; subtitle?: string; onClose: () => void; children: ReactNode }) {
@@ -49,7 +50,6 @@ export function MenuSheet({ name, email, isSignedIn, onClose }: { name: string |
     { href: "/hospitals", label: "Hospitals", icon: Building2 },
     { href: "/diagnostics", label: "Lab tests", icon: FlaskConical },
     { href: "/how-it-works", label: "How it works", icon: Info },
-    { href: "/corporate", label: "Corporate: doctors, hospitals & labs", icon: Handshake },
     { href: isSignedIn ? "/patient/support" : "/contact", label: "Help & support", icon: LifeBuoy },
   ];
   return (
@@ -62,17 +62,47 @@ export function MenuSheet({ name, email, isSignedIn, onClose }: { name: string |
             <ChevronRight className="w-5 h-5 text-slate-300" />
           </Link>
         ))}
+        {/* Corporate opens in place, like the headers' menu: the three ways to join. */}
+        <details className="group">
+          <summary className="flex items-center gap-3 min-h-[52px] px-2 rounded-2xl text-[16px] font-semibold text-indigo-gray-900 cursor-pointer list-none [&::-webkit-details-marker]:hidden active:bg-slate-100">
+            <Handshake className="w-5 h-5 text-vibrant-blue shrink-0" />
+            <span className="flex-1">Corporate</span>
+            <ChevronDown className="w-5 h-5 text-slate-400 transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="mt-1 mb-2 p-1.5 rounded-[20px] bg-[#F3F6FD]">
+            {JOIN_LINKS.map(({ href, title, text, icon: Icon }) => (
+              <Link key={href} href={href} onClick={onClose} className="flex items-center gap-3 p-2.5 rounded-2xl active:bg-white">
+                <span className="w-10 h-10 rounded-[12px] bg-white text-[#2A4DD0] flex items-center justify-center shrink-0 shadow-[0_0_0_1px_#E6EBF3]">
+                  <Icon className="w-5 h-5" strokeWidth={2} />
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[15px] font-bold text-indigo-gray-900">{title}</span>
+                  <span className="block text-[12.5px] leading-snug text-slate-500">{text}</span>
+                </span>
+                <ChevronRight className="w-5 h-5 text-slate-300 shrink-0" />
+              </Link>
+            ))}
+            <div className="flex items-center justify-between gap-3 px-2.5 pt-2.5 pb-2 mt-1 border-t border-[#E2E8F3] text-[13.5px] font-extrabold">
+              <Link href="/corporate" onClick={onClose} className="py-1 text-[#2A4DD0]">
+                How partnering works
+              </Link>
+              <Link href="/corporate#login" onClick={onClose} className="py-1 text-indigo-gray-900">
+                Partner login
+              </Link>
+            </div>
+          </div>
+        </details>
       </nav>
       <div className="mt-3">
         {isSignedIn ? (
           <form action="/auth/signout" method="post">
             <button type="submit" className="w-full h-12 rounded-full border border-slate-200 text-indigo-gray-900 font-semibold flex items-center justify-center gap-2 active:bg-slate-50">
-              <LogOut className="w-5 h-5 text-red-600" /> Sign out
+              <LogOut className="w-5 h-5 text-red-600" /> Logout
             </button>
           </form>
         ) : (
           <Link href="/login/patient" onClick={onClose} className="w-full h-12 rounded-full bg-vibrant-blue text-white font-bold flex items-center justify-center gap-2 shadow-[0_6px_16px_rgba(0,102,255,0.25)]">
-            <LogIn className="w-5 h-5" /> Sign in or create an account
+            <LogIn className="w-5 h-5" /> Log in or create an account
           </Link>
         )}
       </div>

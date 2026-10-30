@@ -90,7 +90,7 @@ export function LegalPage({
             <div className="flex items-center gap-2 text-xs md:text-sm text-on-surface-variant">
               {RoleIcon && <RoleIcon className="w-4 h-4 text-vibrant-blue shrink-0" />}
               <span>
-                Signed in as <strong className="text-on-surface font-semibold">{user.name || user.email || 'User'}</strong>
+                Logged in as <strong className="text-on-surface font-semibold">{user.name || user.email || 'User'}</strong>
               </span>
               <span className="inline-block px-2 py-0.5 rounded-full bg-primary-fixed text-primary font-bold text-[11px]">
                 {roleInfo.label}

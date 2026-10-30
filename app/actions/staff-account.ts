@@ -31,7 +31,7 @@ const refresh = (role: string) => revalidatePath(PORTAL_PATHS[role] ?? '/', 'lay
 
 export async function updateMyStaffDetails(input: { name: string; phone: string }): Promise<Result> {
   const ctx = await staffContext()
-  if (!ctx) return fail('Please sign in with your staff account.')
+  if (!ctx) return fail('Please log in with your staff account.')
   const name = input.name.trim().replace(/\s+/g, ' ')
   const phone = input.phone.trim()
   if (name.length < 2 || name.length > 80) return fail('Enter your full name.')
@@ -44,7 +44,7 @@ export async function updateMyStaffDetails(input: { name: string; phone: string 
 
 export async function updateMyStaffId(rawId: string): Promise<Result> {
   const ctx = await staffContext()
-  if (!ctx) return fail('Please sign in with your staff account.')
+  if (!ctx) return fail('Please log in with your staff account.')
   const staffId = rawId.trim().toUpperCase()
   if (!/^[A-Z0-9][A-Z0-9-]{3,19}$/.test(staffId)) return fail('Use 4 to 20 letters, numbers or hyphens.')
   if (staffId === ctx.profile.staff_id) return fail('That is already your Staff ID.')
@@ -81,14 +81,14 @@ export async function updateMyStaffId(rawId: string): Promise<Result> {
 
 export async function changeMyPassword(input: { current: string; next: string }): Promise<Result> {
   const ctx = await staffContext()
-  if (!ctx) return fail('Please sign in with your staff account.')
+  if (!ctx) return fail('Please log in with your staff account.')
   if (input.next.length < 8) return fail('Use a new password of at least 8 characters.')
   if (!/[A-Za-z]/.test(input.next) || !/\d/.test(input.next)) return fail('Use letters and at least one number in the new password.')
   if (input.next === input.current) return fail('The new password must be different from the current one.')
 
   const { data: auth } = await ctx.admin.auth.admin.getUserById(ctx.user.id)
   const email = auth.user?.email
-  if (!email) return fail('Your account has no sign-in address. Ask the Consult Your Doctor team to reset your password.')
+  if (!email) return fail('Your account has no login address. Ask the Consult Your Doctor team to reset your password.')
 
   // Check the current password on a throwaway client, so this request's own session is untouched.
   const check = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {

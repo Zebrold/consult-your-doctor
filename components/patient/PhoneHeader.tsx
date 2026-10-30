@@ -77,7 +77,7 @@ function DesktopAccount({ isSignedIn, name, email }: { isSignedIn: boolean; name
   if (!isSignedIn) {
     return (
       <Link href="/login/patient" className="hidden md:flex items-center gap-1.5 h-10 px-5 rounded-full bg-white text-[#2A4DD0] text-sm font-extrabold hover:bg-white/90 transition-colors">
-        <LogIn className="w-4 h-4" /> Sign in
+        <LogIn className="w-4 h-4" /> Login
       </Link>
     );
   }
@@ -128,7 +128,7 @@ export function BrandRow({
       ) : (
         <Link
           href="/login/patient"
-          aria-label="Sign in"
+          aria-label="Login"
           className="md:hidden shrink-0 w-10 h-10 rounded-full border-2 border-white/55 bg-white text-[#2A4DD0] flex items-center justify-center active:scale-95 transition-transform"
         >
           <LogIn className="w-[18px] h-[18px]" strokeWidth={2.2} />

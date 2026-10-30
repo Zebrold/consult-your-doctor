@@ -171,14 +171,14 @@ export function DoctorSignupForm({ hospitals }: { hospitals: { id: string; name:
               </span>
               <h2 className="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-indigo-gray-900">Application submitted</h2>
               <p className="font-body-md text-body-md text-indigo-gray-600 max-w-lg">
-                Thank you. Your application is now with our credentialing team. Once your registration is verified, our team will share your Staff ID and password so you can sign in to the Clinician Portal.
+                Thank you. Your application is now with our credentialing team. Once your registration is verified, our team will share your Staff ID and password so you can log in to the Clinician Portal.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 pt-2 w-full sm:w-auto">
                 <Link href="/" className="px-6 py-3 rounded-full bg-surface-container text-indigo-gray-900 font-semibold text-sm hover:bg-surface-container-high transition-colors text-center">
                   Back to home
                 </Link>
                 <Link href="/login/doctor" className="px-6 py-3 rounded-full bg-vibrant-blue text-on-primary font-bold text-sm hover:bg-primary transition-colors text-center">
-                  Clinician sign in
+                  Clinician login
                 </Link>
               </div>
             </div>
@@ -434,13 +434,13 @@ export function DoctorSignupForm({ hospitals }: { hospitals: { id: string; name:
           <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm flex flex-col gap-4">
             <div>
               <h2 className="font-title-md text-sm font-bold text-indigo-gray-900">Already verified?</h2>
-              <p className="text-xs text-indigo-gray-600 mt-1">Sign in with the Staff ID and password shared by our team.</p>
+              <p className="text-xs text-indigo-gray-600 mt-1">Log in with the Staff ID and password shared by our team.</p>
             </div>
             <Link
               href="/login/doctor"
               className="w-full py-2.5 rounded-full bg-surface-container text-primary font-semibold text-sm text-center hover:bg-surface-container-high transition-colors"
             >
-              Sign in to Clinician Portal
+              Log in to Clinician Portal
             </Link>
             <div className="bg-vibrant-blue/5 rounded-xl p-3.5 flex items-start gap-2.5">
               <Info className="w-[18px] h-[18px] text-vibrant-blue shrink-0 mt-0.5" />

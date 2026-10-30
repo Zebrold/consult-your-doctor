@@ -1,9 +1,9 @@
 import Image from "next/image";
-import { AppComingSoon, AppleLogo, GooglePlayLogo } from "@/components/AppComingSoon";
+import { GetTheApp } from "@/components/GetTheApp";
+import { StoreBadges } from "@/components/StoreBadges";
 
-// The home page's "Get the app" banner, in the site's blue with the 3D stethoscope, cross, coat and first-aid kit. The
-// app isn't out yet, so it says so: the store badges are marked coming soon, and on desktops the phone's QR code opens
-// the website on the visitor's phone instead of a store page.
+// The home page's "Get the app" banner, in the site's blue with the 3D stethoscope, cross, coat and first-aid kit, with
+// the store badges. On desktops the phone's QR code opens the site on the visitor's phone.
 
 const ART = "/images/home/app";
 const glow = "drop-shadow-[0_14px_22px_rgba(4,16,70,0.42)]";
@@ -15,20 +15,6 @@ function Wordmark({ className = "" }: { className?: string }) {
     </span>
   );
 }
-
-function ComingSoon({ className = "" }: { className?: string }) {
-  return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full bg-white/[0.14] ring-1 ring-inset ring-white/25 text-white font-extrabold uppercase tracking-[0.08em] ${className}`}>
-      <span aria-hidden className="w-1.5 h-1.5 rounded-full bg-[#7CF2B0] shadow-[0_0_0_3px_rgba(124,242,176,0.22)]" />
-      Coming soon
-    </span>
-  );
-}
-
-const stores = [
-  { name: "App Store", logo: AppleLogo },
-  { name: "Google Play", logo: GooglePlayLogo },
-];
 
 /**
  * Desktops (and tablets): the wide banner. `qr` is an SVG of the site's address (made on the server), shown on the
@@ -48,24 +34,13 @@ export function AppPromo({ qr }: { qr: string }) {
             <Image src="/logo-icon-white.png" alt="" width={96} height={96} className="w-11 h-11 object-contain" />
             <Wordmark className="text-[22px] xl:text-[24px] whitespace-nowrap" />
           </div>
-          <ComingSoon className="self-start mt-6 h-7 px-3 text-[11.5px]" />
-          <h2 id="app-promo-title" className="mt-3 text-[28px] lg:text-[32px] xl:text-[38px] leading-[1.12] font-extrabold tracking-[-0.025em] text-balance">
+          <h2 id="app-promo-title" className="mt-6 text-[28px] lg:text-[32px] xl:text-[38px] leading-[1.12] font-extrabold tracking-[-0.025em] text-balance">
             Get the Consult your Doctor app
           </h2>
           <p className="mt-2.5 max-w-[520px] text-[15px] xl:text-[16px] leading-[1.55] text-[#DCE7FF] text-balance">
             Your personal healthcare concierge: appointments, diagnostics and care in one place.
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            {stores.map(({ name, logo: Logo }) => (
-              <span key={name} aria-disabled className="flex items-center gap-2.5 h-12 pl-3.5 pr-4 rounded-xl bg-[#0A1E6E]/45 ring-1 ring-inset ring-white/20 select-none">
-                <Logo className="w-6 h-6 shrink-0" />
-                <span className="flex flex-col leading-none">
-                  <span className="text-[9.5px] font-bold uppercase tracking-[0.08em] text-[#BFD2FF]">Coming soon on</span>
-                  <span className="mt-1 text-[15px] font-bold tracking-tight">{name}</span>
-                </span>
-              </span>
-            ))}
-          </div>
+          <StoreBadges tone="glass" className="mt-6" />
         </div>
 
         <div className="relative min-h-[300px]">
@@ -95,9 +70,12 @@ export function AppPromo({ qr }: { qr: string }) {
 /** Phones: the same banner as a strip at the very top of the home page. */
 export function AppPromoStrip() {
   return (
-    <section aria-labelledby="app-strip-title" className="md:hidden relative isolate overflow-hidden text-white bg-[linear-gradient(135deg,#0B2075_0%,#1638B5_55%,#1D4ED8_100%)] border-b border-white/10">
-      <span aria-hidden className="absolute -z-10 -right-16 -top-24 w-[260px] h-[260px] rounded-full bg-[radial-gradient(circle,rgba(169,203,255,0.34),rgba(169,203,255,0)_62%)]" />
-      <span aria-hidden className="absolute -z-10 -left-20 -bottom-28 w-[220px] h-[220px] rounded-full border-[34px] border-white/[0.05]" />
+    // Only the glows and the art are clipped, so the Get the app card can open below the strip.
+    <section aria-labelledby="app-strip-title" className="md:hidden relative isolate z-10 text-white bg-[linear-gradient(135deg,#0B2075_0%,#1638B5_55%,#1D4ED8_100%)] border-b border-white/10">
+      <div aria-hidden className="absolute -z-10 inset-0 overflow-hidden">
+        <span className="absolute -right-16 -top-24 w-[260px] h-[260px] rounded-full bg-[radial-gradient(circle,rgba(169,203,255,0.34),rgba(169,203,255,0)_62%)]" />
+        <span className="absolute -left-20 -bottom-28 w-[220px] h-[220px] rounded-full border-[34px] border-white/[0.05]" />
+      </div>
       <div className="flex items-stretch min-h-[156px]">
         <div className="flex-1 min-w-0 pl-4 pr-1 pt-3.5 pb-4 flex flex-col">
           <div className="flex items-center gap-2">
@@ -109,12 +87,11 @@ export function AppPromoStrip() {
           </p>
           <p className="mt-1 text-[12.5px] leading-[1.4] text-[#CFDCFF] text-balance">Appointments, diagnostics and care in one place.</p>
           <div className="mt-auto pt-3 flex items-center gap-2.5">
-            <AppComingSoon variant="promo" />
-            <ComingSoon className="h-6 px-2.5 text-[10px]" />
+            <GetTheApp variant="promo" />
           </div>
         </div>
 
-        <div className="relative w-[118px] shrink-0">
+        <div className="relative w-[118px] shrink-0 overflow-hidden">
           <Image src={`${ART}/plus.webp`} alt="" width={89} height={85} className={`absolute left-[-2px] top-[14px] w-[34px] -rotate-6 ${glow}`} />
           <Image src={`${ART}/kit.webp`} alt="" width={122} height={113} className={`absolute right-[2px] bottom-[4px] w-[44px] z-[1] ${glow}`} />
           {/* A small phone with the logo on its screen, cut off by the strip's bottom edge */}

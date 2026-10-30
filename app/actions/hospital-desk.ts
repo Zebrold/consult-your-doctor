@@ -33,7 +33,7 @@ async function hospitalContext() {
   return { admin, hospital: hospital as { id: string; name: string }, scope: `hospital:${hospital.id}:${user.id}` }
 }
 
-const NOT_SIGNED_IN = 'Please sign in with your hospital account.'
+const NOT_SIGNED_IN = 'Please log in with your hospital account.'
 
 function revalidateVisitPages() {
   for (const path of ['/hospital/patients', '/hospital/dashboard', '/hospital/revenue', '/doctor/dashboard', '/doctor/patients', '/doctor/schedule', '/patient/profile', '/patient/appointments']) {

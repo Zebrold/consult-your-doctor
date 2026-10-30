@@ -10,10 +10,14 @@ import { card } from "./app-ui";
 // at the hospital. The hospital page and the booking page both show these, and the hospital page hands its picks to the
 // booking page in the address.
 
-/** The booking page for a doctor, with the time, appointment type and services already picked. */
+/**
+ * The booking page for a doctor, with the time, appointment type and services already picked. Without a time it opens
+ * on the full calendar (`times=all`); otherwise the booking page sends patients to the doctor's hospital page first.
+ */
 export function bookingPath(doctorId: string, picks: { slotId?: string | null; fastTrack?: boolean; services?: string[] } = {}) {
   const q = new URLSearchParams();
   if (picks.slotId) q.set("slot", picks.slotId);
+  else q.set("times", "all");
   if (picks.fastTrack) q.set("type", "fast_track");
   for (const s of picks.services ?? []) q.append("service", s);
   const query = q.toString();

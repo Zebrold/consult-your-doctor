@@ -160,7 +160,7 @@ export async function createWalkInAppointment(formData: FormData) {
       // Create new user silently
       const { data: newUser, error: createError } = await adminAuthClient.auth.admin.createUser({
         phone: patientPhone,
-        password: `CYD${randomBytes(18).toString('base64url')}!`, // never shown to anyone; patients sign in by OTP
+        password: `CYD${randomBytes(18).toString('base64url')}!`, // never shown to anyone; patients log in by OTP
         phone_confirm: true // Auto confirm so they can use OTP later
       })
 

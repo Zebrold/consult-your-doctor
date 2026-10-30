@@ -12,7 +12,7 @@ import { PHOTO_CACHE } from '@/lib/photos'
 
 type Result = { success: true } | { success: false; error: string }
 const fail = (error: string): Result => ({ success: false, error })
-const NOT_SIGNED_IN = 'Please sign in with your hospital account.'
+const NOT_SIGNED_IN = 'Please log in with your hospital account.'
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 async function hospitalContext() {

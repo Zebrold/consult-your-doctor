@@ -137,7 +137,7 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, 
 
   const cta = !patient ? (
     <Link href={signIn} className="shrink-0 flex items-center gap-1.5 h-12 px-[18px] rounded-[14px] bg-[#2A4DD0] text-white text-[15px] font-extrabold shadow-[0_8px_16px_rgba(42,77,208,0.3)]">
-      <LogIn className="w-4 h-4" /> Sign in to book
+      <LogIn className="w-4 h-4" /> Log in to book
     </Link>
   ) : (
     <button
@@ -295,7 +295,7 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, 
                 ) : (
                   <p className="text-[13px] text-[#5B667A]">
                     <Link href={signIn} className="font-extrabold text-[#2A4DD0] hover:underline">
-                      Sign in
+                      Login
                     </Link>{" "}
                     with your mobile number and your details are filled in from your profile.
                   </p>
@@ -357,7 +357,7 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, 
                 )}
                 {!patient ? (
                   <Link href={signIn} className={`${btnPrimary} w-full h-[50px]! text-[15px]!`}>
-                    <LogIn className="w-4 h-4" /> Sign in to book
+                    <LogIn className="w-4 h-4" /> Log in to book
                   </Link>
                 ) : (
                   <button type="button" onClick={confirm} disabled={submitting || selectedTests.length === 0} className={`${btnPrimary} w-full h-[50px]! text-[15px]! disabled:bg-[#C9D3E6]!`}>

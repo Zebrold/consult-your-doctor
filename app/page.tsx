@@ -92,6 +92,7 @@ export default async function Home(props: {
       name: one(d.profiles)?.full_name ?? null,
       specialty: d.specialty,
       hospital: hospital?.name ?? null,
+      hospitalId: hospital?.id ?? null,
       city: hospital?.city ?? null,
       experience: d.experience_years,
       qualifications: d.qualifications?.trim() || null,
@@ -146,7 +147,7 @@ export default async function Home(props: {
         bookingFee={fees.consultation}
         appQr={appQr}
       />
-      <Footer />
+      <Footer cities={cities} />
     </>
   );
 }
@@ -270,7 +271,6 @@ async function PatientHome({ userId, name, now }: { userId: string | null; name:
         vitalsAt={vitalsVisit ? formatShortDate(vitalsVisit.at) : null}
         records={records.map((r) => ({ id: r.id, title: r.title, sub: r.sub, href: r.href }))}
       />
-      <Footer dockRoom />
       <PatientDock activeTab="home" isSignedIn={!!userId} name={name} detail={userId ? `UHID CYD-${userId.slice(0, 8).toUpperCase()}` : null} />
     </>
   );

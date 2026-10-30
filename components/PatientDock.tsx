@@ -80,7 +80,7 @@ export function PatientDock({ activeTab = "home", isSignedIn = true, name, detai
         { key: "home", href: "/", label: "Home", icon: Stethoscope, active: activeTab === "home" },
         { key: "book", href: "/login/patient?next=/patient/appointments", label: "Bookings", icon: CalendarDays, active: activeTab === "book" },
         { key: "find", href: "/find", label: "Search", icon: Search, active: activeTab === "find" },
-        { key: "profile", href: "/login/patient", label: "Sign in", icon: LogIn, active: activeTab === "profile" },
+        { key: "profile", href: "/login/patient", label: "Login", icon: LogIn, active: activeTab === "profile" },
       ];
 
   return (
@@ -172,9 +172,9 @@ function Rail({ pathname, isSignedIn, name, detail }: { pathname: string; isSign
       ) : (
         <div className="mt-3 p-3.5 rounded-[14px] border border-white/20">
           <p className="text-[13.5px] font-extrabold">Book in a few taps</p>
-          <p className="mt-0.5 text-[12px] leading-snug text-[#CFDCFF]">Sign in with your mobile number to book and see your visits.</p>
+          <p className="mt-0.5 text-[12px] leading-snug text-[#CFDCFF]">Log in with your mobile number to book and see your visits.</p>
           <Link href="/login/patient" className="mt-3 flex items-center justify-center gap-2 h-10 rounded-[11px] bg-white text-[#2A4DD0] text-[13.5px] font-extrabold hover:bg-white/90 transition-colors">
-            <LogIn className="w-4 h-4" /> Sign in
+            <LogIn className="w-4 h-4" /> Login
           </Link>
         </div>
       )}
@@ -223,7 +223,7 @@ function TopBar({ pathname, isSignedIn }: { pathname: string; isSignedIn: boolea
         </Link>
       ) : (
         <Link href="/login/patient" className="shrink-0 flex items-center gap-2 h-[42px] px-4 rounded-[11px] bg-[#2A4DD0] text-white text-[13.5px] font-extrabold hover:bg-[#2443B8] transition-colors">
-          <LogIn className="w-4 h-4" /> Sign in
+          <LogIn className="w-4 h-4" /> Login
         </Link>
       )}
     </header>

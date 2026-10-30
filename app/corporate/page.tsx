@@ -103,7 +103,7 @@ const PARTNERS: Partner[] = [
 const steps = [
   { icon: ClipboardList, title: "Apply online", text: "A short form with your registration or licence details and a contact person. It takes a few minutes." },
   { icon: ShieldCheck, title: "We verify", text: "Our credentialing and operations team checks your registration with the issuing authority before anything goes live." },
-  { icon: KeyRound, title: "Get your sign-in", text: "Once you're verified, we share your Staff ID and password for your portal." },
+  { icon: KeyRound, title: "Get your login", text: "Once you're verified, we share your Staff ID and password for your portal." },
   { icon: Rocket, title: "Go live", text: "Your listing appears for patients. Publish slots or your test menu and start taking bookings." },
 ];
 
@@ -128,8 +128,8 @@ export default async function CorporatePage() {
             <Link href="#join" className={btnWhite}>
               Become a partner <ArrowRight className="w-4 h-4" strokeWidth={2.6} />
             </Link>
-            <Link href="#sign-in" className={btnGhost}>
-              <LogIn className="w-4 h-4" /> Partner sign in
+            <Link href="#login" className={btnGhost}>
+              <LogIn className="w-4 h-4" /> Partner login
             </Link>
           </>
         }
@@ -201,7 +201,7 @@ export default async function CorporatePage() {
                   {p.apply.label}
                 </Link>
                 <Link href={p.signIn} className={`${btnOutline} !px-4`}>
-                  Sign in
+                  Login
                 </Link>
               </div>
             </article>
@@ -274,8 +274,8 @@ export default async function CorporatePage() {
       </Section>
 
       {/* Sign in */}
-      <Section tint id="sign-in">
-        <SectionHead eyebrow="Already a partner?" title="Sign in to your portal" lead="Use the Staff ID and password our team shared with you." />
+      <Section tint id="login">
+        <SectionHead eyebrow="Already a partner?" title="Log in to your portal" lead="Use the Staff ID and password our team shared with you." />
         <div className="mt-8 md:mt-10 grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           {SIGN_IN.map((s) => (
             <Link key={s.href} href={s.href} className={`${card} group p-4 md:p-5 flex flex-col gap-3 hover:shadow-[0_0_0_1.5px_#2A4DD0,0_10px_24px_-12px_rgba(42,77,208,0.4)] transition-shadow`}>
@@ -291,7 +291,7 @@ export default async function CorporatePage() {
           ))}
         </div>
         <p className="mt-5 flex items-center gap-2 text-[13.5px] text-[#5B667A]">
-          <CalendarClock className="w-4 h-4 text-[#2A4DD0] shrink-0" /> Can&apos;t sign in or need a new staff login? Our team can help.{" "}
+          <CalendarClock className="w-4 h-4 text-[#2A4DD0] shrink-0" /> Can&apos;t log in or need a new staff login? Our team can help.{" "}
           <Link href="/contact" className="font-extrabold text-[#2A4DD0] hover:underline underline-offset-4">
             Contact us
           </Link>

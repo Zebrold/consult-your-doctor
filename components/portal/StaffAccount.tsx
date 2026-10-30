@@ -65,7 +65,7 @@ export function StaffAccount({ name, phone, staffId, roleLabel }: { name: string
     e.preventDefault()
     const f = new FormData(e.currentTarget)
     const next = String(f.get('staffId')).trim().toUpperCase()
-    run('id', () => updateMyStaffId(next), `Your Staff ID is now ${next}. Use it the next time you sign in.`)
+    run('id', () => updateMyStaffId(next), `Your Staff ID is now ${next}. Use it the next time you log in.`)
   }
 
   const savePassword = (e: FormEvent<HTMLFormElement>) => {
@@ -94,7 +94,7 @@ export function StaffAccount({ name, phone, staffId, roleLabel }: { name: string
         </form>
       </Panel>
 
-      <Panel icon={IdCard} title="Staff ID" subtitle="The ID you sign in with.">
+      <Panel icon={IdCard} title="Staff ID" subtitle="The ID you log in with.">
         <form onSubmit={saveId} className="flex flex-col gap-3">
           <div className="p-3 rounded-xl bg-surface-container-low flex items-center justify-between gap-3">
             <span className="text-sm text-indigo-gray-600">Current Staff ID</span>

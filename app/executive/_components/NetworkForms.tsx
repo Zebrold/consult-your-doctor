@@ -84,7 +84,7 @@ function OrgFields({ kind, prefill }: { kind: 'hospital' | 'lab'; prefill?: Appl
         </Field>
       </div>
       <fieldset className="flex flex-col gap-3 rounded-xl border border-outline-variant/50 p-4">
-        <legend className="px-1 text-sm font-semibold text-indigo-gray-900">Staff sign-in for this {noun}</legend>
+        <legend className="px-1 text-sm font-semibold text-indigo-gray-900">Staff login for this {noun}</legend>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Account name" hint={`Optional. Defaults to "<name> Admin".`}>
             <input name="adminName" maxLength={120} defaultValue={prefill?.contactName} className={deskInput} />
@@ -134,7 +134,7 @@ export function AddHospitalButton({ fromApplication }: { fromApplication?: Appli
       {open && (
         <DeskDialog
           title={fromApplication ? `Approve ${fromApplication.name}` : 'Add a hospital'}
-          subtitle={fromApplication ? 'Check the details from the application, then set the staff sign-in. It is listed for booking straight away.' : 'It is listed for booking straight away, and its staff sign in with the ID below.'}
+          subtitle={fromApplication ? 'Check the details from the application, then set the staff login. It is listed for booking straight away.' : 'It is listed for booking straight away, and its staff log in with the ID below.'}
           onClose={close}
           wide
         >
@@ -142,7 +142,7 @@ export function AddHospitalButton({ fromApplication }: { fromApplication?: Appli
             <Created
               title="Hospital added"
               rows={[['Hospital ID', done.code], ['Staff ID', done.staffId]]}
-              note={`Give the hospital's staff their staff ID and the password you set. They sign in at Login → Hospitals and can add their doctors and slots.${fromApplication ? APPLICANT_NOTE : ''}`}
+              note={`Give the hospital's staff their staff ID and the password you set. They log in at Login → Hospitals and can add their doctors and slots.${fromApplication ? APPLICANT_NOTE : ''}`}
               onClose={close}
             />
           ) : (
@@ -176,7 +176,7 @@ export function AddDiagnosticCenterButton({ fromApplication }: { fromApplication
       {open && (
         <DeskDialog
           title={fromApplication ? `Approve ${fromApplication.name}` : 'Add a diagnostic centre'}
-          subtitle={fromApplication ? 'Check the details from the application, then set the staff sign-in. Patients can book its priced tests straight away.' : 'Patients can book its priced tests straight away; the centre can edit its menu later.'}
+          subtitle={fromApplication ? 'Check the details from the application, then set the staff login. Patients can book its priced tests straight away.' : 'Patients can book its priced tests straight away; the centre can edit its menu later.'}
           onClose={close}
           wide
         >
@@ -184,7 +184,7 @@ export function AddDiagnosticCenterButton({ fromApplication }: { fromApplication
             <Created
               title="Diagnostic centre added"
               rows={[['Centre ID', done.code], ['Staff ID', done.staffId]]}
-              note={`Give the centre's staff their staff ID and the password you set. They sign in at Login → Diagnostic centres and manage tests, bookings and reports.${fromApplication ? APPLICANT_NOTE : ''}`}
+              note={`Give the centre's staff their staff ID and the password you set. They log in at Login → Diagnostic centres and manage tests, bookings and reports.${fromApplication ? APPLICANT_NOTE : ''}`}
               onClose={close}
             />
           ) : (
@@ -257,9 +257,9 @@ export function AddDoctorButton({ hospitals }: { hospitals: HospitalOption[] }) 
               note={
                 done.email
                   ? done.invitationSent
-                    ? 'An activation email is on its way; the doctor sets their own password from it and signs in at Login → Doctors.'
-                    : "The activation email couldn't be sent. The doctor can use \"Forgot password\" on the doctor sign-in page with this email."
-                  : 'Give the doctor their staff ID and the password you set. They sign in at Login → Doctors.'
+                    ? 'An activation email is on its way; the doctor sets their own password from it and logs in at Login → Doctors.'
+                    : "The activation email couldn't be sent. The doctor can use \"Forgot password\" on the doctor login page with this email."
+                  : 'Give the doctor their staff ID and the password you set. They log in at Login → Doctors.'
               }
               onClose={close}
             />
@@ -335,9 +335,9 @@ export function AddLoginButton({ kind, id, name }: { kind: 'hospital' | 'lab'; i
         <KeyRound className="w-4 h-4" /> Create login
       </button>
       {open && (
-        <DeskDialog title={`Staff sign-in for ${name}`} subtitle="This account manages the listing, doctors, bookings and payments." onClose={close}>
+        <DeskDialog title={`Staff login for ${name}`} subtitle="This account manages the listing, doctors, bookings and payments." onClose={close}>
           {staffId ? (
-            <Created title="Sign-in created" rows={[['Staff ID', staffId]]} note="Give the staff their staff ID and the password you set." onClose={close} />
+            <Created title="Login created" rows={[['Staff ID', staffId]]} note="Give the staff their staff ID and the password you set." onClose={close} />
           ) : (
             <form onSubmit={submit} className="flex flex-col gap-4">
               <Field label="Staff ID" hint="Optional. Leave blank to generate one.">

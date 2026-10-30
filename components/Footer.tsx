@@ -1,9 +1,16 @@
-import Link from "next/link";
 import Image from "next/image";
-import { BriefcaseBusiness, ChevronRight, FlaskConical, Hospital, Stethoscope, UserRound } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { StoreBadges } from "@/components/StoreBadges";
+import { COMPANY } from "@/lib/company";
 
-const ourServices = [
-  { label: "Find a doctor", href: "/doctors" },
+// The home page's footer (no other page shows it): the brand with the trust badges and social links, Services,
+// Contact us and Legal, the cities with partner hospitals and labs, and the app badges.
+
+type FooterLinkItem = { label: string; href: string };
+
+const SERVICES: FooterLinkItem[] = [
+  { label: "Find a doctor", href: "/find" },
   { label: "Book a doctor online", href: "/online-doctor" },
   { label: "Hospitals", href: "/hospitals" },
   { label: "Lab tests", href: "/diagnostics" },
@@ -14,254 +21,214 @@ const ourServices = [
   { label: "Join as a diagnostic centre", href: "/signup/diagnostic-centre" },
 ];
 
-const portalLogins = [
-  { label: "Patients", href: "/login/patient", icon: UserRound },
-  { label: "Doctors", href: "/login/doctor", icon: Stethoscope },
-  { label: "Hospitals", href: "/login/hospital", icon: Hospital },
-  { label: "Diagnostic centres", href: "/login/diagnostic", icon: FlaskConical },
-  { label: "Front desk", href: "/login/executive", icon: BriefcaseBusiness },
+const CONTACT: FooterLinkItem[] = [
+  { label: "Help & Support", href: "/contact" },
+  { label: "Partner With Us", href: "/corporate" },
+  { label: "Work With Us", href: `mailto:${COMPANY.email}?subject=${encodeURIComponent("Working at Consult your Doctor")}` },
 ];
 
-const companyLinks = [
-  { label: "About us", href: "/about" },
-  { label: "How it works", href: "/how-it-works" },
-  { label: "Help and FAQ", href: "/how-it-works#faq" },
-  { label: "Sign in", logins: portalLogins },
-  { label: "Contact us", href: "/contact" },
+const LEGAL: FooterLinkItem[] = [
+  { label: "Terms & Conditions", href: "/terms-of-use" },
+  { label: "Cookie Policy", href: "/privacy-policy#cookies" },
+  { label: "Privacy Policy", href: "/privacy-policy" },
+  { label: "All legal documents", href: "/legal" },
 ];
 
-// The website terms, the most-read signed policies (lib/legal-docs), and the full set at /legal.
-const legalLinks = [
-  { label: "Terms of use", href: "/terms-of-use" },
-  { label: "Privacy policy", href: "/privacy-policy" },
-  { label: "Privacy notice & consent", href: "/legal/privacy-notice-and-consent-forms" },
-  { label: "AI use policy", href: "/legal/ai-use-policy" },
-  { label: "Telemedicine standards", href: "/legal/telemedicine-standard-operating-procedure" },
-  { label: "Data retention", href: "/legal/data-retention-and-deletion-policy" },
-  { label: "All legal documents", href: "/legal", strong: true },
-];
+const CITIES_SHOWN = 6;
 
-/** `dockRoom` leaves space at the bottom for the patient navigation pill on pages that show it. */
-export function Footer({ dockRoom = false }: { dockRoom?: boolean } = {}) {
+function InstagramIcon() {
   return (
-    <footer className="relative w-full overflow-hidden text-white bg-gradient-to-br from-[#0052d4] via-[#005ef5] to-[#0048cb]">
-      {/* Background Wave Ripple Accents (Matching Image 2) */}
-      <div className="absolute inset-0 pointer-events-none select-none overflow-hidden" aria-hidden="true">
-        {/* Left Circular Wave Arcs */}
-        <svg
-          className="absolute -left-24 -bottom-24 w-[520px] h-[520px] opacity-25"
-          viewBox="0 0 500 500"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <circle cx="100" cy="400" r="220" stroke="white" strokeWidth="2" opacity="0.6" />
-          <circle cx="100" cy="400" r="320" stroke="white" strokeWidth="1.5" opacity="0.4" />
-          <circle cx="100" cy="400" r="420" stroke="white" strokeWidth="1" opacity="0.25" />
-          <path
-            d="M-50 450 C 80 320, 180 180, 260 0"
-            stroke="white"
-            strokeWidth="3"
-            opacity="0.35"
-          />
-        </svg>
+    <svg viewBox="0 0 24 24" aria-hidden className="w-full h-full">
+      <defs>
+        <radialGradient id="footer-ig" cx="30%" cy="107%" r="150%">
+          <stop offset="0" stopColor="#FDF497" />
+          <stop offset="0.05" stopColor="#FDF497" />
+          <stop offset="0.45" stopColor="#FD5949" />
+          <stop offset="0.6" stopColor="#D6249F" />
+          <stop offset="0.9" stopColor="#285AEB" />
+        </radialGradient>
+      </defs>
+      <rect width="24" height="24" rx="6" fill="url(#footer-ig)" />
+      <rect x="5.5" y="5.5" width="13" height="13" rx="4" fill="none" stroke="#fff" strokeWidth="1.7" />
+      <circle cx="12" cy="12" r="3.1" fill="none" stroke="#fff" strokeWidth="1.7" />
+      <circle cx="16.1" cy="7.9" r="1" fill="#fff" />
+    </svg>
+  );
+}
 
-        {/* Right Circular Wave Arcs */}
-        <svg
-          className="absolute -right-20 -bottom-20 w-[550px] h-[550px] opacity-25"
-          viewBox="0 0 500 500"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <circle cx="400" cy="400" r="240" stroke="white" strokeWidth="2" opacity="0.6" />
-          <circle cx="400" cy="400" r="340" stroke="white" strokeWidth="1.5" opacity="0.4" />
-          <circle cx="400" cy="400" r="440" stroke="white" strokeWidth="1" opacity="0.25" />
-          <path
-            d="M550 450 C 420 320, 320 180, 240 0"
-            stroke="white"
-            strokeWidth="3"
-            opacity="0.35"
-          />
-        </svg>
+function YouTubeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className="w-full h-full">
+      <rect width="24" height="24" rx="6" fill="#FF0000" />
+      <path d="M10 8.6v6.8l5.6-3.4Z" fill="#fff" />
+    </svg>
+  );
+}
 
-        {/* Watermark Logo Icon on Far Right */}
-        <div className="absolute -right-6 top-1/2 -translate-y-1/2 opacity-[0.14] w-[340px] h-[340px] hidden md:block">
-          <Image
-            src="/logo-icon-white.png"
-            alt=""
-            width={340}
-            height={340}
-            className="w-full h-full object-contain pointer-events-none"
-          />
-        </div>
-      </div>
+function LinkedInIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className="w-full h-full">
+      <rect width="24" height="24" rx="6" fill="#0A66C2" />
+      <path d="M6.4 9.6h2.5v8H6.4Zm1.25-4a1.45 1.45 0 1 1 0 2.9 1.45 1.45 0 0 1 0-2.9ZM10.5 9.6h2.4v1.1h.03c.34-.63 1.15-1.3 2.37-1.3 2.53 0 3 1.67 3 3.83v4.37h-2.5v-3.87c0-.92-.02-2.11-1.29-2.11-1.29 0-1.49 1-1.49 2.04v3.94h-2.5Z" fill="#fff" />
+    </svg>
+  );
+}
 
-      <div className={`relative max-w-container-max mx-auto px-margin-x-mobile lg:px-margin-x-desktop pt-10 md:pt-14 ${dockRoom ? "pb-dock" : "pb-[calc(2rem+env(safe-area-inset-bottom))] md:pb-8"}`}>
-        {/* Main 3-Column Section */}
-        <div className="grid grid-cols-2 lg:grid-cols-12 gap-x-6 gap-y-8 lg:gap-10 items-start">
-          {/* Column 1: Brand & Badges */}
-          <div className="col-span-2 lg:col-span-4 flex flex-col justify-between pr-0 lg:pr-6">
-            <div>
-              {/* Logo */}
-              <Link
-                href="/"
-                className="inline-flex items-center gap-3 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 rounded-lg"
-                aria-label="Consult your Doctor home"
-              >
-                <Image
-                  src="/logo-icon-white.png"
-                  alt="Consult your Doctor logo"
-                  width={42}
-                  height={42}
-                  className="w-10 h-10 object-contain drop-shadow transition-transform"
-                  priority
-                />
-                <span className="font-bold text-2xl md:text-[27px] tracking-tight text-white drop-shadow-sm">
-                  Consult your Doctor
-                </span>
-              </Link>
+const SOCIAL = [
+  { label: "Instagram", href: COMPANY.social.instagram, Icon: InstagramIcon },
+  { label: "YouTube", href: COMPANY.social.youtube, Icon: YouTubeIcon },
+  { label: "LinkedIn", href: COMPANY.social.linkedin, Icon: LinkedInIcon },
+].filter((s) => s.href);
 
-              {/* Bio paragraph */}
-              <p className="mt-4 text-[13.5px] sm:text-[14px] leading-relaxed text-white/85 max-w-md font-normal">
-                Find doctors at partner hospitals and diagnostic labs, book and pay online, and keep your prescriptions and reports in one place.
-              </p>
-            </div>
+const linkCls = "group inline-flex items-start gap-2.5 text-[14.5px] md:text-[15px] leading-6 text-white/90 hover:text-white transition-colors focus-visible:outline-none focus-visible:underline";
 
-            {/* Trust Badges */}
-            <div className="flex items-center gap-4 mt-7 pt-1">
-              <div
-                className="transition-transform filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
-                title="People love us on Trustpilot"
-              >
-                <Image
-                  src="/badge-trustpilot.svg"
-                  unoptimized
-                  alt="People love us on Trustpilot"
-                  width={80}
-                  height={86}
-                  className="h-16 md:h-[78px] w-auto object-contain select-none"
-                />
-              </div>
-              <div
-                className="transition-transform filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
-                title="LegitScript Certified"
-              >
-                <Image
-                  src="/badge-legitscript.svg"
-                  unoptimized
-                  alt="LegitScript Certified"
-                  width={80}
-                  height={86}
-                  className="h-16 md:h-[78px] w-auto object-contain select-none"
-                />
-              </div>
-            </div>
-          </div>
+function FooterLink({ item }: { item: FooterLinkItem }) {
+  const body = (
+    <>
+      <ChevronRight className="w-3.5 h-3.5 mt-[5px] shrink-0 text-white/60 group-hover:text-white group-hover:translate-x-0.5 transition-transform" strokeWidth={2.4} />
+      <span>{item.label}</span>
+    </>
+  );
+  return item.href.startsWith("/") ? (
+    <Link href={item.href} className={linkCls}>
+      {body}
+    </Link>
+  ) : (
+    <a href={item.href} className={linkCls}>
+      {body}
+    </a>
+  );
+}
 
-          {/* Column 2: Our Services */}
-          <div className="lg:col-span-3 lg:border-l lg:border-white/20 lg:pl-8">
-            <h3 className="font-bold text-white text-[16.5px] tracking-wide mb-4 flex items-center">
-              Services
-            </h3>
-            <ul className="flex flex-col md:space-y-2 text-[14px] md:text-[13.5px]">
-              {ourServices.map((service) => (
-                <li key={service.label}>
-                  <Link
-                    href={service.href}
-                    className="group inline-flex items-center gap-2 py-2 md:py-0 text-white/85 hover:text-white transition-colors focus-visible:outline-none focus-visible:underline"
-                  >
-                    <ChevronRight className="w-3.5 h-3.5 text-white/60 group-hover:text-white transition-colors shrink-0" />
-                    <span>{service.label}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+function Column({ title, items, className = "" }: { title: string; items: FooterLinkItem[]; className?: string }) {
+  return (
+    <nav aria-label={title} className={className}>
+      <h2 className="text-[16.5px] md:text-[17px] font-extrabold tracking-[-0.01em] text-white">{title}</h2>
+      <ul className="mt-4 md:mt-5 flex flex-col gap-2.5 md:gap-3">
+        {items.map((item) => (
+          <li key={item.label}>
+            <FooterLink item={item} />
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
 
-          {/* Column 3: Company */}
-          <div className="lg:col-span-2 lg:border-l lg:border-white/20 lg:pl-8">
-            <h3 className="font-bold text-white text-[16.5px] tracking-wide mb-4 flex items-center">
-              Company
-            </h3>
-            <ul className="flex flex-col md:space-y-2 text-[14px] md:text-[13.5px]">
-              {companyLinks.map((item) => (
-                <li key={item.label}>
-                  {item.logins ? (
-                    <details className="group/logins">
-                      <summary className="group inline-flex items-center gap-2 py-2 md:py-0 text-white/85 hover:text-white transition-colors cursor-pointer list-none [&::-webkit-details-marker]:hidden focus-visible:outline-none focus-visible:underline">
-                        <ChevronRight className="w-3.5 h-3.5 text-white/60 group-hover:text-white transition-transform shrink-0 group-open/logins:rotate-90" />
-                        <span>{item.label}</span>
-                      </summary>
-                      <ul className="md:mt-2 ml-[6px] pl-4 border-l border-white/25 flex flex-col md:space-y-2">
-                        {item.logins.map(({ label, href, icon: Icon }) => (
-                          <li key={href}>
-                            <Link
-                              href={href}
-                              className="inline-flex items-center gap-2 py-2 md:py-0 text-white/80 hover:text-white transition-colors focus-visible:outline-none focus-visible:underline"
-                            >
-                              <Icon className="w-3.5 h-3.5 text-white/70 shrink-0" />
-                              <span>{label}</span>
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    </details>
-                  ) : (
-                    <Link
-                      href={item.href}
-                      className="group inline-flex items-center gap-2 py-2 md:py-0 text-white/85 hover:text-white transition-colors focus-visible:outline-none focus-visible:underline"
-                    >
-                      <ChevronRight className="w-3.5 h-3.5 text-white/60 group-hover:text-white transition-colors shrink-0" />
-                      <span>{item.label}</span>
-                    </Link>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
+/** `cities` are the cities with partner hospitals or labs, in the order to show them. */
+export function Footer({ cities = [] }: { cities?: string[] }) {
+  const cityLink = (city: string): FooterLinkItem => ({ label: city, href: `/find?city=${encodeURIComponent(city)}` });
+  const shown = cities.slice(0, CITIES_SHOWN);
+  const more = cities.slice(CITIES_SHOWN);
 
-          {/* Column 4: Legal */}
-          <div className="col-span-2 lg:col-span-3 lg:border-l lg:border-white/20 lg:pl-8">
-            <h3 className="font-bold text-white text-[16.5px] tracking-wide mb-4 flex items-center">
-              Legal
-            </h3>
-            <ul className="grid grid-cols-2 lg:grid-cols-1 gap-x-6 md:gap-y-2 text-[14px] md:text-[13.5px]">
-              {legalLinks.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className={`group inline-flex items-center gap-2 py-2 md:py-0 hover:text-white transition-colors focus-visible:outline-none focus-visible:underline ${item.strong ? "text-white font-semibold" : "text-white/85"}`}
-                  >
-                    <ChevronRight className="w-3.5 h-3.5 text-white/60 group-hover:text-white transition-colors shrink-0" />
-                    <span>{item.label}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
+  return (
+    <footer className="relative isolate overflow-hidden bg-[#2A4DD0] text-white font-(family-name:--font-manrope)">
+      {/* The stethoscope mark, faint, behind the top right */}
+      <Image
+        src="/logo-icon-white.png"
+        alt=""
+        width={420}
+        height={420}
+        aria-hidden
+        className="absolute -z-10 pointer-events-none select-none object-contain opacity-[0.07] w-[260px] h-[260px] -right-16 -top-6 md:w-[420px] md:h-[420px] md:-right-20 md:top-6"
+      />
 
-        {/* Horizontal Divider Line */}
-        <div className="w-full h-[1px] bg-white/20 my-8" />
-
-        {/* Bottom Subfooter Section */}
-        <div className="flex flex-col items-center text-center gap-4">
-          {/* Disclaimer text */}
-          <p className="text-[11.5px] sm:text-[12px] leading-relaxed text-white/70 max-w-5xl text-center">
-            Consult Your Doctor is a healthcare technology platform. Your care is provided by the independent doctors, hospitals and diagnostic centres you book; we provide booking, payments and your digital records. In an emergency, call 108. Read about the{" "}
-            <Link
-              href="/terms-of-use"
-              className="text-white font-semibold underline underline-offset-2 hover:text-white/90 focus-visible:outline-none"
-            >
-              relationship between Consult Your Doctor and the medical providers
+      <div className="px-4 md:px-[max(24px,10%)] pt-11 md:pt-16 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:pb-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)_minmax(0,0.95fr)_minmax(0,0.8fr)] gap-x-6 md:gap-x-10 gap-y-10">
+          {/* Brand */}
+          <div className="col-span-2 md:col-span-3 lg:col-span-1 lg:pr-6">
+            <Link href="/" aria-label="Consult your Doctor home" className="inline-flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 rounded-lg">
+              <Image src="/logo-icon-white.png" alt="" width={96} height={96} className="w-10 h-10 md:w-[46px] md:h-[46px] object-contain" />
+              <span className="font-['Helvetica_Neue',Helvetica,Arial,sans-serif] text-[24px] md:text-[28px] font-bold tracking-[-0.01em]">Consult your Doctor</span>
             </Link>
-            .
-          </p>
+            <p className="mt-4 md:mt-5 max-w-[400px] text-[14.5px] md:text-[15.5px] leading-[1.65] text-white/85">
+              Find doctors at partner hospitals and diagnostic labs, book and pay online, and keep your prescriptions and reports in one place.
+            </p>
+            <div className="mt-6 flex items-center gap-3">
+              {[
+                { src: "/badge-trustpilot.svg", alt: "Trustpilot" },
+                { src: "/badge-legitscript.svg", alt: "LegitScript" },
+              ].map((b) => (
+                <span key={b.src} className="w-[92px] h-[92px] rounded-2xl bg-white/[0.06] ring-1 ring-inset ring-white/20 flex items-center justify-center">
+                  <Image src={b.src} alt={b.alt} width={80} height={86} unoptimized className="h-[70px] w-auto object-contain select-none" />
+                </span>
+              ))}
+            </div>
+            {SOCIAL.length > 0 && (
+              <div className="mt-7">
+                <h2 className="text-[16.5px] md:text-[17px] font-extrabold tracking-[-0.01em]">Social links</h2>
+                <ul className="mt-3.5 flex items-center gap-3">
+                  {SOCIAL.map(({ label, href, Icon }) => (
+                    <li key={label}>
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`Consult your Doctor on ${label}`}
+                        className="block w-11 h-11 rounded-[12px] shadow-[0_6px_14px_rgba(5,20,80,0.25)] hover:-translate-y-0.5 transition-transform"
+                      >
+                        <Icon />
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          <Column title="Services" items={SERVICES} />
+
+          <div className="flex flex-col gap-10">
+            <Column title="Contact us" items={CONTACT} />
+            <Column title="Legal" items={LEGAL} />
+          </div>
+
+          {cities.length > 0 && (
+            <nav aria-label="Available in" className="col-span-2 md:col-span-1">
+              <h2 className="text-[16.5px] md:text-[17px] font-extrabold tracking-[-0.01em]">Available in</h2>
+              <ul className="mt-4 md:mt-5 grid grid-cols-2 md:grid-cols-1 gap-x-6 gap-y-2.5 md:gap-3">
+                {shown.map((city) => (
+                  <li key={city} className="min-w-0">
+                    <FooterLink item={cityLink(city)} />
+                  </li>
+                ))}
+              </ul>
+              {more.length > 0 && (
+                <details className="group mt-4 md:mt-5">
+                  <summary className="inline-flex items-center gap-2 h-10 px-4 rounded-[10px] border border-white/45 text-[14.5px] font-bold cursor-pointer list-none [&::-webkit-details-marker]:hidden hover:bg-white/10 transition-colors">
+                    <span className="group-open:hidden">More cities</span>
+                    <span className="hidden group-open:inline">Fewer cities</span>
+                    <ChevronDown className="w-4 h-4 group-open:rotate-180 transition-transform" strokeWidth={2.4} />
+                  </summary>
+                  <ul className="mt-4 grid grid-cols-2 md:grid-cols-1 gap-x-6 gap-y-2.5 md:gap-3">
+                    {more.map((city) => (
+                      <li key={city} className="min-w-0">
+                        <FooterLink item={cityLink(city)} />
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </nav>
+          )}
         </div>
 
-        {/* Copyright */}
-        <p className="mt-6 pt-5 border-t border-white/15 text-center text-[12px] sm:text-[12.5px] text-white/75">
-          &copy; {new Date().getFullYear()} Zebrold International Holdings Pvt Ltd. All rights reserved.
-        </p>
+        {/* The app */}
+        <div className="mt-11 md:mt-14 pt-8 md:pt-9 border-t border-white/20 flex flex-col md:flex-row md:items-center md:justify-between gap-5 md:gap-8">
+          <p className="text-[19px] md:text-[24px] leading-[1.3] font-extrabold tracking-[-0.02em] text-balance">For a better experience, download the Consult your Doctor app</p>
+          <StoreBadges className="shrink-0" />
+        </div>
+
+        <div className="mt-8 md:mt-9 pt-6 border-t border-white/15 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 lg:gap-10 text-[12px] md:text-[12.5px] leading-relaxed text-white/70">
+          <p className="max-w-3xl">
+            Consult your Doctor is a healthcare technology platform. Your care is provided by the independent doctors, hospitals and diagnostic centres you book; we
+            provide booking, payments and your digital records. In an emergency, call 108.{" "}
+            <Link href="/terms-of-use" className="font-semibold text-white underline underline-offset-2 hover:text-white/90">
+              How we work with providers
+            </Link>
+          </p>
+          <p className="shrink-0">&copy; {new Date().getFullYear()} Zebrold International Holdings Pvt Ltd. All rights reserved.</p>
+        </div>
       </div>
     </footer>
   );

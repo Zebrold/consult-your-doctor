@@ -51,7 +51,7 @@ export default async function ExecutiveHospitalsPage() {
       <PageHeader
         eyebrow="Partner Network"
         title="Partner Hospitals"
-        description="Add hospitals to the network with their staff sign-in, and see which ones are live for booking."
+        description="Add hospitals to the network with their staff login, and see which ones are live for booking."
         actions={<AddHospitalButton />}
       />
 
@@ -59,14 +59,14 @@ export default async function ExecutiveHospitalsPage() {
         <MetricCard label="Hospitals" value={hospitals.length} icon={Building2} tone="blue" footer={<span>In {cities.size} {cities.size === 1 ? 'city' : 'cities'}</span>} />
         <MetricCard label="Live for booking" value={live} icon={MapPin} tone="teal" footer={<span>{hospitals.length - live} not listed</span>} />
         <MetricCard label="Doctors" value={totalDoctors} icon={Stethoscope} tone="primary" footer={<span>Across all hospitals</span>} />
-        <MetricCard label="Without a login" value={withoutLogin} icon={KeyRound} tone={withoutLogin ? 'coral' : 'neutral'} footer={<span>{withoutLogin ? 'Create one below' : 'Every hospital can sign in'}</span>} />
+        <MetricCard label="Without a login" value={withoutLogin} icon={KeyRound} tone={withoutLogin ? 'coral' : 'neutral'} footer={<span>{withoutLogin ? 'Create one below' : 'Every hospital can login'}</span>} />
       </section>
 
       <Panel
         id="applications"
         title="Hospital Applications"
         icon={ClipboardList}
-        description="Hospitals that applied to join at /signup/hospital. Approving adds the hospital and its staff sign-in, and emails the applicant their staff ID."
+        description="Hospitals that applied to join at /signup/hospital. Approving adds the hospital and its staff login, and emails the applicant their staff ID."
         aside={<Chip tone={pendingApplications.length ? 'coral' : 'teal'} dot>{pendingApplications.length} pending</Chip>}
       >
         <PartnerQueue applications={pendingApplications} submittedLabels={appliedLabels} />

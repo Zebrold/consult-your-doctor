@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react'
 import { PatientAuthForm } from './PatientAuthForm'
 
 export const metadata: Metadata = {
-  title: 'Sign In or Create an Account',
+  title: 'Log In or Create an Account',
 }
 
 

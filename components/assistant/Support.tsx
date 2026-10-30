@@ -45,6 +45,9 @@ const BAR_PREFIXES = ['/doctor', '/doctors', '/diagnostic-center', '/hospital', 
 
 const pill = 'max-w-[300px] px-4 py-[9px] rounded-[20px] border-[1.5px] border-[#2A4DD0] text-[14px] font-semibold leading-[1.35] text-left transition-colors'
 const headerButton = 'w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0 hover:bg-[#F0F2F5] transition-colors'
+// The assistant button: the blue logo on a white disc with a soft halo, which reads on white pages and blue bands alike.
+const launcherCircle =
+  'shrink-0 rounded-full bg-white flex items-center justify-center shadow-[0_0_0_5px_rgba(255,255,255,0.35),0_0_0_6px_rgba(42,77,208,0.12),0_12px_26px_-6px_rgba(11,27,63,0.42)] active:scale-95 transition-transform print:hidden'
 
 /**
  * The help-center chat behind the assistant button on every page, answered by Zebrold AI, after the Care Assistant
@@ -98,43 +101,29 @@ export function Support({ role, viewer }: { role: string | null; viewer: string 
           onClick={() => setOpen(true)}
           aria-label={`Open ${title}`}
           title={title}
-          className="fixed z-[35] right-4 bottom-[calc(max(10px,env(safe-area-inset-bottom))+78px)] lg:right-8 lg:bottom-8 w-[52px] h-[52px] rounded-full bg-[#2A4DD0] text-white flex items-center justify-center shadow-[0_0_0_4px_rgba(42,77,208,0.18),0_10px_22px_rgba(11,27,63,0.28)] hover:bg-[#2443B8] active:scale-95 transition-all print:hidden"
+          className={`fixed z-[35] right-4 bottom-[calc(max(10px,env(safe-area-inset-bottom))+78px)] lg:right-8 lg:bottom-8 w-[52px] h-[52px] ${launcherCircle}`}
         >
-          <Stethoscope className="w-6 h-6" />
+          <Image src="/logo-icon.png" alt="" width={96} height={96} className="w-[30px] h-[30px] object-contain" />
         </button>
       )}
 
+      {/* Everywhere else: "How can I help you?" beside the round logo button. */}
       {!open && !appFab && (
-        <div
-          className={`fixed z-[35] right-3 sm:right-6 md:right-8 ${
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label={`${title}: how can I help you?`}
+          className={`group fixed z-[35] right-3 sm:right-6 md:right-8 ${
             lifted ? 'bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+5.75rem)] md:bottom-24' : 'bottom-[max(1rem,env(safe-area-inset-bottom))] md:bottom-6'
-          } flex flex-col items-end print:hidden select-none pointer-events-none`}
+          } flex items-center gap-2.5 sm:gap-3 rounded-full select-none focus-visible:outline-none print:hidden`}
         >
-          {/* Launcher: Thought bubble stacked vertically above the Doctor character, never extending left into the dock */}
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            aria-label={`${title}: how can I help you?`}
-            className="pointer-events-auto flex flex-col items-end gap-1 p-0 bg-transparent border-0 outline-none cursor-pointer select-none transition-transform duration-200 active:scale-95 group focus-visible:outline-none shrink-0"
-          >
-            {/* Thinking text bubble - sits neatly ABOVE the doctor */}
-            <div className="relative bg-white text-slate-800 text-[11px] sm:text-[12.5px] font-semibold px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-2xl shadow-[0_4px_16px_rgba(15,23,42,0.08)] border border-slate-200/90 flex items-center gap-1.5 whitespace-nowrap mb-0.5 group-hover:shadow-[0_6px_20px_rgba(15,23,42,0.12)]">
-              <span>How can I help you?</span>
-              {/* Bubble indicator pointing down to doctor */}
-              <span className="absolute right-4 -bottom-1 w-2 h-2 rounded-full bg-white border-r border-b border-slate-200" />
-            </div>
-
-            {/* Doctor avatar */}
-            <Image
-              src="/images/ai-doctor.png"
-              alt=""
-              width={208}
-              height={190}
-              sizes="(min-width: 768px) 84px, (min-width: 640px) 76px, 56px"
-              className="w-14 sm:w-[76px] md:w-[84px] h-auto object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.16)] group-hover:scale-105 transition-transform"
-            />
-          </button>
-        </div>
+          <span className="px-3.5 py-2 sm:px-[18px] sm:py-2.5 rounded-[16px] rounded-br-[6px] bg-white text-[#0B1B3F] text-[13px] sm:text-[15px] font-bold tracking-[-0.01em] whitespace-nowrap shadow-[0_0_0_1px_rgba(11,27,63,0.06),0_10px_24px_-6px_rgba(11,27,63,0.3)] group-hover:-translate-x-0.5 group-focus-visible:ring-2 group-focus-visible:ring-[#2A4DD0] transition-transform">
+            How can I help you?
+          </span>
+          <span className={`w-[52px] h-[52px] sm:w-[60px] sm:h-[60px] group-hover:scale-105 group-active:scale-95 ${launcherCircle}`}>
+            <Image src="/logo-icon.png" alt="" width={96} height={96} className="w-[30px] h-[30px] sm:w-[34px] sm:h-[34px] object-contain" />
+          </span>
+        </button>
       )}
 
       {open && (

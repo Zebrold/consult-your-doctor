@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Metadata } from "next";
 import { FinalizeBookingClient, type BookingDoctor, type BookingSlot } from "@/components/FinalizeBookingClient";
 import { currentTime, loadPatientDefaults, one } from "@/components/patient/data";
@@ -7,6 +7,7 @@ import { doctorName } from "@/components/patient/format";
 import { getBookingFees } from "@/lib/booking-fees";
 import { bookingOptionsReady } from "@/lib/booking-options";
 import { isFastTrack, testList, type BookedTest } from "@/lib/pricing";
+import { doctorBookingHref } from "@/lib/booking-links";
 
 interface BookDoctorPageProps {
   params: Promise<{ doctorId: string }>;
@@ -70,6 +71,9 @@ export default async function BookDoctorPage({ params, searchParams }: BookDocto
   if (!row) notFound();
   const d = row as unknown as DoctorRow;
   const hospital = one(d.hospitals);
+  // Doctors are booked through their hospital's page; this page is the last step, once a time is picked there (or the
+  // full calendar it links to for doctors with no open times on it).
+  if (hospital && typeof picked !== "string" && query.times !== "all") redirect(doctorBookingHref(d.id, hospital.id));
   // The hospital's priced services, in its own order, as on the hospital page.
   const services = choices
     ? testList(hospital?.available_tests, hospital?.test_prices).filter((t): t is BookedTest => !!t.price && t.price > 0)

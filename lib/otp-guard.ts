@@ -24,7 +24,7 @@ let warned = false
 function warnMissing() {
   if (warned) return
   warned = true
-  console.error('[otp-guard] Table auth_otp_challenges is missing: sign-in codes have no guess limit or send cap. Run supabase/migrations/20261013_auth_otp_challenges.sql.')
+  console.error('[otp-guard] Table auth_otp_challenges is missing: login codes have no guess limit or send cap. Run supabase/migrations/20261013_auth_otp_challenges.sql.')
 }
 
 /** The visitor's address as the host reports it (Vercel sets these; they can't be supplied by the browser there). */
@@ -58,7 +58,7 @@ export async function otpSendAllowed(admin: Admin, phone: string, ip: string | n
     return { ok: false, error: 'Too many codes have been sent to this number today. Please try again tomorrow, or continue with Google.' }
   }
   if (ip && (await count('ip', ip, TEN_MINUTES)) >= LIMITS.perNetwork10Min) {
-    return { ok: false, error: 'Too many sign-in attempts from this network. Please wait a few minutes and try again.' }
+    return { ok: false, error: 'Too many login attempts from this network. Please wait a few minutes and try again.' }
   }
   return { ok: true }
 }

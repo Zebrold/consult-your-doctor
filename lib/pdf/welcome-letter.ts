@@ -59,7 +59,7 @@ const ABOUT: Seg[][] = [
 ]
 
 const GETTING_STARTED = [
-  'Sign in with the username and temporary password above, then set a new password.',
+  'Log in with the username and temporary password above, then set a new password.',
   'Complete your profile and upload your licence and registration documents.',
   'Set your availability and consultation fees.',
   'Check your prescription template, including your name, registration number and signature.',
@@ -183,7 +183,7 @@ export async function renderWelcomeLetter(letter: WelcomeLetter): Promise<Uint8A
   {
     const note: Seg[] = [
       { t: 'Please note:', b: true },
-      { t: ' this password is temporary. You must change it the first time you sign in. Do not share your login with anyone, and do not forward this letter. If you think your login has been seen by someone else, contact us immediately so we can reset it.' },
+      { t: ' this password is temporary. You must change it the first time you log in. Do not share your login with anyone, and do not forward this letter. If you think your login has been seen by someone else, contact us immediately so we can reset it.' },
     ]
     const noteLines = richWrap(note, fonts, 8.5, W - 28)
     const rowH = 17

@@ -41,7 +41,7 @@ const COPY = {
     namePlaceholder: 'e.g. City Care Multi-speciality Hospital',
     icon: Building2,
     signIn: '/login/hospital',
-    signInLabel: 'Sign in to the Hospital Portal',
+    signInLabel: 'Log in to the Hospital Portal',
     perks: [
       'Publish each doctor’s slots for online booking',
       'Register walk-in patients and take PayU, UPI or cash',
@@ -57,7 +57,7 @@ const COPY = {
     namePlaceholder: 'e.g. Precision Diagnostics',
     icon: FlaskConical,
     signIn: '/login/diagnostic',
-    signInLabel: 'Sign in to the Diagnostic Portal',
+    signInLabel: 'Log in to the Diagnostic Portal',
     perks: [
       'Your test menu and prices, bookable online',
       'Fast booking for walk-in and phone patients',
@@ -188,7 +188,7 @@ export function PartnerSignupForm({ kind }: { kind: PartnerKind }) {
               <h2 className="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-indigo-gray-900">Application sent</h2>
               <p className="font-body-md text-body-md text-indigo-gray-600 max-w-lg">
                 Thank you. We have emailed you a copy. Our operations team will check your details and contact you. Once your {hospital ? 'hospital' : 'centre'} is approved, we
-                set up the staff sign-in your team uses to manage the listing, bookings and payments.
+                set up the staff login your team uses to manage the listing, bookings and payments.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 pt-2 w-full sm:w-auto">
                 <Link href="/" className="px-6 py-3 rounded-full bg-surface-container text-indigo-gray-900 font-semibold text-sm hover:bg-surface-container-high transition-colors text-center">
@@ -451,7 +451,7 @@ export function PartnerSignupForm({ kind }: { kind: PartnerKind }) {
                 {[
                   { title: 'Send this application', desc: 'It goes straight to our operations team, and you get a copy by email.' },
                   { title: 'Verification', desc: copy.checks },
-                  { title: 'Your staff sign-in', desc: 'We create your listing and a staff ID for your team, and share the password with you privately.' },
+                  { title: 'Your staff login', desc: 'We create your listing and a staff ID for your team, and share the password with you privately.' },
                 ].map((item, i) => (
                   <li key={item.title} className="flex items-start gap-3">
                     <span className="w-6 h-6 rounded-full bg-surface-container-lowest text-vibrant-blue text-xs font-bold flex items-center justify-center shrink-0 shadow-sm">{i + 1}</span>
@@ -501,7 +501,7 @@ export function PartnerSignupForm({ kind }: { kind: PartnerKind }) {
           <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm flex flex-col gap-4">
             <div>
               <h2 className="font-title-md text-sm font-bold text-indigo-gray-900">Already a partner?</h2>
-              <p className="text-xs text-indigo-gray-600 mt-1">Sign in with the staff ID and password our team gave you.</p>
+              <p className="text-xs text-indigo-gray-600 mt-1">Log in with the staff ID and password our team gave you.</p>
             </div>
             <Link href={copy.signIn} className="w-full py-2.5 rounded-full bg-surface-container text-primary font-semibold text-sm text-center hover:bg-surface-container-high transition-colors">
               {copy.signInLabel}

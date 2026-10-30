@@ -240,7 +240,7 @@ export async function finalizeConsultationAppointment(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    return { error: 'Please sign in to book this appointment.' }
+    return { error: 'Please log in to book this appointment.' }
   }
 
   const doctorId = String(formData.get('doctor_id') || '')

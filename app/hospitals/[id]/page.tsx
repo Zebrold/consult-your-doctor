@@ -45,10 +45,14 @@ export async function generateMetadata(
   }
 }
 
-export default async function HospitalProfilePage(props: { params: Promise<{ id: string }>; searchParams?: Promise<{ speciality?: string }> }) {
+export default async function HospitalProfilePage(props: { params: Promise<{ id: string }>; searchParams?: Promise<{ speciality?: string; doctor?: string; slot?: string }> }) {
   const { id } = await props.params
+  const query = (await props.searchParams) ?? {}
   // Arriving from a speciality's hospitals (/specialities/<slug>): open on that speciality and go back there.
-  const fromSlug = (await props.searchParams)?.speciality
+  const fromSlug = query.speciality
+  // Arriving from Book on a doctor (lib/booking-links.ts): open with that doctor, and the time picked on their profile.
+  const pickedDoctor = typeof query.doctor === 'string' ? query.doctor : null
+  const pickedSlot = pickedDoctor && typeof query.slot === 'string' ? query.slot : null
   const from = SPECIALITIES.find((s) => s.slug === fromSlug) ?? null
   const supabase = await createClient()
   const user = await getCurrentUser()
@@ -78,7 +82,7 @@ export default async function HospitalProfilePage(props: { params: Promise<{ id:
 
   // Each doctor's open times over the next two weeks, and the hospital's published rating (when the table exists).
   const admin = createAdminClient()
-  const [{ data: slotRows }, ratingResult] = await Promise.all([
+  const [{ data: slotRows }, ratingResult, { data: pickedRow }] = await Promise.all([
     rows.length
       ? supabase
         .from('schedules')
@@ -91,12 +95,27 @@ export default async function HospitalProfilePage(props: { params: Promise<{ id:
         .limit(600)
       : Promise.resolve({ data: [] }),
     admin.from('hospital_reviews').select('rating').eq('hospital_id', id).eq('is_published', true),
+    // The time picked on the doctor's profile can be later than the ten listed here.
+    pickedSlot && rows.some((d) => d.id === pickedDoctor)
+      ? supabase
+        .from('schedules')
+        .select('id, doctor_id, start_time')
+        .eq('id', pickedSlot)
+        .eq('doctor_id', pickedDoctor!)
+        .eq('is_booked', false)
+        .gt('start_time', new Date(now).toISOString())
+        .maybeSingle()
+      : Promise.resolve({ data: null }),
   ])
   const slotsBy = new Map<string, { id: string; start: string }[]>()
   for (const s of (slotRows ?? []) as { id: string; doctor_id: string; start_time: string }[]) {
     const mine = slotsBy.get(s.doctor_id) ?? []
     if (mine.length < 10) mine.push({ id: s.id, start: s.start_time })
     slotsBy.set(s.doctor_id, mine)
+  }
+  const picked = pickedRow as { id: string; doctor_id: string; start_time: string } | null
+  if (picked && !slotsBy.get(picked.doctor_id)?.some((s) => s.id === picked.id)) {
+    slotsBy.set(picked.doctor_id, [...(slotsBy.get(picked.doctor_id) ?? []), { id: picked.id, start: picked.start_time }].sort((a, b) => a.start.localeCompare(b.start)))
   }
   const ratings = ratingResult.error ? [] : ((ratingResult.data ?? []) as { rating: number }[]).map((r) => r.rating)
   const rating = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null
@@ -218,6 +237,8 @@ export default async function HospitalProfilePage(props: { params: Promise<{ id:
               services={tests}
               now={now}
               initialSpeciality={startOn}
+              initialDoctor={pickedDoctor}
+              initialSlot={pickedSlot}
               intro={
                 <Card id="fees" title="Consultation charges">
                   <div className="flex justify-between gap-3 py-2.5 border-b border-[#EEF2F7]">

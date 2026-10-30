@@ -22,7 +22,7 @@ type Joined<T> = T | T[] | null
 const one = <T,>(v: Joined<T> | undefined) => (Array.isArray(v) ? v[0] : v) ?? null
 const fail = (error: string) => ({ ok: false as const, error })
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const NOT_SIGNED_IN = 'Please sign in with your diagnostic center account.'
+const NOT_SIGNED_IN = 'Please log in with your diagnostic center account.'
 
 type Center = { id: string; name: string; address: string | null; city: string | null; available_tests: string[] | null; test_prices: Record<string, number | string> | null }
 

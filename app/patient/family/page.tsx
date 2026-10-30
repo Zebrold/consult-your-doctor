@@ -23,7 +23,7 @@ export default async function FamilyPage() {
           </span>
           <p className="mt-2.5 text-[15px] font-extrabold">Family accounts aren&apos;t available yet</p>
           <p className="mt-1 max-w-md mx-auto text-[13px] leading-relaxed text-[#5B667A]">
-            Bookings, prescriptions and reports belong to the account that books them. Each family member can sign in with their own mobile number to book and keep their records.
+            Bookings, prescriptions and reports belong to the account that books them. Each family member can log in with their own mobile number to book and keep their records.
           </p>
           <Link href="/patient/support" className="inline-block mt-3.5 text-[13px] font-extrabold text-[#2A4DD0] hover:underline">
             Questions? Contact support

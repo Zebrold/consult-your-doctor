@@ -576,7 +576,7 @@ export async function sendPartnerApplicationReceivedEmail(args: {
     paragraphs: [
       `Dear ${args.contactName},`,
       `Thank you for applying to list ${args.organizationName} as a partner ${noun} on Consult Your Doctor.`,
-      `Our operations team will check the registration and accreditation details you sent and contact you on this email address or your phone number. Once your ${noun} is approved, we will set up the staff sign-in your team uses to manage its listing, bookings and payments.`,
+      `Our operations team will check the registration and accreditation details you sent and contact you on this email address or your phone number. Once your ${noun} is approved, we will set up the staff login your team uses to manage its listing, bookings and payments.`,
     ],
   })
 }
@@ -597,8 +597,8 @@ export async function sendPartnerApprovedEmail(args: {
     paragraphs: [
       `Dear ${args.contactName},`,
       `${args.organizationName} is now a partner ${noun} on Consult Your Doctor.`,
-      `Your team signs in with the staff ID ${args.staffId}. Our operations team will give you the password separately; we never send passwords by email.`,
+      `Your team logs in with the staff ID ${args.staffId}. Our operations team will give you the password separately; we never send passwords by email.`,
     ],
-    button: { text: 'Go to the staff sign-in', url: args.signInUrl },
+    button: { text: 'Go to the staff login', url: args.signInUrl },
   })
 }

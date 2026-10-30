@@ -5,6 +5,8 @@ export type HomeDoctor = {
   name: string | null;
   specialty: string | null;
   hospital: string | null;
+  /** Their hospital, whose page books them. */
+  hospitalId?: string | null;
   city: string | null;
   experience: number | null;
   /** Degrees as the doctor entered them, e.g. "MBBS, MD". */

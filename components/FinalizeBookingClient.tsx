@@ -15,6 +15,7 @@ import { directionsHref, doctorName, formatINR, formatLongDate, formatSlot, form
 import { RemoteImage } from "@/components/RemoteImage";
 import { AppointmentTypePicker, PaySummary, ServicePicker, bookingPath } from "@/components/patient/BookingChoices";
 import type { BookedTest, BookingFees } from "@/lib/pricing";
+import { doctorBookingHref } from "@/lib/booking-links";
 
 export interface BookingDoctor {
   id: string;
@@ -153,6 +154,8 @@ export function FinalizeBookingClient({
   const directions = doctor.hospital ? directionsHref(doctor.hospital.name, doctor.hospital.address, doctor.hospital.city) : null;
   const signIn = `/login/patient?next=${encodeURIComponent(bookingPath(doctor.id, { slotId, fastTrack: choices && fastTrack, services: pickedServices.map((s) => s.name) }))}`;
   const ctaLabel = submitting ? "Reserving…" : !canBook ? "Booking unavailable" : !selected ? "Pick a time" : `Pay ${formatINR(bookingFee)}`;
+  // Back to the hospital page the booking came through, with the doctor and time still picked.
+  const back = doctor.hospital ? doctorBookingHref(doctor.id, doctor.hospital.id, slotId) : `/doctors/${doctor.id}`;
 
   return (
     <div className="bg-[#F6F8FC] lg:bg-transparent min-h-screen font-(family-name:--font-manrope) text-[#0B1B3F]">
@@ -160,7 +163,7 @@ export function FinalizeBookingClient({
         isSignedIn={!!patient}
         name={patient?.name}
         email={patient?.email}
-        backHref={`/doctors/${doctor.id}`}
+        backHref={back}
         container="max-w-[900px] px-4 md:px-6"
         eyebrow="Book appointment"
         title="Book a visit"
@@ -170,8 +173,8 @@ export function FinalizeBookingClient({
 
       <main className="pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-11">
         <div className="max-w-[1340px] lg:px-9 lg:pt-7">
-          <Link href={`/doctors/${doctor.id}`} className="hidden lg:inline-flex items-center gap-1.5 mb-3.5 text-[13.5px] font-extrabold text-[#2A4DD0] hover:underline">
-            <ArrowLeft className="w-4 h-4" strokeWidth={2.4} /> Back to {name}
+          <Link href={back} className="hidden lg:inline-flex items-center gap-1.5 mb-3.5 text-[13.5px] font-extrabold text-[#2A4DD0] hover:underline">
+            <ArrowLeft className="w-4 h-4" strokeWidth={2.4} /> Back to {doctor.hospital?.name ?? name}
           </Link>
           <div className="hidden lg:block mb-[22px]">
             <h1 className="text-[26px] font-extrabold tracking-[-0.02em]">Book a visit</h1>
@@ -308,7 +311,7 @@ export function FinalizeBookingClient({
                 ) : (
                   <p className="text-[13px] text-[#5B667A]">
                     <Link href={signIn} className="font-extrabold text-[#2A4DD0] hover:underline">
-                      Sign in
+                      Login
                     </Link>{" "}
                     with your mobile number and your details are filled in from your profile.
                   </p>
@@ -357,7 +360,7 @@ export function FinalizeBookingClient({
                 )}
                 {!patient ? (
                   <Link href={signIn} className={`${btnPrimary} w-full h-[50px]! text-[15px]!`}>
-                    <LogIn className="w-4 h-4" /> Sign in to book
+                    <LogIn className="w-4 h-4" /> Log in to book
                   </Link>
                 ) : (
                   <button type="button" disabled={submitting || !selected || !canBook} onClick={confirm} className={`${btnPrimary} w-full h-[50px]! text-[15px]! disabled:bg-[#C9D3E6]!`}>
@@ -413,7 +416,7 @@ export function FinalizeBookingClient({
         </span>
         {!patient ? (
           <Link href={signIn} className="shrink-0 flex items-center gap-1.5 h-12 px-[18px] rounded-[14px] bg-[#2A4DD0] text-white text-[15px] font-extrabold shadow-[0_8px_16px_rgba(42,77,208,0.3)]">
-            <LogIn className="w-4 h-4" /> Sign in to book
+            <LogIn className="w-4 h-4" /> Log in to book
           </Link>
         ) : (
           <button

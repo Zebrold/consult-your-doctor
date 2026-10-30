@@ -33,7 +33,7 @@ export async function submitAppointmentFeedback(input: AppointmentFeedbackInput)
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { ok: false, error: 'Please sign in to review your visit.' }
+  if (!user) return { ok: false, error: 'Please log in to review your visit.' }
 
   const admin = createAdminClient()
   const { data: visit } = await admin

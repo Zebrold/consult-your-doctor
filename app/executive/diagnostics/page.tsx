@@ -121,14 +121,14 @@ export default async function ExecutiveDiagnosticsPage() {
         id="applications"
         title="Diagnostic Centre Applications"
         icon={ClipboardList}
-        description="Centres that applied to join at /signup/diagnostic-centre. Approving adds the centre and its staff sign-in, and emails the applicant their staff ID."
+        description="Centres that applied to join at /signup/diagnostic-centre. Approving adds the centre and its staff login, and emails the applicant their staff ID."
         aside={<Chip tone={pendingApplications.length ? 'coral' : 'teal'} dot>{pendingApplications.length} pending</Chip>}
       >
         <PartnerQueue applications={pendingApplications} submittedLabels={appliedLabels} />
       </Panel>
 
       {labsWithoutLogin.length > 0 && (
-        <Panel title="Centres Without a Staff Login" icon={KeyRound} description="These centres can't manage their tests, bookings or reports until their staff have a sign-in.">
+        <Panel title="Centres Without a Staff Login" icon={KeyRound} description="These centres can't manage their tests, bookings or reports until their staff have a login.">
           <ul className="flex flex-col divide-y divide-surface-container rounded-xl ring-1 ring-surface-container">
             {labsWithoutLogin.map((lab) => (
               <li key={lab.id} className="flex items-center justify-between gap-3 p-4">

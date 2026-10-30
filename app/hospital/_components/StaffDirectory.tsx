@@ -80,7 +80,7 @@ export function StaffDirectory({
     return staff.filter((s) => (role === 'all' || s.role === role) && (!q || [s.name, s.staffId, s.department, s.phone, s.email].some((v) => v?.toLowerCase().includes(q))))
   }, [staff, role, query])
 
-  const subtitle = `Everyone who signs in for ${hospitalName}, their role and what each role can see.`
+  const subtitle = `Everyone who logs in for ${hospitalName}, their role and what each role can see.`
   const empty = staff.length ? 'No staff match your search.' : 'No staff yet.'
   const roleLabel = (s: StaffMember) => `${s.role === 'hospital_admin' ? 'Admin' : ROLE[s.role].label}${s.isYou ? ' · You' : ''}`
   const accessLine = (s: StaffMember) => (s.activity ? `${s.activity} · ${ROLE[s.role].short}` : ROLE[s.role].scope)

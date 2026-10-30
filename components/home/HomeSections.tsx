@@ -12,6 +12,7 @@ import { SPECIALITIES, specialityIcon } from "./specialities";
 import { CarouselArrows, VerifiedBadge, scrollRow } from "./ui";
 import type { HomeDoctor, HomeHospital } from "./types";
 import { RemoteImage } from "@/components/RemoteImage";
+import { doctorBookingHref } from "@/lib/booking-links";
 
 type Place = ReturnType<typeof usePatientLocation>;
 type Near<T> = { item: T; km: number | null };
@@ -198,7 +199,7 @@ function DoctorCard({ doctor: d, km, now }: { doctor: HomeDoctor; km: number | n
           </span>
         </div>
         <Link
-          href={`/book/${d.id}`}
+          href={doctorBookingHref(d.id, d.hospitalId)}
           className="flex items-center justify-center gap-[5px] md:gap-1.5 h-9 md:h-auto md:min-h-[42px] px-3 md:px-3.5 rounded-[10px] md:rounded-xl bg-[#2A4DD0] text-white text-xs md:text-sm font-extrabold whitespace-nowrap shadow-[0_6px_14px_rgba(42,77,208,0.25)] hover:bg-[#1F3FB8] transition-colors"
         >
           Consult Now <ArrowRight className="w-3 h-3 md:w-3.5 md:h-3.5" strokeWidth={2.8} />

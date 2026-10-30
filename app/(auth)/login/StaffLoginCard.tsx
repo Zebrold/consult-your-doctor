@@ -64,7 +64,7 @@ export function StaffLoginCard({
             onClick={() => setView('login')}
             className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-on-surface-variant hover:text-on-surface mb-6 transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" /> Back to sign in
+            <ArrowLeft className="w-4 h-4" /> Back to login
           </button>
         )}
 
@@ -115,7 +115,7 @@ export function StaffLoginCard({
               <button disabled={isPending} type="submit" className={`${primaryButtonClass} mt-2`}>
                 {isPending ? (
                   <>
-                    <Loader2 className="w-[18px] h-[18px] animate-spin" /> Signing in...
+                    <Loader2 className="w-[18px] h-[18px] animate-spin" /> Logging in...
                   </>
                 ) : (
                   <>
@@ -125,7 +125,7 @@ export function StaffLoginCard({
               </button>
 
               <p className="text-center text-[11px] text-on-surface-variant/80 leading-normal">
-                By signing in, you agree to our{' '}
+                By logging in, you agree to our{' '}
                 <Link className="text-primary hover:underline font-medium" href="/terms-of-use">
                   Terms &amp; Conditions
                 </Link>{' '}
@@ -201,7 +201,7 @@ export function StaffLoginCard({
         </span>
         <p className="text-[13px] text-on-surface-variant leading-snug">
           <span className="font-semibold text-on-surface">Looking to book a consultation?</span>{' '}
-          <Link href="/login/patient" className="text-vibrant-blue font-semibold hover:underline">Patient sign in</Link>
+          <Link href="/login/patient" className="text-vibrant-blue font-semibold hover:underline">Patient login</Link>
         </p>
       </div>
     </div>

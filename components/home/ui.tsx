@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { AppComingSoon } from "@/components/AppComingSoon";
+import { GetTheApp } from "@/components/GetTheApp";
 
 /** The blue scalloped tick next to partner hospitals and doctors (both are checked before they are listed). */
 export function VerifiedBadge({ className = "w-4 h-4" }: { className?: string }) {
@@ -43,15 +43,15 @@ export function CarouselArrows({ label, onScroll, className = "" }: { label: str
   );
 }
 
-/** The dark strip above phone pages pointing to the app, which is still coming soon. */
+/** The dark strip above phone pages pointing to the app. */
 export function AppBanner() {
   return (
     <div className="md:hidden bg-[linear-gradient(135deg,#0B2075_0%,#1638B5_55%,#1D4ED8_100%)] border-b border-white/10 px-4 py-3 flex items-center gap-3">
       <span className="w-10 h-10 rounded-[10px] bg-white/[0.14] ring-1 ring-inset ring-white/25 flex items-center justify-center shrink-0">
         <Image src="/logo-icon-white.png" alt="" width={48} height={48} className="w-6 h-6 object-contain" />
       </span>
-      <p className="flex-1 min-w-0 text-white text-[13px] font-semibold leading-[1.35]">Our app is coming soon for faster bookings &amp; a smoother experience!</p>
-      <AppComingSoon variant="promo" align="right" />
+      <p className="flex-1 min-w-0 text-white text-[13px] font-semibold leading-[1.35]">Get our app for faster bookings &amp; a smoother experience.</p>
+      <GetTheApp variant="promo" align="right" />
     </div>
   );
 }

@@ -77,7 +77,7 @@ export function TopBar({
               href={signInHref}
               className="flex items-center gap-1.5 h-10 md:h-auto px-3.5 min-[360px]:px-4 md:py-2 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary font-label-sm text-label-sm font-bold shadow-sm transition-colors"
             >
-              <LogIn className="w-4 h-4" /> Sign in
+              <LogIn className="w-4 h-4" /> Login
             </Link>
           )}
         </div>
@@ -171,7 +171,7 @@ export function AccountMenu({ person, links, tone = 'light' }: { person: Person;
               role="menuitem"
               className="w-full flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-sm font-semibold text-soft-coral hover:bg-soft-coral/10 transition-colors"
             >
-              <LogOut className="w-[18px] h-[18px]" /> Sign out
+              <LogOut className="w-[18px] h-[18px]" /> Logout
             </button>
           </form>
           {/* The legal pages are open to every portal (see isSharedPage in proxy.ts). */}

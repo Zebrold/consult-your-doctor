@@ -53,7 +53,7 @@ export async function createStaffLogin(
     email_confirm: true,
     user_metadata: { role: input.role, full_name: input.fullName },
   })
-  if (authError || !created?.user) return { error: authError?.message || 'Could not create the sign-in.' }
+  if (authError || !created?.user) return { error: authError?.message || 'Could not create the login.' }
 
   const { error: profileError } = await admin.from('profiles').insert({
     id: created.user.id,

@@ -13,7 +13,7 @@ import type { DeskResult } from '@/components/portal/desk-types'
 // another bed and discharge them. Every change shows up on the doctor's and the patient's pages as well.
 
 const fail = (error: string) => ({ ok: false as const, error })
-const NOT_SIGNED_IN = 'Please sign in with your hospital account.'
+const NOT_SIGNED_IN = 'Please log in with your hospital account.'
 
 async function hospitalContext() {
   const supabase = await createClient()

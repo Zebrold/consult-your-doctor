@@ -51,8 +51,8 @@ const faqs = (fees: BookingFees): { q: string; a: React.ReactNode }[] => [
     a: `Online you pay only the booking fee, through PayU (card, UPI or netbanking): ${formatINR(fees.consultation)} for a doctor appointment (${formatINR(fees.fastTrack)} for fast track), or ${formatPercent(fees.diagnosticPercent)} of each test's price for lab tests. The doctor's consultation fee is set by the hospital and paid at the hospital counter, and lab tests are paid at the lab. If you book at a hospital or lab desk, you pay there by scanning their UPI code or in cash.`,
   },
   {
-    q: 'How do I sign in?',
-    a: 'Use your mobile number and the one-time code we text you. If a diagnostic centre registered you, you can also sign in with the Patient ID and password they gave you.',
+    q: 'How do I log in?',
+    a: 'Use your mobile number and the one-time code we text you. If a diagnostic centre registered you, you can also log in with the Patient ID and password they gave you.',
   },
   {
     q: 'Who can see my medical records?',

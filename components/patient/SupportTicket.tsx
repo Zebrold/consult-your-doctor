@@ -4,7 +4,7 @@ import { useState, useTransition, type FormEvent } from 'react'
 import { CircleCheck, LoaderCircle, MessageCircleQuestion, Send, X } from 'lucide-react'
 import { raiseSupportTicket } from '@/app/actions/support'
 
-const TOPICS = ['Booking or appointment', 'Payment or refund', 'Prescription or report', 'Account or sign-in', 'Something else']
+const TOPICS = ['Booking or appointment', 'Payment or refund', 'Prescription or report', 'Account or login', 'Something else']
 const field = 'w-full rounded-lg bg-surface-container-low px-3.5 py-2.5 text-[15px] text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-vibrant-blue/30'
 
 /** The "Raise Ticket" button and its form. */

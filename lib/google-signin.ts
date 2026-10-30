@@ -43,7 +43,7 @@ export async function signInWithGoogleIdentity(identity: GoogleIdentity): Promis
     // Two sign-ins at once can both get here; the second finds the account the first created.
     userId = created?.user?.id ?? (createError ? await findAuthUserId(admin, { email }) : null)
     if (!userId) {
-      console.error('[Google sign-in] Could not create the account:', createError)
+      console.error('[Google login] Could not create the account:', createError)
       return { ok: false, error: 'We could not create your account. Please try again.' }
     }
   }
@@ -65,19 +65,19 @@ export async function signInWithGoogleIdentity(identity: GoogleIdentity): Promis
     }
 
     const { error: profileError } = await admin.from('profiles').insert({ id: userId, full_name: name, email, role: 'patient' })
-    if (profileError) console.error('[Google sign-in] Could not create the profile:', profileError)
+    if (profileError) console.error('[Google login] Could not create the profile:', profileError)
   }
 
   // 3. A one-time sign-in link, redeemed here, writes this browser's session cookies.
   const { data: link, error: linkError } = await admin.auth.admin.generateLink({ type: 'magiclink', email })
   if (linkError || !link?.properties?.hashed_token) {
-    console.error('[Google sign-in] Could not create the session link:', linkError)
+    console.error('[Google login] Could not create the session link:', linkError)
     return { ok: false, error: 'We could not sign you in. Please try again.' }
   }
   const supabase = await createClient()
   const { error: otpError } = await supabase.auth.verifyOtp({ token_hash: link.properties.hashed_token, type: 'email' })
   if (otpError) {
-    console.error('[Google sign-in] Could not start the session:', otpError)
+    console.error('[Google login] Could not start the session:', otpError)
     return { ok: false, error: 'We could not sign you in. Please try again.' }
   }
 

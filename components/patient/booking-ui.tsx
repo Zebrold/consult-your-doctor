@@ -255,7 +255,7 @@ export function SignInToBook({ next }: { next: string }) {
       href={`/login/patient?next=${encodeURIComponent(next)}`}
       className="w-full py-4 px-6 rounded-full bg-vibrant-blue text-on-primary font-title-md text-body-lg font-bold shadow-lg shadow-slate-900/10 hover:bg-primary transition-all flex items-center justify-center gap-2"
     >
-      <LogIn className="w-5 h-5" /> Sign in to Book
+      <LogIn className="w-5 h-5" /> Log in to Book
     </Link>
   );
 }

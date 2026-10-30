@@ -4,20 +4,20 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AppComingSoon } from "@/components/AppComingSoon";
+import { GetTheApp } from "@/components/GetTheApp";
 import { DesktopAccount, PhoneAccountButton } from "@/components/home/HomeHero";
 import type { HomeAccount } from "@/components/home/types";
 import { MenuSheet } from "@/components/patient/PhoneSheet";
+import { CorporateMenu } from "@/components/site/CorporateMenu";
 
 const NAV = [
-  { href: "/corporate", label: "Corporate" },
   { href: "/how-it-works", label: "How it works" },
   { href: "/corporate#join", label: "Partner with Us" },
 ];
 
 /**
- * The public pages' header, the home page's blue header in a slimmer band: the logo, Corporate, How it works and
- * Partner with Us, Get the App and the account. Phones get the logo and the account menu.
+ * The public pages' header, the home page's blue header in a slimmer band: the logo, the Corporate menu, How it works
+ * and Partner with Us, Get the App and the account. Phones get the logo and the account menu.
  * Its height matches --header-h (globals.css), which sticky parts of the legal pages sit under.
  */
 export function SiteHeader({ account }: { account: HomeAccount }) {
@@ -34,6 +34,11 @@ export function SiteHeader({ account }: { account: HomeAccount }) {
         </Link>
 
         <nav aria-label="Main" className="hidden md:flex items-center gap-6 lg:gap-7 shrink-0">
+          <div className="hidden lg:block">
+            <CorporateMenu
+              className={`text-[15px] font-semibold transition-colors ${pathname.startsWith("/corporate") || pathname.startsWith("/signup/") ? "text-white" : "text-white/90 hover:text-white"}`}
+            />
+          </div>
           {NAV.map((l) => (
             <Link
               key={l.href}
@@ -44,7 +49,7 @@ export function SiteHeader({ account }: { account: HomeAccount }) {
               {l.label}
             </Link>
           ))}
-          <AppComingSoon variant="hero" />
+          <GetTheApp variant="hero" />
           <DesktopAccount account={account} hasVisit={false} />
         </nav>
 

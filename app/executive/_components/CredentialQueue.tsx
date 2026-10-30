@@ -154,7 +154,7 @@ export function CredentialQueue({ applications, submittedLabels }: { application
               </span>
               <div>
                 <h3 id="credentials-title" className="font-title-md text-title-md font-bold text-indigo-gray-900">{credentials.name} approved</h3>
-                <p className="text-xs text-indigo-gray-600">The doctor signs in to the Clinician Portal with these details.</p>
+                <p className="text-xs text-indigo-gray-600">The doctor logs in to the Clinician Portal with these details.</p>
               </div>
             </div>
             <dl className="flex flex-col gap-2">

@@ -178,7 +178,7 @@ export async function submitPartnerApplication(kind: PartnerKind, _prev: unknown
 export async function rejectPartnerApplication(id: string): Promise<Result> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return fail('Please sign in again.')
+  if (!user) return fail('Please log in again.')
   const admin = createAdminClient()
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
   if (profile?.role !== 'executive') return fail('Only the operations team can review applications.')

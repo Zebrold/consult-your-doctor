@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, MapPin } from 'lucide-react'
+import { doctorBookingHref } from '@/lib/booking-links'
 
 export type RosterDoctor = {
   id: string
@@ -13,6 +14,8 @@ export type RosterDoctor = {
   experienceYears: number | null
   image: string | null
   hospital: string | null
+  /** Their hospital, whose page books them. */
+  hospitalId: string | null
   city: string | null
 }
 
@@ -107,10 +110,10 @@ export function OnlineDoctorRoster({ doctors, bookingFee }: { doctors: RosterDoc
                   <span className="font-semibold text-indigo-gray-900">{bookingFee}</span>
                 </div>
                 <Link
-                  href={`/doctors/${doctor.id}`}
+                  href={doctorBookingHref(doctor.id, doctor.hospitalId)}
                   className="inline-flex items-center gap-1 rounded-lg bg-vibrant-blue px-3.5 py-2 text-sm font-semibold text-white hover:bg-primary transition-colors"
                 >
-                  View and book
+                  Book now
                 </Link>
               </div>
             </article>

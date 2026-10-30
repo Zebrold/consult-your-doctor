@@ -21,11 +21,11 @@ export default async function DiagnosticCenterLayout({ children }: { children: R
           </span>
           <h1 className="font-title-md text-title-md font-bold text-indigo-gray-900">Your account isn’t linked to a center yet</h1>
           <p className="text-sm text-indigo-gray-600">
-            Signed in as {staff.email ?? staff.name}. Ask the Consult Your Doctor team to link this login to your diagnostic center, then sign in again.
+            Logged in as {staff.email ?? staff.name}. Ask the Consult Your Doctor team to link this login to your diagnostic center, then log in again.
           </p>
           <form action="/auth/signout" method="post">
             <button type="submit" className="px-5 py-2.5 rounded-full bg-surface-container text-indigo-gray-900 text-sm font-semibold flex items-center gap-2 hover:bg-surface-container-high">
-              <LogOut className="w-4 h-4" /> Sign out
+              <LogOut className="w-4 h-4" /> Logout
             </button>
           </form>
         </div>

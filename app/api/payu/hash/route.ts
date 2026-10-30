@@ -13,7 +13,7 @@ type Priced = { amount: number } | { error: string; status: number };
 async function amountFor(txnid: string, productinfo: string): Promise<Priced> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'Please sign in to pay.', status: 401 };
+  if (!user) return { error: 'Please log in to pay.', status: 401 };
 
   let fees;
   try {

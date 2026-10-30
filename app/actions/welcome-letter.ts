@@ -31,7 +31,7 @@ export async function welcomeLetterPdf(input: { username: string; password: stri
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Please sign in.' }
+  if (!user) return { success: false, error: 'Please log in.' }
   const admin = createAdminClient()
   const { data: caller } = await admin.from('profiles').select('role, hospital_id').eq('id', user.id).maybeSingle()
   if (caller?.role !== 'hospital_admin') return { success: false, error: 'Only hospital administrators can print welcome letters.' }

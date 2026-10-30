@@ -36,7 +36,7 @@ const steps = [
   {
     icon: CalendarCheck,
     title: "Book a time",
-    text: "Pick a slot, sign in with your mobile number and pay the booking fee securely through PayU by UPI, card or net banking.",
+    text: "Pick a slot, log in with your mobile number and pay the booking fee securely through PayU by UPI, card or net banking.",
   },
   {
     icon: Hospital,

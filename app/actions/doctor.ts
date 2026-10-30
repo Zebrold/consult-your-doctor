@@ -471,7 +471,7 @@ const SIGNATURE_TYPES = ['image/png', 'image/jpeg']
 /** Saves the doctor's signature (a PNG or JPG, ideally on a white or clear background). It prints on every prescription. */
 export async function uploadSignature(formData: FormData): Promise<{ success: true } | { success: false; error: string }> {
   const ctx = await doctorForTemplate()
-  if (!ctx) return { success: false, error: 'Please sign in with your doctor account.' }
+  if (!ctx) return { success: false, error: 'Please log in with your doctor account.' }
   const file = formData.get('signature')
   if (!(file instanceof File) || file.size === 0) return { success: false, error: 'Choose an image of your signature.' }
   if (!SIGNATURE_TYPES.includes(file.type)) return { success: false, error: 'Upload the signature as a PNG or JPG image.' }
@@ -488,7 +488,7 @@ export async function uploadSignature(formData: FormData): Promise<{ success: tr
 
 export async function removeSignature(): Promise<{ success: true } | { success: false; error: string }> {
   const ctx = await doctorForTemplate()
-  if (!ctx) return { success: false, error: 'Please sign in with your doctor account.' }
+  if (!ctx) return { success: false, error: 'Please log in with your doctor account.' }
   const { error } = await ctx.admin.storage.from(RECORD_BUCKET).remove([signaturePath(ctx.doctor.id)])
   if (error) return { success: false, error: 'Could not remove your signature. Please try again.' }
   revalidatePath('/doctor/profile')
@@ -498,7 +498,7 @@ export async function removeSignature(): Promise<{ success: true } | { success: 
 /** A sample prescription with the doctor's letterhead, registration and signature, as base64, to download and check. */
 export async function prescriptionTemplatePreview(): Promise<{ success: true; pdf: string } | { success: false; error: string }> {
   const ctx = await doctorForTemplate()
-  if (!ctx) return { success: false, error: 'Please sign in with your doctor account.' }
+  if (!ctx) return { success: false, error: 'Please log in with your doctor account.' }
   try {
     const pdf = await prescriptionTemplatePdf(ctx.admin, ctx.doctor)
     return { success: true, pdf: Buffer.from(pdf).toString('base64') }

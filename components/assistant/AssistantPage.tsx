@@ -105,7 +105,7 @@ export function AssistantPage({ role, viewer }: { role: string | null; viewer: s
     { icon: Search, title: 'Live answers', text: 'Doctors, open slots, labs and test prices, straight from the site.' },
     { icon: FileText, title: 'PDFs on request', text: 'Doctor lists, price sheets and step-by-step guides to download.' },
     isPatient
-      ? { icon: CalendarCheck, title: 'Your bookings', text: key === 'patient' ? 'Reads your own appointments and lab tests, and nobody else’s.' : 'Sign in and it can read your own appointments and lab tests.' }
+      ? { icon: CalendarCheck, title: 'Your bookings', text: key === 'patient' ? 'Reads your own appointments and lab tests, and nobody else’s.' : 'Log in and it can read your own appointments and lab tests.' }
       : { icon: ListChecks, title: 'Step-by-step help', text: 'How each part of your portal works, from first click to done.' },
     { icon: Languages, title: 'Your language', text: 'Choose Hindi, Telugu, Tamil, Bengali and more at the top, or translate any answer.' },
   ]

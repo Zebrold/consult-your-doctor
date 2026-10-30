@@ -3,6 +3,7 @@ import type { createAdminClient } from '@/lib/supabase/admin'
 import { one } from '@/components/patient/data'
 import { labTestBookingFee } from '@/lib/pricing'
 import { getBookingFees } from '@/lib/booking-fees'
+import { doctorBookingHref } from '@/lib/booking-links'
 import { PdfDocSchema, preparePdfArgs, type PdfDoc } from './pdf-doc'
 
 type Admin = ReturnType<typeof createAdminClient>
@@ -87,7 +88,7 @@ export function assistantTools({ admin, patientId, onPdf }: { admin: Admin; pati
     run: async ({ query, city }) => {
       const { data, error } = await admin
         .from('doctors')
-        .select('id, specialty, experience_years, qualifications, profiles!doctors_profile_id_fkey ( full_name ), departments ( name ), hospitals!inner ( name, city, status )')
+        .select('id, specialty, experience_years, qualifications, profiles!doctors_profile_id_fkey ( full_name ), departments ( name ), hospitals!inner ( id, name, city, status )')
         .eq('hospitals.status', 'active')
         .limit(500)
       if (error) return JSON.stringify({ error: 'Doctor search is unavailable right now.' })
@@ -99,7 +100,7 @@ export function assistantTools({ admin, patientId, onPdf }: { admin: Admin; pati
         qualifications: string | null
         profiles: Joined<{ full_name: string | null }>
         departments: Joined<{ name: string | null }>
-        hospitals: Joined<{ name: string | null; city: string | null }>
+        hospitals: Joined<{ id: string; name: string | null; city: string | null }>
       }
       const all = ((data ?? []) as Row[]).map((d) => ({
         id: d.id,
@@ -108,6 +109,7 @@ export function assistantTools({ admin, patientId, onPdf }: { admin: Admin; pati
         department: one(d.departments)?.name ?? null,
         qualifications: d.qualifications,
         experience: d.experience_years,
+        hospitalId: one(d.hospitals)?.id ?? null,
         hospital: one(d.hospitals)?.name ?? null,
         city: one(d.hospitals)?.city ?? null,
       }))
@@ -143,7 +145,7 @@ export function assistantTools({ admin, patientId, onPdf }: { admin: Admin; pati
           bookable_now: next.has(d.id),
           booking_status: next.has(d.id) ? 'Open slots available to book online' : 'No open slots yet, so this doctor cannot be booked online right now',
           profile_url: `/doctors/${d.id}`,
-          booking_url: next.has(d.id) ? `/book/${d.id}` : undefined,
+          booking_url: next.has(d.id) ? doctorBookingHref(d.id, d.hospitalId) : undefined,
         }))
 
       if (doctors.length === 0) {
@@ -249,7 +251,7 @@ export function assistantTools({ admin, patientId, onPdf }: { admin: Admin; pati
     name: 'get_my_bookings',
     status: 'Checking your bookings…',
     description:
-      "List the signed-in patient's own doctor appointments and lab test bookings: upcoming and recent, with status, payment links for unpaid ones, and whether lab reports are ready.",
+      "List the logged-in patient's own doctor appointments and lab test bookings: upcoming and recent, with status, payment links for unpaid ones, and whether lab reports are ready.",
     input: z.object({}),
     run: async () => {
       const [{ data: appts }, { data: labs }] = await Promise.all([

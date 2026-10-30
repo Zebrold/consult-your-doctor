@@ -5,11 +5,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Bell, CalendarClock, ChevronDown, ChevronRight, LayoutDashboard, MapPin, Search, UserRound } from "lucide-react";
-import { AppComingSoon } from "@/components/AppComingSoon";
+import { GetTheApp } from "@/components/GetTheApp";
 import { initials } from "@/components/patient/format";
 import { locationCity, type usePatientLocation } from "@/components/patient/location";
 import { PATIENT_ACCOUNT_LINKS } from "@/components/patient/PhoneHeader";
 import { AccountMenu } from "@/components/portal/TopBar";
+import { CorporateMenu } from "@/components/site/CorporateMenu";
 import { AppPromoStrip } from "./AppPromo";
 import type { HomeAccount } from "./types";
 
@@ -146,9 +147,11 @@ export function HomeHero({ account, place, visitLine, onLocation, onMenu }: Prop
             <span className="font-['Helvetica_Neue',Helvetica,Arial,sans-serif] text-[28px] font-bold tracking-[-0.01em]">Consult your Doctor</span>
           </Link>
           <nav aria-label="Main" className="flex flex-wrap items-center gap-7">
-            <Link href="/corporate" className="hidden lg:block text-white text-base font-semibold hover:text-[#DCE7FF] transition-colors">Corporate</Link>
+            <div className="hidden lg:block">
+              <CorporateMenu className="text-white text-base font-semibold hover:text-[#DCE7FF] transition-colors" />
+            </div>
             <Link href="/corporate#join" className="hidden lg:block text-white text-base font-semibold hover:text-[#DCE7FF] transition-colors">Partner with Us</Link>
-            <AppComingSoon variant="hero" />
+            <GetTheApp variant="hero" />
             <DesktopAccount account={account} hasVisit={!!visitLine} />
           </nav>
         </header>
@@ -226,7 +229,7 @@ export function PhoneAccountButton({ account, onMenu }: { account: HomeAccount; 
     );
   }
   return (
-    <button type="button" onClick={onMenu} aria-haspopup="dialog" aria-label={account.kind === "patient" ? "Your account and menu" : "Menu and sign in"} className={cls}>
+    <button type="button" onClick={onMenu} aria-haspopup="dialog" aria-label={account.kind === "patient" ? "Your account and menu" : "Menu and login"} className={cls}>
       {account.kind === "patient" && account.name ? (
         <span className="text-[15px] font-extrabold">{initials(account.name)}</span>
       ) : (
@@ -241,7 +244,7 @@ export function DesktopAccount({ account, hasVisit }: { account: HomeAccount; ha
   if (account.kind === "guest") {
     return (
       <Link href="/login" className={pill}>
-        Sign in
+        Login
       </Link>
     );
   }

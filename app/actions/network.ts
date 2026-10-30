@@ -26,7 +26,7 @@ async function executiveCaller() {
   return profile?.role === 'executive' ? { user, admin } : null
 }
 
-const NOT_ALLOWED = 'Only the operations team can manage the partner network. Please sign in with your executive account.'
+const NOT_ALLOWED = 'Only the operations team can manage the partner network. Please log in with your executive account.'
 
 const text = (max: number) => z.string().trim().max(max)
 const orgSchema = z.object({

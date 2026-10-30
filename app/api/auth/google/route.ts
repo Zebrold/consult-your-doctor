@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     )
     if (!verifyRes.ok) {
       console.error('[Google Auth] tokeninfo rejected the credential:', verifyRes.status, await verifyRes.text())
-      return NextResponse.json({ error: 'Google could not verify this sign-in. Please try again.' }, { status: 401 })
+      return NextResponse.json({ error: 'Google could not verify this login. Please try again.' }, { status: 401 })
     }
 
     const tokenInfo: GoogleTokenInfo = await verifyRes.json()
@@ -73,6 +73,6 @@ export async function POST(request: Request) {
     })
   } catch (err: unknown) {
     console.error('[Google Auth API Error]:', err)
-    return NextResponse.json({ error: 'Google sign-in failed. Please try again.' }, { status: 500 })
+    return NextResponse.json({ error: 'Google login failed. Please try again.' }, { status: 500 })
   }
 }

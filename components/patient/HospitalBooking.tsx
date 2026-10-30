@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Share2, UserRound } from "lucide-react";
 import { VerifiedBadge } from "@/components/home/ui";
@@ -45,6 +45,8 @@ export function HospitalBooking({
   services,
   now,
   initialSpeciality = null,
+  initialDoctor = null,
+  initialSlot = null,
   intro,
   children,
 }: {
@@ -57,6 +59,9 @@ export function HospitalBooking({
   now: number;
   /** The speciality tab to open on, e.g. when the patient came from that speciality's hospitals. */
   initialSpeciality?: string | null;
+  /** The doctor to open with selected (and their time), when the patient pressed Book on that doctor elsewhere. */
+  initialDoctor?: string | null;
+  initialSlot?: string | null;
   /** Cards above the doctors (the consultation charges). */
   intro?: ReactNode;
   children: ReactNode;
@@ -66,9 +71,17 @@ export function HospitalBooking({
     for (const d of doctors) counts.set(d.specialty || "General", (counts.get(d.specialty || "General") ?? 0) + 1);
     return Array.from(counts.keys()).sort((a, b) => counts.get(b)! - counts.get(a)! || a.localeCompare(b));
   }, [doctors]);
-  const [spec, setSpec] = useState(initialSpeciality && specialties.includes(initialSpeciality) ? initialSpeciality : (specialties[0] ?? ""));
-  const [doctorId, setDoctorId] = useState<string | null>(null);
-  const [slotId, setSlotId] = useState<string | null>(null);
+  const preset = doctors.find((d) => d.id === initialDoctor) ?? null;
+  const [spec, setSpec] = useState(
+    preset ? preset.specialty || "General" : initialSpeciality && specialties.includes(initialSpeciality) ? initialSpeciality : (specialties[0] ?? ""),
+  );
+  const [doctorId, setDoctorId] = useState<string | null>(preset?.id ?? null);
+  const [slotId, setSlotId] = useState<string | null>(preset?.slots.some((s) => s.id === initialSlot) ? initialSlot : null);
+  const presetRef = useRef<HTMLDivElement>(null);
+  // Bring the doctor the patient chose into view, below the sticky header.
+  useEffect(() => {
+    presetRef.current?.scrollIntoView({ block: "center" });
+  }, []);
   const [fastTrack, setFastTrack] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
   const shown = doctors.filter((d) => (d.specialty || "General") === spec);
@@ -110,13 +123,13 @@ export function HospitalBooking({
     ) : d.slots.length === 0 ? (
       <p className="text-[12.5px] text-[#5B667A]">
         No open times in the next two weeks.{" "}
-        <Link href={`/book/${d.id}`} className="font-extrabold text-[#2A4DD0] hover:underline">
+        <Link href={bookingPath(d.id)} className="font-extrabold text-[#2A4DD0] hover:underline">
           See the calendar
         </Link>
       </p>
     ) : (
       <div role="radiogroup" aria-label="Available times" className="grid grid-cols-2 lg:grid-cols-5 gap-2">
-        {d.slots.slice(0, 10).map((s) => {
+        {d.slots.map((s) => {
           const on = s.id === slotId;
           return (
             <button
@@ -178,7 +191,11 @@ export function HospitalBooking({
                   {shown.map((d) => {
                     const on = d.id === doctorId;
                     return (
-                      <div key={d.id} className={`rounded-[14px] border-[1.5px] overflow-hidden transition-colors ${on ? "border-[#2A4DD0] bg-[#F7F9FF]" : "border-[#E1E7F0] bg-white"}`}>
+                      <div
+                        key={d.id}
+                        ref={d.id === preset?.id ? presetRef : undefined}
+                        className={`scroll-mt-24 rounded-[14px] border-[1.5px] overflow-hidden transition-colors ${on ? "border-[#2A4DD0] bg-[#F7F9FF]" : "border-[#E1E7F0] bg-white"}`}
+                      >
                         <button type="button" role="radio" aria-checked={on} onClick={() => pickDoctor(d.id)} className="flex items-center gap-3 w-full px-3 py-2.5 lg:p-3 text-left">
                           {d.image ? (
                             <RemoteImage src={d.image} alt="" width={52} height={52} className="shrink-0 w-[50px] h-[50px] lg:w-[52px] lg:h-[52px] rounded-xl object-cover object-top bg-[#EEF1F5]" />
@@ -194,7 +211,7 @@ export function HospitalBooking({
                             </span>
                             <span className="block text-[12px] lg:text-[12.5px] text-[#5B667A] truncate">{d.quals}</span>
                             <span className="block text-[12px] lg:text-[12.5px] font-bold text-[#2A4DD0] truncate">
-                              {d.slots[0] ? `Next: ${formatSlot(d.slots[0].start, now)}` : d.bookable ? "No open times yet" : "Booking opens soon"}
+                              {d.slots[0] ? `Next: ${formatSlot(d.slots[0].start, now)}` : d.bookable ? "No open times yet" : "Online booking unavailable"}
                             </span>
                           </span>
                           <span aria-hidden className={`shrink-0 w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center ${on ? "border-[#2A4DD0]" : "border-[#B7C1D1]"}`}>

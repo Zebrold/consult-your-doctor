@@ -35,7 +35,7 @@ function printSlip(name: string, credentials: Credentials, bookingType: 'walk_in
 <h2 style="margin:0 0 4px;color:#0066ff">Consult Your Doctor</h2><p style="margin:0 0 18px;color:#475569">Your patient account</p>
 <p style="margin:6px 0">Name: <b>${esc(name)}</b></p><p style="margin:6px 0">Booking Mode: <b>${esc(modeLabel)}</b></p><p style="margin:6px 0">Patient ID: <b style="font-family:monospace;font-size:18px">${esc(credentials.patientCode)}</b></p>
 ${credentials.password ? `<p style="margin:6px 0">Password: <b style="font-family:monospace;font-size:18px">${esc(credentials.password)}</b></p>` : ''}
-<p style="margin:18px 0 0;font-size:13px;color:#475569">Sign in at consultyourdoctor.de/login/patient with your Patient ID and password, or with your mobile number and a one-time code. Your reports appear in your account. Keep this slip private.</p>
+<p style="margin:18px 0 0;font-size:13px;color:#475569">Log in at consultyourdoctor.de/login/patient with your Patient ID and password, or with your mobile number and a one-time code. Your reports appear in your account. Keep this slip private.</p>
 <script>window.onload=()=>{window.print()}</script></body>`)
   w.document.close()
 }

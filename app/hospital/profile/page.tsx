@@ -256,7 +256,7 @@ export default async function HospitalProfilePage() {
 
   const account = (
     <section id="account" className="scroll-mt-24">
-      <h2 className="px-1 mb-2 text-[16px] font-extrabold">My sign-in details</h2>
+      <h2 className="px-1 mb-2 text-[16px] font-extrabold">My login details</h2>
       <StaffAccount name={me?.full_name ?? ''} phone={me?.phone_number ?? null} staffId={me?.staff_id ?? null} roleLabel="Hospital admin" />
     </section>
   )

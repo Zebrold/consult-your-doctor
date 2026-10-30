@@ -6,12 +6,12 @@ import { emailConfigured, sendEmail } from '@/lib/notify/email'
 import { COMPANY } from '@/lib/company'
 import { createSupportTicket } from './tickets'
 
-const TOPICS = ['Booking or appointment', 'Payment or refund', 'Prescription or report', 'Account or sign-in', 'Something else']
+const TOPICS = ['Booking or appointment', 'Payment or refund', 'Prescription or report', 'Account or login', 'Something else']
 
 export async function raiseSupportTicket(input: { topic: string; bookingId: string; message: string }): Promise<{ ok: true; sent: boolean; mailto: string; ticketCode?: string } | { ok: false; error: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { ok: false, error: 'Please sign in to raise a ticket.' }
+  if (!user) return { ok: false, error: 'Please log in to raise a ticket.' }
 
   const topic = TOPICS.includes(input.topic) ? input.topic : 'Something else'
   const message = input.message.trim().slice(0, 3000)

@@ -73,7 +73,7 @@ export async function updatePatientProfile(formData: FormData) {
         console.warn('Could not delete old phone auth user:', delErr)
       }
     } else {
-      return { success: false, error: 'This mobile number is already registered to another account. Please use a different number or sign in with that account.' }
+      return { success: false, error: 'This mobile number is already registered to another account. Please use a different number or log in with that account.' }
     }
   }
 

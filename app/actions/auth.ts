@@ -41,7 +41,7 @@ import { clearAttempts, overLimit } from '@/lib/rate-limit'
 function computeOtpHmac(phone: string, otp: string, expiresAt: number): string {
   // A guessable fallback secret would let anyone mint a valid code for any number, so refuse to run without one.
   const secret = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!secret) throw new Error('Sign-in codes are not configured on this server.')
+  if (!secret) throw new Error('Login codes are not configured on this server.')
   return crypto.createHmac('sha256', secret).update(`${phone}:${otp}:${expiresAt}`).digest('hex')
 }
 
@@ -92,7 +92,7 @@ async function authenticatePatientSession(phone: string, fullName: string | null
     // Staff sign in with their Staff ID. Going on would replace their password with the temporary one below.
     const { data: existing } = await admin.from('profiles').select('role').eq('id', authUserId).maybeSingle()
     if (existing?.role && existing.role !== 'patient') {
-      return { error: 'This number belongs to a staff account. Please sign in with your Staff ID instead.' }
+      return { error: 'This number belongs to a staff account. Please log in with your Staff ID instead.' }
     }
   }
 
@@ -274,7 +274,7 @@ export async function verifyOTP(prevState: any, formData: FormData) {
       email: DEMO_PATIENT_EMAIL,
       password: demoPassword,
     })
-    if (authErr) return { error: 'The demo account could not sign in.', success: false, phone, fullName, role, isRegister }
+    if (authErr) return { error: 'The demo account could not log in.', success: false, phone, fullName, role, isRegister }
     cookieStore.set(ROLE_COOKIE, roleCookieValue(authData.user.id, 'patient'), ROLE_COOKIE_OPTIONS)
     const next = String(formData.get('next') || '')
     redirect(safeNextPath(next))
@@ -345,7 +345,7 @@ export async function verifyOTPInline(prevState: any, formData: FormData) {
       email: DEMO_PATIENT_EMAIL,
       password: demoPassword,
     })
-    if (authErr) return { error: 'The demo account could not sign in.', success: false, phone, fullName, role, isRegister }
+    if (authErr) return { error: 'The demo account could not log in.', success: false, phone, fullName, role, isRegister }
     cookieStore.set(ROLE_COOKIE, roleCookieValue(authData.user.id, 'patient'), ROLE_COOKIE_OPTIONS)
     return { success: true, user: authData.user }
   }
@@ -409,7 +409,7 @@ export async function staffLogin(prevState: any, formData: FormData) {
 
   const ip = (await clientIp()) ?? 'unknown'
   if (overLimit(`staff-login:ip:${ip}`, 30, 15 * 60_000) || overLimit(`staff-login:id:${staffId}`, 8, 15 * 60_000)) {
-    return { error: 'Too many sign-in attempts. Please wait 15 minutes and try again.' }
+    return { error: 'Too many login attempts. Please wait 15 minutes and try again.' }
   }
 
   // The email in Supabase is the ID lowercased + @cyd.internal OR their real email if updated
@@ -543,7 +543,7 @@ export async function patientIdLogin(prevState: { error?: string } | null, formD
   if (!/^PT\d{6}$/.test(patientCode) || !password) return { error: 'Enter your Patient ID (like PT482193) and password.' }
   const ip = (await clientIp()) ?? 'unknown'
   if (overLimit(`patient-id-login:ip:${ip}`, 30, 15 * 60_000) || overLimit(`patient-id-login:id:${patientCode}`, 8, 15 * 60_000)) {
-    return { error: 'Too many sign-in attempts. Please wait 15 minutes and try again.' }
+    return { error: 'Too many login attempts. Please wait 15 minutes and try again.' }
   }
 
   const { createAdminClient } = await import('@/lib/supabase/admin')

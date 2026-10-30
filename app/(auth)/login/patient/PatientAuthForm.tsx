@@ -61,7 +61,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
   const [verifyState, verifyAction, isVerifyPending] = useActionState(verifyOTP, null)
 
   const [googleError, setGoogleError] = useState(
-    searchParams.get('error') === 'google' ? 'Google sign-in could not be completed. Please try again or use your mobile number.' : ''
+    searchParams.get('error') === 'google' ? 'Google login could not be completed. Please try again or use your mobile number.' : ''
   )
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [gsiLoaded, setGsiLoaded] = useState(false)
@@ -93,7 +93,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
       })
       const data = await res.json()
       if (!res.ok || !data.success) {
-        setGoogleError(data.error || 'Google sign-in could not be completed. Please try again.')
+        setGoogleError(data.error || 'Google login could not be completed. Please try again.')
         setIsGoogleLoading(false)
         return
       }
@@ -191,7 +191,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
       }
     } catch (err: any) {
       console.error('[Google Auth Exception]:', err)
-      setGoogleError(err?.message || 'Failed to start Google sign-in. Please try again.')
+      setGoogleError(err?.message || 'Failed to start Google login. Please try again.')
       setIsGoogleLoading(false)
     }
   }
@@ -240,7 +240,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
             Welcome to Consult Your Doctor
           </h1>
           <p className="text-on-surface-variant text-[14px] leading-relaxed max-w-[390px] mx-auto">
-            Sign in or create an account to book consultations, access lab reports, and manage family health records.
+            Log in or create an account to book consultations, access lab reports, and manage family health records.
           </p>
         </div>
 
@@ -251,7 +251,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
             {/* Segmented tab switcher */}
             <div className="bg-surface-container-low p-1 rounded-full flex mb-7" role="tablist" aria-label="Account">
               {([
-                { id: 'signin', label: 'Sign In', icon: LogIn },
+                { id: 'signin', label: 'Login', icon: LogIn },
                 { id: 'register', label: 'Create Account', icon: UserPlus },
               ] as const).map(({ id, label, icon: Icon }) => (
                 <button
@@ -297,7 +297,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
                 <div className="relative flex items-center justify-center my-6">
                   <div className="w-full h-px bg-surface-container" />
                   <span className="px-3 text-[12px] font-label-sm text-on-surface-variant uppercase tracking-wider shrink-0">
-                    {isRegister ? 'or register with mobile number' : 'or sign in with mobile number'}
+                    {isRegister ? 'or register with mobile number' : 'or log in with mobile number'}
                   </span>
                   <div className="w-full h-px bg-surface-container" />
                 </div>
@@ -480,7 +480,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
                 <>
                   <Loader2 className="w-[18px] h-[18px] animate-spin" /> Verifying...
                 </>
-              ) : isRegister ? 'Verify & Create Account' : 'Verify & Sign In'}
+              ) : isRegister ? 'Verify & Create Account' : 'Verify & Login'}
             </button>
 
             <p className="text-center text-[13px] text-on-surface-variant">
@@ -510,7 +510,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
               onClick={() => switchMode(isRegister ? 'signin' : 'register')}
               className="font-title-md text-[13px] text-vibrant-blue hover:text-primary font-semibold ml-1 underline underline-offset-2"
             >
-              {isRegister ? 'Sign in' : 'Create an account'}
+              {isRegister ? 'Login' : 'Create an account'}
             </button>
           </p>
         </div>
@@ -523,7 +523,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
         </span>
         <p className="text-[13px] text-on-surface-variant leading-snug">
           <span className="font-semibold text-on-surface">Are you a doctor?</span>{' '}
-          <Link href="/login/doctor" className="text-vibrant-blue font-semibold hover:underline">Clinician sign in</Link>
+          <Link href="/login/doctor" className="text-vibrant-blue font-semibold hover:underline">Clinician login</Link>
           {' · '}
           <Link href="/signup/doctor" className="text-vibrant-blue font-semibold hover:underline">Apply to join</Link>
         </p>
@@ -562,7 +562,7 @@ function PatientIdSignIn({ next, onBack }: { next: string; onBack: () => void })
         disabled={pending}
         className="w-full py-3.5 px-6 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary font-title-md text-[15px] font-semibold transition-all duration-200 shadow-[0_4px_14px_rgba(15,23,42,0.12)] flex items-center justify-center gap-2 disabled:opacity-60"
       >
-        {pending ? <Loader2 className="w-[18px] h-[18px] animate-spin" /> : <LogIn className="w-[18px] h-[18px]" />} Sign In
+        {pending ? <Loader2 className="w-[18px] h-[18px] animate-spin" /> : <LogIn className="w-[18px] h-[18px]" />} Login
       </button>
       <button type="button" onClick={onBack} className="w-full inline-flex items-center justify-center gap-1 text-[13px] font-semibold text-vibrant-blue hover:text-primary">
         <ArrowLeft className="w-3.5 h-3.5" /> Use my mobile number instead

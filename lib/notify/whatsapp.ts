@@ -55,7 +55,7 @@ function formatTemplateText(template: WhatsAppTemplate): { text: string; caption
     }
     case 'cyd_account_created': {
       const [name, patientId, password, signInUrl] = template.params
-      const text = `Hello ${name},\n\nYour Consult Your Doctor account is ready!\n\n🆔 Patient ID: ${patientId}\n🔑 Password: ${password}\n🌐 Sign In: ${signInUrl}\n\nPlease sign in and keep these credentials private.`
+      const text = `Hello ${name},\n\nYour Consult Your Doctor account is ready!\n\n🆔 Patient ID: ${patientId}\n🔑 Password: ${password}\n🌐 Login: ${signInUrl}\n\nPlease log in and keep these credentials private.`
       return { text }
     }
     case 'cyd_ticket_update': {
@@ -65,7 +65,7 @@ function formatTemplateText(template: WhatsAppTemplate): { text: string; caption
     }
     case 'cyd_otp': {
       const [otp] = template.params
-      const text = `*Consult Your Doctor* 🏥\n\nYour sign-in verification code is: *${otp}*\n\nValid for 10 minutes. Please do not share this code with anyone for your security.`
+      const text = `*Consult Your Doctor* 🏥\n\nYour login verification code is: *${otp}*\n\nValid for 10 minutes. Please do not share this code with anyone for your security.`
       return { text }
     }
     default:

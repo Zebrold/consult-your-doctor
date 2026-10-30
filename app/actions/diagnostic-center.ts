@@ -40,7 +40,7 @@ async function loadTestList(admin: ReturnType<typeof createAdminClient>, centerI
 /** Adds a test to the center's menu, or updates its price (names match without regard to case). */
 export async function saveLabTest(name: string, price: number): Promise<Result> {
   const ctx = await labContext()
-  if (!ctx) return fail('Please sign in with your diagnostic center account.')
+  if (!ctx) return fail('Please log in with your diagnostic center account.')
 
   const testName = name.trim().replace(/\s+/g, ' ')
   if (testName.length < 2 || testName.length > 120) return fail('Enter a test name (2 to 120 characters).')
@@ -68,7 +68,7 @@ export async function saveLabTest(name: string, price: number): Promise<Result> 
 
 export async function removeLabTest(name: string): Promise<Result> {
   const ctx = await labContext()
-  if (!ctx) return fail('Please sign in with your diagnostic center account.')
+  if (!ctx) return fail('Please log in with your diagnostic center account.')
 
   const { tests, prices } = await loadTestList(ctx.admin, ctx.centerId)
   const key = name.toLowerCase()
@@ -88,7 +88,7 @@ export async function removeLabTest(name: string): Promise<Result> {
 /** Marks a paid booking as arrived with the sample taken. */
 export async function checkInLabBooking(bookingId: string): Promise<Result> {
   const ctx = await labContext()
-  if (!ctx) return fail('Please sign in with your diagnostic center account.')
+  if (!ctx) return fail('Please log in with your diagnostic center account.')
 
   const { data, error } = await ctx.admin
     .from('diagnostic_bookings')
@@ -109,7 +109,7 @@ export async function checkInLabBooking(bookingId: string): Promise<Result> {
 /** Stores the report for a booking and marks it sent, which makes it available to the patient. */
 export async function uploadLabReport(formData: FormData): Promise<Result> {
   const ctx = await labContext()
-  if (!ctx) return fail('Please sign in with your diagnostic center account.')
+  if (!ctx) return fail('Please log in with your diagnostic center account.')
 
   const bookingId = String(formData.get('bookingId') || '')
   const file = formData.get('report')
@@ -162,7 +162,7 @@ export async function uploadLabReport(formData: FormData): Promise<Result> {
 /** Updates the details patients see when they find and book the center. */
 export async function updateLabProfile(formData: FormData): Promise<Result> {
   const ctx = await labContext()
-  if (!ctx) return fail('Please sign in with your diagnostic center account.')
+  if (!ctx) return fail('Please log in with your diagnostic center account.')
 
   const name = String(formData.get('name') || '').trim()
   const city = String(formData.get('city') || '').trim()
@@ -217,7 +217,7 @@ export async function updateLabProfile(formData: FormData): Promise<Result> {
 /** Toggles whether doorstep / home collection service is active or disabled for this center. */
 export async function toggleLabDoorstep(enabled: boolean): Promise<Result> {
   const ctx = await labContext()
-  if (!ctx) return fail('Please sign in with your diagnostic center account.')
+  if (!ctx) return fail('Please log in with your diagnostic center account.')
 
   const { error } = await ctx.admin
     .from('diagnostic_centers')
@@ -236,7 +236,7 @@ export async function toggleLabDoorstep(enabled: boolean): Promise<Result> {
 /** Updates the default doorstep collection fee for this center. */
 export async function updateLabDoorstepFee(fee: number): Promise<Result> {
   const ctx = await labContext()
-  if (!ctx) return fail('Please sign in with your diagnostic center account.')
+  if (!ctx) return fail('Please log in with your diagnostic center account.')
 
   const cleanFee = Math.max(0, Math.round(Number(fee) || 0))
   const { error } = await ctx.admin

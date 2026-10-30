@@ -61,7 +61,7 @@ export default async function OnlineDoctorPage() {
       consultation_fee,
       image_url,
       profiles!doctors_profile_id_fkey ( full_name ),
-      hospitals!inner ( name, city, status )
+      hospitals!inner ( id, name, city, status )
     `)
     .eq("hospitals.status", "active")
     .gt("consultation_fee", 0)
@@ -76,7 +76,7 @@ export default async function OnlineDoctorPage() {
     consultation_fee: number | null;
     image_url: string | null;
     profiles: Joined<{ full_name: string | null }>;
-    hospitals: Joined<{ name: string | null; city: string | null }>;
+    hospitals: Joined<{ id: string; name: string | null; city: string | null }>;
   };
   const one = <T,>(v: Joined<T>) => (Array.isArray(v) ? v[0] ?? null : v);
 
@@ -89,6 +89,7 @@ export default async function OnlineDoctorPage() {
       experienceYears: doc.experience_years || null,
       image: doc.image_url || null,
       hospital: hospital?.name || null,
+      hospitalId: hospital?.id ?? null,
       city: hospital?.city || null,
     };
   });

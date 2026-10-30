@@ -16,7 +16,7 @@ const MANAGE = [
 ]
 
 const ACCOUNT = [
-  { href: '/hospital/profile#account', title: 'Sign-in details', sub: 'Your name, mobile number and password' },
+  { href: '/hospital/profile#account', title: 'Login details', sub: 'Your name, mobile number and password' },
   { href: '/legal', title: 'Legal documents', sub: 'Terms, privacy and our policies' },
   { href: '/hospital/ai', title: 'Help & support', sub: 'Talk to the Consult your Doctor team' },
 ]

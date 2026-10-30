@@ -32,7 +32,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
     const { id } = await props.params
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Please sign in to download your slip.' }, { status: 401 })
+    if (!user) return NextResponse.json({ error: 'Please log in to download your slip.' }, { status: 401 })
 
     const admin = createAdminClient()
     const { data: profile } = await admin.from('profiles').select('role, hospital_id, diagnostic_center_id').eq('id', user.id).maybeSingle()

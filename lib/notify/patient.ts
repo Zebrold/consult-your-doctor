@@ -271,7 +271,7 @@ export function notifyAccountCreated(args: { patientId: string; patientCode: str
         paragraphs: [
           `Hello ${firstName(contact.name)},`,
           `Your Consult Your Doctor account is ready. Patient ID: ${args.patientCode}. Password: ${args.password}`,
-          `Sign in at ${signIn} with your Patient ID and password, or with your mobile number and a one-time code. Keep these details private.`,
+          `Log in at ${signIn} with your Patient ID and password, or with your mobile number and a one-time code. Keep these details private.`,
         ],
       })
     }

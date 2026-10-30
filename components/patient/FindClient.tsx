@@ -18,6 +18,7 @@ import { hospitalTags, placeOf } from "./HospitalCards";
 import { Dots, PageBody, RatingPill, btnOutline, btnPrimary, card } from "./app-ui";
 import { RemoteImage, type ImageLoad } from "@/components/RemoteImage";
 import { TILE_ORIGIN } from "@/components/patient/map-tiles";
+import { doctorBookingHref } from "@/lib/booking-links";
 
 const CareMap = dynamic(() => import("@/components/patient/CareMap"), {
   ssr: false,
@@ -550,7 +551,7 @@ function FeeColumn({ label, fee, note, href, cta }: { label: string; fee: string
 
 function DoctorResult({ doctor: d, km, now, fee, load }: { doctor: FindDoctor; km: number | null; now: number; fee: number; load: ImageLoad }) {
   const name = doctorName(d.name);
-  const href = d.bookable ? `/book/${d.id}` : `/doctors/${d.id}`;
+  const href = d.bookable ? doctorBookingHref(d.id, d.hospital?.id) : `/doctors/${d.id}`;
   const quals = [d.qualifications, d.experience ? `${d.experience}+ yrs` : null].filter(Boolean).join(" · ");
   const where = [d.hospital?.name, km != null ? formatDistance(km) : null].filter(Boolean).join(" · ");
   const next = d.nextSlot ? formatSlot(d.nextSlot, now) : null;

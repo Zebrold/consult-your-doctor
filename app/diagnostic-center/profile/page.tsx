@@ -105,7 +105,7 @@ export default async function LabProfilePage() {
                   <span className="truncate">{place || 'Add your address so patients can find you'}</span>
                 </span>
                 <span className="hidden sm:inline text-outline-variant">•</span>
-                <span className="text-vibrant-blue font-medium">Signed in as {staff.name}</span>
+                <span className="text-vibrant-blue font-medium">Logged in as {staff.name}</span>
                 {lab.createdAt && (
                   <>
                     <span className="hidden sm:inline text-outline-variant">•</span>
@@ -241,7 +241,7 @@ export default async function LabProfilePage() {
                 </span>
                 <div className="min-w-0">
                   <h2 className="font-title-md text-title-md text-on-surface font-bold">Portal Access &amp; Staff</h2>
-                  <p className="font-label-sm text-[12px] md:text-label-sm text-on-surface-variant">People who can sign in to this portal</p>
+                  <p className="font-label-sm text-[12px] md:text-label-sm text-on-surface-variant">People who can log in to this portal</p>
                 </div>
               </div>
               <span className="px-2 md:px-0 py-0.5 md:py-0 rounded-full bg-surface-container md:bg-transparent font-label-sm text-[10px] md:text-label-sm text-vibrant-blue font-semibold shrink-0">
@@ -400,7 +400,7 @@ export default async function LabProfilePage() {
 
           <form action="/auth/signout" method="post">
             <button type="submit" className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-error/10 hover:bg-error-container text-error font-label-sm text-label-sm font-bold transition-colors">
-              <LogOut className="w-[18px] h-[18px]" /> Sign Out
+              <LogOut className="w-[18px] h-[18px]" /> Logout
             </button>
           </form>
         </div>

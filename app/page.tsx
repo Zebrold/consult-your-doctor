@@ -154,7 +154,7 @@ export default async function Home(props: {
         bookingFee={fees.consultation}
         appQr={appQr}
       />
-      <Footer cities={cities} />
+      <Footer />
     </>
   );
 }

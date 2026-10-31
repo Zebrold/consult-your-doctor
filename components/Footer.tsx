@@ -1,12 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronRight, MapPin } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { StoreBadges } from "@/components/StoreBadges";
 import { COMPANY } from "@/lib/company";
-import { formatCityName } from "@/lib/geo";
 
 // The home page's footer: the brand with trust badges and social links, the 3 navigation columns (Login,
-// Contact us, Legal), the dedicated "Available in" cities section, and the app badges.
+// Contact us, Legal), and the app badges.
 
 type FooterLinkItem = { label: string; href: string };
 
@@ -110,10 +109,7 @@ function Column({ title, items, className = "" }: { title: string; items: Footer
   );
 }
 
-/** `cities` are the cities with partner hospitals or labs, in the order to show them. */
-export function Footer({ cities = [] }: { cities?: string[] }) {
-  const normalizedCities = Array.from(new Set(cities.map(formatCityName).filter(Boolean))).sort();
-
+export function Footer() {
   return (
     <footer className="relative isolate overflow-hidden bg-[#2A4DD0] text-white font-(family-name:--font-manrope)">
       <div className="max-w-[1360px] mx-auto px-5 md:px-8 lg:px-12 pt-12 md:pt-16 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:pb-10">
@@ -140,8 +136,8 @@ export function Footer({ cities = [] }: { cities?: string[] }) {
                   { src: "/badge-trustpilot.svg", alt: "Trustpilot" },
                   { src: "/badge-legitscript.svg", alt: "LegitScript" },
                 ].map((b) => (
-                  <div key={b.src} className="h-12 flex items-center">
-                    <Image src={b.src} alt={b.alt} width={80} height={86} unoptimized className="h-12 w-auto object-contain select-none" />
+                  <div key={b.src} className="h-16 md:h-[72px] flex items-center">
+                    <Image src={b.src} alt={b.alt} width={80} height={86} unoptimized className="h-16 md:h-[72px] w-auto object-contain select-none" />
                   </div>
                 ))}
               </div>
@@ -178,34 +174,8 @@ export function Footer({ cities = [] }: { cities?: string[] }) {
           <Column title="Legal" items={LEGAL} className="col-span-2 md:col-span-2 lg:col-span-3" />
         </div>
 
-        {/* Dedicated "Available in" horizontal cities section (placed down below the main columns in pristine order) */}
-        {normalizedCities.length > 0 && (
-          <nav aria-label="Available in" className="mt-11 pt-7 border-t border-white/15">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-              <span className="text-[13.5px] font-bold text-white uppercase tracking-wider shrink-0 flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-white/75 shrink-0" strokeWidth={2.4} /> Available in:
-              </span>
-              <ul className="flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-2 text-[14px] md:text-[14.5px] text-white/85">
-                {normalizedCities.map((city, idx) => (
-                  <li key={city} className="inline-flex items-center gap-3 sm:gap-4">
-                    <Link
-                      href={`/find?city=${encodeURIComponent(city)}`}
-                      className="hover:text-white hover:underline transition-colors focus-visible:outline-none focus-visible:underline font-medium"
-                    >
-                      {city}
-                    </Link>
-                    {idx < normalizedCities.length - 1 && (
-                      <span className="text-white/30 select-none text-[11px]" aria-hidden>&bull;</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </nav>
-        )}
-
         {/* The app banner */}
-        <div className="mt-9 pt-8 border-t border-white/15 flex flex-col md:flex-row md:items-center md:justify-between gap-5 md:gap-8">
+        <div className="mt-11 pt-8 border-t border-white/15 flex flex-col md:flex-row md:items-center md:justify-between gap-5 md:gap-8">
           <p className="text-[18px] md:text-[22px] leading-[1.3] font-extrabold tracking-[-0.02em] text-balance">
             For a better experience, download the Consult your Doctor app
           </p>

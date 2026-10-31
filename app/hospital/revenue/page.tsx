@@ -88,7 +88,15 @@ export default async function HospitalFinancePage() {
 
   const monthLabel = new Date(`${month}-15T12:00:00+05:30`).toLocaleDateString('en-GB', { timeZone: IST, month: 'long', year: 'numeric' })
   const subtitle = `Consultation fees collected at your counter. Booking fees (${formatINR(fees.consultation)} general, ${formatINR(fees.fastTrack)} fast track) are collected by Consult your Doctor in the app.`
-  const changeLine = lastTotal ? `${monthChange.dir === 'down' ? '−' : '+'}${monthChange.text.replace(/^[+-]/, '')} vs ${monthName(lastMonth)}` : `${monthName(lastMonth)}: ${formatINR(lastTotal)}`
+  const changePct = lastTotal > 0 ? Math.round(((monthTotal - lastTotal) / lastTotal) * 100) : null
+  const changeLine =
+    changePct != null
+      ? `${changePct >= 0 ? '+' : ''}${changePct}% vs ${monthName(lastMonth)}`
+      : lastTotal > 0
+        ? `+100% vs ${monthName(lastMonth)}`
+        : monthTotal > 0
+          ? `+100% vs ${monthName(lastMonth)}`
+          : `0% vs ${monthName(lastMonth)}`
 
   const methodsPanel = (
     <Panel>

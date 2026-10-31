@@ -132,7 +132,7 @@ export default async function HospitalStaffPage() {
         </section>
       }
     >
-      <section className="flex flex-col gap-3.5 mt-3.5 lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-5 lg:mt-5 lg:items-start">
+      <section className="mt-3.5 lg:mt-5">
         <Panel>
           <PanelHead title="Doctors by department" sub="How your consultants are spread" />
           {perDept.length === 0 ? (
@@ -148,21 +148,6 @@ export default async function HospitalStaffPage() {
               </div>
             ))
           )}
-        </Panel>
-        <Panel>
-          <PanelHead title="What each role can access" sub="Enforced on every page and action" />
-          {(Object.keys(ROLE) as StaffRole[]).map((r) => (
-            <div key={r} className="flex items-start justify-between gap-3 py-2.5 border-t border-[#EEF2F7]">
-              <span className="min-w-0">
-                <span className="block text-[13.5px] font-extrabold" style={{ color: ROLE[r].color }}>
-                  {ROLE[r].label}
-                </span>
-                <span className="block text-[12.5px] text-[#5B667A]">{ROLE[r].access}</span>
-              </span>
-              <span className="text-[14px] font-extrabold shrink-0">{count(r)}</span>
-            </div>
-          ))}
-          <p className="mt-2 text-[12px] text-[#5B667A]">You can add doctors here. Front-desk and admin logins are created by the Consult your Doctor team.</p>
         </Panel>
       </section>
     </StaffDirectory>

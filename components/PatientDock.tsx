@@ -136,7 +136,8 @@ function Rail({ pathname, isSignedIn, name, detail }: { pathname: string; isSign
       {extra.map((item) => (
         <RailLink key={item.key} item={item} active={active === item.key} small />
       ))}
-      {isSignedIn ? (
+      {/* Visitors log in from the top bar's Login button. */}
+      {isSignedIn && (
         <div className="flex items-center gap-2.5 mt-3 p-3 rounded-[14px] border border-white/20">
           <Link href="/patient/profile" className="flex flex-1 min-w-0 items-center gap-2.5">
             <span className="shrink-0 w-[38px] h-[38px] rounded-full bg-white text-[#2A4DD0] flex items-center justify-center text-[13px] font-extrabold">
@@ -152,14 +153,6 @@ function Rail({ pathname, isSignedIn, name, detail }: { pathname: string; isSign
               <LogOut className="w-[17px] h-[17px]" />
             </button>
           </form>
-        </div>
-      ) : (
-        <div className="mt-3 p-3.5 rounded-[14px] border border-white/20">
-          <p className="text-[13.5px] font-extrabold">Book in a few taps</p>
-          <p className="mt-0.5 text-[12px] leading-snug text-[#CFDCFF]">Log in with your mobile number to book and see your visits.</p>
-          <Link href="/login/patient" className="mt-3 flex items-center justify-center gap-2 h-10 rounded-[11px] bg-white text-[#2A4DD0] text-[13.5px] font-extrabold hover:bg-white/90 transition-colors">
-            <LogIn className="w-4 h-4" /> Login
-          </Link>
         </div>
       )}
     </aside>

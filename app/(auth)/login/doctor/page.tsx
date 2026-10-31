@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Stethoscope } from 'lucide-react'
+import { ART } from '../AuthShell'
 import { FooterLink, StaffLoginCard } from '../StaffLoginCard'
 
 export const metadata: Metadata = { title: 'Doctor Login' }
@@ -8,10 +8,15 @@ export default function DoctorLoginPage() {
   return (
     <StaffLoginCard
       role="doctor"
-      badge={<><Stethoscope /> Clinician Access</>}
-      title="Clinical Portal Login"
-      description="Restricted to verified medical practitioners. Log in with the Staff ID issued after your credentials were approved."
-      submitLabel="Log In to Clinical Portal"
+      panel={{
+        eyebrow: 'Doctor portal',
+        title: 'Your practice, in one place',
+        lead: 'See your schedule, check patients in and write prescriptions that reach their account.',
+        points: ['Your schedule and waiting room', 'Signed digital prescriptions', 'Patient history and latest vitals'],
+        art: ART.doctor,
+      }}
+      title="Doctor login"
+      description="For verified medical practitioners. Use the Staff ID issued after your credentials were approved."
       footer={<>New practitioner?<FooterLink href="/signup/doctor">Apply to join our network</FooterLink></>}
     />
   )

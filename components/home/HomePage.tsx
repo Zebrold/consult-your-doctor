@@ -48,7 +48,7 @@ export function HomePage({ account, now, nextVisit, doctors, hospitals, cities, 
       <SpecialitiesSection />
       {hospitals.length > 0 && <HospitalsSection hospitals={shownHospitals} place={place} />}
       {doctors.length > 0 && <DoctorsSection doctors={shownDoctors} place={place} now={now} findHref={findHref} />}
-      <TreatSection hospitals={hospitals} />
+      <TreatSection />
       <AppPromo qr={appQr} />
 
       {sheet === "location" && <LocationSheet place={place} cities={cities} onClose={closeSheet} />}

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Headset } from 'lucide-react'
+import { ART } from '../AuthShell'
 import { FooterLink, StaffLoginCard } from '../StaffLoginCard'
 
 export const metadata: Metadata = { title: 'Executive Login' }
@@ -9,10 +9,15 @@ export default function ExecutiveLoginPage() {
   return (
     <StaffLoginCard
       role="executive"
-      badge={<><Headset /> Executive Access</>}
-      title="Executive Portal Login"
-      description="Restricted to front-desk executives and patient care coordinators. Log in with the Staff ID issued for your account."
-      submitLabel="Log In to Executive Portal"
+      panel={{
+        eyebrow: 'Executive portal',
+        title: 'Your front desk, in one place',
+        lead: 'Help patients with their bookings and keep the desk running smoothly.',
+        points: ['Patients and their bookings', 'Doctors and hospitals', 'Lab bookings'],
+        art: ART.hospital,
+      }}
+      title="Executive login"
+      description="For front-desk executives and patient care coordinators. Use the Staff ID issued for your account."
       footer={<>Need an executive account?<FooterLink href="/contact">Contact our team</FooterLink></>}
     />
   )

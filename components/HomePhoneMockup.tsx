@@ -1,23 +1,28 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
-import { ArrowRight, Building2, CalendarDays, ChevronDown, ChevronRight, MapPin, Menu, Search, Settings, UserRound } from "lucide-react";
-import { RemoteImage } from "@/components/RemoteImage";
-import { placeOf } from "@/components/patient/HospitalCards";
+import { ArrowRight, CalendarDays, ChevronDown, ChevronRight, MapPin, Menu, Search, Settings, UserRound } from "lucide-react";
 import { SPECIALITIES, specialityIcon } from "@/components/home/specialities";
-import type { HomeHospital } from "@/components/home/types";
 import { VerifiedBadge } from "@/components/home/ui";
-import { formatCityName } from "@/lib/geo";
 
 // The tiles after All, as on the patient app's home.
 const TILES = ["general-physician", "cardiology", "orthopaedics", "paediatrics", "gynaecology"].flatMap((slug) => SPECIALITIES.filter((s) => s.slug === slug));
 
+// Sample hospitals for the illustration, as in the user's app design (photos in public/images/home/sample-hospitals),
+// chosen by the user over the site's own listings.
+const CITY = "New Delhi";
+const HOSPITALS = [
+  { name: "Manipal Hospitals", kind: "Multi-Speciality Hospital", place: "Dwarka, New Delhi", image: "manipal" },
+  { name: "Fortis Hospital", kind: "Multi-Speciality Hospital", place: "Vasant Kunj, New Delhi", image: "fortis" },
+  { name: "BLK Super Speciality Hospital", kind: "Super Speciality Hospital", place: "Rajendra Nagar, New Delhi", image: "blk" },
+  { name: "Max Healthcare", kind: "Multi-Speciality Hospital", place: "Saket, New Delhi", image: "max" },
+];
+
 /**
  * Decorative preview of the patient app's home on the marketing home page, drawn as a real-proportion phone rather
- * than a picture so it stays sharp at any size. The hospitals are real partners (photos first), so the preview never
- * shows a hospital that isn't on the site. The phone is designed 430px wide with 1em = 16px; its font size is tied to
- * the width it is given (container query units), so every em inside scales with it.
+ * than a picture so it stays sharp at any size. The phone is designed 430px wide with 1em = 16px; its font size is tied
+ * to the width it is given (container query units), so every em inside scales with it.
  */
-export function HomePhoneMockup({ hospitals, size = "max-w-[220px] md:max-w-[234px] lg:max-w-[248px]" }: { hospitals: HomeHospital[]; size?: string }) {
+export function HomePhoneMockup({ size = "max-w-[220px] md:max-w-[234px] lg:max-w-[248px]" }: { size?: string }) {
   return (
     <div
       role="img"
@@ -34,7 +39,7 @@ export function HomePhoneMockup({ hospitals, size = "max-w-[220px] md:max-w-[234
         {/* Titanium band, then the black bezel */}
         <div className="absolute inset-0 rounded-[4.25em] p-[0.1875em] bg-[linear-gradient(145deg,#71757d,#2a2c30_30%,#50545b_58%,#1d1f22)] shadow-[0_2.25em_4em_-1.25em_rgba(15,23,42,0.45),0_0.75em_1.5em_-0.75em_rgba(15,23,42,0.25)]">
           <div className="w-full h-full rounded-[4.0625em] bg-[#0a0a0b] p-[0.5625em]">
-            <Screen hospitals={hospitals} />
+            <Screen />
           </div>
         </div>
       </div>
@@ -42,13 +47,7 @@ export function HomePhoneMockup({ hospitals, size = "max-w-[220px] md:max-w-[234
   );
 }
 
-function Screen({ hospitals }: { hospitals: HomeHospital[] }) {
-  // The city with the most partner hospitals, and only its hospitals, so "Nearest to" stays true.
-  const counts = new Map<string, number>();
-  for (const h of hospitals) if (h.city) counts.set(formatCityName(h.city), (counts.get(formatCityName(h.city)) ?? 0) + 1);
-  const city = [...counts].reduce<[string, number] | null>((best, c) => (!best || c[1] > best[1] ? c : best), null)?.[0] ?? null;
-  const shown = (city ? hospitals.filter((h) => h.city && formatCityName(h.city) === city) : hospitals).slice(0, 4);
-
+function Screen() {
   return (
     <div className="relative w-full h-full overflow-hidden rounded-[3.5em] bg-[#F6F8FC] text-[#0B1B3F]">
       {/* Dynamic Island */}
@@ -90,7 +89,7 @@ function Screen({ hospitals }: { hospitals: HomeHospital[] }) {
           <p className="text-[1.375em] leading-[1.1] font-extrabold tracking-[-0.02em]">Patient</p>
           <span className="mt-[0.375em] inline-flex items-center gap-[0.375em] h-[1.625em] px-[0.6875em] rounded-full bg-white/[0.08] shadow-[inset_0_0_0_0.0625em_rgba(255,255,255,0.5)]">
             <MapPin className="w-[0.875em] h-[0.875em]" strokeWidth={2.2} />
-            <span className="text-[0.75em] font-bold">{city ?? "Your city"}</span>
+            <span className="text-[0.75em] font-bold">{CITY}</span>
             <ChevronDown className="w-[0.75em] h-[0.75em]" strokeWidth={2.6} />
           </span>
           <div className="mt-[0.5em] h-[2.5em] rounded-[0.75em] bg-white flex items-center gap-[0.5em] pl-[0.75em] pr-[0.25em] shadow-[0_0.5em_1em_-0.5em_rgba(4,18,66,0.5)]">
@@ -128,16 +127,12 @@ function Screen({ hospitals }: { hospitals: HomeHospital[] }) {
           <ChevronRight className="w-[1em] h-[1em] text-[#9AA4B5] shrink-0" strokeWidth={2.4} />
         </div>
 
-        {shown.length > 0 && (
-          <>
-            <Heading title="Top hospitals near you" sub={city ? `Nearest to ${city}` : undefined} link="View all" className="mt-[0.875em]" />
-            <div className="mt-[0.5em] grid grid-cols-2 gap-[0.625em]">
-              {shown.map((h) => (
-                <HospitalTile key={h.id} h={h} />
-              ))}
-            </div>
-          </>
-        )}
+        <Heading title="Top hospitals near you" sub={`Nearest to ${CITY}`} link="View all" className="mt-[0.875em]" />
+        <div className="mt-[0.5em] grid grid-cols-2 gap-[0.625em]">
+          {HOSPITALS.map((h) => (
+            <HospitalTile key={h.name} h={h} />
+          ))}
+        </div>
       </div>
 
       {/* The floating tab bar: home, bookings, search and settings */}
@@ -193,32 +188,22 @@ function Tile({ label, active = false, children }: { label: string[]; active?: b
   );
 }
 
-/** A partner hospital as on the app: its photo, name, what it offers and where it is. */
-function HospitalTile({ h }: { h: HomeHospital }) {
-  const area = placeOf(h);
-  const place = h.city && area !== h.city ? `${area}, ${formatCityName(h.city)}` : area;
+/** A hospital as on the app: its photo, name, what it is and where it is. */
+function HospitalTile({ h }: { h: (typeof HOSPITALS)[number] }) {
   return (
     <div className="overflow-hidden rounded-[0.75em] bg-white shadow-[0_0_0_0.0625em_#E6EBF3,0_0.25em_0.75em_-0.375em_rgba(11,27,63,0.12)]">
-      <span className="relative block h-[5.75em] bg-[linear-gradient(160deg,#F2F6FF,#DCE7FF)]">
-        {h.image ? (
-          <RemoteImage src={h.image} alt="" fill sizes="160px" className="object-cover" />
-        ) : (
-          <span className="absolute inset-0 flex items-center justify-center text-[#2A4DD0]">
-            <Building2 className="w-[2em] h-[2em]" strokeWidth={1.5} />
-          </span>
-        )}
+      <span className="relative block h-[5.75em] bg-[#E8EEF8]">
+        <Image src={`/images/home/sample-hospitals/${h.image}.webp`} alt="" fill sizes="180px" className="object-cover" />
       </span>
       <span className="block px-[0.5em] pt-[0.4375em] pb-[0.5em] leading-tight">
         <span className="flex items-center gap-[0.25em] min-w-0">
           <span className="truncate text-[0.75em] font-extrabold">{h.name}</span>
           <VerifiedBadge className="w-[0.75em] h-[0.75em]" />
         </span>
-        <span className="block mt-[0.125em] truncate text-[0.625em] text-[#5B667A]">
-          {h.specialties.length >= 3 ? "Multi-speciality hospital" : (h.specialties[0]?.name ?? "Partner hospital")}
-        </span>
+        <span className="block mt-[0.125em] truncate text-[0.625em] text-[#5B667A]">{h.kind}</span>
         <span className="mt-[0.25em] flex items-center gap-[0.25em] text-[#5B667A]">
           <MapPin className="w-[0.75em] h-[0.75em] shrink-0" strokeWidth={2} />
-          <span className="flex-1 min-w-0 truncate text-[0.625em]">{place}</span>
+          <span className="flex-1 min-w-0 truncate text-[0.625em]">{h.place}</span>
           <ArrowRight className="w-[0.875em] h-[0.875em] text-[#1D4ED8] shrink-0" strokeWidth={2.4} />
         </span>
       </span>

@@ -4,11 +4,12 @@ import { safeNextPath } from '@/lib/safe-redirect'
 import { startTransition, useActionState, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { ArrowLeft, ArrowRight, ChevronDown, IdCard, KeyRound, Loader2, LogIn, MessageSquare, ShieldCheck, Stethoscope, User, UserPlus } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ChevronDown, IdCard, KeyRound, Loader2, LogIn, MessageSquare, ShieldCheck, User } from 'lucide-react'
 import { patientIdLogin, sendOTP, verifyOTP } from '@/app/actions/auth'
 import { COUNTRY_CODES } from '@/lib/countryCodes'
 import { createClient } from '@/lib/supabase/client'
 import { getGoogleClientId } from '@/lib/google-auth'
+import { ART, AuthShell, authButton, authError, authField, authLabel, authLink, type AuthPanel } from '../AuthShell'
 
 declare global {
   interface Window {
@@ -24,8 +25,15 @@ const countryCodes = [
 ]
 const RESEND_SECONDS = 30
 
-const inputClass =
-  'w-full py-3 bg-surface-container-lowest text-on-surface text-[14px] rounded-xl border border-outline-variant/60 outline-none focus:border-vibrant-blue focus:ring-2 focus:ring-vibrant-blue/20 transition-all placeholder:text-outline/70 disabled:opacity-60'
+const inputClass = authField
+
+const PANEL: AuthPanel = {
+  eyebrow: 'For patients',
+  title: 'Healthcare made simple, for everyone.',
+  lead: 'Book verified doctors at partner hospitals and lab tests near you, and keep every prescription and report in one place.',
+  points: ['Doctors at verified partner hospitals', 'Lab tests at partner labs', 'Prescriptions and reports in your account'],
+  art: ART.doctor,
+}
 
 export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: boolean }) {
   const searchParams = useSearchParams()
@@ -233,14 +241,13 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
   const sentTo = sendState?.phone || `${countryCode} ${phone}`
 
   return (
-    <div className="w-full max-w-[480px] flex flex-col items-center">
-      <div className="w-full bg-surface-container-lowest rounded-2xl shadow-[0_12px_40px_-8px_rgba(15,23,42,0.04),0_2px_12px_rgba(0,0,0,0.03)] p-6 sm:p-9 relative z-10">
-        <div className="text-center mb-7">
-          <h1 className="font-display-lg text-[28px] sm:text-[32px] leading-[38px] font-bold text-on-surface tracking-tight mb-2">
-            Welcome to Consult Your Doctor
+    <AuthShell panel={PANEL}>
+        <div className="mb-7">
+          <h1 className="text-[28px] md:text-[32px] leading-[1.15] font-extrabold tracking-[-0.025em]">
+            {isRegister ? 'Create your account' : 'Log in to your account'}
           </h1>
-          <p className="text-on-surface-variant text-[14px] leading-relaxed max-w-[390px] mx-auto">
-            Log in or create an account to book consultations, access lab reports, and manage family health records.
+          <p className="mt-2 text-[15px] leading-[1.6] text-[#5B667A]">
+            Book consultations and lab tests, and keep your prescriptions and reports in one place.
           </p>
         </div>
 
@@ -249,22 +256,21 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
         ) : step === 1 ? (
           <>
             {/* Segmented tab switcher */}
-            <div className="bg-surface-container-low p-1 rounded-full flex mb-7" role="tablist" aria-label="Account">
+            <div className="bg-[#F1F4F9] p-1 rounded-[14px] flex mb-6" role="tablist" aria-label="Account">
               {([
-                { id: 'signin', label: 'Login', icon: LogIn },
-                { id: 'register', label: 'Create Account', icon: UserPlus },
-              ] as const).map(({ id, label, icon: Icon }) => (
+                { id: 'signin', label: 'Login' },
+                { id: 'register', label: 'Create account' },
+              ] as const).map(({ id, label }) => (
                 <button
                   key={id}
                   type="button"
                   role="tab"
                   aria-selected={mode === id}
                   onClick={() => switchMode(id)}
-                  className={`w-1/2 h-11 md:h-auto md:py-2.5 rounded-full font-title-md text-[14px] leading-none font-semibold whitespace-nowrap transition-all duration-200 flex items-center justify-center gap-1.5 ${
-                    mode === id ? 'text-on-primary bg-vibrant-blue shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
+                  className={`w-1/2 h-11 rounded-[10px] text-[14px] font-extrabold whitespace-nowrap transition-colors ${
+                    mode === id ? 'bg-white text-[#1D4ED8] shadow-[0_1px_3px_rgba(11,27,63,0.14)]' : 'text-[#5B667A] hover:text-[#0B1B3F]'
                   }`}
                 >
-                  <Icon className="w-4 h-4 hidden min-[360px]:block" />
                   {label}
                 </button>
               ))}
@@ -278,10 +284,10 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
                     type="button"
                     onClick={handleGoogle}
                     disabled={isGoogleLoading}
-                    className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-full bg-surface-container-lowest hover:bg-surface-container-low text-on-surface text-[14px] font-semibold ring-1 ring-outline-variant/50 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] transition-all active:scale-[0.99] disabled:opacity-60 cursor-pointer"
+                    className="w-full h-12 flex items-center justify-center gap-3 px-4 rounded-xl bg-white hover:bg-[#F7F9FF] text-[#0B1B3F] text-[15px] font-bold border border-[#D6DDE8] transition-colors active:scale-[0.99] disabled:opacity-60 cursor-pointer"
                   >
                     {isGoogleLoading ? (
-                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                      <Loader2 className="w-4 h-4 animate-spin text-[#1D4ED8]" />
                     ) : (
                       <svg aria-hidden="true" className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                         <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -295,24 +301,24 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
                 </div>
 
                 <div className="relative flex items-center justify-center my-6">
-                  <div className="w-full h-px bg-surface-container" />
-                  <span className="px-3 text-[12px] font-label-sm text-on-surface-variant uppercase tracking-wider shrink-0">
+                  <div className="w-full h-px bg-[#E6EBF3]" />
+                  <span className="px-3 text-[12px] font-bold text-[#7A8599] uppercase tracking-[0.08em] shrink-0">
                     {isRegister ? 'or register with mobile number' : 'or log in with mobile number'}
                   </span>
-                  <div className="w-full h-px bg-surface-container" />
+                  <div className="w-full h-px bg-[#E6EBF3]" />
                 </div>
               </>
             )}
 
             {googleError && (
-              <div role="alert" className="mb-4 p-3 bg-error-container/60 text-on-error-container text-[13px] rounded-xl font-semibold">
+              <div role="alert" className={`${authError} mb-4`}>
                 {googleError}
               </div>
             )}
 
             <form action={sendAction} className="space-y-4">
               {showSendError && sendState?.error && (
-                <div role="alert" className="p-3 bg-error-container/60 text-on-error-container text-[13px] rounded-xl font-semibold">
+                <div role="alert" className={authError}>
                   {sendState.error}
                 </div>
               )}
@@ -322,7 +328,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
 
               {isRegister && (
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-label-sm text-label-sm text-indigo-gray-600 pl-1" htmlFor="full-name">
+                  <label className={authLabel} htmlFor="full-name">
                     Full Legal Name
                   </label>
                   <div className="relative flex items-center">
@@ -343,7 +349,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
               )}
 
               <div className="flex flex-col gap-1.5">
-                <label className="font-label-sm text-label-sm text-indigo-gray-600 pl-1" htmlFor="mobile-number">
+                <label className={authLabel} htmlFor="mobile-number">
                   Mobile Number
                 </label>
                 <div className="flex items-center gap-2">
@@ -353,7 +359,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
                       aria-label="Country code"
                       value={countryCode}
                       onChange={(e) => setCountryCode(e.target.value)}
-                      className="appearance-none w-[6.75rem] sm:w-auto truncate bg-surface-container-low hover:bg-surface-container text-on-surface font-title-md text-[13px] font-semibold py-3 pl-3 pr-8 rounded-xl outline-none cursor-pointer transition-colors focus:ring-2 focus:ring-vibrant-blue/40"
+                      className="appearance-none h-12 w-[6.75rem] sm:w-auto truncate bg-[#F6F8FC] text-[#0B1B3F] text-[14px] font-bold pl-3 pr-8 rounded-xl border border-[#D6DDE8] outline-none cursor-pointer transition-shadow focus:border-[#1D4ED8] focus:ring-4 focus:ring-[#A9CBFF]/40"
                     >
                       {countryCodes.map((country) => (
                         <option key={country.code} value={country.dialCode}>
@@ -361,7 +367,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant pointer-events-none" />
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5B667A] pointer-events-none" />
                   </div>
                   <input
                     id="mobile-number"
@@ -377,8 +383,8 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
                     className={`${inputClass} px-3.5 sm:px-4 flex-1 min-w-0`}
                   />
                 </div>
-                <p className="text-[12px] text-on-surface-variant/80 pl-1 mt-1.5 flex items-center gap-1.5 font-medium">
-                  <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
+                <p className="mt-1 flex items-center gap-1.5 text-[12.5px] font-medium text-[#5B667A]">
+                  <ShieldCheck className="w-4 h-4 text-[#1D4ED8] shrink-0" />
                   We&apos;ll send a 6-digit verification code to your WhatsApp / mobile number
                 </p>
               </div>
@@ -386,7 +392,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
               <button
                 type="submit"
                 disabled={isSendPending}
-                className="w-full mt-2 py-3.5 px-6 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary font-title-md text-[15px] font-semibold transition-all duration-200 shadow-[0_4px_14px_rgba(15,23,42,0.12)] hover:shadow-[0_6px_20px_rgba(15,23,42,0.12)] active:scale-[0.99] flex items-center justify-center gap-2 group disabled:opacity-70"
+                className={`${authButton} mt-1`}
               >
                 {isSendPending ? (
                   <>
@@ -394,18 +400,16 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
                   </>
                 ) : (
                   <>
-                    <ShieldCheck className="w-5 h-5 text-on-primary/90 shrink-0" />
-                    <span>{isRegister ? 'Register & Get Verification Code' : 'Send Verification Code'}</span>
-                    <ArrowRight className="w-[18px] h-[18px] transition-transform duration-200 group-hover:translate-x-1 ml-auto" />
+                    {isRegister ? 'Register and get a code' : 'Send verification code'}
+                    <ArrowRight className="w-[18px] h-[18px]" strokeWidth={2.4} />
                   </>
                 )}
               </button>
 
-
-              <p className="text-center text-[11px] text-on-surface-variant/80 pt-1 leading-normal">
+              <p className="text-center text-[12.5px] leading-normal text-[#7A8599]">
                 By continuing, you agree to our{' '}
-                <Link className="text-primary hover:underline font-medium" href="/terms-of-use">Terms &amp; Conditions</Link> &amp;{' '}
-                <Link className="text-primary hover:underline font-medium" href="/privacy-policy">Privacy Policy</Link>.
+                <Link className="font-bold text-[#27324A] hover:underline" href="/terms-of-use">Terms &amp; Conditions</Link> and{' '}
+                <Link className="font-bold text-[#27324A] hover:underline" href="/privacy-policy">Privacy Policy</Link>.
               </p>
             </form>
           </>
@@ -420,24 +424,24 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
             <input type="hidden" name="next" value={next} />
 
             <div className="text-center">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary dark:text-primary-container text-[12px] font-semibold mb-2 border border-primary/20">
-                <ShieldCheck className="w-3.5 h-3.5 text-primary" />
-                Verification Code Sent
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EEF3FF] text-[#1D4ED8] text-[12px] font-extrabold mb-3">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                Verification code sent
               </div>
-              <p className="text-[14px] text-on-surface-variant">
-                Enter the 6-digit verification code sent to your WhatsApp at <span className="font-semibold text-on-surface">{sentTo}</span>
+              <p className="text-[14.5px] text-[#5B667A]">
+                Enter the 6-digit verification code sent to your WhatsApp at <span className="font-bold text-[#0B1B3F]">{sentTo}</span>
               </p>
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="mt-1 inline-flex items-center gap-1 text-[13px] font-semibold text-vibrant-blue hover:text-primary"
+                className="mt-1.5 inline-flex items-center gap-1 text-[13.5px] font-bold text-[#1D4ED8] hover:underline underline-offset-4"
               >
                 <ArrowLeft className="w-3.5 h-3.5" /> Change number
               </button>
             </div>
 
             {(verifyState?.error || (showSendError && sendState?.error)) && (
-              <div role="alert" className="p-3 bg-error-container/60 text-on-error-container text-[13px] rounded-xl font-semibold">
+              <div role="alert" className={authError}>
                 {verifyState?.error || sendState?.error}
               </div>
             )}
@@ -466,7 +470,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
                   onChange={(e) => handleOtpChange(index, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(index, e)}
                   onPaste={handleOtpPaste}
-                  className="w-11 h-12 sm:w-12 sm:h-14 text-center text-xl font-bold text-on-surface rounded-xl border border-outline-variant/60 outline-none focus:border-vibrant-blue focus:ring-2 focus:ring-vibrant-blue/20 transition-all"
+                  className="w-11 h-12 sm:w-12 sm:h-14 text-center text-xl font-extrabold text-[#0B1B3F] rounded-xl border border-[#D6DDE8] outline-none transition-shadow focus:border-[#1D4ED8] focus:ring-4 focus:ring-[#A9CBFF]/40"
                 />
               ))}
             </div>
@@ -474,7 +478,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
             <button
               type="submit"
               disabled={isVerifyPending || otp.join('').length < 6}
-              className="w-full py-3.5 px-6 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary font-title-md text-[15px] font-semibold transition-all duration-200 shadow-[0_4px_14px_rgba(15,23,42,0.12)] flex items-center justify-center gap-2 disabled:opacity-60 disabled:shadow-none"
+              className={authButton}
             >
               {isVerifyPending ? (
                 <>
@@ -483,16 +487,16 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
               ) : isRegister ? 'Verify & Create Account' : 'Verify & Login'}
             </button>
 
-            <p className="text-center text-[13px] text-on-surface-variant">
+            <p className="text-center text-[14px] text-[#5B667A]">
               Didn&apos;t get a code?{' '}
               {resendIn > 0 ? (
-                <span className="font-semibold text-on-surface">Resend in {resendIn}s</span>
+                <span className="font-bold text-[#0B1B3F]">Resend in {resendIn}s</span>
               ) : (
                 <button
                   type="button"
                   onClick={handleResend}
                   disabled={isSendPending}
-                  className="font-semibold text-vibrant-blue hover:text-primary underline underline-offset-2 disabled:opacity-60"
+                  className={`${authLink} disabled:opacity-60`}
                 >
                   {isSendPending ? 'Sending...' : 'Resend Code'}
                 </button>
@@ -501,34 +505,22 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
           </form>
         )}
 
-        {/* Contextual switch prompt */}
-        <div className="mt-6 -mx-6 -mb-6 sm:-mx-9 sm:-mb-9 px-6 py-4 bg-surface-container-low/50 rounded-b-2xl text-center">
-          <p className="text-[13px] text-on-surface-variant">
-            {isRegister ? 'Already have an account?' : 'New to Consult Your Doctor?'}
-            <button
-              type="button"
-              onClick={() => switchMode(isRegister ? 'signin' : 'register')}
-              className="font-title-md text-[13px] text-vibrant-blue hover:text-primary font-semibold ml-1 underline underline-offset-2"
-            >
+        {/* Switch between logging in and creating an account, and the way to the doctors' portal */}
+        <div className="mt-7 pt-6 border-t border-[#EEF2F7] space-y-2 text-[14px] text-[#5B667A]">
+          <p>
+            {isRegister ? 'Already have an account?' : 'New to Consult your Doctor?'}
+            <button type="button" onClick={() => switchMode(isRegister ? 'signin' : 'register')} className={`${authLink} ml-1`}>
               {isRegister ? 'Login' : 'Create an account'}
             </button>
           </p>
+          <p>
+            Are you a doctor?{' '}
+            <Link href="/login/doctor" className={authLink}>
+              Doctor login
+            </Link>
+          </p>
         </div>
-      </div>
-
-      {/* Clinician portal link */}
-      <div className="w-full mt-6 flex items-center gap-3 rounded-2xl bg-surface-container-lowest/80 px-5 py-4 shadow-sm">
-        <span className="flex items-center justify-center w-9 h-9 rounded-full bg-surface-container text-primary shrink-0">
-          <Stethoscope className="w-[18px] h-[18px]" />
-        </span>
-        <p className="text-[13px] text-on-surface-variant leading-snug">
-          <span className="font-semibold text-on-surface">Are you a doctor?</span>{' '}
-          <Link href="/login/doctor" className="text-vibrant-blue font-semibold hover:underline">Clinician login</Link>
-          {' · '}
-          <Link href="/signup/doctor" className="text-vibrant-blue font-semibold hover:underline">Apply to join</Link>
-        </p>
-      </div>
-    </div>
+    </AuthShell>
   )
 }
 
@@ -537,21 +529,21 @@ function PatientIdSignIn({ next, onBack }: { next: string; onBack: () => void })
   return (
     <form action={action} className="space-y-4">
       <input type="hidden" name="next" value={next} />
-      <p className="text-[14px] text-on-surface-variant text-center">Use the Patient ID and password your diagnostic centre gave you.</p>
+      <p className="text-[14.5px] text-[#5B667A]">Use the Patient ID and password your diagnostic centre gave you.</p>
       {state?.error && (
-        <div role="alert" className="p-3 bg-error-container/60 text-on-error-container text-[13px] rounded-xl font-semibold">
+        <div role="alert" className={authError}>
           {state.error}
         </div>
       )}
       <label className="block">
-        <span className="block text-[13px] font-semibold text-on-surface mb-1.5">Patient ID</span>
+        <span className={`block mb-2 ${authLabel}`}>Patient ID</span>
         <span className="relative block">
           <IdCard className="w-[18px] h-[18px] text-outline absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input name="patientId" required autoComplete="username" placeholder="PT482193" className={`${inputClass} pl-11 pr-4 uppercase font-mono`} />
         </span>
       </label>
       <label className="block">
-        <span className="block text-[13px] font-semibold text-on-surface mb-1.5">Password</span>
+        <span className={`block mb-2 ${authLabel}`}>Password</span>
         <span className="relative block">
           <KeyRound className="w-[18px] h-[18px] text-outline absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input name="password" type="password" required autoComplete="current-password" className={`${inputClass} pl-11 pr-4`} />
@@ -560,11 +552,11 @@ function PatientIdSignIn({ next, onBack }: { next: string; onBack: () => void })
       <button
         type="submit"
         disabled={pending}
-        className="w-full py-3.5 px-6 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary font-title-md text-[15px] font-semibold transition-all duration-200 shadow-[0_4px_14px_rgba(15,23,42,0.12)] flex items-center justify-center gap-2 disabled:opacity-60"
+        className={authButton}
       >
         {pending ? <Loader2 className="w-[18px] h-[18px] animate-spin" /> : <LogIn className="w-[18px] h-[18px]" />} Login
       </button>
-      <button type="button" onClick={onBack} className="w-full inline-flex items-center justify-center gap-1 text-[13px] font-semibold text-vibrant-blue hover:text-primary">
+      <button type="button" onClick={onBack} className="w-full inline-flex items-center justify-center gap-1 text-[13.5px] font-bold text-[#1D4ED8] hover:underline underline-offset-4">
         <ArrowLeft className="w-3.5 h-3.5" /> Use my mobile number instead
       </button>
     </form>

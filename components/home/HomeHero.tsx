@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useRef, useState, type FormEvent } from "react";
+import { useCallback, useRef, useState, type FormEvent, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Bell, CalendarClock, ChevronDown, ChevronRight, LayoutDashboard, MapPin, Search, UserRound } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Bell, CalendarCheck, CalendarClock, ChevronDown, ChevronRight, FileText, LayoutDashboard, MapPin, NotebookPen, Search, UserRound, type LucideIcon } from "lucide-react";
 import { GetTheApp } from "@/components/GetTheApp";
 import { initials } from "@/components/patient/format";
 import { locationCity, type usePatientLocation } from "@/components/patient/location";
@@ -41,7 +41,9 @@ type Service = {
   /** Shorter wording for the half-width phone cards. */
   kindShort: string;
   tag: string;
-  word: string;
+  tagIcon: LucideIcon;
+  /** One line on how it works, true to lib/assistant/knowledge.ts. */
+  blurb: string;
   image: string;
   alt: string;
 };
@@ -73,9 +75,39 @@ export function HomeHero({ account, place, cities, visitLine, onLocation, onMenu
   };
 
   const services: Service[] = [
-    { href: "/hospitals", title: "Hospital Booking", kind: "OPD at partner hospitals", kindShort: "OPD at partner hospitals", tag: "Confirmed time slots", word: "Seamless", image: "/images/home/hospital-building.webp", alt: "Hospital building" },
-    { href: "/diagnostics", title: "Diagnostics", kind: "Verified partner labs", kindShort: "Verified labs", tag: "Digital reports", word: "Precise", image: "/images/home/lab-microscope.webp", alt: "Microscope and sample tubes" },
-    { href: findHref, title: "Consult a Doctor", kind: "Verified specialists near you", kindShort: "Verified specialists", tag: "E-prescriptions", word: "Expert", image: "/images/home/doctor.webp", alt: "Doctor in a white coat with a stethoscope" },
+    {
+      href: "/hospitals",
+      title: "Hospital booking",
+      kind: "OPD at partner hospitals",
+      kindShort: "OPD at partner hospitals",
+      tag: "Confirmed time slots",
+      tagIcon: CalendarCheck,
+      blurb: "Pick an open slot at a partner hospital and pay only the booking fee online.",
+      image: "/images/home/hospital-building.webp",
+      alt: "Hospital building",
+    },
+    {
+      href: "/diagnostics",
+      title: "Diagnostics",
+      kind: "Verified partner labs",
+      kindShort: "Verified labs",
+      tag: "Digital reports",
+      tagIcon: FileText,
+      blurb: "Book tests by day at a lab near you. Your report arrives in your account.",
+      image: "/images/home/lab-microscope.webp",
+      alt: "Microscope and sample tubes",
+    },
+    {
+      href: findHref,
+      title: "Consult a doctor",
+      kind: "Verified specialists near you",
+      kindShort: "Verified specialists",
+      tag: "E-prescriptions",
+      tagIcon: NotebookPen,
+      blurb: "Search by speciality and city, then see the doctor at their hospital.",
+      image: "/images/home/doctor.webp",
+      alt: "Doctor in a white coat with a stethoscope",
+    },
   ];
 
   const searchLabel = "Search doctors, hospitals or specialities";
@@ -210,10 +242,10 @@ export function HomeHero({ account, place, cities, visitLine, onLocation, onMenu
           </form>
         </div>
 
-        <div className="max-w-[1100px] mx-auto mt-10 px-6 grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-8">
-          <DesktopServiceCard service={services[0]} image="right-3 bottom-4 w-[255px] h-auto" />
-          <DesktopServiceCard service={services[1]} image="right-4 bottom-4 h-[170px] w-auto" />
-          <DesktopServiceCard service={services[2]} image="right-6 bottom-0 h-[196px] w-auto" />
+        <div className="max-w-[1100px] mx-auto mt-11 px-6 grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-6 lg:gap-7">
+          <DesktopServiceCard service={services[0]} image="mb-3 w-[90%] max-w-[300px] h-auto" />
+          <DesktopServiceCard service={services[1]} image="mb-1.5 h-[160px] w-auto" />
+          <DesktopServiceCard service={services[2]} image="h-[172px] w-auto" floor={false} />
         </div>
       </section>
     </>
@@ -285,44 +317,74 @@ export function DesktopAccount({ account, hasVisit }: { account: HomeAccount; ha
   );
 }
 
+/** The picture on a pale blue panel, lit from above with a soft shadow under it, like a product shot. */
+function ServiceStage({ image, alt, imageClass, floor = true, className, children }: { image: string; alt: string; imageClass: string; floor?: boolean; className: string; children?: ReactNode }) {
+  return (
+    <div className={`relative overflow-hidden flex items-end justify-center bg-[linear-gradient(180deg,#F6F9FF_0%,#E1EAFE_100%)] shadow-[inset_0_0_0_1px_rgba(29,78,216,0.07)] ${className}`}>
+      <span aria-hidden className="absolute inset-0 bg-[radial-gradient(90%_70%_at_50%_0%,#FFFFFF_0%,rgba(255,255,255,0)_70%)]" />
+      {floor && <span aria-hidden className="absolute bottom-2 left-1/2 -translate-x-1/2 w-[62%] h-4 rounded-[50%] bg-[#0B1B3F]/20 blur-[10px]" />}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={image} alt={alt} className={`relative origin-bottom transition-transform duration-500 ease-out group-hover:scale-[1.04] ${imageClass}`} />
+      {children}
+    </div>
+  );
+}
+
 function PhoneServiceCard({ service: s, wide = false }: { service: Service; wide?: boolean }) {
+  const TagIcon = s.tagIcon;
+  const svg = s.image.endsWith(".svg");
   return (
     <Link
       href={s.href}
-      className={`relative overflow-hidden flex flex-col gap-1.5 box-border bg-white rounded-[22px] text-[#0B1B3F] shadow-[0_14px_28px_rgba(11,27,63,0.2)] active:scale-[0.99] transition-transform ${
-        wide ? "min-h-[168px] px-5 py-[22px]" : "min-h-[230px] px-4 py-5"
-      }`}
+      className="flex flex-col p-1.5 bg-white rounded-[20px] text-[#0B1B3F] shadow-[0_1px_2px_rgba(11,27,63,0.08),0_16px_32px_-14px_rgba(7,22,72,0.6)] active:scale-[0.99] transition-transform"
     >
-      <h2 className={`relative z-[1] font-extrabold uppercase tracking-[-0.02em] leading-[1.05] ${wide ? "text-[22px]" : "text-[19px]"}`}>{s.title}</h2>
-      <p className={`relative z-[1] font-bold uppercase text-[#4A5878] ${wide ? "text-[13px]" : "text-[11px]"}`}>{wide ? s.kind : s.kindShort}</p>
-      <span className={`relative z-[1] self-start mt-1.5 rounded-lg bg-[#EAF1FF] text-[#1D4ED8] font-extrabold uppercase ${wide ? "px-2.5 py-1.5 text-[12px]" : "px-[9px] py-1.5 text-[11px]"}`}>
-        {s.tag}
-      </span>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={s.image}
+      <ServiceStage
+        image={s.image}
         alt={s.alt}
-        className={`absolute h-auto ${wide ? "-right-3.5 bottom-1.5 w-[175px]" : s.image.endsWith(".svg") ? "right-1 bottom-1.5 w-[110px]" : "-right-1.5 bottom-1 w-[128px]"}`}
-      />
+        floor={!svg}
+        className={`rounded-[15px] ${wide ? "h-[124px]" : "h-[104px]"}`}
+        imageClass={wide ? "mb-2.5 w-[68%] max-w-[240px] h-auto" : svg ? "mb-1 h-[80px] w-auto" : "mb-1.5 h-[84px] w-auto"}
+      >
+        <span aria-hidden className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white text-[#1D4ED8] flex items-center justify-center shadow-[0_1px_3px_rgba(11,27,63,0.12)]">
+          <ArrowUpRight className="w-4 h-4" strokeWidth={2.4} />
+        </span>
+      </ServiceStage>
+      <div className={wide ? "px-3 pt-3 pb-2.5" : "px-2.5 pt-3 pb-2"}>
+        <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] leading-[1.35] text-[#1D4ED8]">{wide ? s.kind : s.kindShort}</p>
+        <h2 className={`mt-1 font-bold leading-[1.15] tracking-[-0.02em] ${wide ? "text-[19px]" : "text-[16px]"}`}>{s.title}</h2>
+        <p className="mt-2 flex items-center gap-1.5 text-[12.5px] font-medium text-[#4A5878]">
+          <TagIcon className="w-3.5 h-3.5 shrink-0 text-[#1D4ED8]" strokeWidth={2.2} />
+          {s.tag}
+        </p>
+      </div>
     </Link>
   );
 }
 
-function DesktopServiceCard({ service: s, image }: { service: Service; image: string }) {
+function DesktopServiceCard({ service: s, image, floor = true }: { service: Service; image: string; floor?: boolean }) {
+  const TagIcon = s.tagIcon;
   return (
     <Link
       href={s.href}
-      className="group relative overflow-hidden flex flex-col gap-2.5 min-h-[320px] box-border p-7 bg-white rounded-[28px] text-[#0B1B3F] shadow-[0_20px_40px_rgba(11,27,63,0.22)] hover:-translate-y-1 hover:shadow-[0_26px_48px_rgba(11,27,63,0.28)] transition-all"
+      className="group flex flex-col p-2 bg-white rounded-[24px] text-[#0B1B3F] shadow-[0_1px_2px_rgba(11,27,63,0.08),0_22px_44px_-16px_rgba(7,22,72,0.6)] transition-[translate,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_1px_2px_rgba(11,27,63,0.08),0_32px_56px_-18px_rgba(7,22,72,0.7)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#A9CBFF]"
     >
-      <h2 className="text-[28px] font-extrabold uppercase tracking-[-0.02em] leading-[1.05]">{s.title}</h2>
-      <p className="text-base font-bold uppercase text-[#4A5878] tracking-[0.02em]">{s.kind}</p>
-      <span className="self-start px-3 py-[7px] rounded-[10px] bg-[#EAF1FF] text-[#1D4ED8] text-sm font-extrabold uppercase">{s.tag}</span>
-      <p className="relative z-[1] mt-1.5 max-w-[46%] text-lg font-bold leading-[1.4] text-[#4A5878]">{s.word}</p>
-      <span aria-hidden className="relative z-[1] mt-auto w-[52px] h-[52px] rounded-full bg-[#1D4ED8] text-white flex items-center justify-center group-hover:bg-[#1E40AF] transition-colors">
-        <ArrowRight className="w-6 h-6" strokeWidth={2.4} />
-      </span>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={s.image} alt={s.alt} className={`absolute ${image}`} />
+      <ServiceStage image={s.image} alt={s.alt} imageClass={image} floor={floor} className="h-[184px] rounded-[18px]" />
+      <div className="flex flex-1 flex-col px-4 pt-5 pb-2">
+        <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-[#1D4ED8]">{s.kind}</p>
+        <h2 className="mt-1.5 text-[24px] font-bold leading-[1.15] tracking-[-0.02em]">{s.title}</h2>
+        <p className="mt-2 text-[15px] leading-[1.55] text-[#4A5878]">{s.blurb}</p>
+        <div className="mt-auto pt-5">
+          <div className="flex items-center justify-between gap-3 pt-3.5 border-t border-[#E8EDF6]">
+            <span className="flex items-center gap-2 text-[14px] font-medium text-[#334155]">
+              <TagIcon className="w-[18px] h-[18px] text-[#1D4ED8]" strokeWidth={2} />
+              {s.tag}
+            </span>
+            <span aria-hidden className="w-10 h-10 rounded-full bg-[#EEF3FF] text-[#1D4ED8] flex items-center justify-center transition-colors duration-300 group-hover:bg-[#1D4ED8] group-hover:text-white">
+              <ArrowRight className="w-[18px] h-[18px] transition-transform duration-300 group-hover:translate-x-0.5" strokeWidth={2.4} />
+            </span>
+          </div>
+        </div>
+      </div>
     </Link>
   );
 }

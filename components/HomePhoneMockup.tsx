@@ -1,60 +1,27 @@
+import type { ReactNode } from "react";
 import Image from "next/image";
-import type { ComponentType } from "react";
-import { formatINR } from "@/components/patient/format";
-import {
-  Baby,
-  Bot,
-  CalendarDays,
-  ChevronRight,
-  Ellipsis,
-  FileText,
-  Heart,
-  Menu,
-  Search,
-  SlidersHorizontal,
-  Star,
-  Stethoscope,
-  UserRound,
-} from "lucide-react";
+import { ArrowRight, Building2, CalendarDays, ChevronDown, ChevronRight, MapPin, Menu, Search, Settings, UserRound } from "lucide-react";
+import { RemoteImage } from "@/components/RemoteImage";
+import { placeOf } from "@/components/patient/HospitalCards";
+import { SPECIALITIES, specialityIcon } from "@/components/home/specialities";
+import type { HomeHospital } from "@/components/home/types";
+import { VerifiedBadge } from "@/components/home/ui";
+import { formatCityName } from "@/lib/geo";
 
-type Icon = ComponentType<{ className?: string; strokeWidth?: number }>;
-
-// Sample screen content for the illustration (the real app lists live doctors and open slots). Like the real cards, the
-// only price shown is the booking fee: the consultation fee is on the doctor's profile and paid at the hospital counter.
-const specialties: { lines: string[]; icon: Icon; active?: boolean; more?: boolean }[] = [
-  { lines: ["All"], icon: Stethoscope, active: true },
-  { lines: ["General", "Physician"], icon: UserRound },
-  { lines: ["Dermatology"], icon: SkinIcon },
-  { lines: ["Pediatrics"], icon: Baby },
-  { lines: ["Cardiology"], icon: Heart },
-  { lines: ["More"], icon: Ellipsis, more: true },
-];
-
-const doctors = [
-  { name: "Dr. Ananya Mehta", specialty: "General Physician", degree: "MBBS, MD", years: 12, rating: "4.9", reviews: "8.4K", photo: "/images/avatars/doctor-1.webp" },
-  { name: "Dr. Rohit Sharma", specialty: "Dermatologist", degree: "MBBS, MD", years: 10, rating: "4.8", reviews: "6.2K", photo: "/images/avatars/doctor-4.webp" },
-  { name: "Dr. Sneha Kapoor", specialty: "Pediatrician", degree: "MBBS, MD", years: 11, rating: "4.9", reviews: "7.1K", photo: "/images/avatars/doctor-2.webp" },
-  { name: "Dr. Arjun Iyer", specialty: "Cardiologist", degree: "MBBS, DM", years: 14, rating: "4.9", reviews: "5.8K", photo: "/images/avatars/doctor-3.webp" },
-];
-
-const tabs: { label: string; icon: Icon; active?: boolean }[] = [
-  { label: "Home", icon: HomeIcon, active: true },
-  { label: "Appointments", icon: CalendarDays },
-  { label: "Health Records", icon: FileText },
-  { label: "Zebrold AI", icon: Bot },
-  { label: "Profile", icon: UserRound },
-];
+// The tiles after All, as on the patient app's home.
+const TILES = ["general-physician", "cardiology", "orthopaedics", "paediatrics", "gynaecology"].flatMap((slug) => SPECIALITIES.filter((s) => s.slug === slug));
 
 /**
- * Decorative preview of the patient mobile app on the marketing home page, drawn as a real-proportion phone rather
- * than a picture so it stays sharp at any size. The phone is designed 430px wide with 1em = 16px; its font size is
- * tied to the width it is given (container query units), so every em inside scales with it.
+ * Decorative preview of the patient app's home on the marketing home page, drawn as a real-proportion phone rather
+ * than a picture so it stays sharp at any size. The hospitals are real partners (photos first), so the preview never
+ * shows a hospital that isn't on the site. The phone is designed 430px wide with 1em = 16px; its font size is tied to
+ * the width it is given (container query units), so every em inside scales with it.
  */
-export function HomePhoneMockup({ bookingFee, size = "max-w-[220px] md:max-w-[234px] lg:max-w-[248px]" }: { bookingFee: number; size?: string }) {
+export function HomePhoneMockup({ hospitals, size = "max-w-[220px] md:max-w-[234px] lg:max-w-[248px]" }: { hospitals: HomeHospital[]; size?: string }) {
   return (
     <div
       role="img"
-      aria-label="Preview of the Consult your Doctor mobile app: specialties and top doctors with their fees"
+      aria-label="Preview of the Consult your Doctor mobile app: specialities, your visits and partner hospitals near you"
       className={`@container relative w-full ${size} select-none pointer-events-none`}
     >
       <div style={{ fontSize: "calc(100cqw / 26.875)" }} className="relative w-full h-[55.625em]">
@@ -67,7 +34,7 @@ export function HomePhoneMockup({ bookingFee, size = "max-w-[220px] md:max-w-[23
         {/* Titanium band, then the black bezel */}
         <div className="absolute inset-0 rounded-[4.25em] p-[0.1875em] bg-[linear-gradient(145deg,#71757d,#2a2c30_30%,#50545b_58%,#1d1f22)] shadow-[0_2.25em_4em_-1.25em_rgba(15,23,42,0.45),0_0.75em_1.5em_-0.75em_rgba(15,23,42,0.25)]">
           <div className="w-full h-full rounded-[4.0625em] bg-[#0a0a0b] p-[0.5625em]">
-            <Screen bookingFee={bookingFee} />
+            <Screen hospitals={hospitals} />
           </div>
         </div>
       </div>
@@ -75,161 +42,187 @@ export function HomePhoneMockup({ bookingFee, size = "max-w-[220px] md:max-w-[23
   );
 }
 
-function Screen({ bookingFee }: { bookingFee: number }) {
+function Screen({ hospitals }: { hospitals: HomeHospital[] }) {
+  // The city with the most partner hospitals, and only its hospitals, so "Nearest to" stays true.
+  const counts = new Map<string, number>();
+  for (const h of hospitals) if (h.city) counts.set(formatCityName(h.city), (counts.get(formatCityName(h.city)) ?? 0) + 1);
+  const city = [...counts].reduce<[string, number] | null>((best, c) => (!best || c[1] > best[1] ? c : best), null)?.[0] ?? null;
+  const shown = (city ? hospitals.filter((h) => h.city && formatCityName(h.city) === city) : hospitals).slice(0, 4);
+
   return (
-    <div className="relative w-full h-full overflow-hidden rounded-[3.5em] bg-[linear-gradient(180deg,#ffffff_0%,#f7f9fd_45%,#f4f7fc_100%)] text-indigo-gray-900">
+    <div className="relative w-full h-full overflow-hidden rounded-[3.5em] bg-[#F6F8FC] text-[#0B1B3F]">
       {/* Dynamic Island */}
       <span className="absolute z-20 top-[0.6875em] left-1/2 -translate-x-1/2 w-[7.875em] h-[2.3125em] rounded-full bg-black">
         <span className="absolute right-[0.875em] top-1/2 -translate-y-1/2 w-[0.75em] h-[0.75em] rounded-full bg-[radial-gradient(circle_at_35%_35%,#2c3a5c,#0b0f1a_70%)]" />
       </span>
 
-      {/* Status bar */}
-      <div className="relative z-10 h-[3.375em] pt-[0.3125em] px-[2em] flex items-center justify-between">
-        <span className="font-sans font-semibold text-[1.0625em] tracking-tight">9:41</span>
-        <span className="flex items-center gap-[0.3125em]">
-          <SignalIcon className="w-[1.125em] h-[0.75em]" />
-          <WifiIcon className="w-[1em] h-[0.75em]" />
-          <BatteryIcon className="w-[1.6875em] h-[0.75em]" />
-        </span>
+      {/* The blue header: brand and buttons, the greeting, the location and search */}
+      <div className="bg-[#1D4ED8] text-white rounded-b-[1.5em] pb-[0.875em]">
+        <div className="h-[2.875em] pt-[0.3125em] px-[2em] flex items-center justify-between">
+          <span className="font-sans font-semibold text-[1.0625em] tracking-tight">9:41</span>
+          <span className="flex items-center gap-[0.3125em]">
+            <SignalIcon className="w-[1.125em] h-[0.75em]" />
+            <WifiIcon className="w-[1em] h-[0.75em]" />
+            <BatteryIcon className="w-[1.6875em] h-[0.75em]" />
+          </span>
+        </div>
+
+        <div className="px-[1em]">
+          <div className="h-[2.625em] flex items-center justify-between gap-[0.5em]">
+            <div className="flex items-center gap-[0.5em] min-w-0">
+              <Image src="/logo-icon-white.png" alt="" width={96} height={96} sizes="48px" className="w-[2.5em] h-[2.5em] object-contain shrink-0" />
+              <div className="min-w-0 leading-tight">
+                <p className="font-extrabold text-[1.125em] tracking-tight whitespace-nowrap">Consult your Doctor</p>
+                <p className="text-[0.6875em] text-[#DCE7FF] whitespace-nowrap">Your health, our priority</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-[0.4375em] shrink-0">
+              <span className="w-[2.25em] h-[2.25em] rounded-full bg-white text-[#1D4ED8] flex items-center justify-center">
+                <UserRound className="w-[1.125em] h-[1.125em]" strokeWidth={2} />
+              </span>
+              <span className="w-[2.25em] h-[2.25em] rounded-full shadow-[inset_0_0_0_0.0625em_rgba(255,255,255,0.55)] flex items-center justify-center">
+                <Menu className="w-[1.125em] h-[1.125em]" strokeWidth={2} />
+              </span>
+            </div>
+          </div>
+
+          <p className="mt-[0.5em] text-[0.8125em] leading-[1.25] text-[#DCE7FF]">Good afternoon,</p>
+          <p className="text-[1.375em] leading-[1.1] font-extrabold tracking-[-0.02em]">Patient</p>
+          <span className="mt-[0.375em] inline-flex items-center gap-[0.375em] h-[1.625em] px-[0.6875em] rounded-full bg-white/[0.08] shadow-[inset_0_0_0_0.0625em_rgba(255,255,255,0.5)]">
+            <MapPin className="w-[0.875em] h-[0.875em]" strokeWidth={2.2} />
+            <span className="text-[0.75em] font-bold">{city ?? "Your city"}</span>
+            <ChevronDown className="w-[0.75em] h-[0.75em]" strokeWidth={2.6} />
+          </span>
+          <div className="mt-[0.5em] h-[2.5em] rounded-[0.75em] bg-white flex items-center gap-[0.5em] pl-[0.75em] pr-[0.25em] shadow-[0_0.5em_1em_-0.5em_rgba(4,18,66,0.5)]">
+            <Search className="w-[1em] h-[1em] text-[#7A8599] shrink-0" strokeWidth={2.2} />
+            <span className="flex-1 min-w-0 truncate text-[0.75em] text-[#7A8599]">Search doctors, hospitals or labs</span>
+            <span className="w-[2em] h-[2em] rounded-[0.5em] bg-[#1D4ED8] text-white flex items-center justify-center shrink-0">
+              <Search className="w-[1em] h-[1em]" strokeWidth={2.4} />
+            </span>
+          </div>
+        </div>
       </div>
 
       <div className="px-[1em]">
-        {/* App header */}
-        <div className="mt-[0.5em] flex items-center justify-between gap-[0.5em]">
-          <div className="flex items-center gap-[0.5em] min-w-0">
-            <Image src="/logo-icon.png" alt="" width={96} height={96} sizes="48px" className="w-[3em] h-[3em] object-contain shrink-0" />
-            <div className="min-w-0 leading-tight">
-              <p className="font-title-md font-extrabold text-[1.1875em] tracking-tight whitespace-nowrap">Consult your Doctor</p>
-              <p className="mt-[0.125em] text-[0.8125em] text-slate-500">Good morning</p>
-            </div>
-          </div>
-          <div className="flex items-center shrink-0">
-            <span className="w-[2.5em] h-[2.5em] rounded-full bg-[#eef3fb] flex items-center justify-center">
-              <Menu className="w-[1.25em] h-[1.25em] text-indigo-gray-900" strokeWidth={2} />
-            </span>
-          </div>
-        </div>
-
-        {/* Search */}
-        <div className="mt-[0.875em] h-[2.875em] rounded-full bg-[#f1f5fb] border border-[#e3e9f3] flex items-center gap-[0.625em] pl-[1em] pr-[0.375em]">
-          <Search className="w-[1.1875em] h-[1.1875em] text-slate-500 shrink-0" strokeWidth={2} />
-          <span className="flex-1 min-w-0 truncate text-[0.8125em] text-slate-400">Search doctors, specialties or conditions</span>
-          <span className="w-[2.125em] h-[2.125em] rounded-full bg-white shadow-[0_0.0625em_0.25em_rgba(15,23,42,0.08)] flex items-center justify-center shrink-0">
-            <SlidersHorizontal className="w-[1em] h-[1em] text-indigo-gray-900" strokeWidth={2} />
-          </span>
-        </div>
-
-        {/* Specialties */}
-        <div className="mt-[1em] flex justify-between">
-          {specialties.map(({ lines, icon: Glyph, active, more }) => (
-            <div key={lines.join(" ")} className="w-[3.375em] flex flex-col items-center">
-              <span
-                className={`w-[3.375em] h-[3.375em] rounded-[1em] flex items-center justify-center ${
-                  active
-                    ? "bg-vibrant-blue text-white shadow-[0_0.375em_0.75em_-0.25em_rgba(0,102,255,0.55)]"
-                    : more
-                      ? "bg-white border border-[#e3e9f3] text-vibrant-blue"
-                      : "bg-[#eef4ff] border border-[#e1eafc] text-vibrant-blue"
-                }`}
-              >
-                <Glyph className="w-[1.5em] h-[1.5em]" strokeWidth={1.9} />
-              </span>
-              <span className={`mt-[0.4375em] text-center whitespace-nowrap leading-[1.25] text-[0.6875em] ${active ? "text-vibrant-blue font-semibold" : "text-slate-700 font-medium"}`}>
-                {lines.map((line) => (
-                  <span key={line} className="block">{line}</span>
-                ))}
-              </span>
-            </div>
+        <Heading title="Specialities" link="See all" className="mt-[1em]" />
+        <div className="mt-[0.5em] flex justify-between">
+          <Tile label={["All"]} active>
+            <Image src="/logo-icon-white.png" alt="" width={96} height={96} sizes="32px" className="w-[1.75em] h-[1.75em] object-contain" />
+          </Tile>
+          {TILES.map((s) => (
+            <Tile key={s.slug} label={s.slug === "general-physician" ? ["General", "Physician"] : [s.name]}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={specialityIcon(s)} alt="" className="w-[2.125em] h-[2.125em]" />
+            </Tile>
           ))}
         </div>
 
-        {/* Top doctors */}
-        <div className="mt-[1.125em] flex items-center justify-between">
-          <p className="font-title-md font-extrabold text-[1.3125em] tracking-tight">Top Doctors for You</p>
-          <span className="flex items-center gap-[0.125em] text-vibrant-blue">
-            <span className="text-[0.8125em] font-semibold">View All</span>
-            <ChevronRight className="w-[1em] h-[1em]" strokeWidth={2.2} />
+        <div className="mt-[0.5em] flex items-center gap-[0.625em] p-[0.5em] rounded-[0.875em] bg-white shadow-[0_0_0_0.0625em_#E6EBF3]">
+          <span className="w-[2.5em] h-[2.5em] rounded-[0.625em] shadow-[inset_0_0_0_0.0625em_#E1E7F0] flex items-center justify-center text-[#1D4ED8] shrink-0">
+            <CalendarDays className="w-[1.25em] h-[1.25em]" strokeWidth={2} />
           </span>
+          <span className="flex-1 min-w-0 leading-tight">
+            <span className="block text-[0.875em] font-extrabold">No visits booked</span>
+            <span className="block mt-[0.125em] text-[0.6875em] text-[#5B667A] truncate">Find a doctor near you and pick a time</span>
+          </span>
+          <ChevronRight className="w-[1em] h-[1em] text-[#9AA4B5] shrink-0" strokeWidth={2.4} />
         </div>
 
-        <div className="mt-[0.75em] flex flex-col gap-[0.625em]">
-          {doctors.map((d) => (
-            <div
-              key={d.name}
-              className="flex items-center gap-[0.625em] p-[0.625em] rounded-[1.125em] bg-white border border-[#edf1f7] shadow-[0_0.125em_0.625em_rgba(15,23,42,0.05)]"
-            >
-              <span className="relative w-[4.75em] h-[4.75em] shrink-0">
-                <span className="absolute inset-0 rounded-full overflow-hidden bg-slate-100">
-                  <Image src={d.photo} alt="" fill sizes="80px" className="object-cover" />
-                </span>
-                <span className="absolute right-[0.1875em] bottom-[0.25em] w-[0.875em] h-[0.875em] rounded-full bg-emerald-500 shadow-[0_0_0_0.15625em_#ffffff]" />
-              </span>
-
-              <div className="flex-1 min-w-0 leading-tight">
-                <p className="font-title-md font-bold text-[1em] truncate">{d.name}</p>
-                <p className="mt-[0.1875em] text-[0.78125em] text-slate-500 truncate">{d.specialty}</p>
-                <p className="mt-[0.25em] text-[0.625em] tracking-[-0.025em] text-slate-500 truncate">
-                  {d.degree} • {d.years}+ Years Experience
-                </p>
-                <div className="mt-[0.375em] flex items-center gap-[0.375em]">
-                  <span className="inline-flex items-center gap-[0.1875em] px-[0.375em] py-[0.125em] rounded-[0.375em] bg-[#e8f8ef] text-emerald-700">
-                    <Star className="w-[0.75em] h-[0.75em] fill-current" strokeWidth={0} />
-                    <span className="text-[0.75em] font-bold">{d.rating}</span>
-                  </span>
-                  <span className="text-[0.6875em] text-slate-500 whitespace-nowrap">({d.reviews} Reviews)</span>
-                </div>
-              </div>
-
-              <div className="flex flex-col items-end gap-[0.5em] shrink-0">
-                <span className="flex flex-col items-end leading-none">
-                  <span className="font-title-md font-extrabold text-[1.375em] tracking-tight text-vibrant-blue">{formatINR(bookingFee)}</span>
-                  <span className="mt-[0.125em] text-[0.5625em] font-medium text-slate-500">booking fee</span>
-                </span>
-                <span className="h-[2.25em] px-[0.75em] rounded-full bg-vibrant-blue text-white flex items-center shadow-[0_0.25em_0.5em_-0.25em_rgba(0,102,255,0.6)]">
-                  <span className="text-[0.71875em] font-semibold whitespace-nowrap">Consult Now</span>
-                </span>
-              </div>
+        {shown.length > 0 && (
+          <>
+            <Heading title="Top hospitals near you" sub={city ? `Nearest to ${city}` : undefined} link="View all" className="mt-[0.875em]" />
+            <div className="mt-[0.5em] grid grid-cols-2 gap-[0.625em]">
+              {shown.map((h) => (
+                <HospitalTile key={h.id} h={h} />
+              ))}
             </div>
-          ))}
-        </div>
+          </>
+        )}
       </div>
 
-      {/* Tab bar and home indicator */}
-      <div className="absolute inset-x-0 bottom-0 z-10 h-[5.25em] bg-white/95 backdrop-blur border-t border-[#eef1f6] shadow-[0_-0.25em_1em_rgba(15,23,42,0.05)]">
-        <div className="grid grid-cols-5 pt-[0.625em]">
-          {tabs.map(({ label, icon: Glyph, active }) => (
-            <span key={label} className={`flex flex-col items-center gap-[0.25em] ${active ? "text-vibrant-blue" : "text-slate-500"}`}>
-              <Glyph className="w-[1.5em] h-[1.5em]" strokeWidth={1.8} />
-              <span className={`text-[0.65625em] whitespace-nowrap ${active ? "font-semibold" : "font-medium"}`}>{label}</span>
-            </span>
-          ))}
-        </div>
-        <span className="absolute bottom-[0.5em] left-1/2 -translate-x-1/2 w-[8.5em] h-[0.3125em] rounded-full bg-indigo-gray-900" />
+      {/* The floating tab bar: home, bookings, search and settings */}
+      <div className="absolute z-10 left-1/2 -translate-x-1/2 bottom-[1.75em] w-[18.5em] h-[3em] p-[0.3125em] rounded-full bg-[#1D4ED8] shadow-[0_0.75em_1.5em_-0.5em_rgba(29,78,216,0.6)] flex items-center justify-between text-white">
+        <span className="h-full w-[4.75em] rounded-full bg-white flex items-center justify-center">
+          <Image src="/logo-icon.png" alt="" width={96} height={96} sizes="32px" className="w-[1.5em] h-[1.5em] object-contain" />
+        </span>
+        {[CalendarDays, Search, Settings].map((Glyph, i) => (
+          <span key={i} className="w-[4em] flex justify-center">
+            <Glyph className="w-[1.375em] h-[1.375em]" strokeWidth={1.9} />
+          </span>
+        ))}
       </div>
     </div>
   );
 }
 
-/** Solid house with a door, for the active Home tab. */
-function HomeIcon({ className }: { className?: string }) {
+function Heading({ title, sub, link, className }: { title: string; sub?: string; link: string; className: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className={className}>
-      <path d="M10.6 2.5a2.2 2.2 0 0 1 2.8 0l7 5.9c.4.4.6.9.6 1.4V19a2 2 0 0 1-2 2h-4v-6.5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1V21H5a2 2 0 0 1-2-2V9.8c0-.5.2-1 .6-1.4l7-5.9Z" />
-    </svg>
+    <div className={`flex items-end justify-between gap-[0.5em] ${className}`}>
+      <div className="min-w-0 leading-tight">
+        <p className="text-[1.125em] font-extrabold tracking-[-0.01em]">{title}</p>
+        {sub && <p className="mt-[0.125em] text-[0.75em] text-[#5B667A] truncate">{sub}</p>}
+      </div>
+      <span className="flex items-center text-[#1D4ED8] shrink-0">
+        <span className="text-[0.75em] font-bold">{link}</span>
+        <ChevronRight className="w-[0.875em] h-[0.875em]" strokeWidth={2.4} />
+      </span>
+    </div>
   );
 }
 
-/** Skin layers with hair, for Dermatology. */
-function SkinIcon({ className, strokeWidth = 1.9 }: { className?: string; strokeWidth?: number }) {
+function Tile({ label, active = false, children }: { label: string[]; active?: boolean; children: ReactNode }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden className={className}>
-      <path d="M3 13h18" />
-      <path d="M8 13c0-3 -1.2-4.5 -1.2-7" />
-      <path d="M12 13c0-3.4 .6-5.6 .6-8.5" />
-      <path d="M16 13c0-2.6 1.2-4 1.2-6.5" />
-      <path d="M3 17.5c1.5 0 1.5-1.2 3-1.2s1.5 1.2 3 1.2 1.5-1.2 3-1.2 1.5 1.2 3 1.2 1.5-1.2 3-1.2 1.5 1.2 3 1.2" />
-      <path d="M6 21h.01M10 21h.01M14 21h.01M18 21h.01" />
-    </svg>
+    <div className="w-[3.25em] flex flex-col items-center">
+      <span
+        className={`w-[3.25em] h-[3.25em] rounded-[0.875em] flex items-center justify-center ${
+          active
+            ? "bg-[linear-gradient(160deg,#2F63F0,#1D4ED8)] shadow-[0_0.375em_0.75em_-0.25em_rgba(29,78,216,0.55)]"
+            : "bg-[linear-gradient(160deg,#F2F6FF,#DCE7FF)] shadow-[inset_0_0_0_0.0625em_#D6E2FB]"
+        }`}
+      >
+        {children}
+      </span>
+      <span className={`mt-[0.3125em] text-center whitespace-nowrap leading-[1.25] text-[0.5625em] font-bold ${active ? "text-[#1D4ED8]" : "text-[#27324A]"}`}>
+        {label.map((line) => (
+          <span key={line} className="block">
+            {line}
+          </span>
+        ))}
+      </span>
+    </div>
+  );
+}
+
+/** A partner hospital as on the app: its photo, name, what it offers and where it is. */
+function HospitalTile({ h }: { h: HomeHospital }) {
+  const area = placeOf(h);
+  const place = h.city && area !== h.city ? `${area}, ${formatCityName(h.city)}` : area;
+  return (
+    <div className="overflow-hidden rounded-[0.75em] bg-white shadow-[0_0_0_0.0625em_#E6EBF3,0_0.25em_0.75em_-0.375em_rgba(11,27,63,0.12)]">
+      <span className="relative block h-[5.75em] bg-[linear-gradient(160deg,#F2F6FF,#DCE7FF)]">
+        {h.image ? (
+          <RemoteImage src={h.image} alt="" fill sizes="160px" className="object-cover" />
+        ) : (
+          <span className="absolute inset-0 flex items-center justify-center text-[#2A4DD0]">
+            <Building2 className="w-[2em] h-[2em]" strokeWidth={1.5} />
+          </span>
+        )}
+      </span>
+      <span className="block px-[0.5em] pt-[0.4375em] pb-[0.5em] leading-tight">
+        <span className="flex items-center gap-[0.25em] min-w-0">
+          <span className="truncate text-[0.75em] font-extrabold">{h.name}</span>
+          <VerifiedBadge className="w-[0.75em] h-[0.75em]" />
+        </span>
+        <span className="block mt-[0.125em] truncate text-[0.625em] text-[#5B667A]">
+          {h.specialties.length >= 3 ? "Multi-speciality hospital" : (h.specialties[0]?.name ?? "Partner hospital")}
+        </span>
+        <span className="mt-[0.25em] flex items-center gap-[0.25em] text-[#5B667A]">
+          <MapPin className="w-[0.75em] h-[0.75em] shrink-0" strokeWidth={2} />
+          <span className="flex-1 min-w-0 truncate text-[0.625em]">{place}</span>
+          <ArrowRight className="w-[0.875em] h-[0.875em] text-[#1D4ED8] shrink-0" strokeWidth={2.4} />
+        </span>
+      </span>
+    </div>
   );
 }
 

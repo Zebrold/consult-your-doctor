@@ -2,18 +2,16 @@ import Image from "next/image";
 import { GetTheApp } from "@/components/GetTheApp";
 import { StoreBadges } from "@/components/StoreBadges";
 
-// The home page's "Get the app" banner, in the site's blue with the 3D stethoscope, cross, coat and first-aid kit, with
-// the store badges. On desktops the phone's QR code opens the site on the visitor's phone.
+// The home page's "Get the app" banner, in deep blue with the store badges, and a phone between a stethoscope, a coat
+// and a first-aid kit. On desktops the phone's QR code opens the site on the visitor's phone.
 
 const ART = "/images/home/app";
 const glow = "drop-shadow-[0_14px_22px_rgba(4,16,70,0.42)]";
+const helvetica = "font-['Helvetica_Neue',Helvetica,Arial,sans-serif]";
 
-function Wordmark({ className = "" }: { className?: string }) {
-  return (
-    <span className={`font-['Helvetica_Neue',Helvetica,Arial,sans-serif] font-bold tracking-[-0.01em] ${className}`}>
-      <span className="text-[#A9CBFF]">Consult</span> your Doctor
-    </span>
-  );
+/** One corner of the QR code's scan frame, turned to `at`. */
+function ScanCorner({ at }: { at: string }) {
+  return <span aria-hidden className={`absolute w-[18px] h-[18px] border-[#2563EB] ${at}`} />;
 }
 
 /**
@@ -23,41 +21,52 @@ function Wordmark({ className = "" }: { className?: string }) {
 export function AppPromo({ qr }: { qr: string }) {
   return (
     <section aria-labelledby="app-promo-title" className="hidden md:block px-[max(24px,10%)] pb-16 lg:pb-24">
-      <div className="relative isolate overflow-hidden rounded-[28px] text-white bg-[radial-gradient(120%_160%_at_0%_0%,#3566F2_0%,#1D4ED8_42%,#11309F_100%)] shadow-[0_30px_60px_-28px_rgba(29,78,216,0.65)] md:grid md:grid-cols-[minmax(0,1fr)_260px] lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_480px] min-h-[300px]">
-        {/* Soft light: a ring of colour bottom left, a glow behind the phone */}
-        <span aria-hidden className="absolute -z-10 -left-28 -bottom-48 w-[460px] h-[460px] rounded-full border-[56px] border-white/[0.05]" />
-        <span aria-hidden className="absolute -z-10 right-[4%] -top-40 w-[460px] h-[460px] rounded-full bg-[radial-gradient(circle,rgba(169,203,255,0.38),rgba(169,203,255,0)_62%)]" />
-        <span aria-hidden className="absolute -z-10 inset-0 rounded-[28px] ring-1 ring-inset ring-white/10" />
+      <div className="relative isolate overflow-hidden rounded-[24px] text-white bg-[linear-gradient(100deg,#0A3DB4_0%,#0B4BCB_38%,#0757D8_62%,#0A49C6_82%,#0B3BAE_100%)] shadow-[0_30px_60px_-28px_rgba(11,75,203,0.7)] md:grid md:grid-cols-[minmax(0,1fr)_250px] lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,1fr)_460px] 2xl:grid-cols-[minmax(0,1fr)_540px] min-h-[300px] xl:min-h-[340px]">
+        {/* A faint sweep of light across the middle */}
+        <span aria-hidden className="absolute -z-10 left-[28%] top-[35%] w-[1200px] h-[1200px] rounded-full border-[90px] border-white/[0.035]" />
+        <span aria-hidden className="absolute -z-10 inset-0 rounded-[24px] ring-1 ring-inset ring-white/10" />
 
-        <div className="px-10 lg:px-14 py-10 lg:py-12 flex flex-col justify-center min-w-0">
+        <div className={`px-10 lg:px-14 xl:px-[72px] py-10 lg:py-12 flex flex-col justify-center min-w-0 ${helvetica}`}>
           <div className="flex items-center gap-3">
-            <Image src="/logo-icon-white.png" alt="" width={96} height={96} className="w-11 h-11 object-contain" />
-            <Wordmark className="text-[22px] xl:text-[24px] whitespace-nowrap" />
+            <Image src="/logo-icon-white.png" alt="" width={96} height={96} className="w-10 h-10 xl:w-11 xl:h-11 object-contain" />
+            <span className="text-[22px] xl:text-[26px] font-bold tracking-[-0.01em] whitespace-nowrap">
+              <span className="text-[#DCE7FF]">Consult</span> your Doctor
+            </span>
           </div>
-          <h2 id="app-promo-title" className="mt-6 text-[28px] lg:text-[32px] xl:text-[38px] leading-[1.12] font-extrabold tracking-[-0.025em] text-balance">
+          <h2 id="app-promo-title" className="mt-5 xl:mt-6 text-[28px] lg:text-[32px] xl:text-[40px] leading-[1.12] font-bold tracking-[-0.015em] text-balance">
             Get the Consult your Doctor app
           </h2>
-          <p className="mt-2.5 max-w-[520px] text-[15px] xl:text-[16px] leading-[1.55] text-[#DCE7FF] text-balance">
-            Your personal healthcare concierge: appointments, diagnostics and care in one place.
+          <p className="mt-3 text-[15px] xl:text-[18px] leading-[1.45] text-[#E3EBFF]">
+            Your personal healthcare concierge:
+            <br className="hidden lg:inline" /> appointments, diagnostics and care in one place.
           </p>
-          <StoreBadges tone="glass" className="mt-6" />
+          <StoreBadges tone="black" className="mt-6 xl:mt-7" />
         </div>
 
-        <div className="relative min-h-[300px]">
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[204px] xl:w-[236px]">
-            <Image src={`${ART}/plus.webp`} alt="" width={89} height={85} className={`hidden xl:block absolute -left-[92px] top-[18px] w-[72px] -rotate-6 ${glow}`} />
-            <Image src={`${ART}/stethoscope.webp`} alt="" width={115} height={184} className={`hidden xl:block absolute -left-[104px] bottom-[-6px] w-[96px] ${glow}`} />
-            <Image src={`${ART}/coat.webp`} alt="" width={135} height={147} className={`hidden xl:block absolute -right-[114px] top-[8px] w-[100px] ${glow}`} />
-            <Image src={`${ART}/kit.webp`} alt="" width={122} height={113} className={`hidden xl:block absolute -right-[104px] bottom-[12px] w-[88px] ${glow}`} />
+        <div className="relative min-h-[260px]">
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[150px] xl:w-[162px]">
+            <Image src={`${ART}/stethoscope.webp`} alt="" width={115} height={184} className={`hidden xl:block absolute right-[calc(100%+26px)] top-[70px] w-[84px] max-w-none ${glow}`} />
+            <Image src={`${ART}/coat.webp`} alt="" width={135} height={147} className={`hidden xl:block absolute left-[calc(100%+26px)] top-[32px] w-[100px] max-w-none ${glow}`} />
+            <Image src={`${ART}/kit.webp`} alt="" width={122} height={113} className={`hidden xl:block absolute left-[calc(100%+36px)] top-[170px] w-[74px] max-w-none ${glow}`} />
 
-            {/* The phone, cut off by the banner's bottom edge */}
-            <div className="rounded-t-[40px] bg-[#0A1022] p-[9px] pb-0 shadow-[0_30px_70px_rgba(4,14,52,0.55)] ring-1 ring-white/15">
-              <div className="h-[238px] xl:h-[256px] rounded-t-[32px] bg-white pt-3 px-4 flex flex-col items-center">
-                <span aria-hidden className="w-[78px] h-[22px] rounded-full bg-[#0A1022]" />
-                <div className="mt-4 p-2.5 rounded-2xl bg-white shadow-[0_0_0_1px_#E6EBF3,0_8px_18px_rgba(11,27,63,0.08)]">
-                  <div role="img" aria-label="QR code that opens Consult your Doctor" className="w-[112px] h-[112px] xl:w-[132px] xl:h-[132px] [&>svg]:w-full [&>svg]:h-full" dangerouslySetInnerHTML={{ __html: qr }} />
+            {/* The phone, cut off by the banner's bottom edge: a metal rim, the black bezel, then the screen */}
+            <div className="rounded-t-[34px] p-[2px] pb-0 bg-[linear-gradient(145deg,#71757D,#2A2C30_30%,#50545B_60%,#1D1F22)] shadow-[0_30px_60px_rgba(4,14,52,0.5)]">
+              <div className="rounded-t-[32px] bg-[#0B0C0E] p-[6px] pb-0">
+                <div className="h-[226px] xl:h-[264px] rounded-t-[26px] bg-[#F5F6F8] pt-2.5 flex flex-col items-center">
+                  <span aria-hidden className="w-[54px] h-4 rounded-full bg-[#0B0C0E]" />
+                  <div className="relative mt-6 xl:mt-9 p-[11px]">
+                    <ScanCorner at="top-0 left-0 border-t-[2.5px] border-l-[2.5px] rounded-tl-[5px]" />
+                    <ScanCorner at="top-0 right-0 border-t-[2.5px] border-r-[2.5px] rounded-tr-[5px]" />
+                    <ScanCorner at="bottom-0 left-0 border-b-[2.5px] border-l-[2.5px] rounded-bl-[5px]" />
+                    <ScanCorner at="bottom-0 right-0 border-b-[2.5px] border-r-[2.5px] rounded-br-[5px]" />
+                    <div role="img" aria-label="QR code that opens Consult your Doctor" className="w-[88px] h-[88px] xl:w-[96px] xl:h-[96px] [&>svg]:w-full [&>svg]:h-full" dangerouslySetInnerHTML={{ __html: qr }} />
+                  </div>
+                  <p className={`mt-4 xl:mt-6 text-center text-[13px] xl:text-[14px] leading-[1.25] font-bold text-[#1D4ED8] ${helvetica}`}>
+                    Scan to open
+                    <br />
+                    on your phone
+                  </p>
                 </div>
-                <p className="mt-3 text-center text-[13px] xl:text-[14px] leading-tight font-extrabold text-[#1D4ED8] text-balance">Scan to open on your phone</p>
               </div>
             </div>
           </div>

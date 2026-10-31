@@ -108,10 +108,7 @@ export default async function CorporatePage() {
         aside={
           <div className="grid gap-3">
             {PARTNERS.map((p) => (
-              <Link key={p.id} href={p.signIn.href} className="group flex items-center gap-4 p-4 rounded-[18px] bg-white/[0.1] ring-1 ring-inset ring-white/20 hover:bg-white/[0.16] transition-colors">
-                <span className="w-12 h-12 rounded-[14px] bg-white text-[#1D4ED8] flex items-center justify-center shrink-0">
-                  <p.icon className="w-[22px] h-[22px]" strokeWidth={2.1} />
-                </span>
+              <Link key={p.id} href={p.signIn.href} className="group flex items-center gap-4 px-6 py-5 rounded-[18px] bg-white/[0.1] ring-1 ring-inset ring-white/20 hover:bg-white/[0.16] transition-colors">
                 <span className="flex-1 min-w-0">
                   <span className="block text-[12px] font-extrabold uppercase tracking-[0.08em] text-[#BFD2FF]">{p.who}</span>
                   <span className="block text-[16px] font-extrabold">{p.signIn.label}</span>

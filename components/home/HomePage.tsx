@@ -21,15 +21,13 @@ type Props = {
   hospitals: HomeHospital[];
   /** Cities with partner hospitals or labs, for the location sheet. */
   cities: string[];
-  /** The doctor booking fee, shown in the app preview. */
-  bookingFee: number;
   /** An SVG QR code of the site's address, for the app banner. */
   appQr: string;
 };
 
 const SHOWN = 10;
 
-export function HomePage({ account, now, nextVisit, doctors, hospitals, cities, bookingFee, appQr }: Props) {
+export function HomePage({ account, now, nextVisit, doctors, hospitals, cities, appQr }: Props) {
   const place = usePatientLocation();
   const [sheet, setSheet] = useState<"location" | "menu" | null>(null);
   const closeSheet = useCallback(() => setSheet(null), []);
@@ -50,7 +48,7 @@ export function HomePage({ account, now, nextVisit, doctors, hospitals, cities, 
       <SpecialitiesSection />
       {hospitals.length > 0 && <HospitalsSection hospitals={shownHospitals} place={place} />}
       {doctors.length > 0 && <DoctorsSection doctors={shownDoctors} place={place} now={now} findHref={findHref} />}
-      <TreatSection bookingFee={bookingFee} />
+      <TreatSection hospitals={hospitals} />
       <AppPromo qr={appQr} />
 
       {sheet === "location" && <LocationSheet place={place} cities={cities} onClose={closeSheet} />}

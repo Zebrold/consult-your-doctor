@@ -35,8 +35,10 @@ const SIZE = {
 const TONE = {
   /** Navy, for white cards and the footer's blue. */
   dark: "bg-[#0B1B3F] text-white ring-1 ring-inset ring-white/15",
-  /** See-through, on the blue app banner. */
+  /** See-through, on blue. */
   glass: "bg-[#0A1E6E]/45 text-white ring-1 ring-inset ring-white/20",
+  /** Black with the grey edge of the stores' own badges, on the home page's app banner. */
+  black: "bg-black text-white ring-1 ring-inset ring-[#A6A6A6]",
 };
 
 export function StoreBadge({ store, size = "md", tone = "dark" }: { store: keyof typeof STORES; size?: keyof typeof SIZE; tone?: keyof typeof TONE }) {

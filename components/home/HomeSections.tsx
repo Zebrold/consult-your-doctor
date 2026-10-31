@@ -262,7 +262,7 @@ function ConditionList({ items }: { items: string[] }) {
 }
 
 /** What we treat: the app preview beside the conditions, as tabs on phones and three columns on wider screens. */
-export function TreatSection({ bookingFee }: { bookingFee: number }) {
+export function TreatSection({ hospitals }: { hospitals: HomeHospital[] }) {
   const [tab, setTab] = useState(0);
   const group = CONDITION_GROUPS[tab];
   return (
@@ -271,7 +271,7 @@ export function TreatSection({ bookingFee }: { bookingFee: number }) {
       className={`${SIDES} border-t border-[#EEF2F7] pt-8 pb-10 md:pt-[72px] md:pb-24 md:flex md:flex-wrap md:items-center md:gap-x-[72px] md:gap-y-14`}
     >
       <div className="hidden md:flex flex-[0_1_360px] justify-center min-w-[260px]">
-        <HomePhoneMockup bookingFee={bookingFee} size="max-w-[300px]" />
+        <HomePhoneMockup hospitals={hospitals} size="max-w-[300px]" />
       </div>
       <div className="md:flex-[1_1_560px] min-w-0">
         <p className="text-sm md:text-[17px] font-bold text-[#2A4DD0]">What we treat</p>
@@ -285,7 +285,7 @@ export function TreatSection({ bookingFee }: { bookingFee: number }) {
         {/* Phones */}
         <div className="md:hidden">
           <div className="flex justify-center mt-6 mb-2">
-            <HomePhoneMockup bookingFee={bookingFee} size="max-w-[230px]" />
+            <HomePhoneMockup hospitals={hospitals} size="max-w-[230px]" />
           </div>
           <div role="tablist" aria-label="Condition groups" className="flex gap-1.5 p-1 rounded-[14px] bg-[#F1F4F9]">
             {CONDITION_GROUPS.map((g, i) => (

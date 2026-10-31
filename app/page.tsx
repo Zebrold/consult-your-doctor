@@ -6,7 +6,6 @@ import { HomePage } from '@/components/home/HomePage';
 import { loadHospitals } from '@/components/home/data';
 import type { HomeAccount, HomeDoctor } from '@/components/home/types';
 import { currentTime, loadAvailability, one } from '@/components/patient/data';
-import { getBookingFees } from '@/lib/booking-fees';
 import { PatientDock } from '@/components/PatientDock';
 import { Footer } from '@/components/Footer';
 import { PatientAppHome, type PatientRecord, type PatientVisit } from '@/components/home/PatientAppHome';
@@ -67,7 +66,7 @@ export default async function Home(props: {
     return <PatientHome userId={user?.id ?? null} name={account.kind === 'patient' ? account.name : null} now={now} />;
   }
 
-  const [{ data: dbDoctors }, hospitals, { data: labCities }, availability, fees, appQr] = await Promise.all([
+  const [{ data: dbDoctors }, hospitals, { data: labCities }, availability, appQr] = await Promise.all([
     supabase
       .from('doctors')
       .select(`
@@ -79,7 +78,6 @@ export default async function Home(props: {
     loadHospitals(supabase),
     supabase.from('diagnostic_centers').select('city').eq('status', 'active'),
     loadAvailability(supabase, now),
-    getBookingFees(),
     siteQrSvg(),
   ]);
 
@@ -151,7 +149,6 @@ export default async function Home(props: {
         doctors={bookable}
         hospitals={hospitals.filter((h) => h.doctors > 0)}
         cities={cities}
-        bookingFee={fees.consultation}
         appQr={appQr}
       />
       <Footer />

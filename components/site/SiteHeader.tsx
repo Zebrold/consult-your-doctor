@@ -10,14 +10,11 @@ import type { HomeAccount } from "@/components/home/types";
 import { MenuSheet } from "@/components/patient/PhoneSheet";
 import { CorporateMenu } from "@/components/site/CorporateMenu";
 
-const NAV = [
-  { href: "/how-it-works", label: "How it works" },
-  { href: "/corporate#join", label: "Partner with Us" },
-];
+const NAV = [{ href: "/corporate#join", label: "Partner with Us" }];
 
 /**
- * The public pages' header, the home page's blue header in a slimmer band: the logo, the Corporate menu, How it works
- * and Partner with Us, Get the App and the account. Phones get the logo and the account menu.
+ * The public pages' header, the home page's blue header in a slimmer band: the logo, the Corporate menu, Partner with
+ * Us, Get the App and the account. Phones get the logo and the account menu.
  * Its height matches --header-h (globals.css), which sticky parts of the legal pages sit under.
  */
 export function SiteHeader({ account }: { account: HomeAccount }) {

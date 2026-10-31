@@ -46,8 +46,8 @@ export default function WhatWeTreatPage() {
             <Link href="/search?type=doctor&q=general" className={btnWhite}>
               Find a general physician <ArrowRight className="w-4 h-4" strokeWidth={2.6} />
             </Link>
-            <Link href="/how-it-works" className={btnGhost}>
-              How it works
+            <Link href="/contact" className={btnGhost}>
+              Contact us
             </Link>
           </>
         }

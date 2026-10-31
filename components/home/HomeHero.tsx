@@ -30,9 +30,9 @@ type Props = {
   onMenu: () => void;
 };
 
-// The blue top of the home page. Phones: the app strip, the location and account, the headline, search, then the
-// three services. Wider screens: the site header, the headline, location and search side by side, then the services
-// in a row, with a stethoscope and a clipboard at the edges of wide screens.
+// The blue top of the home page. Phones: the app strip, the location and account, search, the headline beside a
+// doctor, then the three services. Wider screens: the site header, the headline, location and search side by side,
+// then the services in a row, with a stethoscope and a clipboard at the edges of wide screens.
 
 type Service = {
   href: string;
@@ -105,9 +105,7 @@ export function HomeHero({ account, place, cities, visitLine, onLocation, onMenu
           <PhoneAccountButton account={account} onMenu={onMenu} />
         </div>
 
-        <h1 className="mt-1 text-white text-[26px] leading-[1.18] font-extrabold tracking-[-0.025em] text-balance">{headline}</h1>
-
-        <form role="search" onSubmit={search} className="flex items-center gap-2 min-h-[54px] pl-4 pr-1 bg-white rounded-[14px] shadow-[0_10px_24px_-14px_rgba(4,18,66,0.6)]">
+        <form role="search" onSubmit={search} className="flex items-center gap-2.5 min-h-[52px] pl-4 pr-1.5 bg-white rounded-[14px] shadow-[0_10px_24px_-14px_rgba(4,18,66,0.6)]">
           <label htmlFor="home-search-phone" className="sr-only">{searchLabel}</label>
           <input
             id="home-search-phone"
@@ -115,17 +113,35 @@ export function HomeHero({ account, place, cities, visitLine, onLocation, onMenu
             enterKeyHint="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search doctors, hospitals, labs…"
+            placeholder="Search doctors, hospitals or labs"
             className="flex-1 min-w-0 bg-transparent text-[15px] text-[#0B1B3F] placeholder:text-[#6B7489] outline-none [&::-webkit-search-cancel-button]:hidden"
           />
-          <button type="submit" aria-label="Search" className="w-11 h-11 rounded-[10px] text-[#1D4ED8] flex items-center justify-center shrink-0 active:bg-[#EEF3FF] transition-colors">
-            <Search className="w-[22px] h-[22px]" strokeWidth={2.4} />
+          <button type="submit" aria-label="Search" className="w-10 h-10 rounded-[10px] bg-[#1D4ED8] text-white flex items-center justify-center shrink-0 active:scale-95 transition-transform">
+            <Search className="w-5 h-5" strokeWidth={2.4} />
           </button>
         </form>
 
         {visitLine && <VisitPill line={visitLine} />}
 
-        <PhoneServiceCard service={services[0]} wide image="right-2 bottom-0 h-[172px] w-auto" />
+        <div className="flex items-end gap-2 mt-1">
+          <div className="flex-1 min-w-0 pb-3.5">
+            <h1 className="text-white text-[27px] leading-[1.12] font-extrabold tracking-[-0.025em]">
+              Healthcare <span className="text-[#A9CBFF]">made simple,</span> for everyone.
+            </h1>
+            <p className="mt-2 text-[#DCE7FF] text-[13px] leading-[1.45]">Your healthcare, all in one place from appointments to reports.</p>
+          </div>
+          <Image
+            src="/images/home/doctor.webp"
+            alt=""
+            width={376}
+            height={518}
+            loading="eager"
+            className="h-[150px] w-auto shrink-0 [mask-image:linear-gradient(to_bottom,#000_70%,transparent_100%)]"
+          />
+        </div>
+
+        {/* The doctor is already beside the headline, so this card shows a stethoscope. */}
+        <PhoneServiceCard service={{ ...services[0], image: "/images/home/stethoscope.svg", alt: "Stethoscope" }} wide image="right-4 bottom-4 h-[132px] w-auto" />
         <div className="grid grid-cols-2 gap-3.5">
           <PhoneServiceCard service={services[1]} image="-right-1 bottom-3 w-[104px] h-auto" />
           <PhoneServiceCard service={services[2]} image="-right-3 bottom-3 w-[128px] h-auto" />
@@ -140,7 +156,7 @@ export function HomeHero({ account, place, cities, visitLine, onLocation, onMenu
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/images/home/hero-clipboard.webp" alt="" width={344} height={736} loading="lazy" decoding="async" className="hidden min-[1360px]:block absolute right-0 top-[155px] w-[172px] h-auto pointer-events-none select-none" />
 
-        <header className="relative z-[2] max-w-[1440px] mx-auto px-6 lg:px-12 py-7 flex flex-wrap items-center justify-between gap-5">
+        <header className="relative z-[3] max-w-[1440px] mx-auto px-6 lg:px-12 py-7 flex flex-wrap items-center justify-between gap-5">
           <Link href="/" aria-label="Consult your Doctor home" className="flex items-center gap-3.5 text-white">
             <Image src="/logo-icon-white.png" alt="" width={96} height={96} priority className="w-11 h-11 object-contain" />
             <span className="font-['Helvetica_Neue',Helvetica,Arial,sans-serif] text-[26px] lg:text-[28px] font-bold tracking-[-0.01em]">Consult your Doctor</span>
@@ -155,7 +171,8 @@ export function HomeHero({ account, place, cities, visitLine, onLocation, onMenu
           </nav>
         </header>
 
-        <div className="relative z-[1] max-w-[1060px] mx-auto px-6 pt-8 lg:pt-12 flex flex-col items-center text-center gap-4">
+        {/* Above the cards, so the location dropdown opens over them. */}
+        <div className="relative z-[2] max-w-[1060px] mx-auto px-6 pt-8 lg:pt-12 flex flex-col items-center text-center gap-4">
           <h1 className="max-w-[1010px] text-white text-[38px] lg:text-[44px] leading-[1.18] font-extrabold tracking-[-0.025em] text-balance">{headline}</h1>
           {visitLine && <VisitPill line={visitLine} />}
 

@@ -2,7 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import Link from "next/link";
-import { Building2, CalendarDays, ChevronDown, ChevronRight, FlaskConical, Handshake, Info, LifeBuoy, LogIn, LogOut, Stethoscope, UserRound, X, type LucideIcon } from "lucide-react";
+import { Building2, CalendarDays, ChevronDown, ChevronRight, FlaskConical, Handshake, LifeBuoy, LogIn, LogOut, Stethoscope, UserRound, X, type LucideIcon } from "lucide-react";
 import { JOIN_LINKS } from "@/components/site/CorporateMenu";
 
 /** A panel that slides up from the bottom over a dimmed page (a centred dialog on wider screens). */
@@ -49,7 +49,6 @@ export function MenuSheet({ name, email, isSignedIn, onClose }: { name: string |
     { href: "/find", label: "Find a doctor", icon: Stethoscope },
     { href: "/hospitals", label: "Hospitals", icon: Building2 },
     { href: "/diagnostics", label: "Lab tests", icon: FlaskConical },
-    { href: "/how-it-works", label: "How it works", icon: Info },
     { href: isSignedIn ? "/patient/support" : "/contact", label: "Help & support", icon: LifeBuoy },
   ];
   return (

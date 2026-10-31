@@ -4,22 +4,14 @@ import { ChevronRight } from "lucide-react";
 import { StoreBadges } from "@/components/StoreBadges";
 import { COMPANY } from "@/lib/company";
 
-// The home page's footer: the brand with trust badges and social links, the 3 navigation columns (Login,
-// Contact us, Legal), and the app badges.
+// The home page's footer: the brand with trust badges and social links, the 2 navigation columns (Contact us, Legal),
+// and the app badges.
 
 type FooterLinkItem = { label: string; href: string };
 
-const LOGINS: FooterLinkItem[] = [
-  { label: "Patient login", href: "/login/patient" },
-  { label: "Doctor login", href: "/login/doctor" },
-  { label: "Hospital login", href: "/login/hospital" },
-  { label: "Diagnostic centre login", href: "/login/diagnostic" },
-];
-
 const CONTACT: FooterLinkItem[] = [
   { label: "Help & Support", href: "/contact" },
-  { label: "How it works", href: "/how-it-works" },
-  { label: "Help & FAQ", href: "/how-it-works#faq" },
+  { label: "Help & FAQ", href: "/faq" },
   { label: "Partner With Us", href: "/corporate" },
 ];
 
@@ -113,10 +105,10 @@ export function Footer() {
   return (
     <footer className="relative isolate overflow-hidden bg-[#2A4DD0] text-white font-(family-name:--font-manrope)">
       <div className="max-w-[1360px] mx-auto px-5 md:px-8 lg:px-12 pt-12 md:pt-16 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:pb-10">
-        {/* Main 4-Block Section: Brand + 3 Nav Columns (Login, Contact us, Legal) */}
-        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
+        {/* Brand + 2 Nav Columns (Contact us, Legal) */}
+        <div className="grid grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
           {/* Brand */}
-          <div className="col-span-2 md:col-span-2 lg:col-span-5 flex flex-col justify-between pr-0 lg:pr-8">
+          <div className="col-span-2 lg:col-span-6 flex flex-col justify-between pr-0 lg:pr-8">
             <div>
               <Link
                 href="/"
@@ -164,14 +156,11 @@ export function Footer() {
             )}
           </div>
 
-          {/* 1. Login */}
-          <Column title="Login" items={LOGINS} className="col-span-1 md:col-span-1 lg:col-span-2" />
+          {/* 1. Contact us */}
+          <Column title="Contact us" items={CONTACT} className="col-span-1 lg:col-span-3" />
 
-          {/* 2. Contact us */}
-          <Column title="Contact us" items={CONTACT} className="col-span-1 md:col-span-1 lg:col-span-2" />
-
-          {/* 3. Legal */}
-          <Column title="Legal" items={LEGAL} className="col-span-2 md:col-span-2 lg:col-span-3" />
+          {/* 2. Legal */}
+          <Column title="Legal" items={LEGAL} className="col-span-1 lg:col-span-3" />
         </div>
 
         {/* The app banner */}

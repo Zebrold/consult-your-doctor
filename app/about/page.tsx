@@ -42,8 +42,8 @@ export default function AboutPage() {
             <Link href="/find" className={btnWhite}>
               Find a doctor <ArrowRight className="w-4 h-4" strokeWidth={2.6} />
             </Link>
-            <Link href="/how-it-works" className={btnGhost}>
-              How it works
+            <Link href="/contact" className={btnGhost}>
+              Contact us
             </Link>
           </>
         }

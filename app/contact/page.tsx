@@ -18,7 +18,7 @@ const channels = [
 ];
 
 const quickLinks = [
-  { icon: CircleHelp, title: "Help & FAQ", detail: "Answers about bookings, prescriptions, reports and payments.", href: "/how-it-works#faq" },
+  { icon: CircleHelp, title: "Help & FAQ", detail: "Answers about bookings, prescriptions, reports and payments.", href: "/faq" },
   { icon: Stethoscope, title: "Book a doctor", detail: "Find a specialist with open times this week at a partner hospital.", href: "/find" },
   { icon: Building2, title: "For doctors, hospitals and labs", detail: "How partners join, and where to log in.", href: "/corporate" },
 ];

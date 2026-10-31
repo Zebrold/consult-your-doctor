@@ -48,12 +48,13 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     '/**': ['./public/fonts/NotoSans-*.ttf', './public/logo-icon.png'],
   },
-  // Other addresses people try for the legal pages.
+  // Other addresses people try for the legal pages, and the removed How it works page, whose FAQ is now /faq.
   async redirects() {
     return [
       { source: '/terms', destination: '/terms-of-use', permanent: true },
       { source: '/terms-and-conditions', destination: '/terms-of-use', permanent: true },
       { source: '/privacy', destination: '/privacy-policy', permanent: true },
+      { source: '/how-it-works', destination: '/faq', permanent: true },
     ]
   },
   // Not experimental.inlineCss: tried 2026-10-28, it put the ~210 KB stylesheet in every page three times (a <style>

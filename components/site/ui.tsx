@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowRight, ChevronDown, type LucideIcon } from "lucide-react";
 
-// The public content pages (how it works, corporate, about…), in the home page's look: a blue hero under the blue
+// The public content pages (corporate, about, FAQ…), in the home page's look: a blue hero under the blue
 // site header, white sections with rounded cards, and a blue banner to close.
 
 export const SIDES = "px-4 md:px-[max(24px,10%)]";

@@ -5,10 +5,8 @@ import {
   BadgeCheck,
   Building2,
   CalendarClock,
-  Check,
   ClipboardCheck,
   ClipboardList,
-  FileCheck2,
   FileText,
   FlaskConical,
   KeyRound,
@@ -40,10 +38,8 @@ type Partner = {
   who: string;
   title: string;
   lead: string;
-  tools: string[];
-  needs: string[];
   apply: { href: string; label: string };
-  signIn: string;
+  signIn: { href: string; label: string };
 };
 
 const PARTNERS: Partner[] = [
@@ -52,51 +48,27 @@ const PARTNERS: Partner[] = [
     icon: Stethoscope,
     who: "For doctors",
     title: "Consult, prescribe and follow up",
-    lead: "Patients book your published slots online. On the day, check them in and write a prescription that reaches their account as a signed PDF.",
-    tools: [
-      "Dashboard with your next patient and the waiting room",
-      "Prescription writer with vitals, diagnosis and a live preview",
-      "Your signature and registration number on every prescription",
-      "Patient history, past notes and latest vitals",
-      "Patient reviews on your public profile",
-    ],
-    needs: ["Medical council and registration number", "Primary qualification and years of experience", "Speciality and your primary hospital", "Your consultation fee"],
+    lead: "Patients book your published slots online, and your prescriptions reach their account as signed PDFs.",
     apply: { href: "/signup/doctor", label: "Apply as a doctor" },
-    signIn: "/login/doctor",
+    signIn: { href: "/login/doctor", label: "Doctor login" },
   },
   {
     id: "hospitals",
     icon: Building2,
     who: "For hospitals",
     title: "Your OPD, beds and desk in one place",
-    lead: "List your hospital, add your doctors and publish their slots. Patients book online and pay the consultation fee at your counter.",
-    tools: [
-      "Patients and visits, with walk-in registration by one-time code",
-      "Desk payments by UPI scanner or cash, itemised",
-      "Duty roster and slot publishing for every doctor",
-      "Inpatient beds: admit, move and discharge",
-      "Finance, staff access and your public hospital page",
-    ],
-    needs: ["Registration or licence number and issuing authority", "Full address of the facility", "Accreditation, beds and specialities (optional)", "A contact person for your hospital"],
+    lead: "Add your doctors and publish their slots. Patients book online and pay the consultation fee at your counter.",
     apply: { href: "/signup/hospital", label: "Register your hospital" },
-    signIn: "/login/hospital",
+    signIn: { href: "/login/hospital", label: "Hospital login" },
   },
   {
     id: "diagnostics",
     icon: FlaskConical,
     who: "For diagnostic centres",
     title: "Bookings in, reports out",
-    lead: "Price your test menu and take day-wise bookings. Check samples in and upload reports straight to each patient's account.",
-    tools: [
-      "Test menu with your own prices",
-      "Bookings by day, plus fast booking for walk-in patients",
-      "Report upload (PDF or image, up to 5 MB) to the patient",
-      "Test-wise amount for this month and overall",
-      "Your centre's profile, address and photo",
-    ],
-    needs: ["Registration or licence number", "NABL accreditation number, if accredited", "The pathologist or radiologist who signs reports, with their registration number", "Biomedical waste authorisation (optional)"],
+    lead: "Price your test menu, take day-wise bookings and upload reports straight to each patient's account.",
     apply: { href: "/signup/diagnostic-centre", label: "Register your centre" },
-    signIn: "/login/diagnostic",
+    signIn: { href: "/login/diagnostic", label: "Diagnostic centre login" },
   },
 ];
 
@@ -136,15 +108,15 @@ export default async function CorporatePage() {
         aside={
           <div className="grid gap-3">
             {PARTNERS.map((p) => (
-              <Link key={p.id} href={`#${p.id}`} className="group flex items-center gap-4 p-4 rounded-[18px] bg-white/[0.1] ring-1 ring-inset ring-white/20 hover:bg-white/[0.16] transition-colors">
+              <Link key={p.id} href={p.signIn.href} className="group flex items-center gap-4 p-4 rounded-[18px] bg-white/[0.1] ring-1 ring-inset ring-white/20 hover:bg-white/[0.16] transition-colors">
                 <span className="w-12 h-12 rounded-[14px] bg-white text-[#1D4ED8] flex items-center justify-center shrink-0">
                   <p.icon className="w-[22px] h-[22px]" strokeWidth={2.1} />
                 </span>
                 <span className="flex-1 min-w-0">
                   <span className="block text-[12px] font-extrabold uppercase tracking-[0.08em] text-[#BFD2FF]">{p.who}</span>
-                  <span className="block text-[16px] font-extrabold">{p.title}</span>
+                  <span className="block text-[16px] font-extrabold">{p.signIn.label}</span>
                 </span>
-                <ArrowRight className="w-5 h-5 text-white/70 group-hover:translate-x-0.5 transition-transform" />
+                <LogIn className="w-5 h-5 text-white/70 group-hover:translate-x-0.5 transition-transform" />
               </Link>
             ))}
           </div>
@@ -160,49 +132,22 @@ export default async function CorporatePage() {
         />
         <div className="mt-8 md:mt-12 grid lg:grid-cols-3 gap-4 md:gap-5">
           {PARTNERS.map((p) => (
-            <article key={p.id} id={p.id} className={`${card} scroll-mt-24 p-5 md:p-7 flex flex-col`}>
-              <div className="flex items-center gap-3.5">
-                <IconTile icon={p.icon} />
-                <div className="min-w-0">
-                  <p className="text-[12px] font-extrabold uppercase tracking-[0.08em] text-[#2A4DD0]">{p.who}</p>
-                  <h3 className="text-[19px] md:text-[20px] font-extrabold leading-tight">{p.title}</h3>
-                </div>
-              </div>
-              <p className="mt-4 text-[14.5px] md:text-[15px] leading-[1.6] text-[#4A5878]">{p.lead}</p>
+            <article key={p.id} id={p.id} className={`${card} scroll-mt-24 p-6 lg:p-5 xl:p-7 flex flex-col`}>
+              <IconTile icon={p.icon} />
+              <p className="mt-5 text-[12px] font-extrabold uppercase tracking-[0.08em] text-[#2A4DD0]">{p.who}</p>
+              <h3 className="mt-1 text-[19px] md:text-[20px] font-extrabold leading-tight">{p.title}</h3>
+              <p className="mt-2.5 text-[14.5px] md:text-[15px] leading-[1.6] text-[#4A5878]">{p.lead}</p>
 
-              <p className="mt-5 text-[12.5px] font-extrabold uppercase tracking-[0.08em] text-[#5B667A]">Your portal</p>
-              <ul className="mt-2.5 space-y-2.5">
-                {p.tools.map((t) => (
-                  <li key={t} className="flex gap-2.5 text-[14.5px] leading-[1.5]">
-                    <span className="mt-0.5 w-5 h-5 rounded-full bg-[#E7F7EE] text-[#067647] flex items-center justify-center shrink-0">
-                      <Check className="w-3 h-3" strokeWidth={3.2} />
-                    </span>
-                    {t}
-                  </li>
-                ))}
-              </ul>
-
-              <div className="mt-5 p-4 rounded-2xl bg-[#F6F8FC]">
-                <p className="flex items-center gap-2 text-[12.5px] font-extrabold uppercase tracking-[0.08em] text-[#5B667A]">
-                  <FileCheck2 className="w-4 h-4 text-[#2A4DD0]" /> To register you&apos;ll need
-                </p>
-                <ul className="mt-2.5 space-y-1.5">
-                  {p.needs.map((n) => (
-                    <li key={n} className="flex gap-2 text-[13.5px] leading-[1.5] text-[#27324A]">
-                      <span aria-hidden className="mt-[7px] w-1.5 h-1.5 rounded-full bg-[#2A4DD0] shrink-0" />
-                      {n}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="mt-auto pt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2.5">
-                <Link href={p.apply.href} className={`${btnBlue} !px-4`}>
+              <div className="mt-auto pt-6">
+                <Link href={p.apply.href} className={`${btnBlue} w-full !px-4 text-center`}>
                   {p.apply.label}
                 </Link>
-                <Link href={p.signIn} className={`${btnOutline} !px-4`}>
-                  Login
-                </Link>
+                <p className="mt-3 text-center text-[14px] text-[#5B667A]">
+                  Already a partner?{" "}
+                  <Link href={p.signIn.href} className="font-extrabold text-[#2A4DD0] hover:underline underline-offset-4">
+                    Login
+                  </Link>
+                </p>
               </div>
             </article>
           ))}

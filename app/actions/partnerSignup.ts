@@ -127,7 +127,7 @@ export async function submitPartnerApplication(kind: PartnerKind, _prev: unknown
   }
 
   // Each application emails the address given, so limit how many one network can send.
-  if (overLimit(`partner-signup:${(await clientIp()) ?? 'unknown'}`, 5, 60 * 60_000)) {
+  if (await overLimit(`partner-signup:${(await clientIp()) ?? 'unknown'}`, 5, 60 * 60_000)) {
     return fail('Several applications have been sent from this network. Please try again in an hour.')
   }
 

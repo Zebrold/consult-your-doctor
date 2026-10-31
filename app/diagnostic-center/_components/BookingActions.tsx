@@ -17,6 +17,8 @@ export type BookingRef = {
   testLabel: string
   bookingType?: 'walk_in' | 'doorstep'
   doorstepFee?: number
+  /** The desk has taken the test charges (cash or UPI). */
+  counterPaid?: boolean
 }
 
 const styles = {
@@ -308,7 +310,9 @@ export function TakeLabPaymentButton({ booking, kind = 'blue', className }: { bo
   const router = useRouter()
   const [payment, setPayment] = useState<DeskPayment | null>(null)
   const [pending, start] = useTransition()
-  if (booking.status !== 'pending_payment') return null
+  // Unpaid bookings, and bookings paid online whose test charges the desk hasn't taken yet.
+  const due = booking.status === 'pending_payment' || (['confirmed', 'visited', 'completed', 'report_sent'].includes(booking.status) && booking.counterPaid === false)
+  if (!due) return null
 
   const open = () =>
     start(async () => {
@@ -342,6 +346,7 @@ export function TakeLabPaymentButton({ booking, kind = 'blue', className }: { bo
 /** The one thing to do next for a booking: take payment, check in, add the report, or open the sent report. */
 export function NextStep({ booking, reportUrl, kind = 'blue' }: { booking: BookingRef; reportUrl?: string | null; kind?: Kind }) {
   if (booking.status === 'pending_payment') return <TakeLabPaymentButton booking={booking} kind={kind === 'icon' || kind === 'light' ? kind : 'coral'} />
+  if (booking.status === 'confirmed' && booking.counterPaid === false) return <TakeLabPaymentButton booking={booking} kind={kind === 'icon' || kind === 'light' ? kind : 'coral'} />
   if (booking.status === 'confirmed') return <CheckInButton booking={booking} kind={kind === 'icon' || kind === 'light' ? kind : 'teal'} />
   if (booking.status === 'visited' || booking.status === 'completed') return <UploadReportButton booking={booking} kind={kind} />
   if (booking.status === 'report_sent') {

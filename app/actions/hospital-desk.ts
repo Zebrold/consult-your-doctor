@@ -7,8 +7,7 @@ import { vitalsSentence } from '@/lib/vitals'
 import { RECORD_MAX_BYTES, RECORD_TYPES, storeRecordFile } from '@/lib/records'
 import { issuePatientToken, readPatientToken } from '@/lib/desk-token'
 import { ensurePatientProfile, indianMobile, sendPatientOtp, verifyPatientOtp } from '@/lib/patient-onboarding'
-import { findAuthUserId } from '@/lib/auth-users'
-import { migrationHint, recordDeskPayment, upiQr, validUpiReference, type DeskMethod } from '@/lib/desk-payments'
+import { counterPaymentRecorded, migrationHint, recordDeskPayment, upiQr, validUpiReference, type DeskMethod } from '@/lib/desk-payments'
 import { notifyBookingConfirmed, notifyHealthUpdate } from '@/lib/notify/patient'
 import type { DeskPayment, DeskResult } from '@/components/portal/desk-types'
 
@@ -64,7 +63,7 @@ export async function verifyHospitalPatient(input: { name: string; phone: string
   if (!verified.ok) return verified
   const profile = await ensurePatientProfile(ctx.admin, verified.userId, { name, phone, email })
   if (!profile.ok) return profile
-  return { ok: true, token: issuePatientToken(verified.userId, ctx.scope), patient: { name: profile.name, phone, email: email || null, created: profile.created } }
+  return { ok: true, token: issuePatientToken(verified.userId, ctx.scope, verified.created), patient: { name: profile.name, phone, email: email || null, created: profile.created } }
 }
 
 /** The doctor's open slots over the next week, for booking at the desk. */
@@ -140,68 +139,27 @@ export async function registerHospitalPatient(formData: FormData): Promise<DeskR
   const ctx = await hospitalContext()
   if (!ctx) return fail(NOT_SIGNED_IN)
 
-  const fullName = String(formData.get('fullName') || '').trim().replace(/\s+/g, ' ')
+  const rawFullName = String(formData.get('fullName') || '').trim().replace(/\s+/g, ' ')
   const rawPhone = String(formData.get('phone') || '').trim()
   const email = String(formData.get('email') || '').trim().toLowerCase()
   const doctorId = String(formData.get('doctorId') || '').trim()
   const scheduleId = String(formData.get('scheduleId') || 'now').trim()
+  const code = String(formData.get('code') || '')
 
-  if (fullName.length < 2) return fail('Please enter the patient’s full name.')
+  if (rawFullName.length < 2) return fail('Please enter the patient’s full name.')
   const phone = indianMobile(rawPhone)
   if (!phone) return fail('Please enter a valid 10-digit Indian mobile number.')
   if (email && !emailPattern.test(email)) return fail('Enter a valid email address or leave it blank.')
   if (!doctorId) return fail('Please select an attending doctor.')
 
-  // 1. Resolve or create patient profile in Supabase
-  let patientId = ''
-  const { data: existingProfile } = await ctx.admin
-    .from('profiles')
-    .select('id, full_name, email, role')
-    .in('phone_number', [phone, phone.replace('+', '')])
-    .maybeSingle()
-
-  if (existingProfile && existingProfile.role && existingProfile.role !== 'patient') {
-    return fail('This number belongs to a staff account, not a patient.')
-  }
-  if (existingProfile) {
-    patientId = existingProfile.id
-    if (email && (!existingProfile.email || existingProfile.email.endsWith('.internal'))) {
-      await ctx.admin.from('profiles').update({ email }).eq('id', patientId)
-    }
-  } else {
-    const cleanPhone = phone.replace('+', '')
-    const authEmail = email || `${cleanPhone}@patient.internal`
-    let authUserId: string | null =
-      (await findAuthUserId(ctx.admin, { phone })) ?? (email ? await findAuthUserId(ctx.admin, { email }) : null)
-
-    if (!authUserId) {
-      const { data: created, error: createErr } = await ctx.admin.auth.admin.createUser({
-        phone,
-        email: authEmail,
-        phone_confirm: true,
-        email_confirm: true,
-        user_metadata: { role: 'patient', full_name: fullName },
-      })
-      if (createErr && !created?.user) {
-        console.error('registerHospitalPatient auth error:', createErr)
-      }
-      authUserId = created?.user?.id ?? null
-    }
-
-    patientId = authUserId || crypto.randomUUID()
-
-    const { error: insErr } = await ctx.admin.from('profiles').upsert({
-      id: patientId,
-      full_name: fullName,
-      phone_number: phone,
-      email: email || null,
-      role: 'patient',
-    })
-    if (insErr) {
-      console.error('registerHospitalPatient profile insert error:', insErr)
-      return fail('Could not create patient profile. Please try again.')
-    }
-  }
+  // The patient must confirm their number with the code sent to it before anything is booked to their account. Without
+  // this, a desk could attach visits, records and payments to whoever owns a number.
+  const verified = await verifyPatientOtp(ctx.admin, phone, code)
+  if (!verified.ok) return fail(verified.error)
+  const profile = await ensurePatientProfile(ctx.admin, verified.userId, { name: rawFullName, phone, email })
+  if (!profile.ok) return fail(profile.error)
+  const patientId = verified.userId
+  const fullName = profile.name
 
   // 2. Verify doctor
   const { data: doctor } = await ctx.admin
@@ -350,7 +308,9 @@ export async function hospitalPaymentInfo(appointmentId: string): Promise<DeskRe
   if (!ctx) return fail(NOT_SIGNED_IN)
   const payment = await paymentFor(ctx.admin, ctx.hospital.id, appointmentId)
   if (!payment) return fail('Booking not found.')
-  if (payment.status !== 'pending_payment') return fail('This booking is already paid.')
+  if (payment.status === 'cancelled') return fail('This booking was cancelled.')
+  // A booking paid online (the booking fee) still takes the consultation fee here, at the counter.
+  if (await counterPaymentRecorded(ctx.admin, { kind: 'appointment', id: appointmentId })) return fail('This booking is already paid.')
   return { ok: true, payment }
 }
 
@@ -364,7 +324,7 @@ export async function recordHospitalPayment(input: { appointmentId: string; meth
 
   const visit = await visitAt(ctx.admin, ctx.hospital.id, input.appointmentId)
   if (!visit) return fail('Booking not found.')
-  if (visit.row.status !== 'pending_payment') return fail('This booking is already paid.')
+  if (visit.row.status === 'cancelled') return fail('This booking was cancelled.')
   if (!visit.fee) return fail('This doctor’s fee isn’t set.')
 
   try {

@@ -12,6 +12,7 @@ import { RxSchema, filledMedicines, type RxData } from '@/lib/rx'
 import { cleanList } from '@/lib/profile-lists'
 import { PHOTO_CACHE } from '@/lib/photos'
 import { migrationHint } from '@/lib/desk-payments'
+import { ensurePatientProfile, indianMobile, sendPatientOtp, verifyPatientOtp } from '@/lib/patient-onboarding'
 
 const IMAGE_TYPES: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
 
@@ -307,6 +308,8 @@ export async function updateDoctorProfile(formData: FormData) {
 // Doctors move a paid visit between booked → checked in → completed. Unpaid or cancelled
 // bookings are left to the payment flow and the operations team.
 const DOCTOR_STATUSES = ['confirmed', 'visited', 'completed']
+/** The statuses a doctor can move a paid visit from, for each status they can set. */
+const DOCTOR_FROM: Record<string, string[]> = { visited: ['confirmed'], completed: ['confirmed', 'visited'] }
 
 export async function updateAppointmentStatus(appointmentId: string, status: string) {
   if (!DOCTOR_STATUSES.includes(status)) return { success: false, error: 'That status change is not allowed.' }
@@ -318,12 +321,15 @@ export async function updateAppointmentStatus(appointmentId: string, status: str
   const { data: doctor } = await supabase.from('doctors').select('id').eq('profile_id', user.id).single()
   if (!doctor) return { success: false, error: 'Not a doctor' }
 
+  // Only forward moves: a visit is checked in, then completed. Nothing goes back to booked, and a completed visit stays so.
+  const from = DOCTOR_FROM[status]
+  if (!from) return { success: false, error: 'That status change is not allowed.' }
   const adminClient = createAdminClient()
   const { data: updated, error } = await adminClient
     .from('appointments')
     .update({ status })
     .match({ id: appointmentId, doctor_id: doctor.id })
-    .in('status', DOCTOR_STATUSES)
+    .in('status', from)
     .select('id')
 
   if (error) {
@@ -331,11 +337,23 @@ export async function updateAppointmentStatus(appointmentId: string, status: str
     return { success: false, error: error.message }
   }
   if (!updated || updated.length === 0) {
-    return { success: false, error: 'This appointment is unpaid or cancelled, so its status cannot be changed here.' }
+    return { success: false, error: 'This appointment is unpaid, already closed, or can’t move to that status from its current one.' }
   }
 
   revalidateDoctorPages()
   return { success: true }
+}
+
+/** Texts a walk-in patient the code their visit needs (see addNewPatient). Sent from the doctor's own session. */
+export async function sendDoctorPatientOtp(rawPhone: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: 'Unauthorized' }
+  const { data: doctor } = await supabase.from('doctors').select('id').eq('profile_id', user.id).maybeSingle()
+  if (!doctor) return { ok: false, error: 'Not a doctor' }
+  const phone = indianMobile(rawPhone)
+  if (!phone) return { ok: false, error: 'Enter the patient’s 10-digit Indian mobile number.' }
+  return sendPatientOtp(createAdminClient(), phone, `doctor:${doctor.id}:${user.id}`)
 }
 
 export async function addNewPatient(formData: FormData) {
@@ -346,54 +364,27 @@ export async function addNewPatient(formData: FormData) {
   const { data: doctor } = await supabase.from('doctors').select('id, hospital_id').eq('profile_id', user.id).single()
   if (!doctor) return { success: false, error: 'Not a doctor' }
 
-  const fullName = formData.get('full_name') as string
-  const phoneNumber = formData.get('phone_number') as string
-  const rawEmail = formData.get('email') as string
-  const email = rawEmail && rawEmail.includes('@') ? rawEmail : `patient-${Date.now()}@consultyourdoctor.internal`
+  const fullName = String(formData.get('full_name') || '').trim().replace(/\s+/g, ' ')
+  const phone = indianMobile(String(formData.get('phone_number') || ''))
+  const rawEmail = String(formData.get('email') || '').trim().toLowerCase()
+  const email = rawEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail) ? rawEmail : null
   // Only what the doctor actually entered is recorded; nothing clinical is filled in by default.
   const field = (name: string) => String(formData.get(name) || '').trim()
   const diagnosis = field('diagnosis')
   const allergy = field('allergy')
   const medications = field('medications')
 
-  if (!fullName) return { success: false, error: 'Patient name is required' }
+  if (fullName.length < 2) return { success: false, error: 'Patient name is required' }
+  if (!phone) return { success: false, error: 'Enter the patient’s 10-digit mobile number. They confirm it with a code we send them.' }
 
+  // The patient confirms their number with the code texted to it. Without this, a walk-in form could attach visits and
+  // prescriptions to whichever existing account has that email or number.
   const adminClient = createAdminClient()
-
-  // Create auth user or use existing
-  let patientId: string | null = null
-  let created = false
-  const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
-    email,
-    email_confirm: true,
-    user_metadata: { full_name: fullName, role: 'patient' }
-  })
-
-  if (authUser?.user?.id) {
-    patientId = authUser.user.id
-    created = true
-  } else {
-    // If user exists or failed, find profile
-    const { data: existingProfile } = await adminClient.from('profiles').select('id, role').eq('email', email).maybeSingle()
-    if (existingProfile && existingProfile.role && existingProfile.role !== 'patient') {
-      return { success: false, error: 'That email belongs to a staff account. Use the patient’s own email, or leave it blank.' }
-    }
-    if (existingProfile) {
-      patientId = existingProfile.id
-    } else {
-      return { success: false, error: authError?.message || 'Failed to create patient account' }
-    }
-  }
-
-  // Fill in the profile only for an account created just now; an existing patient's details stay as they are.
-  if (created) await adminClient.from('profiles').upsert({
-    id: patientId,
-    full_name: fullName,
-    phone_number: phoneNumber || null,
-    email: email,
-    role: 'patient',
-    hospital_id: doctor.hospital_id || null
-  })
+  const verified = await verifyPatientOtp(adminClient, phone, field('code'))
+  if (!verified.ok) return { success: false, error: verified.error }
+  const details = await ensurePatientProfile(adminClient, verified.userId, { name: fullName, phone, email })
+  if (!details.ok) return { success: false, error: details.error }
+  const patientId = verified.userId
 
   // The walk-in is seen now: give the visit a 30-minute slot starting now
   const startTime = new Date(Date.now()).toISOString()

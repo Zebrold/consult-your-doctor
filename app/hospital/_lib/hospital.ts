@@ -178,7 +178,10 @@ export type HospitalVisit = {
   /** The front-desk executive who booked it, for walk-ins. */
   executiveId: string | null
   patient: { id: string; name: string; phone: string | null; email: string | null } | null
+  /** The desk's payment if there is one, otherwise the online booking fee. */
   payment: Payment | null
+  /** Booked and paid online (the booking fee), and the consultation fee is still to be taken at the counter. */
+  counterDue: boolean
   /** Booked as fast track: seen ahead of general patients once checked in. */
   fastTrack: boolean
   /** Hospital services the patient picked when booking, to collect at the counter. */
@@ -220,6 +223,7 @@ export async function loadHospitalVisits(admin: Admin, hospitalId: string, docto
     .map((r) => {
       const slot = one(r.schedules)
       const patient = one(r.patient)
+      const payment = payments.get(r.id) ?? null
       return {
         id: r.id,
         code: r.id.slice(0, 8).toUpperCase(),
@@ -230,13 +234,17 @@ export async function loadHospitalVisits(admin: Admin, hospitalId: string, docto
         doctorId: r.doctor_id,
         executiveId: r.executive_id,
         patient: patient ? { id: patient.id, name: patient.full_name || 'Patient', phone: patient.phone_number, email: realEmail(patient.email) } : null,
-        payment: payments.get(r.id) ?? null,
+        payment,
+        counterDue: payment?.gateway === 'payu' && COUNTER_DUE_STATUSES.includes(r.status),
         fastTrack: isFastTrack(r.booking_type),
         services: bookedServices(r.services),
       }
     })
     .sort((a, b) => (a.start ?? a.createdAt).localeCompare(b.start ?? b.createdAt))
 }
+
+/** Visits the consultation fee is still to be taken from at the counter when they were booked online. */
+const COUNTER_DUE_STATUSES = ['confirmed', 'visited', 'completed']
 
 async function loadPayments(admin: Admin, ids: string[]): Promise<Map<string, Payment>> {
   const map = new Map<string, Payment>()
@@ -247,29 +255,31 @@ async function loadPayments(admin: Admin, ids: string[]): Promise<Map<string, Pa
       .in('appointment_id', ids.slice(i, i + 150))
       .eq('status', 'success')
     for (const p of (data ?? []) as { appointment_id: string; amount: number | string; gateway: string | null; created_at: string | null }[]) {
-      map.set(p.appointment_id, { amount: Number(p.amount) || 0, gateway: p.gateway, createdAt: p.created_at })
+      const payment = { amount: Number(p.amount) || 0, gateway: p.gateway, createdAt: p.created_at }
+      // The desk's payment is what the counter took, so it wins over the online booking fee recorded for the same visit.
+      const current = map.get(p.appointment_id)
+      if (!current || (current.gateway === 'payu' && payment.gateway !== 'payu')) map.set(p.appointment_id, payment)
     }
   }
   return map
 }
 
 /**
- * What the hospital takes for a visit. A desk payment is what the desk collected. An online (PayU) payment is only the
- * patient's booking fee, which goes to Consult Your Doctor: the hospital takes the doctor's consultation fee at its own
- * counter, so that is its share.
+ * What the hospital takes for a visit: what its own counter collected. An online (PayU) payment is only the patient's
+ * booking fee, which goes to Consult Your Doctor; the consultation fee is counted once the counter has taken it. Null
+ * when the counter hasn't collected anything yet.
  */
-export const hospitalShare = (p: Payment, consultationFee: number | null | undefined) =>
-  p.gateway === 'payu' ? Math.max(0, Number(consultationFee) || 0) : p.amount
+export const hospitalShare = (p: Payment): number | null => (p.gateway === 'payu' ? null : p.amount)
 
 export const PAYMENT_METHOD: Record<string, string> = { payu: 'Booked online, fee at counter', upi_qr: 'UPI scanner', cash: 'Cash at desk' }
 
-/** A visit's payment column: unpaid, booked online (the fee is still due at the counter) or paid at the desk. */
-export function paymentLook(v: { status: string; payment: Payment | null }, share: number): { label: string; color: string } {
+/** A visit's payment column: unpaid, booked online (the consultation fee is still due at the counter) or paid at the desk. */
+export function paymentLook(v: { status: string; payment: Payment | null }, share: number | null): { label: string; color: string } {
   if (v.status === 'pending_payment') return { label: 'Not paid', color: '#B54708' }
   if (!v.payment) return { label: 'Not recorded', color: '#5B667A' }
   // An online payment is the booking fee; the consultation fee is taken at the counter.
-  if (v.payment.gateway === 'payu') return { label: 'Booking paid', color: '#5B667A' }
-  return { label: `Paid · ${formatINR(share)}`, color: '#067647' }
+  if (v.payment.gateway === 'payu') return { label: 'Booking paid · fee due at counter', color: '#B54708' }
+  return { label: `Paid · ${formatINR(share ?? v.payment.amount)}`, color: '#067647' }
 }
 
 export type Slot = { id: string; doctorId: string; start: string; end: string | null; booked: boolean }

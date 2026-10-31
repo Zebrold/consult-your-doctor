@@ -4,7 +4,7 @@
 // user into a portal that then sends them back: that ping-pong showed up as "too many redirects".
 
 export const ROLE_COOKIE = 'user-role'
-export const ROLE_COOKIE_OPTIONS = { maxAge: 7200, path: '/', sameSite: 'lax' as const, httpOnly: true }
+export const ROLE_COOKIE_OPTIONS = { maxAge: 7200, path: '/', sameSite: 'lax' as const, httpOnly: true, secure: process.env.NODE_ENV === 'production' }
 
 export const roleCookieValue = (userId: string, role: string) => `${userId}:${role}`
 

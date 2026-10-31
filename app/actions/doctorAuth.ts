@@ -46,7 +46,7 @@ export async function submitDoctorSignup(prevState: any, formData: FormData) {
     return { error: 'Please check your name and email address.', success: false }
   }
   // Each application emails the address given, so limit how many one network can send.
-  if (overLimit(`doctor-signup:${(await clientIp()) ?? 'unknown'}`, 5, 60 * 60_000)) {
+  if (await overLimit(`doctor-signup:${(await clientIp()) ?? 'unknown'}`, 5, 60 * 60_000)) {
     return { error: 'Several applications have been sent from this network. Please try again in an hour.', success: false }
   }
 
@@ -71,7 +71,8 @@ export async function submitDoctorSignup(prevState: any, formData: FormData) {
   ].join(' | ')
 
   // Check if email already exists in users or requests
-  const { data: existingUser } = await supabase.from('profiles').select('id').eq('email', email).maybeSingle()
+  // Admin client: a visitor's session may not search every profile's email (that would show which addresses are registered).
+  const { data: existingUser } = await createAdminClient().from('profiles').select('id').eq('email', email).maybeSingle()
   if (existingUser) {
     return { error: 'This email is already registered in the system.', success: false }
   }

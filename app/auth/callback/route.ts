@@ -113,6 +113,11 @@ export async function GET(request: Request) {
         }
 
         const userRole = profile?.role || 'patient'
+        // Google opens patient accounts only. A staff account signs in with its Staff ID, so this session is ended.
+        if (userRole !== 'patient') {
+          await supabase.auth.signOut({ scope: 'local' })
+          return NextResponse.redirect(`${redirectOrigin}/login/patient?error=staff`)
+        }
         const isNew = !profileById
         const isMissingPhone = !profile?.phone_number
 

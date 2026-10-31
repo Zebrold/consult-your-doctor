@@ -20,7 +20,7 @@ export default async function BillingPage() {
   if (!user) redirect('/login/patient?next=/patient/insurance')
 
   const [{ data: profile }, { data: visits }, { data: labs }] = await Promise.all([
-    supabase.from('profiles').select('full_name, email').eq('id', user.id).maybeSingle(),
+    createAdminClient().from('profiles').select('full_name, email').eq('id', user.id).maybeSingle(),
     supabase.from('appointments').select('id, status, doctors ( profiles!doctors_profile_id_fkey ( full_name ) )').eq('patient_id', user.id),
     supabase.from('diagnostic_bookings').select('id, status, test_name').eq('patient_id', user.id),
   ])

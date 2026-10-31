@@ -82,7 +82,7 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
 
   const now = currentTime()
   const [{ data: profile }, { data: details }, { data: appts }, { data: labs }] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
+    createAdminClient().from('profiles').select('*').eq('id', user.id).maybeSingle(),
     supabase.from('patient_details').select('*').eq('id', user.id).maybeSingle(),
     supabase
       .from('appointments')

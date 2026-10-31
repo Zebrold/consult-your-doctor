@@ -5,15 +5,15 @@ import { findAuthUserId } from '@/lib/auth-users'
 import { DEMO_CODE, DEMO_PATIENT_EMAIL, DEMO_PHONE, demoLoginEnabled, demoPatientPassword } from '@/lib/demo-login'
 import { checkOtpChallenge, otpSendAllowed, otpTableReady, recordOtpChallenge } from '@/lib/otp-guard'
 import { overLimit } from '@/lib/rate-limit'
+import { authSecret } from '@/lib/secrets'
 import { sendWhatsAppOtp } from '@/lib/notify/whatsapp'
 import { sendOtpSms } from '@/lib/notify/sms'
 
 type Admin = ReturnType<typeof createAdminClient>
 
-// Registering a patient at a hospital or diagnostic centre desk: staff enter the patient's mobile number, the site
-// sends the patient a one-time code, the patient reads it out, and once it checks out the patient's account exists.
-// Nothing here signs anyone in, so the staff member stays signed in as themselves.
-
+// Registering a patient at a hospital or diagnostic centre desk (or from a doctor's walk-in form): staff enter the
+// patient's mobile number, the site sends the patient a one-time code, the patient reads it out, and once it checks out
+// the patient's account exists. Nothing here signs anyone in, so the staff member stays signed in as themselves.
 
 /** A 10-digit Indian mobile number (with or without +91 / 0) as "+91XXXXXXXXXX", or null. */
 export function indianMobile(raw: string | null | undefined) {
@@ -30,12 +30,12 @@ type Outcome<T = object> = ({ ok: true } & T) | { ok: false; error: string }
 // member's browser, one per patient number, so only the desk that sent the code can check it.
 //
 // There is deliberately no fallback code. A fixed code accepted when delivery failed let any desk "verify" any
-// number, and that verification is what lets a desk issue the patient a new password.
+// number, and that verification is what lets a desk open the patient's account.
 const deskCookie = (phone: string) => `cyd_desk_otp_${phone.replace(/\D/g, '')}`
 const CODE_TTL_MS = 10 * 60_000
 
 function deskCodeHash(phone: string, code: string, expiresAt: number) {
-  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const secret = authSecret()
   if (!secret) throw new Error('Verification codes are not configured on this server.')
   return createHmac('sha256', secret).update(`desk:${phone}:${code}:${expiresAt}`).digest('hex')
 }
@@ -54,7 +54,7 @@ export async function sendPatientOtp(admin: Admin, phone: string, deskScope: str
   // The demo number and code used for patient sign-in work here too where demo sign-in is on (lib/demo-login.ts).
   if (phone === DEMO_PHONE && demoLoginEnabled()) return { ok: true }
 
-  if (overLimit(`desk-otp:${deskScope}`, 60, 60 * 60_000)) {
+  if (await overLimit(`desk-otp:${deskScope}`, 60, 60 * 60_000)) {
     return { ok: false, error: 'This desk has sent a lot of codes in the last hour. Please wait a little before sending more.' }
   }
   // The per-number caps apply as for sign-in. The per-network cap doesn't: a busy desk sends many codes from one
@@ -79,15 +79,18 @@ export async function sendPatientOtp(admin: Admin, phone: string, deskScope: str
   return { ok: true }
 }
 
-/** Checks the code the patient read out. Returns the patient's user id. */
-export async function verifyPatientOtp(admin: Admin, phone: string, code: string): Promise<Outcome<{ userId: string }>> {
+/**
+ * Checks the code the patient read out. Returns the patient's user id. `created` is true only when this check opened
+ * the account, so the desk may then issue it a password; an existing account keeps whatever sign-in it has.
+ */
+export async function verifyPatientOtp(admin: Admin, phone: string, code: string): Promise<Outcome<{ userId: string; created: boolean }>> {
   const token = code.replace(/\D/g, '')
   if (token.length !== 6) return { ok: false, error: 'Enter the 6-digit code the patient received.' }
 
   if (phone === DEMO_PHONE && demoLoginEnabled()) {
     if (token !== DEMO_CODE) return { ok: false, error: 'That code is wrong or has expired. Send a new one.' }
     const { data } = await admin.from('profiles').select('id').in('phone_number', [phone, phone.slice(1)]).limit(1).maybeSingle()
-    return data ? { ok: true, userId: data.id } : { ok: false, error: 'The demo patient account isn’t set up.' }
+    return data ? { ok: true, userId: data.id, created: false } : { ok: false, error: 'The demo patient account isn’t set up.' }
   }
 
   const store = await cookies()
@@ -103,15 +106,17 @@ export async function verifyPatientOtp(admin: Admin, phone: string, code: string
 
   // The patient has proved the number: find its account, or open one.
   let userId = await findAuthUserId(admin, { phone })
+  let created = false
   if (!userId) {
-    const { data: created, error } = await admin.auth.admin.createUser({ phone, phone_confirm: true, user_metadata: { role: 'patient' } })
-    userId = created?.user?.id ?? (error ? await findAuthUserId(admin, { phone }) : null)
+    const { data: made, error } = await admin.auth.admin.createUser({ phone, phone_confirm: true, user_metadata: { role: 'patient' } })
+    userId = made?.user?.id ?? (error ? await findAuthUserId(admin, { phone }) : null)
     if (!userId) {
       console.error('verifyPatientOtp createUser:', error)
       return { ok: false, error: 'We couldn’t open an account for this number. Please try again.' }
     }
+    created = !!made?.user?.id
   }
-  return { ok: true, userId }
+  return { ok: true, userId, created }
 }
 
 /**
@@ -145,10 +150,11 @@ export function generatePassword(length = 10) {
 }
 
 /**
- * Gives the patient a Patient ID (kept if they already have one) and a new password, so they can sign in with
- * either. Returns both so the desk can hand them over.
+ * Gives the patient a Patient ID (kept if they already have one). A new password is set only when `withPassword` is
+ * true, which the desk asks for only when it has just opened the account. For an existing account the password it
+ * already has is never replaced: a desk that could reset it could take the account over with the patient's code.
  */
-export async function issuePatientCredentials(admin: Admin, userId: string): Promise<Outcome<{ patientCode: string; password: string }>> {
+export async function issuePatientCredentials(admin: Admin, userId: string, options: { withPassword: boolean }): Promise<Outcome<{ patientCode: string; password: string | null }>> {
   const { data: profile } = await admin.from('profiles').select('patient_code').eq('id', userId).maybeSingle()
   let patientCode: string | null = profile?.patient_code ?? null
 
@@ -164,6 +170,7 @@ export async function issuePatientCredentials(admin: Admin, userId: string): Pro
     }
   }
   if (!patientCode) return { ok: false, error: 'Could not create a unique Patient ID. Please try again.' }
+  if (!options.withPassword) return { ok: true, patientCode, password: null }
 
   // The demo patient keeps the password the demo sign-in uses (only where demo sign-in is on).
   const demoPassword = demoPatientPassword()

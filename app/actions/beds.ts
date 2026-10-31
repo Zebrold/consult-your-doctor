@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { indianMobile } from '@/lib/patient-onboarding'
 import { migrationHint } from '@/lib/desk-payments'
+import { overLimit } from '@/lib/rate-limit'
 import { BED_STATUS, BED_TYPES } from '@/lib/beds'
 import type { DeskResult } from '@/components/portal/desk-types'
 
@@ -225,10 +226,17 @@ export async function hospitalPatientOptions(): Promise<DeskResult<{ patients: {
   return { ok: true, patients: Array.from(seen.values()).slice(0, 400) }
 }
 
-/** Finds a registered patient by mobile number, for admitting someone who hasn't had a visit here yet. */
+/**
+ * Finds a patient of this hospital by mobile number, to admit them. Only a patient this hospital already has a visit or
+ * a bed record for is found: looking up any number on the platform would tell staff who is registered. A new patient is
+ * registered with Add Patient, where they confirm their number with a code. The answer is the same whether or not the
+ * number has an account, so the lookup can't be used to check which numbers are registered.
+ */
 export async function findPatientByPhone(rawPhone: string): Promise<DeskResult<{ patient: { id: string; name: string; phone: string } }>> {
   const ctx = await hospitalContext()
   if (!ctx) return fail(NOT_SIGNED_IN)
+  if (await overLimit(`bed-patient-lookup:${ctx.userId}`, 40, 15 * 60_000)) return fail('Too many lookups. Please wait a few minutes and try again.')
+  const NOT_HERE = 'No patient with that number has a visit or bed record here. Register them with Add Patient on the Patients page first.'
   const phone = indianMobile(rawPhone)
   if (!phone) return fail('Enter a 10-digit Indian mobile number.')
   const digits = phone.slice(3)
@@ -239,7 +247,13 @@ export async function findPatientByPhone(rawPhone: string): Promise<DeskResult<{
     .eq('role', 'patient')
     .limit(1)
   const p = (data ?? [])[0] as { id: string; full_name: string | null; phone_number: string } | undefined
-  if (!p) return fail('No patient account uses that number. Register them first with Add Patient on the Patients page.')
+  if (!p) return fail(NOT_HERE)
+
+  const [{ data: visit }, { data: bed }] = await Promise.all([
+    ctx.admin.from('appointments').select('id').eq('patient_id', p.id).eq('hospital_id', ctx.hospitalId).limit(1).maybeSingle(),
+    ctx.admin.from('bed_allocations').select('id').eq('patient_id', p.id).eq('hospital_id', ctx.hospitalId).limit(1).maybeSingle(),
+  ])
+  if (!visit && !bed) return fail(NOT_HERE)
   return { ok: true, patient: { id: p.id, name: p.full_name || 'Patient', phone } }
 }
 

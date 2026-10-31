@@ -60,8 +60,8 @@ export default async function HospitalDashboardPage() {
   const bookedSlots = todaySlots.filter((s) => s.booked).length
   const slotPct = occupancyOn(today)
 
-  // Money the hospital takes: desk payments, and the consultation fee of online bookings.
-  const shareOf = (v: HospitalVisit) => (v.payment ? hospitalShare(v.payment, v.doctorId ? doctorById.get(v.doctorId)?.fee : null) : 0)
+  // Money the hospital takes: what its counter has collected. A booking paid online counts once the counter takes its fee.
+  const shareOf = (v: HospitalVisit) => (v.payment ? hospitalShare(v.payment) ?? 0 : 0)
   const paidDay = (v: HospitalVisit) => dayOf(v.payment?.createdAt ?? v.createdAt)
   const revenueOn = (key: string) => visits.reduce((sum, v) => (v.payment && paidDay(v) === key ? sum + shareOf(v) : sum), 0)
   const revenueMonth = visits.reduce((sum, v) => (v.payment && paidDay(v)?.startsWith(today.slice(0, 7)) ? sum + shareOf(v) : sum), 0)

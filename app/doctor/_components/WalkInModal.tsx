@@ -3,7 +3,7 @@
 import { useState, useTransition, type FormEvent, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { LoaderCircle, UserPlus, X } from 'lucide-react'
-import { addNewPatient } from '@/app/actions/doctor'
+import { addNewPatient, sendDoctorPatientOtp } from '@/app/actions/doctor'
 
 const input =
   'w-full h-11 rounded-[11px] bg-white border-[1.5px] border-[#D6DDE8] px-3.5 text-[14px] text-[#0B1B3F] placeholder:text-[#98A2B3] focus:outline-none focus:border-[#2A4DD0]'
@@ -23,10 +23,31 @@ export function WalkInButton({ className, label = 'Add walk-in patient', icon }:
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
+  // Whether a code has been texted to the patient for this walk-in.
+  const [codeSent, setCodeSent] = useState(false)
+
+  // Texts the patient a code. The patient is only added once the code is entered and checked (addNewPatient).
+  const sendCode = (form: HTMLFormElement | null) => {
+    if (!form) return
+    const phone = String(new FormData(form).get('phone_number') || '')
+    setError(null)
+    start(async () => {
+      const res = await sendDoctorPatientOtp(phone)
+      if (!res.ok) {
+        setError(res.error)
+        return
+      }
+      setCodeSent(true)
+    })
+  }
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const form = new FormData(e.currentTarget)
+    if (!codeSent || !String(form.get('code') || '').trim()) {
+      setError('Send the patient a code, then enter it here to add them.')
+      return
+    }
     start(async () => {
       const res = await addNewPatient(form)
       if (!res.success) {
@@ -34,6 +55,7 @@ export function WalkInButton({ className, label = 'Add walk-in patient', icon }:
         return
       }
       setOpen(false)
+      setCodeSent(false)
       setError(null)
       router.refresh()
     })
@@ -68,11 +90,29 @@ export function WalkInButton({ className, label = 'Add walk-in patient', icon }:
                 <input name="full_name" required className={input} autoComplete="off" />
               </Field>
               <Field label="Mobile number">
-                <input name="phone_number" type="tel" className={input} placeholder="+91 98765 43210" />
+                <input name="phone_number" type="tel" required className={input} placeholder="+91 98765 43210" />
               </Field>
               <Field label="Email (optional)">
                 <input name="email" type="email" className={input} />
               </Field>
+              <div className="sm:col-span-2 flex items-end gap-2">
+                <Field label="Code from the patient" className="flex-1 min-w-0">
+                  <input name="code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} className={input} placeholder="6-digit code" />
+                </Field>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={(e) => sendCode((e.currentTarget as HTMLButtonElement).form)}
+                  className="h-[42px] px-4 rounded-[11px] border-[1.5px] border-[#2A4DD0] text-[#2A4DD0] text-[13px] font-extrabold hover:bg-[#F4F6FA] disabled:opacity-60 shrink-0"
+                >
+                  {codeSent ? 'Resend code' : 'Send code'}
+                </button>
+              </div>
+              <p className="sm:col-span-2 -mt-1 text-[12px] text-[#5B667A]">
+                {codeSent
+                  ? 'A code was texted to the patient. Ask them to read it out, then add the patient.'
+                  : 'Send the patient a code first. Their record is only added once they confirm their number.'}
+              </p>
             </div>
 
             <fieldset className="flex flex-col gap-3 pt-3 border-t border-[#EEF2F7]">

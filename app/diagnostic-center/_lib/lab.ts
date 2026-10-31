@@ -4,10 +4,13 @@ import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { one } from '@/components/patient/data'
 import type { Tone } from '@/components/portal/ui'
-import { matchBookedTests, sumPrices, type BookedTest } from '@/lib/pricing'
+import { bookedTestsFor, sumPrices, type BookedTest } from '@/lib/pricing'
 export { ageSex } from '@/lib/patient-facts'
 
 type Admin = ReturnType<typeof createAdminClient>
+
+/** The payments a desk takes at the counter (the test charges), as opposed to the online booking fee. */
+const COUNTER_GATEWAYS = ['cash', 'upi_qr']
 
 export type LabTest = { name: string; price: number | null }
 
@@ -128,6 +131,8 @@ export type LabBooking = {
   testLabel: string
   /** What the lab charges for these tests at today's prices (including doorstep fee if applicable). */
   amount: number | null
+  /** The desk has taken its payment (cash or UPI) for the tests. An online booking fee alone leaves this false. */
+  counterPaid: boolean
   bookingType: 'walk_in' | 'doorstep'
   doorstepFee: number
   patient: { id: string; name: string; phone: string | null; email: string | null } | null
@@ -141,14 +146,16 @@ type BookingRow = {
   created_at: string
   booking_type?: string | null
   doorstep_fee?: number | string | null
+  priced_tests?: unknown
+  payments?: { gateway: string | null; status: string }[] | null
   profiles: { id: string; full_name: string | null; phone_number: string | null; email: string | null } | { id: string; full_name: string | null; phone_number: string | null; email: string | null }[] | null
 }
 
 /** The code patients see on their booking ("ID 1A2B3C4D"). */
 export const bookingCode = (id: string) => id.slice(0, 8).toUpperCase()
 
-function describeTests(testName: string, prices: Record<string, number>): { tests: LabTest[]; label: string; amount: number | null } {
-  const matched: BookedTest[] | null = matchBookedTests(testName, prices)
+function describeTests(testName: string, prices: Record<string, number>, priced?: unknown): { tests: LabTest[]; label: string; amount: number | null } {
+  const matched: BookedTest[] | null = bookedTestsFor({ test_name: testName, priced_tests: priced }, prices)
   if (matched) return { tests: matched, label: matched.map((t) => t.name).join(', '), amount: sumPrices(matched) }
   // Old bookings stored a slug ("lipid-profile"); show it readably even if the lab no longer prices it.
   const label = testName.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || 'Lab test'
@@ -159,15 +166,17 @@ function describeTests(testName: string, prices: Record<string, number>): { test
 export async function loadLabBookings(admin: Admin, lab: LabInfo): Promise<LabBooking[]> {
   let rows: BookingRow[] = []
 
+  // `payments` shows whether the desk has taken its payment (cash or UPI) for each booking; an online booking fee alone
+  // doesn't cover the test charges, which are paid at the lab.
   const res = await admin
     .from('diagnostic_bookings')
-    .select('id, status, test_name, preferred_date, created_at, booking_type, doorstep_fee, profiles ( id, full_name, phone_number, email )')
+    .select('id, status, test_name, preferred_date, created_at, booking_type, doorstep_fee, priced_tests, profiles ( id, full_name, phone_number, email ), payments ( gateway, status )')
     .eq('center_id', lab.id)
     .neq('status', 'cancelled')
     .order('created_at', { ascending: false })
     .limit(2000)
 
-  if (res.error && /booking_type|doorstep/i.test(res.error.message)) {
+  if (res.error && /booking_type|doorstep|priced_tests|payments/i.test(res.error.message)) {
     const fallback = await admin
       .from('diagnostic_bookings')
       .select('id, status, test_name, preferred_date, created_at, profiles ( id, full_name, phone_number, email )')
@@ -183,7 +192,8 @@ export async function loadLabBookings(admin: Admin, lab: LabInfo): Promise<LabBo
   return rows
     .map((row) => {
       const patient = one(row.profiles)
-      const tests = describeTests(row.test_name || '', lab.prices)
+      const tests = describeTests(row.test_name || '', lab.prices, row.priced_tests)
+      const counterPaid = (row.payments ?? []).some((p) => p.status === 'success' && COUNTER_GATEWAYS.includes(p.gateway ?? ''))
       const isDoorstep = row.booking_type === 'doorstep'
       const doorstepFee = Number(row.doorstep_fee) || 0
       const totalAmount = tests.amount != null ? tests.amount + (isDoorstep ? doorstepFee : 0) : null
@@ -197,6 +207,7 @@ export async function loadLabBookings(admin: Admin, lab: LabInfo): Promise<LabBo
         tests: tests.tests,
         testLabel: tests.label,
         amount: totalAmount,
+        counterPaid,
         bookingType: (isDoorstep ? 'doorstep' : 'walk_in') as 'walk_in' | 'doorstep',
         doorstepFee,
         patient: patient
@@ -241,5 +252,6 @@ export const bookingRef = (b: LabBooking) => ({
   testLabel: b.testLabel,
   bookingType: b.bookingType,
   doorstepFee: b.doorstepFee,
+  counterPaid: b.counterPaid,
 })
 

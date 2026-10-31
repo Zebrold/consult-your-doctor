@@ -16,6 +16,13 @@ const SHARED_PAGES = [
 /** The legal and policy documents (/legal and /legal/<document>, with their PDFs) are open to every account too. */
 const isSharedPage = (path: string) => SHARED_PAGES.includes(path) || path === '/legal' || path.startsWith('/legal/')
 
+/**
+ * Public pages staff may also browse: the doctor and hospital listings, the diagnostics search and the help pages. Booking
+ * stays with patients (the /book and checkout pages are not listed).
+ */
+const PUBLIC_BROWSE_PAGES = ['/find', '/search', '/specialities', '/doctors', '/hospitals', '/diagnostics', '/faq', '/prices', '/about', '/contact', '/what-we-treat', '/online-doctor', '/corporate']
+const isPublicBrowsePage = (path: string) => PUBLIC_BROWSE_PAGES.some((page) => path === page || path.startsWith(`${page}/`))
+
 /** The roles that have a part of the site; an account with any other role (a retired one) is signed out. */
 const PORTAL_ROLES = new Set(['patient', 'doctor', 'executive', 'hospital_admin', 'diagnostic_admin'])
 
@@ -126,7 +133,8 @@ export async function proxy(request: NextRequest) {
       !path.startsWith(allowedPrefix) &&
       !path.startsWith('/auth/signout') &&
       !path.startsWith('/api/') &&
-      !isSharedPage(path)
+      !isSharedPage(path) &&
+      !isPublicBrowsePage(path)
     ) {
       target = dashboardPath
     // Role-based protection for patients trying to access staff routes

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Building2, Search } from 'lucide-react'
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { AccountCard, AccountPage } from '@/components/patient/AccountPage'
 import { btnPrimary } from '@/components/patient/app-ui'
 import { one } from '@/components/patient/data'
@@ -20,7 +21,7 @@ export default async function SavedPage() {
   if (!user) redirect('/login/patient?next=/patient/saved')
 
   const [{ data: profile }, { data: visits }, { data: labs }] = await Promise.all([
-    supabase.from('profiles').select('full_name, email').eq('id', user.id).maybeSingle(),
+    createAdminClient().from('profiles').select('full_name, email').eq('id', user.id).maybeSingle(),
     supabase
       .from('appointments')
       .select('doctors ( id, specialty, image_url, profiles!doctors_profile_id_fkey ( full_name ) ), hospitals ( name, city )')

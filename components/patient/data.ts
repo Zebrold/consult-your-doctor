@@ -1,7 +1,9 @@
 import type { createClient } from '@/lib/supabase/server'
+import type { createAdminClient } from '@/lib/supabase/admin'
 import { istDateKey } from './format'
 
 type Supabase = Awaited<ReturnType<typeof createClient>>
+type Admin = ReturnType<typeof createAdminClient>
 
 export type Availability = { nextSlot: string | null; openToday: number }
 
@@ -32,12 +34,16 @@ export async function loadAvailability(supabase: Supabase, now: number, doctorId
 
 export type PatientDefaults = { name: string; phone: string; email: string; dateOfBirth: string; gender: string };
 
-/** The signed-in patient's saved details for pre-filling a booking form, or null for a visitor. */
-export async function loadPatientDefaults(supabase: Supabase): Promise<PatientDefaults | null> {
+/**
+ * The signed-in patient's saved details for pre-filling a booking form, or null for a visitor. The profile's email and
+ * phone are read with the admin client (passed in): the signed-in user may not read those columns through their own
+ * session (supabase/migrations/20261031_audit_fixes.sql), and this reads only their own row.
+ */
+export async function loadPatientDefaults(supabase: Supabase, admin: Admin): Promise<PatientDefaults | null> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
   const [{ data: profile }, { data: details }] = await Promise.all([
-    supabase.from('profiles').select('full_name, phone_number, email').eq('id', user.id).maybeSingle(),
+    admin.from('profiles').select('full_name, phone_number, email').eq('id', user.id).maybeSingle(),
     supabase.from('patient_details').select('date_of_birth, gender').eq('id', user.id).maybeSingle(),
   ])
   return {

@@ -83,6 +83,24 @@ export function matchBookedTests(testName: string, prices: PriceList): BookedTes
 
 export const sumPrices = (tests: BookedTest[]) => tests.reduce((sum, t) => sum + t.price, 0)
 
+/**
+ * The tests a lab booking was made for, at the prices it was booked at (diagnostic_bookings.priced_tests, written since
+ * 20261031_audit_fixes.sql). Null for older bookings and anything malformed.
+ */
+export function bookedTestsSnapshot(value: unknown): BookedTest[] | null {
+  if (!Array.isArray(value) || value.length === 0) return null
+  const tests = value.map((t) => ({ name: String(t?.name ?? '').trim(), price: Number(t?.price) }))
+  return tests.every((t) => t.name && Number.isFinite(t.price) && t.price > 0) ? tests : null
+}
+
+/**
+ * The tests of a lab booking with their prices: the snapshot taken when it was booked, so renaming or repricing a test
+ * later can't change what the patient was charged. Bookings made before the snapshot fall back to matching the name.
+ */
+export function bookedTestsFor(booking: { test_name: string | null; priced_tests?: unknown }, prices: PriceList): BookedTest[] | null {
+  return bookedTestsSnapshot(booking.priced_tests) ?? matchBookedTests(booking.test_name || '', prices)
+}
+
 /** What a lab charges to collect samples at home when it hasn't set its own fee. */
 export const DEFAULT_DOORSTEP_FEE = 100
 

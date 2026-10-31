@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { clientIp } from '@/lib/otp-guard'
+import { overLimit } from '@/lib/rate-limit'
 import { ASSISTANT_SYSTEM, contextNote } from '@/lib/assistant/knowledge'
 import { assistantTools, type AssistantTool } from '@/lib/assistant/tools'
 import { getBookingFees } from '@/lib/booking-fees'
@@ -34,19 +36,10 @@ type ChatMessage =
   | { role: 'assistant'; content: string; tool_calls?: ToolCall[] }
   | { role: 'tool'; tool_call_id: string; content: string }
 
-// A light per-address limit so the public endpoint can't be used to burn the daily allowance. It is per server
-// instance; put a shared limiter (or the host's firewall rules) in front of it for heavy traffic.
-const WINDOW_MS = 10 * 60_000
-const LIMIT = 30
-const hits = new Map<string, number[]>()
-function overLimit(key: string) {
-  const now = Date.now()
-  const recent = (hits.get(key) ?? []).filter((t) => now - t < WINDOW_MS)
-  recent.push(now)
-  hits.set(key, recent)
-  if (hits.size > 5000) for (const [k, v] of hits) if (v.every((t) => now - t >= WINDOW_MS)) hits.delete(k)
-  return recent.length > LIMIT
-}
+// A light per-address limit so the public endpoint can't be used to burn the daily allowance. The count is shared by every
+// server instance (lib/rate-limit.ts) and keyed on the address the host reports, which a visitor can't set.
+const ASSISTANT_LIMIT = 30
+const ASSISTANT_WINDOW_MS = 10 * 60_000
 
 class UpstreamError extends Error {
   constructor(
@@ -119,8 +112,9 @@ export async function POST(request: Request) {
 
   if (!process.env.CLOUDFLARE_ACCOUNT_ID || !process.env.CLOUDFLARE_API_TOKEN) return Response.json({ error: 'not_configured' }, { status: 503 })
 
-  const ip = (request.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || request.headers.get('x-real-ip') || 'local'
-  if (overLimit(ip)) return Response.json({ error: 'rate_limited' }, { status: 429 })
+  // clientIp() reads the address the host sets (x-vercel-forwarded-for), not the x-forwarded-for a visitor can write.
+  const ip = (await clientIp()) ?? 'local'
+  if (await overLimit(`assistant:${ip}`, ASSISTANT_LIMIT, ASSISTANT_WINDOW_MS)) return Response.json({ error: 'rate_limited' }, { status: 429 })
 
   const parsed = Body.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return Response.json({ error: 'bad_request' }, { status: 400 })

@@ -1,5 +1,6 @@
 // Browser-only: hands a pending booking over to the PayU hosted checkout.
 // PayU calls /api/payu/callback afterwards, which confirms the booking.
+import { newPayuTxnid } from '@/lib/payu-txn'
 
 // PayU live hosted checkout (https://secure.payu.in/_payment)
 const PAYU_URL = process.env.NEXT_PUBLIC_PAYU_URL || 'https://secure.payu.in/_payment'
@@ -20,19 +21,23 @@ const tenDigits = (phone: string) => {
 
 /** Resolves with an error message if the payment couldn't be started; otherwise the page navigates to PayU. */
 export async function startPayuPayment(req: PayuRequest): Promise<string | null> {
+  const key = req.payuKey || process.env.NEXT_PUBLIC_PAYU_KEY
+  if (!key) return 'Online payment is not set up yet. Please try again later.'
   const firstname = req.firstname.replace(/^Dr\.?\s*/i, '').trim().split(/\s+/)[0] || 'Patient'
+  // A new transaction id for every attempt, so a retry is never sent to PayU under an id it has already seen.
+  const txnid = newPayuTxnid(req.txnid)
   const res = await fetch('/api/payu/hash', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ txnid: req.txnid, productinfo: req.productinfo, firstname, email: req.email }),
+    body: JSON.stringify({ txnid, productinfo: req.productinfo, firstname, email: req.email }),
   })
   const data = await res.json().catch(() => ({ error: 'Payment service did not respond.' }))
   if (!res.ok || data.error || !data.hash) return data.error || 'Could not start the payment. Please try again.'
 
   const callback = `${window.location.origin}/api/payu/callback`
   const fields: Record<string, string> = {
-    key: req.payuKey || process.env.NEXT_PUBLIC_PAYU_KEY || 'jwoG24',
-    txnid: req.txnid,
+    key,
+    txnid,
     amount: data.amount,
     productinfo: req.productinfo,
     firstname,

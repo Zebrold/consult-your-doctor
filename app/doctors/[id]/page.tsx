@@ -14,6 +14,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { parseEducation } from "@/lib/education";
 import { loadDoctorReviews } from "@/lib/reviews";
 import { currentTime } from "@/components/patient/data";
+import { siteUrl } from "@/lib/site-url";
 
 export const revalidate = 0;
 
@@ -38,7 +39,7 @@ export async function generateMetadata(
     .maybeSingle();
 
   if (!doctor) {
-    return { title: "Doctor Profile | Consult Your Doctor" };
+    return { title: "Doctor Profile | Consult Your Doctor", robots: { index: false, follow: false } };
   }
 
   const profiles = doctor.profiles as { full_name?: string } | null;
@@ -46,9 +47,14 @@ export async function generateMetadata(
   const name = profiles?.full_name || "Specialist Doctor";
   const spec = departments?.name || doctor.specialty || "Specialist";
 
+  const title = `${name} - ${spec} | Consult Your Doctor`;
+  const description = `See ${name}'s qualifications, consultation fee and open times (${spec}), and book a visit online.`;
+  const url = `${siteUrl()}/doctors/${id}`;
   return {
-    title: `${name} - ${spec} | Consult Your Doctor`,
-    description: `See ${name}'s qualifications, consultation fee and open times (${spec}), and book a visit online.`,
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: { title, description, url, type: "profile" },
   };
 }
 
@@ -59,7 +65,7 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
   const user = await getCurrentUser();
   // For the top bar: doctors open this page from their portal ("My public profile"); everyone else is a patient or visitor.
   const { data: viewer } = user
-    ? await supabase.from("profiles").select("full_name, email, role").eq("id", user.id).maybeSingle()
+    ? await createAdminClient().from("profiles").select("full_name, email, role").eq("id", user.id).maybeSingle()
     : { data: null };
 
   // Fetch full doctor data from DB. Registration, education and insurance arrive with the 20261009 migration.

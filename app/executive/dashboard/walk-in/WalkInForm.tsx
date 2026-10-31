@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { createWalkInAppointment } from '@/app/actions/executive'
+import { createWalkInAppointment, sendExecutivePatientOtp } from '@/app/actions/executive'
 import { useRouter } from 'next/navigation'
 import { Loader2, User, Phone, CheckCircle, Calendar, Clock } from 'lucide-react'
 
@@ -12,8 +12,10 @@ export function WalkInForm({ doctors }: { doctors: any[] }) {
   const [scheduleId, setScheduleId] = useState('')
   const [patientName, setPatientName] = useState('')
   const [patientPhone, setPatientPhone] = useState('+91')
+  const [code, setCode] = useState('')
+  const [codeSent, setCodeSent] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  
+
   const supabase = createClient()
   const router = useRouter()
 
@@ -56,11 +58,12 @@ export function WalkInForm({ doctors }: { doctors: any[] }) {
     const formData = new FormData()
     formData.append('patientName', patientName)
     formData.append('patientPhone', patientPhone)
+    formData.append('code', code)
     formData.append('doctorId', doctorId)
     formData.append('scheduleId', scheduleId)
 
     const result = await createWalkInAppointment(formData)
-    
+
     setIsSubmitting(false)
     if (result.error) {
       alert(result.error)
@@ -68,6 +71,16 @@ export function WalkInForm({ doctors }: { doctors: any[] }) {
       alert("Walk-in booked successfully! Cash payment confirmed.")
       router.push('/executive/dashboard')
     }
+  }
+
+  // Texts the patient a code. The walk-in is only booked once the patient reads it out and it is checked.
+  const sendCode = async () => {
+    const res = await sendExecutivePatientOtp(patientPhone)
+    if (!res.ok) {
+      alert(res.error)
+      return
+    }
+    setCodeSent(true)
   }
 
   const selectedDoctor = doctors.find(d => d.id === doctorId)
@@ -163,13 +176,37 @@ export function WalkInForm({ doctors }: { doctors: any[] }) {
               <p className="text-xs text-gray-500 mt-2 font-medium">
                 We'll link the appointment to this number.
               </p>
+              <div className="flex items-center gap-2 mt-3">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={code}
+                  onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="6-digit code"
+                  aria-label="One-time code from the patient"
+                  className="flex-1 min-w-0 border border-gray-200 rounded-xl p-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={sendCode}
+                  disabled={patientPhone.length <= 5}
+                  className="shrink-0 px-4 py-3 rounded-xl border border-blue-600 text-blue-700 text-sm font-bold hover:bg-blue-50 disabled:opacity-50"
+                >
+                  {codeSent ? 'Resend code' : 'Send code'}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2 font-medium">
+                {codeSent ? 'Ask the patient to read out the code we texted them.' : 'Send the patient a code first. The walk-in is booked only once they confirm their number.'}
+              </p>
             </div>
           </div>
         </div>
       )}
 
       {/* Step 4: Confirm */}
-      {scheduleId && patientName && patientPhone.length > 5 && (
+      {scheduleId && patientName && patientPhone.length > 5 && codeSent && code.length === 6 && (
         <div className="animate-in fade-in slide-in-from-top-4 duration-300 pt-6 mt-6 border-t border-gray-100">
           <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-5 mb-6 flex items-start gap-4">
             <CheckCircle className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5" />

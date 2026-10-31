@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { createClient } from '@/lib/supabase/server';
 import { loadBookingFees, onlineChargeFor } from '@/lib/booking-fees';
 import { payuAmount } from '@/lib/pricing';
+import { bookingIdOf } from '@/lib/payu-txn';
 
 type Priced = { amount: number } | { error: string; status: number };
 
@@ -23,7 +24,7 @@ async function amountFor(txnid: string, productinfo: string): Promise<Priced> {
     return { error: "We couldn't load the booking fee. Please try again in a moment.", status: 503 };
   }
 
-  const charge = await onlineChargeFor(supabase, productinfo, txnid, fees);
+  const charge = await onlineChargeFor(supabase, productinfo, bookingIdOf(txnid), fees);
   if ('error' in charge) return charge;
   if (charge.patientId !== user.id) return { error: productinfo === 'Consultation' ? 'Appointment not found.' : 'Booking not found.', status: 404 };
   if (charge.status !== 'pending_payment') return { error: `This ${productinfo === 'Consultation' ? 'appointment' : 'booking'} is already paid.`, status: 409 };

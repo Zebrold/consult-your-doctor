@@ -1,7 +1,9 @@
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { Building2, CalendarDays, CircleCheck, CircleX, FlaskConical, Home, SearchX } from 'lucide-react'
 import { PayUCheckoutForm } from '@/components/PayUCheckoutForm'
+import { newPayuTxnid } from '@/lib/payu-txn'
 import { CheckoutCard, CheckoutGrid, CheckoutHeading, CheckoutMessage, CheckoutShell, DetailRow, PaymentSummary } from '@/components/patient/CheckoutShell'
 import { LabChargesAtVenue } from '@/components/patient/booking-ui'
 import { formatINR, formatLongDate } from '@/components/patient/format'
@@ -26,7 +28,7 @@ export default async function DiagnosticCheckoutPage({ params }: { params: Promi
       .eq('id', bookingId)
       .eq('patient_id', user.id)
       .maybeSingle(),
-    supabase.from('profiles').select('full_name, email, phone_number').eq('id', user.id).maybeSingle(),
+    createAdminClient().from('profiles').select('full_name, email, phone_number').eq('id', user.id).maybeSingle(),
   ])
 
   const name = profile?.full_name || user.user_metadata?.full_name || null
@@ -99,7 +101,7 @@ export default async function DiagnosticCheckoutPage({ params }: { params: Promi
           >
             {bookedTests && total > 0 ? (
               <PayUCheckoutForm
-                txnid={bookingId}
+                txnid={newPayuTxnid(bookingId)}
                 amount={total}
                 productinfo="Diagnostic"
                 firstname={(name || 'Patient').replace(/[|]/g, ' ')}

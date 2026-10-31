@@ -68,11 +68,11 @@ export default async function HospitalProfilePage(props: {
 
   const [{ data: hospital, error: hospitalError }, { data: viewer }, fees, choices, patient] = await Promise.all([
     supabase.from('hospitals').select('*').eq('id', id).single(),
-    user ? supabase.from('profiles').select('full_name, role, email').eq('id', user.id).maybeSingle() : Promise.resolve({ data: null }),
+    user ? createAdminClient().from('profiles').select('full_name, role, email').eq('id', user.id).maybeSingle() : Promise.resolve({ data: null }),
     getBookingFees(),
     bookingOptionsReady(),
     // The details the booking is made with (booking happens on this page).
-    user ? loadPatientDefaults(supabase) : Promise.resolve(null),
+    user ? loadPatientDefaults(supabase, createAdminClient()) : Promise.resolve(null),
   ])
   if (hospitalError || !hospital) notFound()
 
@@ -249,7 +249,7 @@ export default async function HospitalProfilePage(props: {
               services={tests}
               now={now}
               patient={patient}
-              payuKey={process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY || 'jwoG24'}
+              payuKey={process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY || ''}
               initialSpeciality={startOn}
               initialDoctor={pickedDoctor}
               initialSlot={pickedSlot}

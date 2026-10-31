@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { ChevronRight, Languages, LogOut, Mail, MessageCircle, ShieldCheck, SquarePen, type LucideIcon } from 'lucide-react'
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { AccountCard, AccountPage } from '@/components/patient/AccountPage'
 import { ProfileEditButton } from '@/components/patient/ProfileEditButton'
 import { btnOutline } from '@/components/patient/app-ui'
@@ -16,7 +17,7 @@ export default async function SettingsPage() {
   if (!user) redirect('/login/patient?next=/patient/preferences')
 
   const [{ data: profile }, { data: details }] = await Promise.all([
-    supabase.from('profiles').select('full_name, email, phone_number').eq('id', user.id).maybeSingle(),
+    createAdminClient().from('profiles').select('full_name, email, phone_number').eq('id', user.id).maybeSingle(),
     supabase.from('patient_details').select('*').eq('id', user.id).maybeSingle(),
   ])
   const phone = profile?.phone_number || (user.phone ? `+${user.phone}` : null)

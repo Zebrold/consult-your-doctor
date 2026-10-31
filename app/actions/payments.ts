@@ -217,12 +217,52 @@ export async function getExecutivePayments(): Promise<{
   return { transactions, stats }
 }
 
-/** Processes a traceable refund for a payment record */
+/**
+ * Cancels the booking a fully refunded payment was for, and frees its slot so it can be sold again. A visit that has
+ * already happened is not cancelled, and nor is a booking that still has another successful payment behind it.
+ */
+async function cancelRefundedBooking(admin: ReturnType<typeof createAdminClient>, payment: { appointment_id: string | null; diagnostic_booking_id: string | null }): Promise<string | null> {
+  if (payment.appointment_id) {
+    const { data: remaining } = await admin.from('payments').select('id').eq('appointment_id', payment.appointment_id).eq('status', 'success').limit(1)
+    if ((remaining ?? []).length) return 'The booking still has another payment on it, so it stays booked.'
+    const { data: appointment } = await admin.from('appointments').select('id, status, schedule_id').eq('id', payment.appointment_id).maybeSingle()
+    if (!appointment) return null
+    if (appointment.status === 'visited' || appointment.status === 'completed') return 'The visit has already happened, so the booking was left as it is.'
+    if (appointment.status === 'cancelled') return null
+    const { data: cancelled } = await admin
+      .from('appointments')
+      .update({ status: 'cancelled' })
+      .eq('id', appointment.id)
+      .in('status', ['pending_payment', 'confirmed'])
+      .select('id')
+    if (cancelled?.length && appointment.schedule_id) {
+      await admin.from('schedules').update({ is_booked: false }).eq('id', appointment.schedule_id)
+    }
+    return null
+  }
+  if (payment.diagnostic_booking_id) {
+    const { data: remaining } = await admin.from('payments').select('id').eq('diagnostic_booking_id', payment.diagnostic_booking_id).eq('status', 'success').limit(1)
+    if ((remaining ?? []).length) return 'The booking still has another payment on it, so it stays booked.'
+    await admin
+      .from('diagnostic_bookings')
+      .update({ status: 'cancelled' })
+      .eq('id', payment.diagnostic_booking_id)
+      .in('status', ['pending_payment', 'confirmed'])
+    return null
+  }
+  return null
+}
+
+/**
+ * Records a traceable refund for a payment. The money itself goes back to the patient outside this app: online payments
+ * are refunded from the PayU dashboard, and cash or UPI from the desk. A full refund then cancels the booking and frees
+ * its slot; a partial refund only records the amount.
+ */
 export async function processPaymentRefund(
   paymentId: string,
   amount: number,
   reason: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; note?: string }> {
   const { user, profile } = await requireExecutiveCaller()
   if (!reason || reason.trim().length < 5) {
     return { success: false, error: 'A specific reason of at least 5 characters is required for financial corrections.' }
@@ -231,7 +271,7 @@ export async function processPaymentRefund(
   const admin = createAdminClient()
   const { data: currentPayment, error: fetchErr } = await admin
     .from('payments')
-    .select('id, amount, status')
+    .select('id, amount, status, appointment_id, diagnostic_booking_id')
     .eq('id', paymentId)
     .single()
 
@@ -248,8 +288,9 @@ export async function processPaymentRefund(
     return { success: false, error: `The refund can't be more than the ₹${paid.toLocaleString('en-IN')} paid.` }
   }
 
-  // 1. Update payment record
-  const { error: updateErr } = await admin
+  // 1. Update payment record, only while it is still a successful payment: two refunds at the same moment can't both
+  // go through.
+  const { data: marked, error: updateErr } = await admin
     .from('payments')
     .update({
       status: 'refunded',
@@ -258,11 +299,17 @@ export async function processPaymentRefund(
       refunded_at: new Date().toISOString(),
     })
     .eq('id', paymentId)
+    .eq('status', 'success')
+    .select('id')
 
   if (updateErr) {
-    // If refund columns not in DB, update status
-    await admin.from('payments').update({ status: 'refunded' }).eq('id', paymentId)
+    console.error('processPaymentRefund:', updateErr)
+    return { success: false, error: 'Could not record the refund. Ask your administrator to run supabase/migrations/20261031_audit_fixes.sql.' }
   }
+  if (!marked?.length) return { success: false, error: 'This payment has already been refunded.' }
+
+  // 1b. A full refund ends the booking.
+  const note = refundAmt >= paid ? await cancelRefundedBooking(admin, currentPayment) : 'Partial refund recorded; the booking stays as it is.'
 
   // 2. Insert into payment_audits table (traceable financial history)
   try {
@@ -284,7 +331,8 @@ export async function processPaymentRefund(
 
   revalidatePath('/executive/payments')
   revalidatePath('/executive/revenue')
-  return { success: true }
+  revalidatePath('/executive/dashboard')
+  return { success: true, note: note ?? undefined }
 }
 
 /** Adjusts a payment transaction status with mandatory traceable justification */

@@ -12,7 +12,14 @@ const PAID = ['confirmed', 'visited', 'completed', 'report_sent']
 // The page opens from the booking link and the QR code on the slip, so anyone holding the link can see it. Only the
 // patient themself gets their full phone number; everyone else sees the last four digits.
 const maskPhone = (phone: string | null | undefined, isOwner: boolean) =>
-  !phone ? null : isOwner ? phone : `•••• ${phone.replace(/D/g, '').slice(-4)}`
+  !phone ? null : isOwner ? phone : `•••• ${phone.replace(/\D/g, '').slice(-4)}`
+
+// The patient's full name is for the patient. Anyone else with the link sees their first name's initial only.
+const nameFor = (name: string | null | undefined, isOwner: boolean) => {
+  if (isOwner) return name || 'Patient'
+  const first = (name || '').trim().split(/\s+/)[0]
+  return first ? `${first[0].toUpperCase()}. ••••` : 'Patient'
+}
 import { ConfirmationClient, type ConfirmationData } from './ConfirmationClient'
 import { siteUrl } from '@/lib/site-url'
 
@@ -115,7 +122,7 @@ export default async function BookingConfirmationPage(props: Props) {
       location: [hosp?.city, hosp?.address].filter(Boolean).join(', ') || 'Branch Clinic',
       address: hosp?.address || null,
       dateTime: dateStr,
-      patientName: patient?.full_name || 'Patient',
+      patientName: nameFor(patient?.full_name, viewer?.id === apt.patient_id),
       patientPhone: maskPhone(patient?.phone_number, viewer?.id === apt.patient_id),
       bookingFee: bookingFeeFrom(paid, doctorBookingFee(fees, apt.booking_type)),
       venueNote: services.length
@@ -197,7 +204,7 @@ export default async function BookingConfirmationPage(props: Props) {
       location: [center?.city, center?.address].filter(Boolean).join(', ') || 'Diagnostic Lab',
       address: center?.address || null,
       dateTime: dateStr,
-      patientName: patient?.full_name || 'Patient',
+      patientName: nameFor(patient?.full_name, viewer?.id === diag.patient_id),
       patientPhone: maskPhone(patient?.phone_number, viewer?.id === diag.patient_id),
       bookingFee: bookingFeeFrom(paid, tests ? labBookingFee(tests, fees.diagnosticPercent) : null),
       paymentStatus,

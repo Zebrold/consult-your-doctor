@@ -11,4 +11,6 @@ export const demoLoginEnabled = () => process.env.ENABLE_DEMO_LOGIN === 'true' &
 /** The demo account's password, or null where demo sign-in is off. */
 export const demoPatientPassword = () => (demoLoginEnabled() ? process.env.DEMO_PATIENT_PASSWORD! : null)
 
-export const isDemoPhone = (phone: string) => phone === DEMO_PHONE || phone.replace(/\D/g, '').endsWith('9876543210')
+// Exact match on the normalised number only (callers normalise to +91XXXXXXXXXX first). A suffix match would also treat
+// another country's number that ends the same way as the demo patient.
+export const isDemoPhone = (phone: string) => phone === DEMO_PHONE

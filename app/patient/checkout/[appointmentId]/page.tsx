@@ -1,7 +1,9 @@
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { Building2, CalendarDays, CircleCheck, CircleX, Clock, SearchX, UserRound } from 'lucide-react'
 import { PayUCheckoutForm } from '@/components/PayUCheckoutForm'
+import { newPayuTxnid } from '@/lib/payu-txn'
 import { CheckoutCard, CheckoutGrid, CheckoutHeading, CheckoutMessage, CheckoutShell, DetailRow, PaymentSummary } from '@/components/patient/CheckoutShell'
 import { PayAtVenue } from '@/components/patient/booking-ui'
 import { doctorName, formatINR, formatLongDate, formatTime } from '@/components/patient/format'
@@ -32,7 +34,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
       .eq('id', appointmentId)
       .eq('patient_id', user.id)
       .maybeSingle(),
-    supabase.from('profiles').select('full_name, email, phone_number').eq('id', user.id).maybeSingle(),
+    createAdminClient().from('profiles').select('full_name, email, phone_number').eq('id', user.id).maybeSingle(),
   ])
 
   const name = profile?.full_name || user.user_metadata?.full_name || null
@@ -105,7 +107,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
             }
           >
             <PayUCheckoutForm
-              txnid={appointmentId}
+              txnid={newPayuTxnid(appointmentId)}
               amount={total}
               productinfo="Consultation"
               firstname={(name || 'Patient').replace(/[|]/g, ' ')}

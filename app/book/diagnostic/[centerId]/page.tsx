@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { DiagnosticBookingClient } from "@/components/DiagnosticBookingClient";
@@ -45,7 +46,7 @@ export default async function DiagnosticBookingPage({ params }: DiagnosticBookin
   }
 
   const [patient, fees] = await Promise.all([
-    loadPatientDefaults(supabase),
+    loadPatientDefaults(supabase, createAdminClient()),
     getBookingFees(),
   ]);
 
@@ -66,7 +67,7 @@ export default async function DiagnosticBookingPage({ params }: DiagnosticBookin
       patient={patient}
       now={currentTime()}
       bookingFeePercent={fees.diagnosticPercent}
-      payuKey={process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY || "jwoG24"}
+      payuKey={process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY || ""}
     />
   );
 }

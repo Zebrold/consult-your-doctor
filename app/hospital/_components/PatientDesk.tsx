@@ -18,6 +18,7 @@ import {
   recordHospitalPayment,
   registerHospitalPatient,
   saveHospitalHealthRecord,
+  sendHospitalPatientOtp,
 } from '@/app/actions/hospital-desk'
 
 export type DeskDoctor = { id: string; name: string; department: string; fee: number | null }
@@ -60,6 +61,23 @@ export function AddPatientButton({
     payment: DeskPayment | null
   } | null>(null)
   const [paid, setPaid] = useState(false)
+  // Whether a code has been texted to the patient for this registration.
+  const [codeSent, setCodeSent] = useState(false)
+
+  // Texts the patient a code. The visit is only booked once the code is entered and checked (registerHospitalPatient).
+  const sendCode = (form: HTMLFormElement | null) => {
+    if (!form) return
+    const phone = String(new FormData(form).get('phone') || '')
+    setError(null)
+    start(async () => {
+      const res = await sendHospitalPatientOtp(phone)
+      if (!res.ok) {
+        setError(res.error)
+        return
+      }
+      setCodeSent(true)
+    })
+  }
 
   // Update fee when doctor changes
   useEffect(() => {
@@ -84,12 +102,17 @@ export function AddPatientButton({
     setError(null)
     setCreatedResult(null)
     setPaid(false)
+    setCodeSent(false)
     setSelectedSlotId('now')
   }
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const form = new FormData(e.currentTarget)
+    if (!codeSent || !String(form.get('code') || '').trim()) {
+      setError('Send the patient a code, then enter it here to book the visit.')
+      return
+    }
     form.set('doctorId', selectedDoctorId)
     form.set('scheduleId', selectedSlotId)
     form.set('consultationFee', String(selectedFee))
@@ -320,6 +343,30 @@ export function AddPatientButton({
                             className={`${inputClass} pl-9`}
                           />
                         </div>
+                        <div className="mt-2 flex items-center gap-2">
+                          <input
+                            name="code"
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
+                            maxLength={6}
+                            placeholder="6-digit code"
+                            aria-label="One-time code from the patient"
+                            className={`${inputClass} flex-1 min-w-0`}
+                          />
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onClick={(e) => sendCode((e.currentTarget as HTMLButtonElement).form)}
+                            className="shrink-0 px-3 py-2.5 rounded-xl border border-[#0066ff] text-[#0066ff] text-xs font-bold hover:bg-blue-50 disabled:opacity-60"
+                          >
+                            {codeSent ? 'Resend code' : 'Send code'}
+                          </button>
+                        </div>
+                        <p className="mt-1.5 text-[11.5px] text-gray-500">
+                          {codeSent
+                            ? 'A code was texted to the patient. Ask them to read it out, then add the patient.'
+                            : 'Send the patient a code first. The visit is booked only once they confirm their number.'}
+                        </p>
                       </div>
 
                       <div>

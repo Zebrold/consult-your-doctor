@@ -60,7 +60,7 @@ export default async function PatientAppointments() {
   const now = currentTime()
   const today = istDateKey(now)
   const [{ data: profile }, { data: visitRows }, { data: labRows }, { data: myReviews }, fees] = await Promise.all([
-    supabase.from('profiles').select('full_name, email').eq('id', user.id).maybeSingle(),
+    createAdminClient().from('profiles').select('full_name, email').eq('id', user.id).maybeSingle(),
     supabase
       .from('appointments')
       // `*` so booking_type and services come back once 20261028_fast_track_services.sql has run.

@@ -1,28 +1,33 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
-import { randomBytes } from 'node:crypto'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { ensurePatientProfile, indianMobile, sendPatientOtp, verifyPatientOtp } from '@/lib/patient-onboarding'
 
-/** "98204 77210" / "+91 98204 77210" → "+919820477210" (numbers without a country code are taken as Indian). */
-function toE164(raw: string) {
-  const cleaned = raw.replace(/[^\d+]/g, '')
-  if (cleaned.startsWith('+')) return cleaned
-  return cleaned.length === 10 ? `+91${cleaned}` : `+${cleaned}`
+// The statuses the executive's status menu offers. A paid booking is cancelled by refunding it from Payments, which also
+// frees its slot; it can't be cancelled from this menu.
+const EXECUTIVE_STATUSES = ['confirmed', 'visited', 'completed']
+// The status a booking may move to from each status here. A booking is confirmed by its payment, never by this menu.
+const NEXT_STATUSES: Record<string, string[]> = { confirmed: ['visited', 'completed'], visited: ['completed'] }
+
+/** The signed-in executive, or null. */
+async function executiveSession() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data: profile } = await supabase.from('profiles').select('role, hospital_id').eq('id', user.id).single()
+  if (profile?.role !== 'executive') return null
+  return { user, supabase, hospitalId: (profile.hospital_id as string | null) ?? null }
 }
 
-// The statuses the executive's status menu offers. Unpaid ('pending') bookings and finished ones can't be changed here.
-const EXECUTIVE_STATUSES = ['confirmed', 'visited', 'completed', 'cancelled']
-const FINAL_STATUSES = ['completed', 'cancelled']
-
 export async function updateAppointmentStatus(appointmentId: string, newStatus: string) {
+  if (newStatus === 'cancelled') return { error: 'To cancel a paid booking, refund it from Payments. That cancels the booking and frees its slot.' }
   if (!EXECUTIVE_STATUSES.includes(newStatus)) return { error: 'That status change is not allowed.' }
 
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Unauthorized' }
+  const session = await executiveSession()
+  if (!session) return { error: 'Unauthorized' }
+  const { user, supabase } = session
 
   // First, verify this executive owns this appointment
   const { data: appointment, error: fetchError } = await supabase
@@ -38,16 +43,17 @@ export async function updateAppointmentStatus(appointmentId: string, newStatus: 
   if (appointment.executive_id !== user.id) {
     return { error: 'Not authorized to update this appointment' }
   }
-  if (appointment.status === 'pending' || FINAL_STATUSES.includes(appointment.status)) {
-    return { error: 'This appointment is unpaid or already closed, so its status cannot be changed.' }
+  if (!(NEXT_STATUSES[appointment.status] ?? []).includes(newStatus)) {
+    return { error: 'This appointment can’t move to that status from here.' }
   }
 
-  // Update status
+  // Update status, only if it is still the status just checked
   const { error: updateError } = await supabase
     .from('appointments')
     .update({ status: newStatus })
     .eq('id', appointmentId)
     .eq('executive_id', user.id)
+    .eq('status', appointment.status)
 
   if (updateError) {
     console.error('Failed to update status:', updateError)
@@ -60,16 +66,9 @@ export async function updateAppointmentStatus(appointmentId: string, newStatus: 
 }
 
 export async function verifyAndCheckInPatient(appointmentId: string, inputBookingId: string) {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Unauthorized' }
-
-  const { data: profile } = await supabase.from('profiles').select('role, hospital_id').eq('id', user.id).single()
-  
-  if (profile?.role !== 'executive') {
-    return { error: 'Not authorized' }
-  }
+  const session = await executiveSession()
+  if (!session) return { error: 'Not authorized' }
+  const { user, supabase, hospitalId } = session
 
   const { data: appointment, error: fetchError } = await supabase
     .from('appointments')
@@ -82,8 +81,17 @@ export async function verifyAndCheckInPatient(appointmentId: string, inputBookin
   }
 
   // Ensure appointment belongs to executive's hospital
-  if (appointment.hospital_id !== profile.hospital_id) {
+  if (!hospitalId || appointment.hospital_id !== hospitalId) {
     return { error: 'Not authorized for this hospital' }
+  }
+
+  // Only a booking that has been paid (its booking fee, or the desk's payment) can be checked in.
+  if (appointment.status !== 'confirmed') {
+    return {
+      error: appointment.status === 'pending_payment'
+        ? 'This booking is unpaid. The patient pays the booking fee before they can be checked in.'
+        : 'This booking is already checked in or closed.',
+    }
   }
 
   // Verify Booking ID (first 8 chars, case insensitive)
@@ -95,11 +103,12 @@ export async function verifyAndCheckInPatient(appointmentId: string, inputBookin
   // Update status to 'visited' (checked in)
   const { error: updateError } = await supabase
     .from('appointments')
-    .update({ 
+    .update({
       status: 'visited',
       executive_id: user.id // assign this executive as the one who handled it
     })
     .eq('id', appointmentId)
+    .eq('status', 'confirmed')
 
   if (updateError) {
     return { error: 'Failed to update status' }
@@ -110,75 +119,47 @@ export async function verifyAndCheckInPatient(appointmentId: string, inputBookin
   return { success: true }
 }
 
+/** Texts a walk-in patient the code their visit needs (see createWalkInAppointment). */
+export async function sendExecutivePatientOtp(rawPhone: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await executiveSession()
+  if (!session) return { ok: false, error: 'Forbidden' }
+  const phone = indianMobile(rawPhone)
+  if (!phone) return { ok: false, error: 'Enter the patient’s 10-digit Indian mobile number.' }
+  return sendPatientOtp(createAdminClient(), phone, `exec:${session.user.id}`)
+}
+
 export async function createWalkInAppointment(formData: FormData) {
-  const supabase = await createClient()
+  const session = await executiveSession()
+  if (!session) return { error: 'Forbidden' }
+  const { hospitalId } = session
 
-  // 1. Verify caller is an Executive
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Unauthorized' }
+  const patientName = String(formData.get('patientName') || '').trim().replace(/\s+/g, ' ')
+  const phone = indianMobile(String(formData.get('patientPhone') || ''))
+  const doctorId = String(formData.get('doctorId') || '')
+  const scheduleId = String(formData.get('scheduleId') || '')
 
-  const { data: executiveProfile } = await supabase
-    .from('profiles')
-    .select('role, hospital_id')
-    .eq('id', user.id)
-    .single()
-
-  if (executiveProfile?.role !== 'executive') return { error: 'Forbidden' }
-
-  const patientName = formData.get('patientName') as string
-  const rawPatientPhone = formData.get('patientPhone') as string
-  const doctorId = formData.get('doctorId') as string
-  const scheduleId = formData.get('scheduleId') as string
-
-  if (!patientName || !rawPatientPhone || !doctorId || !scheduleId) {
-    return { error: 'All fields are required' }
-  }
-  if (rawPatientPhone.replace(/\D/g, '').length < 10) {
-    return { error: 'Please enter a valid mobile number' }
-  }
-  const patientPhone = toE164(rawPatientPhone)
+  if (!patientName || !doctorId || !scheduleId) return { error: 'All fields are required' }
+  if (!phone) return { error: 'Please enter a valid mobile number' }
+  if (!hospitalId) return { error: 'Your account isn’t linked to a hospital, so it can’t take walk-ins.' }
 
   try {
-    // 2. Offline-to-Online: Check if patient exists or create them using Admin Client
-    const adminAuthClient = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
+    const admin = createAdminClient()
 
-    // Look for an existing patient by phone. profiles.phone_number is stored in E.164;
-    // this is an indexed lookup, unlike listUsers() which only returns the first page of users.
-    const { data: existingProfile } = await adminAuthClient
-      .from('profiles')
-      .select('id')
-      .in('phone_number', [patientPhone, patientPhone.replace('+', '')])
-      .limit(1)
-      .maybeSingle()
-    let patientUserId: string | undefined = existingProfile?.id
+    // The patient confirms their number with the code texted to it before a visit is booked to their account.
+    const verified = await verifyPatientOtp(admin, phone, String(formData.get('code') || ''))
+    if (!verified.ok) return { error: verified.error }
+    const details = await ensurePatientProfile(admin, verified.userId, { name: patientName, phone })
+    if (!details.ok) return { error: details.error }
+    const patientUserId = verified.userId
 
-    if (!patientUserId) {
-      // Create new user silently
-      const { data: newUser, error: createError } = await adminAuthClient.auth.admin.createUser({
-        phone: patientPhone,
-        password: `CYD${randomBytes(18).toString('base64url')}!`, // never shown to anyone; patients log in by OTP
-        phone_confirm: true // Auto confirm so they can use OTP later
-      })
+    // The doctor must work at this executive's hospital, and must have a fee: the walk-in is charged at that fee.
+    const { data: doctor } = await admin.from('doctors').select('consultation_fee, hospital_id').eq('id', doctorId).maybeSingle()
+    if (!doctor || doctor.hospital_id !== hospitalId) return { error: 'That doctor is not at your hospital.' }
+    const fee = Number(doctor.consultation_fee) || 0
+    if (!fee) return { error: 'Set this doctor’s consultation fee before booking walk-ins.' }
 
-      if (createError) throw new Error('Failed to provision patient account: ' + createError.message)
-      patientUserId = newUser.user.id
-
-      // Insert the profile since there is no automatic trigger
-      await adminAuthClient.from('profiles').insert({ 
-        id: patientUserId, 
-        full_name: patientName,
-        phone_number: patientPhone,
-        role: 'patient'
-      })
-    }
-
-    // 3. Create Appointment and Payment
     // Claim the slot only while it is still free, so two bookings can't take the same time.
-    const { data: claimed } = await adminAuthClient
+    const { data: claimed } = await admin
       .from('schedules')
       .update({ is_booked: true })
       .eq('id', scheduleId)
@@ -189,34 +170,36 @@ export async function createWalkInAppointment(formData: FormData) {
       return { error: 'This time slot is no longer available' }
     }
 
-    // Get consultation fee
-    const { data: doctorProfile } = await supabase.from('doctors').select('consultation_fee').eq('id', doctorId).single()
-    const fee = doctorProfile?.consultation_fee || 500
-
     // Create appointment (executive_id = the executive making the booking)
-    const { data: appointment, error: aptError } = await adminAuthClient.from('appointments').insert({
+    const { data: appointment, error: aptError } = await admin.from('appointments').insert({
       patient_id: patientUserId,
       doctor_id: doctorId,
-      hospital_id: executiveProfile.hospital_id,
+      hospital_id: hospitalId,
       schedule_id: scheduleId,
-      executive_id: user.id,
+      executive_id: session.user.id,
       status: 'confirmed'
     }).select('id').single()
 
-    if (aptError) {
-      // Rollback schedule
-      await adminAuthClient.from('schedules').update({ is_booked: false }).eq('id', scheduleId)
+    if (aptError || !appointment) {
+      await admin.from('schedules').update({ is_booked: false }).eq('id', scheduleId)
       throw new Error('Failed to create appointment')
     }
 
-    // Create Cash Payment record
-    await adminAuthClient.from('payments').insert({
+    // The desk takes the consultation fee now. If that record can't be saved, the visit is undone rather than left
+    // confirmed with no payment behind it.
+    const { error: payError } = await admin.from('payments').insert({
       appointment_id: appointment.id,
       amount: fee,
       transaction_id: `CASH-${Date.now()}`,
       gateway: 'cash',
       status: 'success'
     })
+    if (payError) {
+      console.error('Walk-in payment record:', payError)
+      await admin.from('appointments').update({ status: 'cancelled' }).eq('id', appointment.id)
+      await admin.from('schedules').update({ is_booked: false }).eq('id', scheduleId)
+      return { error: 'The walk-in could not be recorded. Please try again.' }
+    }
 
     revalidatePath('/executive/dashboard')
     return { success: true }

@@ -37,10 +37,11 @@ import { siteUrl } from '@/lib/site-url'
 import { checkOtpChallenge, clientIp, otpSendAllowed, otpTableReady, recordOtpChallenge, type OtpVerdict } from '@/lib/otp-guard'
 import { findAuthUserId } from '@/lib/auth-users'
 import { clearAttempts, overLimit } from '@/lib/rate-limit'
+import { authSecret } from '@/lib/secrets'
 
 function computeOtpHmac(phone: string, otp: string, expiresAt: number): string {
   // A guessable fallback secret would let anyone mint a valid code for any number, so refuse to run without one.
-  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const secret = authSecret()
   if (!secret) throw new Error('Login codes are not configured on this server.')
   return crypto.createHmac('sha256', secret).update(`${phone}:${otp}:${expiresAt}`).digest('hex')
 }
@@ -408,7 +409,9 @@ export async function staffLogin(prevState: any, formData: FormData) {
   }
 
   const ip = (await clientIp()) ?? 'unknown'
-  if (overLimit(`staff-login:ip:${ip}`, 30, 15 * 60_000) || overLimit(`staff-login:id:${staffId}`, 8, 15 * 60_000)) {
+  const ipLimited = await overLimit(`staff-login:ip:${ip}`, 30, 15 * 60_000)
+  const idLimited = await overLimit(`staff-login:id:${staffId}`, 8, 15 * 60_000)
+  if (ipLimited || idLimited) {
     return { error: 'Too many login attempts. Please wait 15 minutes and try again.' }
   }
 
@@ -446,7 +449,7 @@ export async function staffLogin(prevState: any, formData: FormData) {
     await supabase.auth.signOut()
     return { error: `Unauthorized. You are not a ${String(expectedRole).replace('_', ' ')}.` }
   }
-  clearAttempts(`staff-login:id:${staffId}`)
+  await clearAttempts(`staff-login:id:${staffId}`)
 
   const cookieStore = await cookies()
   cookieStore.set(ROLE_COOKIE, roleCookieValue(data.user.id, expectedRole), ROLE_COOKIE_OPTIONS)
@@ -462,44 +465,38 @@ export async function staffLogin(prevState: any, formData: FormData) {
   }
 }
 
+/**
+ * Emails a password-reset link to the address registered for a Staff ID. The answer is the same whether or not the
+ * Staff ID or an address exists, so the form can't be used to find out which Staff IDs are registered.
+ */
 export async function sendPasswordResetOTP(staffId: string) {
   if (!staffId) return { error: 'Staff ID is required.' }
   const ip = (await clientIp()) ?? 'unknown'
-  if (overLimit(`staff-reset:ip:${ip}`, 5, 15 * 60_000) || overLimit(`staff-reset:id:${staffId.trim().toUpperCase()}`, 3, 60 * 60_000)) {
+  const normalised = staffId.trim().toUpperCase()
+  const ipLimited = await overLimit(`staff-reset:ip:${ip}`, 5, 15 * 60_000)
+  const idLimited = await overLimit(`staff-reset:id:${normalised}`, 3, 60 * 60_000)
+  if (ipLimited || idLimited) {
     return { error: 'Too many reset requests. Please wait a while and try again.' }
   }
 
   const { createAdminClient } = await import('@/lib/supabase/admin')
   const adminClient = createAdminClient()
-  
+
   const { data: profile } = await adminClient
     .from('profiles')
     .select('email, role')
-    .eq('staff_id', staffId.trim().toUpperCase())
-    .single()
+    .eq('staff_id', normalised)
+    .maybeSingle()
 
-  if (!profile || !profile.email) {
-    return { error: 'No registered email found for this Staff ID. Please contact the Super Admin to update your email.' }
+  if (profile?.email) {
+    const supabase = await createClient()
+    const { error } = await supabase.auth.resetPasswordForEmail(profile.email, {
+      redirectTo: `${siteUrl()}/update-password`,
+    })
+    if (error) console.error('Password reset error:', error)
   }
 
-  const supabase = await createClient()
-  const { error } = await supabase.auth.resetPasswordForEmail(profile.email, {
-    redirectTo: `${siteUrl()}/update-password`,
-  })
-
-  if (error) {
-    console.error('Password reset error:', error)
-    return { error: /rate|seconds/i.test(error.message) ? 'A reset email was sent a moment ago. Please wait a minute.' : 'We could not send the reset email. Please try again.' }
-  }
-
-  return { success: true, email: maskEmail(profile.email) }
-}
-
-/** "priya.sharma@gmail.com" → "pr•••••••@gmail.com": enough to recognise, not enough to harvest. */
-function maskEmail(email: string) {
-  const [local, domain] = email.split('@')
-  if (!domain) return '•••'
-  return `${local.slice(0, 2)}${'•'.repeat(Math.max(local.length - 2, 3))}@${domain}`
+  return { success: true, sent: true }
 }
 
 export async function verifyOTPAndUpdatePassword(email: string, token: string, newPassword: string) {
@@ -542,7 +539,9 @@ export async function patientIdLogin(prevState: { error?: string } | null, formD
   const password = String(formData.get('password') || '')
   if (!/^PT\d{6}$/.test(patientCode) || !password) return { error: 'Enter your Patient ID (like PT482193) and password.' }
   const ip = (await clientIp()) ?? 'unknown'
-  if (overLimit(`patient-id-login:ip:${ip}`, 30, 15 * 60_000) || overLimit(`patient-id-login:id:${patientCode}`, 8, 15 * 60_000)) {
+  const ipLimited = await overLimit(`patient-id-login:ip:${ip}`, 30, 15 * 60_000)
+  const idLimited = await overLimit(`patient-id-login:id:${patientCode}`, 8, 15 * 60_000)
+  if (ipLimited || idLimited) {
     return { error: 'Too many login attempts. Please wait 15 minutes and try again.' }
   }
 

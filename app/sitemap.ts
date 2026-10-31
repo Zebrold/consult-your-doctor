@@ -13,10 +13,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .from('doctors')
     .select('id');
 
-  // Fetch all hospital IDs
+  // Fetch the hospital IDs patients can book (only listed hospitals have status active)
   const { data: hospitals } = await adminSupabase
     .from('hospitals')
-    .select('id');
+    .select('id')
+    .eq('status', 'active');
 
   const doctorUrls: MetadataRoute.Sitemap = (doctors || []).map((doc) => ({
     url: `${baseUrl}/doctors/${doc.id}`,

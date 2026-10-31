@@ -25,6 +25,8 @@ export type BoardRow = {
   fastTrack: boolean
   /** Hospital services picked when booking, to collect at the counter. */
   services: string[]
+  /** Booked and paid online; the consultation fee is still to be taken at the counter. */
+  counterDue: boolean
 }
 
 export type BoardView = 'today' | 'upcoming' | 'past' | 'unpaid' | 'all'
@@ -45,7 +47,7 @@ function matchesView(r: BoardRow, v: BoardView, today: string) {
     (v === 'today' && r.day === today) ||
     (v === 'upcoming' && !!r.day && r.day > today && r.status !== 'pending_payment') ||
     (v === 'past' && !!r.day && r.day < today && r.status !== 'pending_payment') ||
-    (v === 'unpaid' && r.status === 'pending_payment')
+    (v === 'unpaid' && (r.status === 'pending_payment' || r.counterDue))
   )
 }
 
@@ -66,7 +68,7 @@ const tableGrid = 'grid grid-cols-[96px_minmax(0,1.4fr)_minmax(0,1.1fr)_60px_84p
 
 /** The desk's main action for a visit: take an unpaid booking's payment, or add health data to a paid one. */
 function MainAction({ row, className }: { row: BoardRow; className: string }) {
-  if (row.status === 'pending_payment') return <TakePaymentButton appointmentId={row.id} className={className} />
+  if (row.status === 'pending_payment' || row.counterDue) return <TakePaymentButton appointmentId={row.id} className={className} />
   return <HealthRecordButton appointmentId={row.id} patientName={row.patientName} className={className} />
 }
 

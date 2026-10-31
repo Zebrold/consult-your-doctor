@@ -4,12 +4,12 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ageFrom, istDateKey } from '@/components/patient/format'
-import { matchBookedTests, sumPrices } from '@/lib/pricing'
+import { bookedTestsFor, matchBookedTests, sumPrices } from '@/lib/pricing'
 import { REPORT_BUCKET, reportPath } from '@/lib/lab-reports'
 import { renderLabReportPdf } from '@/lib/pdf/lab-report'
-import { issuePatientToken, readPatientToken } from '@/lib/desk-token'
+import { issuePatientToken, readPatientTokenDetails } from '@/lib/desk-token'
 import { ensurePatientProfile, indianMobile, issuePatientCredentials, sendPatientOtp, verifyPatientOtp } from '@/lib/patient-onboarding'
-import { migrationHint, recordDeskPayment, upiQr, validUpiReference, type DeskMethod } from '@/lib/desk-payments'
+import { counterPaymentRecorded, migrationHint, recordDeskPayment, upiQr, validUpiReference, type DeskMethod } from '@/lib/desk-payments'
 import { notifyAccountCreated, notifyBookingConfirmed, notifyReportReady } from '@/lib/notify/patient'
 import type { DeskPayment, DeskResult } from '@/components/portal/desk-types'
 
@@ -81,23 +81,26 @@ export async function registerLabPatient(input: {
   const names = Array.from(new Set(input.tests.map((t) => offered.get(t.toLowerCase())).filter(Boolean) as string[]))
   if (names.length === 0 || names.length !== new Set(input.tests.map((t) => t.toLowerCase())).size) return fail('Select tests from your menu (refresh if the menu changed).')
   const testName = names.join(', ')
-  if (!matchBookedTests(testName, ctx.center.test_prices)) return fail('Every selected test needs a price on your test menu.')
+  // The prices the tests are booked at are kept with the booking, so a later price change can't alter what is owed.
+  const priced = matchBookedTests(testName, ctx.center.test_prices)
+  if (!priced) return fail('Every selected test needs a price on your test menu.')
 
   const verified = await verifyPatientOtp(ctx.admin, phone, input.code)
   if (!verified.ok) return verified
   const profile = await ensurePatientProfile(ctx.admin, verified.userId, { name, phone, email })
   if (!profile.ok) return profile
 
-  // A patient's first registration gets a Patient ID and password; later ones keep theirs.
+  // A new account gets a Patient ID and a password. An account that already existed keeps the password it has; the desk
+  // only adds a Patient ID to it.
   let credentials: Credentials
   const { data: existing } = await ctx.admin.from('profiles').select('patient_code').eq('id', verified.userId).maybeSingle()
   if (existing?.patient_code) {
     credentials = { patientCode: existing.patient_code, password: null }
   } else {
-    const issued = await issuePatientCredentials(ctx.admin, verified.userId)
+    const issued = await issuePatientCredentials(ctx.admin, verified.userId, { withPassword: verified.created })
     if (!issued.ok) return issued
     credentials = { patientCode: issued.patientCode, password: issued.password }
-    notifyAccountCreated({ patientId: verified.userId, patientCode: issued.patientCode, password: issued.password })
+    if (issued.password) notifyAccountCreated({ patientId: verified.userId, patientCode: issued.patientCode, password: issued.password })
   }
 
   const bookingType = input.bookingType === 'doorstep' ? 'doorstep' : 'walk_in'
@@ -114,11 +117,12 @@ export async function registerLabPatient(input: {
       status: 'pending_payment',
       booking_type: bookingType,
       doorstep_fee: doorstepFee,
+      priced_tests: priced,
     })
     .select('id')
     .single()
 
-  if (error && /booking_type|doorstep/i.test(error.message)) {
+  if (error && /booking_type|doorstep|priced_tests/i.test(error.message)) {
     const fallback = await ctx.admin
       .from('diagnostic_bookings')
       .insert({
@@ -145,18 +149,23 @@ export async function registerLabPatient(input: {
   revalidateLabPages()
   const payment = await labPayment(ctx.admin, ctx.center, booking.id)
   if (!payment) return fail('The booking was made but its payment details couldn’t be loaded. Find it under the patient’s bookings.')
-  return { ok: true, token: issuePatientToken(verified.userId, ctx.scope), credentials, payment }
+  return { ok: true, token: issuePatientToken(verified.userId, ctx.scope, verified.created), credentials, payment }
 }
 
-/** A new password for the patient registered in this session (when they've lost theirs). */
+/**
+ * A new password for the account this registration opened (when the family has lost the one printed for them). Only an
+ * account the desk created in this registration can be given a new password; an existing patient's password is never
+ * changed from the desk.
+ */
 export async function resetLabPatientPassword(token: string): Promise<DeskResult<{ credentials: Credentials }>> {
   const ctx = await labContext()
   if (!ctx) return fail(NOT_SIGNED_IN)
-  const patientId = readPatientToken(token, ctx.scope)
-  if (!patientId) return fail('This registration has expired. Verify the patient again to reset their password.')
-  const issued = await issuePatientCredentials(ctx.admin, patientId)
-  if (!issued.ok) return issued
-  notifyAccountCreated({ patientId, patientCode: issued.patientCode, password: issued.password })
+  const details = readPatientTokenDetails(token, ctx.scope)
+  if (!details) return fail('This registration has expired. Verify the patient again to reset their password.')
+  if (!details.created) return fail('This patient already had an account, so their password can’t be reset from the desk. They can reset it themselves.')
+  const issued = await issuePatientCredentials(ctx.admin, details.patientId, { withPassword: true })
+  if (!issued.ok || !issued.password) return fail(issued.ok ? 'Could not set a new password. Please try again.' : issued.error)
+  notifyAccountCreated({ patientId: details.patientId, patientCode: issued.patientCode, password: issued.password })
   return { ok: true, credentials: { patientCode: issued.patientCode, password: issued.password } }
 }
 
@@ -169,13 +178,14 @@ type BookingRow = {
   preferred_date: string | null
   booking_type?: string | null
   doorstep_fee?: number | string | null
+  priced_tests?: unknown
   patient: Joined<{ full_name: string | null; phone_number: string | null; email: string | null }>
 }
 
 async function bookingAt(admin: Admin, centerId: string, bookingId: string) {
   let { data } = await admin
     .from('diagnostic_bookings')
-    .select('id, status, center_id, patient_id, test_name, preferred_date, booking_type, doorstep_fee, patient:profiles!diagnostic_bookings_patient_id_fkey ( full_name, phone_number, email )')
+    .select('id, status, center_id, patient_id, test_name, preferred_date, booking_type, doorstep_fee, priced_tests, patient:profiles!diagnostic_bookings_patient_id_fkey ( full_name, phone_number, email )')
     .eq('id', bookingId)
     .maybeSingle()
 
@@ -196,7 +206,7 @@ async function bookingAt(admin: Admin, centerId: string, bookingId: string) {
 async function labPayment(admin: Admin, center: Center, bookingId: string): Promise<DeskPayment | null> {
   const found = await bookingAt(admin, center.id, bookingId)
   if (!found) return null
-  const tests = matchBookedTests(found.row.test_name, center.test_prices)
+  const tests = bookedTestsFor(found.row, center.test_prices)
   if (!tests) return null
   const testsTotal = sumPrices(tests)
   const isDoorstep = found.row.booking_type === 'doorstep'
@@ -228,7 +238,9 @@ export async function labPaymentInfo(bookingId: string): Promise<DeskResult<{ pa
   if (!ctx) return fail(NOT_SIGNED_IN)
   const payment = await labPayment(ctx.admin, ctx.center, bookingId)
   if (!payment) return fail('Booking not found.')
-  if (payment.status !== 'pending_payment') return fail('This booking is already paid.')
+  if (payment.status === 'cancelled') return fail('This booking was cancelled.')
+  // A booking paid online (the booking fee) still takes the test charges here, at the counter.
+  if (await counterPaymentRecorded(ctx.admin, { kind: 'diagnostic', id: bookingId })) return fail('This booking is already paid.')
   return { ok: true, payment }
 }
 
@@ -242,7 +254,7 @@ export async function recordLabPayment(input: { bookingId: string; method: DeskM
 
   const payment = await labPayment(ctx.admin, ctx.center, input.bookingId)
   if (!payment) return fail('Booking not found.')
-  if (payment.status !== 'pending_payment') return fail('This booking is already paid.')
+  if (payment.status === 'cancelled') return fail('This booking was cancelled.')
   const found = await bookingAt(ctx.admin, ctx.center.id, input.bookingId)
 
   try {

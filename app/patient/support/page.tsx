@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { ChevronDown, HelpCircle, MessageCircleQuestion, PhoneCall, Stethoscope } from 'lucide-react'
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
 import { DeskTitle, PageBody, btnOutline, card } from '@/components/patient/app-ui'
 import { PatientDock } from '@/components/PatientDock'
@@ -67,7 +68,7 @@ export default async function PatientSupport() {
   if (!user) redirect('/login/patient?next=/patient/support')
 
   const [{ data: profile }, { data: appointments }, { data: labs }] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
+    createAdminClient().from('profiles').select('*').eq('id', user.id).maybeSingle(),
     supabase
       .from('appointments')
       .select('id, status, doctors ( profiles!doctors_profile_id_fkey ( full_name ) ), schedules ( start_time )')

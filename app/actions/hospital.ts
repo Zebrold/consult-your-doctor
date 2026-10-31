@@ -344,6 +344,11 @@ export async function deleteHospitalDoctor(formData: FormData): Promise<{ succes
   const doctorId = String(formData.get('doctorId') || '').trim()
   if (!doctorId) return { success: false, error: 'Doctor ID is required.' }
 
+  // A doctor with any visit on record keeps it: deleting the row could take those patients' visits and prescriptions with
+  // it (the foreign keys from appointments are not in this repository, so they can't be relied on).
+  const { data: visit } = await admin.from('appointments').select('id').eq('doctor_id', doctorId).limit(1).maybeSingle()
+  if (visit) return { success: false, error: 'This doctor has visits on record, so their record can’t be deleted. Ask the Consult Your Doctor team to deactivate it.' }
+
   const { error } = await admin.from('doctors').delete().eq('id', doctorId).eq('hospital_id', profile.hospital_id)
   if (error) {
     console.error('deleteHospitalDoctor error:', error)

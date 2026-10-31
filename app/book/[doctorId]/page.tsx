@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { notFound, redirect } from "next/navigation";
 import { Metadata } from "next";
 import { FinalizeBookingClient, type BookingDoctor, type BookingSlot } from "@/components/FinalizeBookingClient";
@@ -68,7 +69,7 @@ export default async function BookDoctorPage({ params, searchParams }: BookDocto
       .gt("start_time", new Date(now).toISOString())
       .lt("start_time", new Date(now + 60 * 86_400_000).toISOString())
       .order("start_time", { ascending: true }),
-    loadPatientDefaults(supabase),
+    loadPatientDefaults(supabase, createAdminClient()),
     getBookingFees(),
     bookingOptionsReady(),
   ]);
@@ -105,7 +106,7 @@ export default async function BookDoctorPage({ params, searchParams }: BookDocto
       services={services}
       initialSlotId={typeof picked === 'string' ? picked : null}
       initialFastTrack={choices && isFastTrack(query.type)}
-      payuKey={process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY || "jwoG24"}
+      payuKey={process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY || ""}
     />
   );
 }

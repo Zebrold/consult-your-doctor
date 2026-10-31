@@ -26,7 +26,7 @@ export default async function HospitalPatientsPage(props: { searchParams?: Promi
 
   const rows: BoardRow[] = visits.map((v) => {
     const doc = v.doctorId ? doctorById.get(v.doctorId) : undefined
-    const share = v.payment ? hospitalShare(v.payment, doc?.fee) : 0
+    const share = v.payment ? hospitalShare(v.payment) : null
     return {
       id: v.id,
       code: v.code,
@@ -39,8 +39,9 @@ export default async function HospitalPatientsPage(props: { searchParams?: Promi
       ageSex: v.patient ? ageSex(facts[v.patient.id], now) : null,
       doctor: doc ? doctorName(doc.name) : 'Doctor',
       department: doc?.department ?? 'Other',
-      payment: v.payment ? { label: PAYMENT_METHOD[v.payment.gateway ?? ''] ?? 'Paid', amount: share } : null,
+      payment: v.payment ? { label: PAYMENT_METHOD[v.payment.gateway ?? ''] ?? 'Paid', amount: share ?? 0 } : null,
       pay: paymentLook(v, share),
+      counterDue: v.counterDue,
       fastTrack: v.fastTrack,
       services: v.services.map((s) => s.name),
     }

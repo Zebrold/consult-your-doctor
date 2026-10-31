@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { CircleCheck, Home, KeyRound, Plus, Printer, Search, Send, X } from 'lucide-react'
-import { registerLabPatient, recordLabPayment, resetLabPatientPassword, sendLabPatientOtp } from '@/app/actions/lab-desk'
+import { registerLabPatient, recordLabPayment, sendLabPatientOtp } from '@/app/actions/lab-desk'
 import { formatINR } from '@/components/patient/format'
 import { ErrorNote, PaymentPanel, PrimaryButton, QuietButton, Steps } from '@/components/portal/desk'
 import type { DeskPayment } from '@/components/portal/desk-types'
@@ -141,14 +141,6 @@ export function NewBookingForm({
     })
   }
 
-  const resetPassword = () =>
-    start(async () => {
-      const res = await resetLabPatientPassword(token)
-      if (!res.ok) return setError(res.error)
-      setError(null)
-      setCredentials(res.credentials)
-    })
-
   if (tests.length === 0) {
     return <p className="p-4 rounded-xl bg-surface-container-low text-sm text-indigo-gray-600">Add tests with prices to your test menu before booking patients.</p>
   }
@@ -172,12 +164,7 @@ export function NewBookingForm({
       <p className="text-[11px] text-indigo-gray-600">
         {credentials.password
           ? 'Also sent to the patient on WhatsApp and email (when set up). Hand them the slip if they need it.'
-          : 'This patient already has a login. '}
-        {!credentials.password && (
-          <button type="button" onClick={resetPassword} disabled={pending} className="font-bold text-vibrant-blue">
-            Create a new password
-          </button>
-        )}
+          : 'This patient already had an account, so their password was not changed. They sign in with their mobile number and a one-time code, or reset their password themselves.'}
       </p>
     </div>
   )

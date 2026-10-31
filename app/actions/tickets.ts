@@ -80,7 +80,9 @@ export async function createSupportTicket(input: {
   // contact can raise one; otherwise the form would send messages to anyone, as often as anyone likes.
   const ip = (await clientIp()) ?? 'unknown'
   const contactKey = (user?.id || input.guestEmail?.trim().toLowerCase() || input.guestPhone?.replace(/\D/g, '') || '').slice(0, 120)
-  if (overLimit(`ticket:ip:${ip}`, user ? 10 : 5, 60 * 60_000) || (contactKey && overLimit(`ticket:contact:${contactKey}`, 5, 24 * 60 * 60_000))) {
+  const ipLimited = await overLimit(`ticket:ip:${ip}`, user ? 10 : 5, 60 * 60_000)
+  const contactLimited = contactKey ? await overLimit(`ticket:contact:${contactKey}`, 5, 24 * 60 * 60_000) : false
+  if (ipLimited || contactLimited) {
     return { ok: false, error: 'You have raised several tickets recently. Our team will reply to those first; please try again later.' }
   }
 

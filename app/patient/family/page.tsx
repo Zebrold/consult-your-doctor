@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Users } from 'lucide-react'
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { AccountCard, AccountPage } from '@/components/patient/AccountPage'
 
 export const metadata: Metadata = { title: 'Family | Consult Your Doctor' }
@@ -12,7 +13,7 @@ export default async function FamilyPage() {
   const supabase = await createClient()
   const user = await getCurrentUser()
   if (!user) redirect('/login/patient?next=/patient/family')
-  const { data: profile } = await supabase.from('profiles').select('full_name, email').eq('id', user.id).maybeSingle()
+  const { data: profile } = await createAdminClient().from('profiles').select('full_name, email').eq('id', user.id).maybeSingle()
 
   return (
     <AccountPage user={user} profile={profile} title="Family" subtitle="Booking for the people you care for.">

@@ -34,7 +34,7 @@ export default async function HospitalFinancePage() {
       const date = v.payment?.createdAt ?? v.start ?? v.createdAt
       // An online payment is the patient's booking fee to Consult your Doctor; the hospital sees what it takes at its
       // counter, the consultation fee.
-      const share = v.payment ? hospitalShare(v.payment, doc?.fee) : null
+      const share = v.payment ? hospitalShare(v.payment) : null
       return {
         id: v.id,
         code: v.code,
@@ -63,7 +63,8 @@ export default async function HospitalFinancePage() {
   const weekday = new Date(now).toLocaleDateString('en-US', { timeZone: IST, weekday: 'short' })
   const unrecorded = ledger.filter((r) => r.paid == null && r.day.startsWith(month)).length
 
-  const awaiting = visits.filter((v) => v.status === 'pending_payment' && v.start && Date.parse(v.start) > now)
+  // Unpaid upcoming bookings, and visits booked online whose consultation fee the counter hasn't taken yet.
+  const awaiting = visits.filter((v) => (v.status === 'pending_payment' && !!v.start && Date.parse(v.start) > now) || v.counterDue)
   const awaitingValue = awaiting.reduce((s, v) => s + ((v.doctorId && doctorById.get(v.doctorId)?.fee) || 0), 0)
 
   const online = monthRows.filter((r) => r.method === 'online')

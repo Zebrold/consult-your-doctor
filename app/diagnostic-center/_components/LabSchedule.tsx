@@ -146,7 +146,8 @@ export function LabSchedule({
   const toCheck = count('booked')
   const collected = paid.length - toCheck
   const sent = count('sent')
-  const value = paid.reduce((sum, b) => sum + (b.amount ?? 0), 0)
+  // Only test charges the desk has actually taken count; a booking paid online (the booking fee) is not lab revenue yet.
+  const value = paid.reduce((sum, b) => sum + (b.counterPaid ? b.amount ?? 0 : 0), 0)
   const shown = filter ? dayList.filter((b) => groupOf(b) === filter) : dayList
   const isPast = day < today
   const spotlight = day === today ? dayList.find((b) => b.status === 'confirmed') ?? dayList.find((b) => groupOf(b) === 'collected') ?? null : null

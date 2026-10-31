@@ -107,7 +107,7 @@ export async function generateAppointmentSlipPdf(data: AppointmentSlipData): Pro
   })
 
   // Token indicator
-  page.drawText('APPOINTMENT TOKEN', {
+  page.drawText('BOOKING REFERENCE', {
     x: M + 18,
     y: y - 22,
     font: bold,

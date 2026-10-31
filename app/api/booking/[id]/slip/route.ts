@@ -15,8 +15,8 @@ const PAID = ['confirmed', 'visited', 'completed', 'report_sent']
 // It carries the patient's name and phone number: never let a shared cache keep a copy.
 const PDF_HEADERS = { 'Content-Type': 'application/pdf', 'Cache-Control': 'private, no-store' }
 
-const tokenFor = (id: string) =>
-  String(Math.abs(id.split('-').reduce((acc: number, part: string) => acc + parseInt(part.slice(0, 4), 16) || 0, 0) % 25) + 1).padStart(2, '0')
+// The booking reference printed on the slip: the code the patient is shown, not a queue position.
+const referenceFor = (id: string) => id.slice(0, 8).toUpperCase()
 
 type Viewer = { id: string; role: string | null; hospitalId: string | null; centerId: string | null }
 
@@ -75,7 +75,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
 
       const { data: paymentRow } = await admin
         .from('payments')
-        .select('amount, transaction_id, gateway')
+        .select('amount, transaction_id, gateway, created_at')
         .eq('appointment_id', id)
         .eq('status', 'success')
         .order('created_at', { ascending: false })
@@ -87,7 +87,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
 
       const pdfBytes = await generateAppointmentSlipPdf({
         bookingId: id,
-        tokenNumber: tokenFor(id),
+        tokenNumber: referenceFor(id),
         isConsultation: true,
         patient: {
           name: patient?.full_name || 'Patient',
@@ -110,7 +110,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
           transactionId: paymentRow?.transaction_id || id,
           status: 'PAID',
           gateway: online ? 'Online (Paid)' : 'Hospital desk',
-          paidAt: new Date(apt.created_at || Date.now()),
+          paidAt: new Date(paymentRow?.created_at ?? apt.created_at ?? Date.now()),
         },
       })
 
@@ -144,7 +144,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
 
       const { data: paymentRow } = await admin
         .from('payments')
-        .select('amount, transaction_id, gateway')
+        .select('amount, transaction_id, gateway, created_at')
         .eq('diagnostic_booking_id', id)
         .eq('status', 'success')
         .order('created_at', { ascending: false })
@@ -156,7 +156,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
 
       const pdfBytes = await generateAppointmentSlipPdf({
         bookingId: id,
-        tokenNumber: tokenFor(id),
+        tokenNumber: referenceFor(id),
         isConsultation: false,
         patient: {
           name: patient?.full_name || 'Patient',
@@ -179,7 +179,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
           transactionId: paymentRow?.transaction_id || id,
           status: 'PAID',
           gateway: online ? 'Online (Paid)' : 'Centre desk',
-          paidAt: new Date(diag.created_at || Date.now()),
+          paidAt: new Date(paymentRow?.created_at ?? diag.created_at ?? Date.now()),
         },
       })
 

@@ -27,6 +27,13 @@ export async function signInWithGoogleIdentity(identity: GoogleIdentity): Promis
   // 1. The sign-in account for this address, or a new one.
   let userId = await findAuthUserId(admin, { email })
   if (userId) {
+    // Staff sign in with their Staff ID and password. Google only opens a patient account, as the mobile-number sign-in
+    // does; otherwise whoever controls the Google address would get the staff member's portal.
+    const { data: existingProfile } = await admin.from('profiles').select('role').eq('id', userId).maybeSingle()
+    if (existingProfile?.role && existingProfile.role !== 'patient') {
+      return { ok: false, error: 'This Google account belongs to a staff account. Please log in with your Staff ID instead.' }
+    }
+
     if (picture) {
       const { data: existing } = await admin.auth.admin.getUserById(userId)
       const meta = existing.user?.user_metadata ?? {}

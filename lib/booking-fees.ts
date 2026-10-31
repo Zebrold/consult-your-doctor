@@ -1,7 +1,7 @@
 import { unstable_cache } from 'next/cache'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { DEFAULT_BOOKING_FEES, doctorBookingFee, labBookingFee, matchBookedTests, type BookingFees } from '@/lib/pricing'
+import { DEFAULT_BOOKING_FEES, bookedTestsFor, doctorBookingFee, labBookingFee, type BookingFees } from '@/lib/pricing'
 
 // The booking fees executives set on Payments, kept in platform_settings (supabase/migrations/20261018_booking_fees.sql).
 // Every page, the PayU hash and the PayU callback read them from here, so the fee a patient is shown is the fee PayU
@@ -95,7 +95,9 @@ export async function onlineChargeFor(db: SupabaseClient, product: string, id: s
     const { data } = await db.from('diagnostic_bookings').select('patient_id, status, test_name, diagnostic_centers ( test_prices )').eq('id', id).maybeSingle()
     if (!data) return { error: 'Booking not found.', status: 404 }
     const center = one(data.diagnostic_centers as Joined<{ test_prices: Record<string, number> | null }>)
-    const tests = matchBookedTests(data.test_name || '', center?.test_prices)
+    // The prices the tests were booked at (priced_tests, from 20261031_audit_fixes.sql); older bookings match by name.
+    const { data: snapshot } = await db.from('diagnostic_bookings').select('priced_tests').eq('id', id).maybeSingle()
+    const tests = bookedTestsFor({ test_name: data.test_name, priced_tests: snapshot?.priced_tests }, center?.test_prices)
     if (!tests) return { error: "We couldn't price this booking. Please contact support.", status: 422 }
     return { amount: labBookingFee(tests, fees.diagnosticPercent), patientId: data.patient_id, status: data.status }
   }

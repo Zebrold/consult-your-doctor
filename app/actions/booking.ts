@@ -55,7 +55,7 @@ export async function createDiagnosticBooking(formData: FormData) {
       return { error: 'Please select at least one test and a visit date.' }
     }
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
-    if (preferredDate < today) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(preferredDate) || preferredDate < today) {
       return { error: 'Please choose a visit date from today onwards.' }
     }
 
@@ -122,6 +122,9 @@ export async function createDiagnosticBooking(formData: FormData) {
   // 3. Insert Booking with doorstep details. The server writes it (patients can't insert booking rows themselves,
   // see supabase/migrations/20261016_audit_hardening.sql), after the checks above.
   const admin = createAdminClient()
+  // The tests with the prices they are booked at, so a later price or name change can't alter what the patient owes.
+  const { data: priceRow } = await admin.from('diagnostic_centers').select('test_prices').eq('id', centerId).maybeSingle()
+  const pricedSnapshot = matchBookedTests(testName, priceRow?.test_prices)
   let { data: booking, error } = await admin
     .from('diagnostic_bookings')
     .insert({
@@ -131,13 +134,14 @@ export async function createDiagnosticBooking(formData: FormData) {
       preferred_date: preferredDate,
       booking_type: reqBookingType,
       doorstep_fee: doorstepFee,
+      priced_tests: pricedSnapshot,
       status: 'pending_payment'
     })
     .select('id')
     .single()
 
   // Fallback if DB columns haven't been migrated yet
-  if (error && /booking_type|doorstep_fee/.test(error.message)) {
+  if (error && /booking_type|doorstep_fee|priced_tests/.test(error.message)) {
     const fallbackRes = await admin
       .from('diagnostic_bookings')
       .insert({
@@ -178,7 +182,8 @@ function toE164(raw: string) {
  * which is what hospitals, labs and the operations team see for the booking.
  */
 async function savePatientBasics(supabase: Supabase, userId: string, formData: FormData): Promise<string | null> {
-  const { data: current } = await supabase.from('profiles').select('full_name, phone_number').eq('id', userId).maybeSingle()
+  // The admin client reads the signed-in patient's own row (their email and phone aren't readable through the session).
+  const { data: current } = await createAdminClient().from('profiles').select('full_name, phone_number').eq('id', userId).maybeSingle()
   let fullName = String(formData.get('patient_name') || '').trim().slice(0, 120)
   let rawPhone = String(formData.get('patient_phone') || '').trim()
   const dateOfBirth = String(formData.get('date_of_birth') || '')
@@ -270,7 +275,20 @@ type BookingOptions = { fastTrack: boolean; services: string[] }
 const HOLD_LIMIT = 3
 const STALE_HOLD_MS = 30 * 60_000
 
-/** True when the patient may hold one more unpaid slot (after releasing their own stale holds if needed). */
+type Hold = { id: string; schedule_id: string | null; created_at: string }
+
+/** Cancels an unpaid booking (only while it is still unpaid) and frees its slot. True when it was released. */
+async function releaseHold(admin: ReturnType<typeof createAdminClient>, hold: Hold): Promise<boolean> {
+  const { data: released } = await admin.from('appointments').update({ status: 'cancelled' }).eq('id', hold.id).eq('status', 'pending_payment').select('id')
+  if (!released?.length) return false
+  if (hold.schedule_id) await admin.from('schedules').update({ is_booked: false }).eq('id', hold.schedule_id)
+  return true
+}
+
+/**
+ * True when the patient may hold one more unpaid slot. Holds that are older than STALE_HOLD_MS are released first, whatever
+ * the count, so an abandoned checkout never keeps a slot.
+ */
 async function makeRoomForHold(admin: ReturnType<typeof createAdminClient>, patientId: string): Promise<boolean> {
   const { data } = await admin
     .from('appointments')
@@ -278,17 +296,50 @@ async function makeRoomForHold(admin: ReturnType<typeof createAdminClient>, pati
     .eq('patient_id', patientId)
     .eq('status', 'pending_payment')
     .order('created_at', { ascending: true })
-  const holds = (data ?? []) as { id: string; schedule_id: string | null; created_at: string }[]
-  if (holds.length < HOLD_LIMIT) return true
-
+  const holds = (data ?? []) as Hold[]
   const cutoff = Date.now() - STALE_HOLD_MS
-  const stale = holds.filter((h) => Date.parse(h.created_at) < cutoff).slice(0, holds.length - HOLD_LIMIT + 1)
-  if (holds.length - stale.length >= HOLD_LIMIT) return false
-  for (const hold of stale) {
-    const { data: released } = await admin.from('appointments').update({ status: 'cancelled' }).eq('id', hold.id).eq('status', 'pending_payment').select('id')
-    if (released?.length && hold.schedule_id) await admin.from('schedules').update({ is_booked: false }).eq('id', hold.schedule_id)
-  }
-  return true
+  for (const hold of holds.filter((h) => Date.parse(h.created_at) < cutoff)) await releaseHold(admin, hold)
+  return holds.filter((h) => Date.parse(h.created_at) >= cutoff).length < HOLD_LIMIT
+}
+
+/**
+ * After a hold is created, counts the patient's live holds again. Parallel requests can each pass the check in
+ * makeRoomForHold, so a hold that takes the count past the limit is undone. Returns false when it was undone.
+ */
+async function keepWithinHoldLimit(admin: ReturnType<typeof createAdminClient>, patientId: string, hold: Hold): Promise<boolean> {
+  const cutoff = Date.now() - STALE_HOLD_MS
+  const { data } = await admin.from('appointments').select('id, schedule_id, created_at').eq('patient_id', patientId).eq('status', 'pending_payment')
+  const live = ((data ?? []) as Hold[]).filter((h) => Date.parse(h.created_at) >= cutoff)
+  if (live.length <= HOLD_LIMIT) return true
+  await releaseHold(admin, hold)
+  return false
+}
+
+/** Claims a slot that is still free and in the future for this doctor. */
+async function claimSlot(admin: ReturnType<typeof createAdminClient>, doctorId: string, scheduleId: string): Promise<boolean> {
+  const { data, error } = await admin
+    .from('schedules')
+    .update({ is_booked: true })
+    .eq('id', scheduleId)
+    .eq('doctor_id', doctorId)
+    .eq('is_booked', false)
+    .gt('start_time', new Date().toISOString())
+    .select('id')
+  return !error && !!data?.length
+}
+
+/** Releases the unpaid hold, older than STALE_HOLD_MS, that is keeping this slot booked. True when one was released. */
+async function releaseStaleHoldOn(admin: ReturnType<typeof createAdminClient>, scheduleId: string): Promise<boolean> {
+  const cutoff = new Date(Date.now() - STALE_HOLD_MS).toISOString()
+  const { data } = await admin
+    .from('appointments')
+    .select('id, schedule_id, created_at')
+    .eq('schedule_id', scheduleId)
+    .eq('status', 'pending_payment')
+    .lt('created_at', cutoff)
+    .limit(1)
+  const hold = ((data ?? []) as Hold[])[0]
+  return hold ? releaseHold(admin, hold) : false
 }
 
 /**
@@ -334,15 +385,10 @@ async function claimSlotAndCreateAppointment(
     }
 
     // Claim the slot only while it is still free and in the future, so two patients can't book the same time.
-    const { data: claimed, error: claimError } = await admin
-      .from('schedules')
-      .update({ is_booked: true })
-      .eq('id', scheduleId)
-      .eq('doctor_id', doctorId)
-      .eq('is_booked', false)
-      .gt('start_time', new Date().toISOString())
-      .select('id')
-    if (claimError || !claimed || claimed.length === 0) {
+    let claimed = await claimSlot(admin, doctorId, scheduleId)
+    // A slot kept by an unpaid booking that was never paid for is free again: release that hold and try once more.
+    if (!claimed && (await releaseStaleHoldOn(admin, scheduleId))) claimed = await claimSlot(admin, doctorId, scheduleId)
+    if (!claimed) {
       return { error: 'That time slot was just taken. Please pick another one.' }
     }
 
@@ -363,6 +409,10 @@ async function claimSlotAndCreateAppointment(
       console.error('Error finalizing appointment:', aptError)
       await admin.from('schedules').update({ is_booked: false }).eq('id', scheduleId)
       return { error: 'Could not create the appointment. Please try again.' }
+    }
+
+    if (!(await keepWithinHoldLimit(admin, patientId, { id: appointment.id as string, schedule_id: scheduleId, created_at: '' }))) {
+      return { error: 'You already have unpaid bookings waiting. Please pay for one of them from My Appointments, or try again in 30 minutes.' }
     }
 
     return { appointmentId: appointment.id as string }

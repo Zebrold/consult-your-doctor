@@ -2,7 +2,7 @@ import { after } from 'next/server'
 import { siteUrl } from '@/lib/site-url'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { RECORD_BUCKET } from '@/lib/records'
-import { sendEmail, buildAppointmentEmailHtml } from './email'
+import { sendEmail } from './email'
 import { sendWhatsApp } from './whatsapp'
 import { sendBookingConfirmationSms, sendReportReadySms, sendAccountCreatedSms } from './sms'
 
@@ -79,78 +79,62 @@ export function notifyReportReady(args: { patientId: string; what: string; from:
   })
 }
 
+import QRCode from 'qrcode'
 import { generateAppointmentSlipPdf } from '@/lib/pdf/appointment-slip'
 import { payAtVenueNote } from '@/lib/pricing'
+import { formatINR } from '@/components/patient/format'
+import { loadBookingCard, type BookingCard } from '@/lib/booking-card'
+import { BOOKING_QR_CID, WHITE_LOGO_CID, bookingEmailLines, bookingEmailSubject, buildBookingEmailHtml } from './booking-email'
+import path from 'node:path'
 
-export type BookingConfirmationArgs = {
-  patientId: string
-  what: string
-  where: string
-  bookingId: string
-  /** The booking fee paid online, e.g. "₹119". The consultation fee and test prices are paid at the venue and never named. */
-  amount: string
-  numericAmount?: number
-  dateTimeStr?: string
-  tokenNumber?: string
-  isConsultation?: boolean
-  doctorName?: string
-  specialty?: string
-  hospitalName?: string
-  address?: string | null
-  city?: string | null
-  gender?: string | null
-  dateOfBirth?: string | null
-  transactionId?: string | null
+/** The booking email (the same layout as the booking page), with the QR code inline once the booking is paid. */
+async function sendBookingEmail(card: BookingCard, opts: { failureReason?: string | null; slip?: { filename: string; content: Uint8Array } | null }) {
+  if (!card.patient.email || !realEmail(card.patient.email)) return
+  const confirmed = card.state === 'confirmed'
+  const qr = confirmed ? await QRCode.toBuffer(card.links.confirmation, { margin: 1, width: 240 }) : null
+  await sendEmail({
+    to: card.patient.email,
+    subject: bookingEmailSubject(card, !!opts.failureReason),
+    paragraphs: bookingEmailLines(card, opts),
+    html: buildBookingEmailHtml(card, opts),
+    attachments: [
+      ...(qr ? [{ filename: 'booking-qr.png', content: qr, contentType: 'image/png', cid: BOOKING_QR_CID }] : []),
+      ...(card.followUp ? [{ filename: 'logo-icon-white.png', path: path.join(process.cwd(), 'public', 'logo-icon-white.png'), contentType: 'image/png', cid: WHITE_LOGO_CID }] : []),
+      ...(opts.slip ? [{ filename: opts.slip.filename, content: opts.slip.content, contentType: 'application/pdf' }] : []),
+    ],
+  })
 }
 
-/** A booking's booking fee has been paid: generates the PDF appointment slip, sends it on WhatsApp and attaches it to email. */
-export function notifyBookingConfirmed(args: BookingConfirmationArgs) {
+/**
+ * A booking has been paid (online, at a desk, or it is a free follow-up): sends the confirmation by email (with the PDF
+ * slip attached), WhatsApp and SMS. `bookingId` is the full id of the appointment or lab booking.
+ */
+export function notifyBookingConfirmed(bookingId: string) {
   later('booking', async (admin) => {
-    const contact = await patientContact(admin, args.patientId)
+    const card = await loadBookingCard(admin, bookingId)
+    if (!card || card.state !== 'confirmed') return
+    const contact = await patientContact(admin, card.patientId)
     if (!contact) return
-    const isConsultation = args.isConsultation ?? true
-    const venueNote = payAtVenueNote(isConsultation)
-
-    // Retrieve patient extra details (gender, DOB) if available
-    let gender = args.gender
-    let dob = args.dateOfBirth
-    if (!gender || !dob) {
-      const { data: pDet } = await admin.from('patient_details').select('gender, date_of_birth').eq('id', args.patientId).maybeSingle()
-      gender = gender || pDet?.gender
-      dob = dob || pDet?.date_of_birth
-    }
-
-    const tokenNumber = args.tokenNumber || String(Math.abs(args.bookingId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % 25) + 1).padStart(2, '0')
-    const numericAmount = args.numericAmount ?? (Number(args.amount.replace(/[^\d.]/g, '')) || 0)
+    const isConsultation = card.kind === 'consultation'
+    const what = isConsultation ? `consultation with ${card.title}` : `lab tests (${card.title})`
+    const dateTimeStr = card.when ?? 'Scheduled visit'
+    const { data: details } = await admin.from('patient_details').select('gender, date_of_birth').eq('id', card.patientId).maybeSingle()
 
     let pdfBytes: Uint8Array | null = null
     try {
       pdfBytes = await generateAppointmentSlipPdf({
-        bookingId: args.bookingId,
-        tokenNumber,
+        bookingId: card.id,
+        tokenNumber: card.token ?? card.code,
         isConsultation,
-        patient: {
-          name: contact.name,
-          phone: contact.phone,
-          email: contact.email,
-          gender,
-          dateOfBirth: dob,
-        },
-        provider: {
-          name: args.doctorName || args.what,
-          specialty: args.specialty,
-          hospitalName: args.hospitalName || args.where,
-          address: args.address,
-          city: args.city,
-        },
-        schedule: {
-          dateTimeStr: args.dateTimeStr || 'Scheduled Visit',
-        },
+        patient: { name: contact.name, phone: contact.phone, email: contact.email, gender: details?.gender, dateOfBirth: details?.date_of_birth },
+        provider: { name: card.title, specialty: card.subtitle, hospitalName: card.place, address: card.placeLines[0] ?? null, city: card.placeLines[1] ?? null },
+        schedule: { dateTimeStr },
         payment: {
-          amount: numericAmount,
-          transactionId: args.transactionId || args.bookingId,
+          online: card.bookingFeeLines.some((l) => l.label === 'Collected by' && l.value === 'Consult your Doctor'),
+          amount: card.bookingFee,
+          transactionId: card.transactionId ?? card.id,
           status: 'PAID',
-          gateway: 'Online (Instant)',
+          gateway: card.paymentType ?? 'Online',
           paidAt: new Date(),
         },
       })
@@ -159,11 +143,10 @@ export function notifyBookingConfirmed(args: BookingConfirmationArgs) {
     }
 
     let signedUrl: string | null = null
-    const filename = `Appointment_Slip_${args.bookingId}.pdf`
-
+    const filename = `Appointment_Slip_${card.code}.pdf`
     if (pdfBytes) {
       try {
-        const storagePath = `slips/${args.bookingId}_${Date.now()}.pdf`
+        const storagePath = `slips/${card.id}_${Date.now()}.pdf`
         await admin.storage.from(RECORD_BUCKET).upload(storagePath, pdfBytes, { upsert: true, contentType: 'application/pdf' })
         const { data: signed } = await admin.storage.from(RECORD_BUCKET).createSignedUrl(storagePath, 7 * 86_400)
         signedUrl = signed?.signedUrl ?? null
@@ -172,61 +155,33 @@ export function notifyBookingConfirmed(args: BookingConfirmationArgs) {
       }
     }
 
-    // 1. WhatsApp with PDF document attachment & clear text confirmation
+    // 1. WhatsApp with the PDF slip
     await sendWhatsApp(contact.phone, {
       name: 'cyd_booking_confirmed',
-      params: [firstName(contact.name), args.what, args.where, args.bookingId, `${args.amount} booking fee`],
-      note: venueNote,
+      params: [firstName(contact.name), what, card.place, card.code, card.isFollowUp ? 'no booking fee (free follow-up)' : `${formatINR(card.bookingFee)} booking fee`],
+      note: payAtVenueNote(isConsultation),
       ...(signedUrl ? { document: { link: signedUrl, filename } } : {}),
     })
 
     // 2. SMS alert
     if (contact.phone) {
-      await sendBookingConfirmationSms(contact.phone, {
-        bookingId: args.bookingId,
-        doctorOrLab: args.what,
-        hospital: args.where,
-        date: args.dateTimeStr || 'Scheduled Visit',
-      }).catch(() => null)
+      await sendBookingConfirmationSms(contact.phone, { bookingId: card.code, doctorOrLab: what, hospital: card.place, date: dateTimeStr }).catch(() => null)
     }
 
-    // 3. Email (Gmail) with executive website-matching template & official PDF appointment slip attached!
-    if (contact.email) {
-      const locationStr = [args.address, args.city].filter(Boolean).join(', ') || args.city || null
-      const emailHtml = buildAppointmentEmailHtml({
-        patientName: contact.name,
-        doctorOrService: args.doctorName || args.what,
-        specialty: args.specialty,
-        hospitalName: args.hospitalName || args.where,
-        location: locationStr,
-        dateTimeStr: args.dateTimeStr || 'Scheduled Visit',
-        tokenNumber,
-        bookingId: args.bookingId.toUpperCase(),
-        amount: args.amount,
-        payAtVenue: venueNote,
-        siteUrl: SITE_URL,
-        pdfFilename: filename,
-      })
+    // 3. Email in the booking page's layout, with the slip attached
+    await sendBookingEmail(card, { slip: pdfBytes ? { filename, content: pdfBytes } : null })
+  })
+}
 
-      await sendEmail({
-        to: contact.email,
-        subject: `Appointment Confirmed: ${args.what} at ${args.where} (Token ${tokenNumber.replace(/^#/, '')})`,
-        paragraphs: [
-          `Hello ${firstName(contact.name)},`,
-          `Your appointment for ${args.what} at ${args.where} is confirmed!`,
-          `📋 Appointment Token: ${tokenNumber.replace(/^#/, '')}`,
-          `🔖 Booking Reference ID: ${args.bookingId.toUpperCase()}`,
-          `💳 Booking fee paid: ${args.amount} (Verified)`,
-          `🏥 ${venueNote}`,
-          `📅 Schedule: ${args.dateTimeStr || 'Scheduled Visit'}`,
-          `Your official clinical appointment confirmation slip & receipt is attached to this email as a PDF.`,
-          `You can also view and manage this visit anytime in your account at https://www.consultyourdoctor.de/patient/appointments.`,
-        ],
-        button: { text: 'View My Appointments', url: 'https://www.consultyourdoctor.de/patient/appointments' },
-        html: emailHtml,
-        attachments: pdfBytes ? [{ filename, content: pdfBytes, contentType: 'application/pdf' }] : undefined,
-      })
-    }
+/**
+ * A payment for an unpaid booking failed or was cancelled at PayU: emails the patient the booking, still waiting for
+ * payment, with the reason and a button to pay again. The booking keeps its slot until its hold ends.
+ */
+export function notifyPaymentPending(bookingId: string, reason: string | null) {
+  later('payment-pending', async (admin) => {
+    const card = await loadBookingCard(admin, bookingId)
+    if (!card || card.state !== 'pending') return
+    await sendBookingEmail(card, { failureReason: reason })
   })
 }
 

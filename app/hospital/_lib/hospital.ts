@@ -165,7 +165,8 @@ export async function loadHospitalDoctors(admin: Admin, hospitalId: string): Pro
     .sort((a, b) => a.department.localeCompare(b.department) || a.name.localeCompare(b.name))
 }
 
-export type Payment = { amount: number; gateway: string | null; createdAt: string | null }
+/** `hospitalShare`: the hospital's part of it (a desk payment may include Consult your Doctor's booking fee). */
+export type Payment = { amount: number; gateway: string | null; createdAt: string | null; hospitalShare: number | null }
 
 export type HospitalVisit = {
   id: string
@@ -254,8 +255,8 @@ async function loadPayments(admin: Admin, ids: string[]): Promise<Map<string, Pa
       .select('*')
       .in('appointment_id', ids.slice(i, i + 150))
       .eq('status', 'success')
-    for (const p of (data ?? []) as { appointment_id: string; amount: number | string; gateway: string | null; created_at: string | null }[]) {
-      const payment = { amount: Number(p.amount) || 0, gateway: p.gateway, createdAt: p.created_at }
+    for (const p of (data ?? []) as { appointment_id: string; amount: number | string; gateway: string | null; created_at: string | null; hospital_share?: number | string | null }[]) {
+      const payment = { amount: Number(p.amount) || 0, gateway: p.gateway, createdAt: p.created_at, hospitalShare: p.hospital_share == null ? null : Number(p.hospital_share) || 0 }
       // The desk's payment is what the counter took, so it wins over the online booking fee recorded for the same visit.
       const current = map.get(p.appointment_id)
       if (!current || (current.gateway === 'payu' && payment.gateway !== 'payu')) map.set(p.appointment_id, payment)
@@ -269,7 +270,7 @@ async function loadPayments(admin: Admin, ids: string[]): Promise<Map<string, Pa
  * booking fee, which goes to Consult Your Doctor; the consultation fee is counted once the counter has taken it. Null
  * when the counter hasn't collected anything yet.
  */
-export const hospitalShare = (p: Payment): number | null => (p.gateway === 'payu' ? null : p.amount)
+export const hospitalShare = (p: Payment): number | null => (p.gateway === 'payu' ? null : (p.hospitalShare ?? p.amount))
 
 export const PAYMENT_METHOD: Record<string, string> = { payu: 'Booked online, fee at counter', upi_qr: 'UPI scanner', cash: 'Cash at desk' }
 

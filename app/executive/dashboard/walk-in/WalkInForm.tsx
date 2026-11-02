@@ -6,7 +6,9 @@ import { createWalkInAppointment, sendExecutivePatientOtp } from '@/app/actions/
 import { useRouter } from 'next/navigation'
 import { Loader2, User, Phone, CheckCircle, Calendar, Clock } from 'lucide-react'
 
-export function WalkInForm({ doctors }: { doctors: any[] }) {
+export type WalkInDoctor = { id: string; specialty: string | null; consultation_fee: number | null; profiles: { full_name: string | null } | null }
+
+export function WalkInForm({ doctors, bookingFee }: { doctors: WalkInDoctor[]; bookingFee: number }) {
   const [doctorId, setDoctorId] = useState('')
   const [schedules, setSchedules] = useState<any[]>([])
   const [scheduleId, setScheduleId] = useState('')
@@ -99,7 +101,7 @@ export function WalkInForm({ doctors }: { doctors: any[] }) {
           <option value="">-- Choose a Doctor --</option>
           {doctors.map(d => (
             <option key={d.id} value={d.id}>
-              Dr. {d.profiles.full_name} ({d.specialty}) - ₹{d.consultation_fee}
+              Dr. {d.profiles?.full_name} ({d.specialty}) - ₹{d.consultation_fee}
             </option>
           ))}
         </select>
@@ -213,7 +215,7 @@ export function WalkInForm({ doctors }: { doctors: any[] }) {
             <div>
               <h4 className="font-bold text-emerald-900 mb-1">Confirm Cash Collection</h4>
               <p className="text-sm text-emerald-700">
-                Please collect <strong className="font-black">₹{selectedDoctor?.consultation_fee}</strong> in cash from the patient before proceeding.
+                Please collect <strong className="font-black">₹{(Number(selectedDoctor?.consultation_fee) || 0) + bookingFee}</strong> in cash from the patient before proceeding: the consultation fee ₹{Number(selectedDoctor?.consultation_fee) || 0} and the booking fee ₹{bookingFee}.
               </p>
             </div>
           </div>

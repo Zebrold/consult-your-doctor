@@ -2,7 +2,10 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { isFastTrack, labDoorstepFee, matchBookedTests, pricedTests, type BookedTest } from '@/lib/pricing'
+import { doctorBookingFee, isFastTrack, labDoorstepFee, matchBookedTests, pricedTests, type BookedTest } from '@/lib/pricing'
+import { loadBookingFees } from '@/lib/booking-fees'
+import { followUpBase } from '@/lib/follow-up'
+import { notifyBookingConfirmed } from '@/lib/notify/patient'
 import { redirect } from 'next/navigation'
 
 export async function createAppointment(formData: FormData) {
@@ -28,8 +31,8 @@ export async function createAppointment(formData: FormData) {
   const result = await claimSlotAndCreateAppointment(user.id, doctorId, scheduleId)
   if ('error' in result) return { error: result.error }
 
-  // 4. Return URL to redirect on the client
-  return { success: true, url: `/patient/checkout/${result.appointmentId}` }
+  // 4. Return URL to redirect on the client: checkout, or the booking itself when it is a free follow-up
+  return { success: true, url: result.confirmed ? `/book/confirmation/${result.appointmentId}` : `/patient/checkout/${result.appointmentId}` }
 }
 
 export async function createDiagnosticBooking(formData: FormData) {
@@ -263,7 +266,8 @@ export async function finalizeConsultationAppointment(formData: FormData) {
   }
   const result = await claimSlotAndCreateAppointment(user.id, doctorId, scheduleId, options)
   if ('error' in result) return { error: result.error }
-  return { success: true, appointmentId: result.appointmentId }
+  // `confirmed`: a free follow-up, booked with no fee to pay, so the page goes straight to the booking.
+  return { success: true, appointmentId: result.appointmentId, confirmed: result.confirmed }
 }
 
 /** What the patient picked on the hospital page: fast track, and hospital services by name. */
@@ -351,9 +355,17 @@ async function claimSlotAndCreateAppointment(
   doctorId: string,
   scheduleId: string,
   options: BookingOptions = { fastTrack: false, services: [] },
-): Promise<{ appointmentId: string } | { error: string }> {
+): Promise<{ appointmentId: string; confirmed: boolean } | { error: string }> {
   try {
     const admin = createAdminClient()
+
+    let fees
+    try {
+      fees = await loadBookingFees()
+    } catch (err) {
+      console.error(err)
+      return { error: "We couldn't load the booking fee. Please try again in a moment." }
+    }
 
     const { data: doctor } = await admin
       .from('doctors')
@@ -380,7 +392,11 @@ async function claimSlotAndCreateAppointment(
     // Only a booking with a choice writes the new columns, so general bookings still work before the migration.
     const choices = options.fastTrack || services.length ? { booking_type: options.fastTrack ? 'fast_track' : 'general', services } : {}
 
-    if (!(await makeRoomForHold(admin, patientId))) {
+    // A general booking with a doctor seen in the last 12 days is a free follow-up (lib/follow-up.ts): no booking fee,
+    // confirmed straight away. It holds no unpaid slot, so the hold cap doesn't apply to it.
+    const followUpOf = options.fastTrack ? null : await followUpBase(admin, patientId, doctorId)
+
+    if (!followUpOf && !(await makeRoomForHold(admin, patientId))) {
       return { error: 'You already have unpaid bookings waiting. Please pay for one of them from My Appointments, or try again in 30 minutes.' }
     }
 
@@ -392,18 +408,23 @@ async function claimSlotAndCreateAppointment(
       return { error: 'That time slot was just taken. Please pick another one.' }
     }
 
-    const { data: appointment, error: aptError } = await admin
-      .from('appointments')
-      .insert({
-        patient_id: patientId,
-        doctor_id: doctorId,
-        hospital_id: doctor.hospital_id ?? null,
-        schedule_id: scheduleId,
-        status: 'pending_payment',
-        ...choices,
-      })
-      .select('id')
-      .single()
+    // The booking keeps the fee it was made at, so a later change to the fees can't change what this patient pays.
+    const row = { patient_id: patientId, doctor_id: doctorId, hospital_id: doctor.hospital_id ?? null, schedule_id: scheduleId, ...choices }
+    const paid = { ...row, status: 'pending_payment', booking_fee: doctorBookingFee(fees, options.fastTrack ? 'fast_track' : 'general') }
+    const insert = (values: Record<string, unknown>) => admin.from('appointments').insert(values).select('id').single()
+
+    let confirmed = !!followUpOf
+    let { data: appointment, error: aptError } = await insert(followUpOf ? { ...row, status: 'confirmed', booking_fee: 0, follow_up_of: followUpOf } : paid)
+    // Another booking took this visit's follow-up a moment ago: book it as an ordinary paid booking.
+    if (aptError && followUpOf && /follow_up/.test(aptError.message)) {
+      confirmed = false
+      ;({ data: appointment, error: aptError } = await insert(paid))
+    }
+    // A database without the 20261102 columns: no stored fee and no free follow-ups yet.
+    if (aptError && /booking_fee|follow_up_of|schema cache/.test(aptError.message)) {
+      confirmed = false
+      ;({ data: appointment, error: aptError } = await insert({ ...row, status: 'pending_payment' }))
+    }
 
     if (aptError || !appointment) {
       console.error('Error finalizing appointment:', aptError)
@@ -411,11 +432,16 @@ async function claimSlotAndCreateAppointment(
       return { error: 'Could not create the appointment. Please try again.' }
     }
 
+    if (confirmed) {
+      notifyBookingConfirmed(appointment.id as string)
+      return { appointmentId: appointment.id as string, confirmed: true }
+    }
+
     if (!(await keepWithinHoldLimit(admin, patientId, { id: appointment.id as string, schedule_id: scheduleId, created_at: '' }))) {
       return { error: 'You already have unpaid bookings waiting. Please pay for one of them from My Appointments, or try again in 30 minutes.' }
     }
 
-    return { appointmentId: appointment.id as string }
+    return { appointmentId: appointment.id as string, confirmed: false }
   } catch (err) {
     console.error('Error in claimSlotAndCreateAppointment:', err)
     return { error: 'An unexpected error occurred. Please try again.' }

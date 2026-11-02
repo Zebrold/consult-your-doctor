@@ -1,7 +1,8 @@
 import { unstable_cache } from 'next/cache'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { DEFAULT_BOOKING_FEES, bookedTestsFor, doctorBookingFee, labBookingFee, type BookingFees } from '@/lib/pricing'
+import { DEFAULT_BOOKING_FEES, bookedTestsFor, labBookingFee, type BookingFees } from '@/lib/pricing'
+import { appointmentBookingFee } from '@/lib/wallet'
 
 // The booking fees executives set on Payments, kept in platform_settings (supabase/migrations/20261018_booking_fees.sql).
 // Every page, the PayU hash and the PayU callback read them from here, so the fee a patient is shown is the fee PayU
@@ -88,7 +89,8 @@ export async function onlineChargeFor(db: SupabaseClient, product: string, id: s
     // `*` and not named columns: booking_type is missing until 20261028_fast_track_services.sql runs (lib/booking-options.ts).
     const { data } = await db.from('appointments').select('*').eq('id', id).maybeSingle()
     if (!data) return { error: 'Appointment not found.', status: 404 }
-    return { amount: doctorBookingFee(fees, data.booking_type), patientId: data.patient_id, status: data.status }
+    // The fee the booking was made at (0 for a free follow-up); bookings from before it was stored use today's fee.
+    return { amount: appointmentBookingFee(data, fees), patientId: data.patient_id, status: data.status }
   }
 
   if (product === 'Diagnostic') {

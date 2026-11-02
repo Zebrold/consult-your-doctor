@@ -4,7 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  BedDouble, Bell, Building2, CalendarDays, CircleHelp, ExternalLink, IndianRupee, LayoutDashboard, LayoutGrid, LogOut, Search, Users, UsersRound, type LucideIcon,
+  BedDouble, Bell, Building2, CalendarDays, CircleHelp, ExternalLink, IndianRupee, LayoutDashboard, LayoutGrid, LogOut, Search, Users, UsersRound, Wallet, type LucideIcon,
 } from 'lucide-react'
 import { initials } from '@/components/patient/format'
 import { FloatingTabBar } from '@/components/FloatingTabBar'
@@ -25,6 +25,7 @@ const MENU: NavItem[] = [
   { href: '/hospital/beds', label: 'Beds', icon: BedDouble },
   { href: '/hospital/doctors', label: 'Doctors & roster', icon: CalendarDays },
   { href: '/hospital/revenue', label: 'Finance', icon: IndianRupee },
+  { href: '/hospital/wallet', label: 'Wallet', icon: Wallet },
   { href: '/hospital/staff', label: 'Staff & access', icon: UsersRound },
   { href: '/hospital/profile', label: 'Hospital profile', icon: Building2 },
 ]

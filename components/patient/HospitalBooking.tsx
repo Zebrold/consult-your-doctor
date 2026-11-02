@@ -71,6 +71,7 @@ export function HospitalBooking({
   initialSlot = null,
   initialFastTrack = false,
   initialServices = [],
+  freeFollowUp = [],
   intro,
   children,
 }: {
@@ -92,6 +93,8 @@ export function HospitalBooking({
   initialSlot?: string | null;
   initialFastTrack?: boolean;
   initialServices?: string[];
+  /** Doctors this patient can book a free follow-up with (no booking fee, lib/follow-up.ts). */
+  freeFollowUp?: string[];
   /** Cards above the doctors (the consultation charges). */
   intro?: ReactNode;
   children: ReactNode;
@@ -125,7 +128,9 @@ export function HospitalBooking({
   const doctor = doctors.find((d) => d.id === doctorId) ?? null;
   const slot = doctor?.slots.find((s) => s.id === slotId) ?? null;
   const ready = !!doctor && doctor.bookable && !!slot;
-  const bookingFee = choices && fastTrack ? fees.fastTrack : fees.consultation;
+  // A general booking with a doctor seen in the last 12 days is a free follow-up; the server decides it again on booking.
+  const followUp = !!doctor && !(choices && fastTrack) && freeFollowUp.includes(doctor.id);
+  const bookingFee = followUp ? 0 : choices && fastTrack ? fees.fastTrack : fees.consultation;
   const pickedServices = choices ? services.filter((s) => picked.includes(s.name)) : [];
   const servicesTotal = sumPrices(pickedServices);
   const payLater = pickedServices.length ? `Consultation + ${pickedServices.length} ${pickedServices.length === 1 ? "service" : "services"}` : "Consultation fee";
@@ -147,7 +152,9 @@ export function HospitalBooking({
             ? "Log in to book"
             : submitting
               ? "Reserving…"
-              : `Confirm & pay ${formatINR(bookingFee)}`;
+              : followUp
+                ? "Confirm free follow-up"
+                : `Confirm & pay ${formatINR(bookingFee)}`;
 
   const pickSpec = (s: string) => {
     setSpec(s);
@@ -188,6 +195,11 @@ export function HospitalBooking({
     if (!appointmentId) {
       setError("Something went wrong. Please try again.");
       setSubmitting(false);
+      return;
+    }
+    // A free follow-up is confirmed with nothing to pay.
+    if ("confirmed" in res && res.confirmed) {
+      router.push(`/book/confirmation/${appointmentId}`);
       return;
     }
     const payError = await startPayuPayment({
@@ -372,7 +384,7 @@ export function HospitalBooking({
                   <div className="flex justify-between gap-3 py-2.5 border-b border-[#E6EBF3] text-[13px]">
                     <span>
                       <span className="block font-extrabold">Pay now in the app</span>
-                      <span className="block text-[11.5px] text-[#5B667A]">{fastTrack ? "Fast track" : "General"} booking fee</span>
+                      <span className="block text-[11.5px] text-[#5B667A]">{followUp ? "Free follow-up: no booking fee" : `${fastTrack ? "Fast track" : "General"} booking fee`}</span>
                     </span>
                     <span className="font-extrabold text-[#2A4DD0]">{formatINR(bookingFee)}</span>
                   </div>

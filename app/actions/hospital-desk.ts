@@ -10,9 +10,17 @@ import { ensurePatientProfile, indianMobile, sendPatientOtp, verifyPatientOtp } 
 import { counterPaymentRecorded, migrationHint, recordDeskPayment, upiQr, validUpiReference, type DeskMethod } from '@/lib/desk-payments'
 import { notifyBookingConfirmed, notifyHealthUpdate } from '@/lib/notify/patient'
 import type { DeskPayment, DeskResult } from '@/components/portal/desk-types'
+import { getBookingFees } from '@/lib/booking-fees'
+import { bookedServices, sumPrices } from '@/lib/pricing'
+import { appointmentBookingFee, shareColumns, type Shares } from '@/lib/wallet'
+import { followUpBase } from '@/lib/follow-up'
 
 // The hospital desk: register a patient with a one-time code, book them with one of the hospital's doctors, take
 // the payment (the UPI scanner or cash) and record their health details for the doctor.
+//
+// What the desk collects is the visit's booking fee, unless it was already paid online, plus the consultation fee and
+// any services. The UPI scanner pays Consult your Doctor's account and cash stays with the hospital; each payment
+// records whose part is whose, which is what moves the hospital's wallet (lib/wallet.ts).
 
 type Admin = ReturnType<typeof createAdminClient>
 type Joined<T> = T | T[] | null
@@ -84,6 +92,22 @@ export async function hospitalOpenSlots(doctorId: string): Promise<DeskResult<{ 
   return { ok: true, slots: ((data ?? []) as { id: string; start_time: string; end_time: string | null }[]).map((s) => ({ id: s.id, start: s.start_time, end: s.end_time })) }
 }
 
+/**
+ * Creates a desk visit, unpaid until the desk takes payment. It carries the general booking fee, or none when it is the
+ * patient's free follow-up with this doctor (lib/follow-up.ts).
+ */
+async function insertDeskVisit(admin: Admin, row: { patient_id: string; doctor_id: string; hospital_id: string; schedule_id: string }) {
+  const fees = await getBookingFees()
+  const followUpOf = await followUpBase(admin, row.patient_id, row.doctor_id)
+  const insert = (values: Record<string, unknown>) => admin.from('appointments').insert(values).select('id').single()
+  const paid = { ...row, status: 'pending_payment', booking_fee: fees.consultation }
+  let res = await insert(followUpOf ? { ...row, status: 'pending_payment', booking_fee: 0, follow_up_of: followUpOf } : paid)
+  if (res.error && followUpOf && /follow_up/.test(res.error.message)) res = await insert(paid)
+  // A database without the 20261102 columns yet.
+  if (res.error && /booking_fee|follow_up_of|schema cache/.test(res.error.message)) res = await insert({ ...row, status: 'pending_payment' })
+  return res
+}
+
 /** Books the verified patient with a doctor, in an open slot or as a walk-in seen now. Unpaid until the desk takes payment. */
 export async function createHospitalVisit(input: { token: string; doctorId: string; scheduleId: string }): Promise<DeskResult<{ payment: DeskPayment }>> {
   const ctx = await hospitalContext()
@@ -111,11 +135,7 @@ export async function createHospitalVisit(input: { token: string; doctorId: stri
     if (!claimed?.length) return fail('That slot was just taken. Choose another time.')
   }
 
-  const { data: visit, error } = await ctx.admin
-    .from('appointments')
-    .insert({ patient_id: patientId, doctor_id: doctor.id, hospital_id: ctx.hospital.id, schedule_id: scheduleId, status: 'pending_payment' })
-    .select('id')
-    .single()
+  const { data: visit, error } = await insertDeskVisit(ctx.admin, { patient_id: patientId, doctor_id: doctor.id, hospital_id: ctx.hospital.id, schedule_id: scheduleId })
   if (error || !visit) {
     console.error('createHospitalVisit:', error)
     await ctx.admin.from('schedules').update({ is_booked: false }).eq('id', scheduleId)
@@ -200,17 +220,7 @@ export async function registerHospitalPatient(formData: FormData): Promise<DeskR
   }
 
   // 4. Create appointment
-  const { data: visit, error: visitErr } = await ctx.admin
-    .from('appointments')
-    .insert({
-      patient_id: patientId,
-      doctor_id: doctor.id,
-      hospital_id: ctx.hospital.id,
-      schedule_id: slotId,
-      status: 'pending_payment',
-    })
-    .select('id')
-    .single()
+  const { data: visit, error: visitErr } = await insertDeskVisit(ctx.admin, { patient_id: patientId, doctor_id: doctor.id, hospital_id: ctx.hospital.id, schedule_id: slotId })
 
   if (visitErr || !visit) {
     console.error('registerHospitalPatient appointment error:', visitErr)
@@ -266,6 +276,9 @@ type VisitRow = {
   status: string
   hospital_id: string | null
   patient_id: string
+  booking_fee?: number | string | null
+  booking_type?: string | null
+  services?: unknown
   doctors: Joined<{ hospital_id: string | null; consultation_fee: number | string | null; profiles: Joined<{ full_name: string | null }> }>
   patient: Joined<{ full_name: string | null; phone_number: string | null; email: string | null }>
 }
@@ -274,7 +287,8 @@ type VisitRow = {
 async function visitAt(admin: Admin, hospitalId: string, appointmentId: string) {
   const { data } = await admin
     .from('appointments')
-    .select('id, status, hospital_id, patient_id, doctors ( hospital_id, consultation_fee, profiles!doctors_profile_id_fkey ( full_name ) ), patient:profiles!appointments_patient_id_fkey ( full_name, phone_number, email )')
+    // `*`: booking_fee, booking_type and services come back once their migrations have run.
+    .select('*, doctors ( hospital_id, consultation_fee, profiles!doctors_profile_id_fkey ( full_name ) ), patient:profiles!appointments_patient_id_fkey ( full_name, phone_number, email )')
     .eq('id', appointmentId)
     .maybeSingle()
   const row = data as unknown as VisitRow | null
@@ -284,11 +298,37 @@ async function visitAt(admin: Admin, hospitalId: string, appointmentId: string) 
   return { row, doctor, patient: one(row.patient), fee: Number(doctor?.consultation_fee) || 0 }
 }
 
+type Visit = NonNullable<Awaited<ReturnType<typeof visitAt>>>
+
+/**
+ * What the desk collects for a visit: the booking fee unless it was paid online, the consultation fee and the services
+ * picked when booking. `shares` says which part is Consult your Doctor's and which the hospital's.
+ */
+async function deskCharge(admin: Admin, visit: Visit): Promise<{ items: { label: string; amount: number }[]; total: number; shares: Shares }> {
+  const [fees, { data: online }] = await Promise.all([
+    getBookingFees(),
+    admin.from('payments').select('id').eq('appointment_id', visit.row.id).eq('gateway', 'payu').eq('status', 'success').limit(1),
+  ])
+  const bookingFee = online?.length ? 0 : appointmentBookingFee(visit.row, fees)
+  const services = bookedServices(visit.row.services)
+  const hospital = visit.fee + sumPrices(services)
+  return {
+    items: [
+      ...(bookingFee > 0 ? [{ label: 'Booking fee (Consult your Doctor)', amount: bookingFee }] : []),
+      { label: 'Consultation fee', amount: visit.fee },
+      ...services.map((s) => ({ label: s.name, amount: s.price })),
+    ],
+    total: bookingFee + hospital,
+    shares: { platform: bookingFee, hospital },
+  }
+}
+
 async function paymentFor(admin: Admin, hospitalId: string, appointmentId: string): Promise<DeskPayment | null> {
   const visit = await visitAt(admin, hospitalId, appointmentId)
   if (!visit) return null
   const code = appointmentId.slice(0, 8).toUpperCase()
   const email = visit.patient?.email && !visit.patient.email.endsWith('.internal') ? visit.patient.email : null
+  const charge = await deskCharge(admin, visit)
   return {
     kind: 'appointment',
     id: appointmentId,
@@ -296,9 +336,9 @@ async function paymentFor(admin: Admin, hospitalId: string, appointmentId: strin
     status: visit.row.status,
     what: `Consultation${visit.doctor ? ` with ${one(visit.doctor.profiles)?.full_name ?? 'the doctor'}` : ''}`,
     patient: { name: visit.patient?.full_name || 'Patient', phone: visit.patient?.phone_number ?? null, email },
-    amounts: { desk: visit.fee },
-    items: [{ label: 'Consultation fee', amount: visit.fee }],
-    upi: await upiQr(visit.fee, code, `Consultation ${code}`),
+    amounts: { desk: charge.total },
+    items: charge.items,
+    upi: await upiQr(charge.total, code, `Consultation ${code}`),
   }
 }
 
@@ -327,11 +367,13 @@ export async function recordHospitalPayment(input: { appointmentId: string; meth
   if (visit.row.status === 'cancelled') return fail('This booking was cancelled.')
   if (!visit.fee) return fail('This doctor’s fee isn’t set.')
 
+  const charge = await deskCharge(ctx.admin, visit)
   try {
     const result = await recordDeskPayment(ctx.admin, { kind: 'appointment', id: input.appointmentId }, {
       method: input.method,
-      amount: visit.fee,
+      amount: charge.total,
       reference: input.method === 'cash' ? `CASH-${Date.now()}` : `UPI-${reference.toUpperCase()}`,
+      columns: shareColumns(ctx.hospital.id, charge.shares, input.method === 'cash' ? 'Cash' : 'UPI'),
     })
     if (!result.recorded) return fail('This booking is already paid.')
   } catch (err) {
@@ -341,13 +383,7 @@ export async function recordHospitalPayment(input: { appointmentId: string; meth
     return fail(migrationHint(pgError) ?? 'Could not record the payment. Please try again.')
   }
 
-  notifyBookingConfirmed({
-    patientId: visit.row.patient_id,
-    what: `consultation with ${one(visit.doctor?.profiles)?.full_name ?? 'your doctor'}`,
-    where: ctx.hospital.name,
-    bookingId: input.appointmentId.slice(0, 8).toUpperCase(),
-    amount: `₹${visit.fee.toLocaleString('en-IN')}`,
-  })
+  notifyBookingConfirmed(input.appointmentId)
   revalidateVisitPages()
   return { ok: true }
 }

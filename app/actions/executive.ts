@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { ensurePatientProfile, indianMobile, sendPatientOtp, verifyPatientOtp } from '@/lib/patient-onboarding'
+import { getBookingFees } from '@/lib/booking-fees'
+import { insertPaymentRow, shareColumns } from '@/lib/wallet'
 
 // The statuses the executive's status menu offers. A paid booking is cancelled by refunding it from Payments, which also
 // frees its slot; it can't be cancelled from this menu.
@@ -156,6 +158,9 @@ export async function createWalkInAppointment(formData: FormData) {
     const { data: doctor } = await admin.from('doctors').select('consultation_fee, hospital_id').eq('id', doctorId).maybeSingle()
     if (!doctor || doctor.hospital_id !== hospitalId) return { error: 'That doctor is not at your hospital.' }
     const fee = Number(doctor.consultation_fee) || 0
+    // A walk-in pays the general booking fee with the consultation fee, all in cash at the counter. The cash stays with
+    // the hospital, so the booking fee is taken from its wallet (lib/wallet.ts).
+    const bookingFee = (await getBookingFees()).consultation
     if (!fee) return { error: 'Set this doctor’s consultation fee before booking walk-ins.' }
 
     // Claim the slot only while it is still free, so two bookings can't take the same time.
@@ -171,28 +176,32 @@ export async function createWalkInAppointment(formData: FormData) {
     }
 
     // Create appointment (executive_id = the executive making the booking)
-    const { data: appointment, error: aptError } = await admin.from('appointments').insert({
+    const visit = {
       patient_id: patientUserId,
       doctor_id: doctorId,
       hospital_id: hospitalId,
       schedule_id: scheduleId,
       executive_id: session.user.id,
       status: 'confirmed'
-    }).select('id').single()
+    }
+    let { data: appointment, error: aptError } = await admin.from('appointments').insert({ ...visit, booking_fee: bookingFee }).select('id').single()
+    // A database without the 20261102 columns yet.
+    if (aptError && /booking_fee|schema cache/.test(aptError.message)) ({ data: appointment, error: aptError } = await admin.from('appointments').insert(visit).select('id').single())
 
     if (aptError || !appointment) {
       await admin.from('schedules').update({ is_booked: false }).eq('id', scheduleId)
       throw new Error('Failed to create appointment')
     }
 
-    // The desk takes the consultation fee now. If that record can't be saved, the visit is undone rather than left
-    // confirmed with no payment behind it.
-    const { error: payError } = await admin.from('payments').insert({
+    // The desk takes the payment now. If that record can't be saved, the visit is undone rather than left confirmed
+    // with no payment behind it.
+    const { error: payError } = await insertPaymentRow(admin, {
       appointment_id: appointment.id,
-      amount: fee,
+      amount: fee + bookingFee,
       transaction_id: `CASH-${Date.now()}`,
       gateway: 'cash',
-      status: 'success'
+      status: 'success',
+      ...shareColumns(hospitalId, { platform: bookingFee, hospital: fee }, 'Cash'),
     })
     if (payError) {
       console.error('Walk-in payment record:', payError)

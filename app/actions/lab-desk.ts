@@ -271,15 +271,7 @@ export async function recordLabPayment(input: { bookingId: string; method: DeskM
     return fail(migrationHint(pgError) ?? 'Could not record the payment. Please try again.')
   }
 
-  if (found) {
-    notifyBookingConfirmed({
-      patientId: found.row.patient_id,
-      what: `lab tests (${payment.what})`,
-      where: ctx.center.name,
-      bookingId: payment.code,
-      amount: `₹${payment.amounts.desk.toLocaleString('en-IN')}`,
-    })
-  }
+  if (found) notifyBookingConfirmed(input.bookingId)
   revalidateLabPages()
   return { ok: true }
 }

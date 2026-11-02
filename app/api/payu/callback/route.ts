@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
-import { notifyBookingConfirmed } from '@/lib/notify/patient';
+import { notifyBookingConfirmed, notifyPaymentPending } from '@/lib/notify/patient';
+import { insertPaymentRow, shareColumns } from '@/lib/wallet';
 import { loadBookingFees, onlineChargeFor } from '@/lib/booking-fees';
 import { formatINR } from '@/components/patient/format';
 import { bookingIdOf } from '@/lib/payu-txn';
@@ -17,9 +18,6 @@ const field = (data: Record<string, FormDataEntryValue>, name: string) => {
   return typeof value === 'string' ? value : '';
 };
 
-type Joined<T> = T | T[] | null;
-const one = <T,>(v: Joined<T> | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;
-
 // Booking states that mean the patient has paid for the booking.
 const PAID_STATES = ['confirmed', 'visited', 'completed', 'report_sent'];
 
@@ -34,110 +32,6 @@ async function expectedCharge(productinfo: string, bookingId: string): Promise<n
   } catch (err) {
     console.error('PayU callback: could not check the booking fee:', err);
     return null;
-  }
-}
-
-/** Sends the patient their booking confirmation on WhatsApp and email. Only the booking fee they paid online is named. */
-async function notifyPaidBooking(isConsultation: boolean, id: string, amount: number, transactionId?: string) {
-  const paid = formatINR(amount);
-  const bookingId = id.slice(0, 8).toUpperCase();
-  const tokenSeq = Math.abs(id.split('-').reduce((acc: number, part: string) => acc + parseInt(part.slice(0, 4), 16) || 0, 0) % 25) + 1;
-  const tokenNumber = String(tokenSeq).padStart(2, '0');
-
-  if (isConsultation) {
-    const { data } = await supabase
-      .from('appointments')
-      .select(`
-        patient_id,
-        created_at,
-        schedules ( start_time ),
-        hospitals ( name, address, city ),
-        doctors (
-          specialty,
-          profiles!doctors_profile_id_fkey ( full_name )
-        )
-      `)
-      .eq('id', id)
-      .maybeSingle();
-
-    const row = data as any;
-    if (!row) return;
-    const docObj = one(row.doctors);
-    const hospObj = one(row.hospitals);
-    const schedule = one(row.schedules);
-    const rawDoctor = one(docObj?.profiles)?.full_name;
-    const doctor = rawDoctor ? (/^dr\.?\s/i.test(rawDoctor) ? rawDoctor : `Dr. ${rawDoctor}`) : 'Specialist';
-    const dateStr = schedule?.start_time
-      ? new Date(schedule.start_time).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'short' })
-      : 'Scheduled Visit';
-
-    notifyBookingConfirmed({
-      patientId: row.patient_id,
-      what: `consultation with ${doctor}`,
-      where: hospObj?.name ?? 'the hospital',
-      bookingId,
-      amount: paid,
-      numericAmount: amount,
-      dateTimeStr: dateStr,
-      tokenNumber,
-      isConsultation: true,
-      doctorName: doctor,
-      specialty: docObj?.specialty ?? 'Specialist Consultation',
-      hospitalName: hospObj?.name ?? 'Partner Hospital',
-      address: hospObj?.address ?? null,
-      city: hospObj?.city ?? null,
-      transactionId: transactionId || id,
-    });
-  } else {
-    const { data } = await supabase
-      .from('diagnostic_bookings')
-      .select('patient_id, test_name, preferred_date, diagnostic_centers ( name, address, city )')
-      .eq('id', id)
-      .maybeSingle();
-
-    const row = data as any;
-    if (!row) return;
-    const centerObj = one(row.diagnostic_centers);
-    const dateStr = row.preferred_date ? `Visit on ${row.preferred_date}` : 'Scheduled Visit';
-
-    notifyBookingConfirmed({
-      patientId: row.patient_id,
-      what: `lab tests (${row.test_name})`,
-      where: centerObj?.name ?? 'the diagnostic centre',
-      bookingId,
-      amount: paid,
-      numericAmount: amount,
-      dateTimeStr: dateStr,
-      tokenNumber,
-      isConsultation: false,
-      doctorName: row.test_name,
-      specialty: 'Diagnostic Laboratory Testing',
-      hospitalName: centerObj?.name ?? 'Diagnostic Centre',
-      address: centerObj?.address ?? null,
-      city: centerObj?.city ?? null,
-      transactionId: transactionId || id,
-    });
-  }
-}
-
-/**
- * A booking whose payment failed or was cancelled can't be paid for now, so it is cancelled and its slot is given back
- * at once. Only a booking still awaiting payment is touched.
- */
-async function releaseUnpaidBooking(isConsultation: boolean, bookingId: string) {
-  if (isConsultation) {
-    const { data: row } = await supabase.from('appointments').select('schedule_id').eq('id', bookingId).maybeSingle();
-    const { data: cancelled } = await supabase
-      .from('appointments')
-      .update({ status: 'cancelled' })
-      .eq('id', bookingId)
-      .eq('status', 'pending_payment')
-      .select('id');
-    if (cancelled?.length && row?.schedule_id) {
-      await supabase.from('schedules').update({ is_booked: false }).eq('id', row.schedule_id);
-    }
-  } else {
-    await supabase.from('diagnostic_bookings').update({ status: 'cancelled' }).eq('id', bookingId).eq('status', 'pending_payment');
   }
 }
 
@@ -210,10 +104,23 @@ export async function POST(request: Request) {
         return NextResponse.redirect(`${baseUrl}/book/confirmation/${bookingId}?payment=success`, 303);
       }
       const earlierRow = earlierRows[0] ?? null;
-      const recordPayment = (row: { amount: number; status: string }) =>
-        earlierRow
-          ? supabase.from('payments').update(row).eq('id', earlierRow.id)
-          : supabase.from('payments').insert({ ...bookingColumn, transaction_id: mihpayid || txnid, gateway: 'payu', ...row });
+
+      const { data: current } = await supabase.from(table).select('*').eq('id', bookingId).maybeSingle();
+      const currentStatus = (current as { status?: string } | null)?.status ?? null;
+
+      // Online money lands in Consult your Doctor's account and is all booking fee, so it adds nothing to the hospital's
+      // wallet (lib/wallet.ts). The payment method ("UPI", "CC"...) is shown on the booking page.
+      const wallet = shareColumns(
+        isConsultation ? ((current as { hospital_id?: string | null } | null)?.hospital_id ?? null) : null,
+        { platform: paidAmount || 0, hospital: 0 },
+        field(data, 'mode') || null,
+      );
+      const recordPayment = async (row: { amount: number; status: string }) => {
+        if (!earlierRow) return insertPaymentRow(supabase, { ...bookingColumn, transaction_id: mihpayid || txnid, gateway: 'payu', ...row, ...wallet });
+        const res = await supabase.from('payments').update({ ...row, ...wallet }).eq('id', earlierRow.id);
+        // A database without the wallet columns yet: update what it has.
+        return res.error && /share|method|schema cache/i.test(res.error.message) ? supabase.from('payments').update(row).eq('id', earlierRow.id) : res;
+      };
 
       // PayU only ever collects the booking fee. A payment short of it (say the fee went up while the patient was on
       // PayU's page) is kept for the operations team to settle and doesn't confirm the booking.
@@ -223,9 +130,6 @@ export async function POST(request: Request) {
         await recordPayment({ amount: paidAmount || 0, status: 'pending' });
         return failed(`The amount paid (${formatINR(paidAmount || 0)}) doesn't match the booking fee (${formatINR(expected)}). Our team will refund or confirm it; you don't need to pay again.`);
       }
-
-      const { data: current } = await supabase.from(table).select('status').eq('id', bookingId).maybeSingle();
-      const currentStatus = (current as { status?: string } | null)?.status ?? null;
 
       // The booking must still be open for payment. One that was cancelled (its unpaid hold went stale, so the slot may
       // have been sold since) can't be confirmed. A second payment for a booking that is already paid is the same case.
@@ -257,7 +161,7 @@ export async function POST(request: Request) {
         .select('id');
       if (updateError) console.error(`Error confirming ${table} ${bookingId}:`, updateError);
 
-      if (confirmed?.length) await notifyPaidBooking(isConsultation, bookingId, paidAmount, mihpayid);
+      if (confirmed?.length) notifyBookingConfirmed(bookingId);
 
       return NextResponse.redirect(`${baseUrl}/book/confirmation/${bookingId}?payment=success`, 303);
     }
@@ -274,9 +178,11 @@ export async function POST(request: Request) {
       });
     } catch {}
 
-    // A payment that failed or was cancelled frees its slot now. One still in progress at PayU keeps it.
+    // A payment that failed or was cancelled leaves the booking waiting for payment, so the patient can try again until
+    // its hold ends (app/actions/booking.ts releases holds after 30 minutes). They are emailed the booking with a Pay
+    // button. One still in progress at PayU is left alone.
     if (status !== 'pending' && (isConsultation || isDiagnostic)) {
-      await releaseUnpaidBooking(isConsultation, bookingId);
+      notifyPaymentPending(bookingId, failureReason);
     }
 
     return failed(failureReason);

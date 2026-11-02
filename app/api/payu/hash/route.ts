@@ -27,6 +27,7 @@ async function amountFor(txnid: string, productinfo: string): Promise<Priced> {
   const charge = await onlineChargeFor(supabase, productinfo, bookingIdOf(txnid), fees);
   if ('error' in charge) return charge;
   if (charge.patientId !== user.id) return { error: productinfo === 'Consultation' ? 'Appointment not found.' : 'Booking not found.', status: 404 };
+  if (charge.status === 'cancelled') return { error: 'This booking was released because it wasn’t paid in time. Please book again.', status: 409 };
   if (charge.status !== 'pending_payment') return { error: `This ${productinfo === 'Consultation' ? 'appointment' : 'booking'} is already paid.`, status: 409 };
   if (!(charge.amount > 0)) return { error: 'There is no booking fee to pay for this booking.', status: 422 };
   return { amount: charge.amount };

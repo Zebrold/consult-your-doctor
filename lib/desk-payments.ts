@@ -1,5 +1,6 @@
 import QRCode from 'qrcode'
 import type { createAdminClient } from '@/lib/supabase/admin'
+import { insertPaymentRow } from '@/lib/wallet'
 
 type Admin = ReturnType<typeof createAdminClient>
 
@@ -62,7 +63,11 @@ export async function counterPaymentRecorded(admin: Admin, booking: Booking): Pr
  * (the booking fee) takes the desk's payment as the counter collection and keeps its status. A cancelled booking or a
  * second counter payment is refused.
  */
-export async function recordDeskPayment(admin: Admin, booking: Booking, payment: { method: DeskMethod; amount: number; reference: string }) {
+export async function recordDeskPayment(
+  admin: Admin,
+  booking: Booking,
+  payment: { method: DeskMethod; amount: number; reference: string; /** Whose money it is (lib/wallet.ts shareColumns). */ columns?: Record<string, unknown> },
+) {
   const table = tableFor(booking)
   const { data: current, error: readError } = await admin.from(table).select('status').eq('id', booking.id).maybeSingle()
   if (readError) throw readError
@@ -77,13 +82,14 @@ export async function recordDeskPayment(admin: Admin, booking: Booking, payment:
     gateway: payment.method,
     transaction_id: payment.reference,
     status: 'success',
+    ...payment.columns,
   }
 
   if (status === 'pending_payment') {
     const { data: moved, error: updateError } = await admin.from(table).update({ status: 'confirmed' }).eq('id', booking.id).eq('status', 'pending_payment').select('id')
     if (updateError) throw updateError
     if (!moved?.length) return { recorded: false as const }
-    const { error } = await admin.from('payments').insert(row)
+    const { error } = await insertPaymentRow(admin, row)
     if (error) {
       // Put the booking back so the desk can try again rather than leave a confirmed booking with no payment.
       await admin.from(table).update({ status: 'pending_payment' }).eq('id', booking.id)
@@ -94,7 +100,7 @@ export async function recordDeskPayment(admin: Admin, booking: Booking, payment:
   }
 
   if (!PAID_ONLINE_OR_LATER.includes(status)) return { recorded: false as const }
-  const { error } = await admin.from('payments').insert(row)
+  const { error } = await insertPaymentRow(admin, row)
   if (error) {
     // The partial unique index refuses a second counter payment for the same booking.
     if (error.code === '23505') return { recorded: false as const }

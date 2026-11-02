@@ -131,6 +131,11 @@ export function FinalizeBookingClient({
       setSubmitting(false);
       return;
     }
+    // A free follow-up is confirmed with nothing to pay.
+    if ("confirmed" in res && res.confirmed) {
+      router.push(`/book/confirmation/${appointmentId}`);
+      return;
+    }
 
     const payError = await startPayuPayment({
       txnid: appointmentId,

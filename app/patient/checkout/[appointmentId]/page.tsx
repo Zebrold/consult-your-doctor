@@ -8,7 +8,8 @@ import { CheckoutCard, CheckoutGrid, CheckoutHeading, CheckoutMessage, CheckoutS
 import { PayAtVenue } from '@/components/patient/booking-ui'
 import { doctorName, formatINR, formatLongDate, formatTime } from '@/components/patient/format'
 import { getBookingFees } from '@/lib/booking-fees'
-import { bookedServices, doctorBookingFee, isFastTrack } from '@/lib/pricing'
+import { bookedServices, isFastTrack } from '@/lib/pricing'
+import { appointmentBookingFee } from '@/lib/wallet'
 
 type Joined<T> = T | T[] | null
 const one = <T,>(v: Joined<T> | undefined) => (Array.isArray(v) ? v[0] : v) ?? null
@@ -71,7 +72,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
   // The same amount /api/payu/hash charges: the booking fee only. The consultation fee and any services are paid at the
   // hospital counter.
   const fastTrack = isFastTrack(appointment.booking_type)
-  const total = doctorBookingFee(fees, appointment.booking_type)
+  const total = appointmentBookingFee(appointment, fees)
   const services = bookedServices(appointment.services)
 
   return (

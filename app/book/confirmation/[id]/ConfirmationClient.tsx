@@ -1,298 +1,350 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
-import { ArrowRight, Building2, CalendarDays, Download, FileText, IndianRupee, Printer, RefreshCw, User } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { BadgeCheck, Download, LoaderCircle, Printer, Stethoscope } from 'lucide-react'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
 import { PatientDock } from '@/components/PatientDock'
+import { RemoteImage } from '@/components/RemoteImage'
 import { formatINR } from '@/components/patient/format'
-import { payAtVenueNote } from '@/lib/pricing'
+import { startPayuPayment } from '@/lib/payu-client'
+import { cardStamp } from '@/lib/booking-card-format'
+import type { BookingCard } from '@/lib/booking-card'
 
-export type ConfirmationData = {
-  id: string
-  bookingReference: string
-  tokenNumber: string
-  isConsultation: boolean
-  title: string
-  subtitle: string
-  providerName: string
-  providerCode: string
-  location: string
-  address: string | null
-  dateTime: string
-  patientName: string
-  patientPhone: string | null
-  /** The booking fee paid (or to pay) online; null for a booking made and paid at a hospital or lab desk. */
-  bookingFee: number | null
-  /** What is paid at the hospital or lab, when it is more than the usual note says (services picked with a doctor booking). */
-  venueNote?: string | null
-  paymentStatus: 'success' | 'pending' | 'failed'
-  /** Why the last payment didn't go through, from the PayU callback. */
-  failureReason: string | null
-  appointmentStatus: string
-  qrDataUrl: string
-  checkoutUrl?: string
+// The booking page in the layout of the booking emails (lib/notify/booking-email.ts): a ticket with the visit, its
+// token and QR code once paid, the free follow-up, and the order summary of what is paid online and at the venue.
+
+const ink = 'text-[#0B1B3F]'
+const muted = 'text-[#5B667A]'
+const money = (n: number) => formatINR(n).replace(/^₹([\d,]+)$/, '₹$1.00')
+// Links in the booking are absolute (they also go in emails); on the site they stay on this origin.
+const local = (href: string) => href.replace(/^https?:\/\/[^/]+/, '') || '/'
+
+function Label({ children }: { children: ReactNode }) {
+  return <span className={`block text-[11px] font-extrabold uppercase tracking-[0.08em] ${muted}`}>{children}</span>
 }
 
-const action = 'h-12 px-4 rounded-xl text-[14px] font-extrabold flex items-center justify-center gap-2 text-center transition-colors'
-const actionOutline = `${action} bg-white hover:bg-gray-50 border border-gray-200 text-gray-800 shadow-sm`
+/** The ticket's perforation: a dashed line with a notch on each edge. */
+function Perforation() {
+  return (
+    <div className="relative mx-5 sm:mx-6 border-t-[1.5px] border-dashed border-[#D5DBE6]" aria-hidden="true">
+      <span className="absolute -left-[30px] sm:-left-[34px] -top-[11px] w-5 h-5 rounded-full bg-white" />
+      <span className="absolute -right-[30px] sm:-right-[34px] -top-[11px] w-5 h-5 rounded-full bg-white" />
+    </div>
+  )
+}
 
-export function ConfirmationClient({ data }: { data: ConfirmationData }) {
-  const isPaid = data.paymentStatus === 'success' || data.appointmentStatus === 'confirmed' || data.appointmentStatus === 'visited' || data.appointmentStatus === 'completed'
-  const isFailed = data.paymentStatus === 'failed'
+function SummaryRow({ label, value, strong = false }: { label: ReactNode; value: ReactNode; strong?: boolean }) {
+  return (
+    <div className={`flex justify-between gap-4 py-1 text-[13.5px] ${strong ? `${ink} font-extrabold tracking-[0.02em]` : `${muted} font-medium`}`}>
+      <span className="min-w-0">{label}</span>
+      <span className="shrink-0 text-right">{value}</span>
+    </div>
+  )
+}
 
-  const printReceipt = () => {
-    window.print()
+export function ConfirmationClient({
+  card,
+  qr,
+  failureReason,
+  pay,
+  now,
+}: {
+  card: BookingCard
+  /** The QR code (a data URL) once the booking is paid. */
+  qr: string | null
+  failureReason: string | null
+  /** Present when the viewer is the patient and can pay from here. */
+  pay: { payuKey: string; email: string | null; phone: string | null } | null
+  now: number
+}) {
+  const [paying, setPaying] = useState(false)
+  const [payError, setPayError] = useState<string | null>(null)
+  const confirmed = card.state === 'confirmed'
+  const cancelled = card.state === 'cancelled'
+  const isLab = card.kind === 'lab'
+  const holdEnded = !!card.holdUntil && Date.parse(card.holdUntil) < now
+
+  const headline = confirmed
+    ? isLab ? 'Your lab booking is confirmed!' : 'Your appointment is confirmed!'
+    : cancelled ? 'This booking was cancelled' : 'Complete your payment to confirm'
+  const headColor = confirmed ? 'text-[#2A4DD0]' : cancelled ? 'text-[#B42318]' : 'text-[#C2410C]'
+
+  const message = confirmed
+    ? isLab ? 'Show the QR code at the lab front desk when you arrive.' : 'Show the QR code or token at the hospital front desk when you arrive.'
+    : cancelled
+      ? 'It was not paid in time, so the slot was released. You can book again.'
+      : holdEnded
+        ? 'The 30-minute hold on your slot has ended. Pay now to keep it if it is still free.'
+        : card.holdUntil
+          ? 'Your slot is held for 30 minutes. Pay the booking fee to get your token and QR code.'
+          : 'Pay the booking fee to confirm your booking and get your QR code.'
+
+  const startPay = async () => {
+    if (!pay) return
+    setPaying(true)
+    setPayError(null)
+    const error = await startPayuPayment({
+      txnid: card.id,
+      productinfo: isLab ? 'Diagnostic' : 'Consultation',
+      firstname: card.patient.name || 'Patient',
+      email: (pay.email || '').trim() || 'patient@example.com',
+      phone: pay.phone || '9999999999',
+      payuKey: pay.payuKey,
+    })
+    // On success the page navigates to PayU; an error means it never left.
+    if (error) {
+      setPayError(error)
+      setPaying(false)
+    }
   }
 
-  // Clean doctor name (prevent duplicate "Dr. Dr Vijay")
-  const cleanDoctorName = data.title.replace(/^Dr\.?\s+Dr\.?/i, 'Dr. ')
+  const button = 'h-[50px] w-full max-w-[280px] mx-auto rounded-xl bg-[#2A4DD0] hover:bg-[#2443B8] text-white text-[15px] font-extrabold flex items-center justify-center gap-2 transition-colors disabled:opacity-70'
+  const action = confirmed ? (
+    <Link href={local(card.links.appointment)} className={button}>{isLab ? 'Open booking' : 'Open appointment'}</Link>
+  ) : cancelled ? (
+    card.links.bookAgain ? <Link href={local(card.links.bookAgain)} className={button}>Book again</Link> : null
+  ) : pay ? (
+    <button type="button" onClick={startPay} disabled={paying} className={button}>
+      {paying && <LoaderCircle className="w-4 h-4 animate-spin" />} Pay {formatINR(card.bookingFee)} now
+    </button>
+  ) : (
+    <Link href={local(card.links.checkout)} className={button}>Pay {formatINR(card.bookingFee)} now</Link>
+  )
 
-  // Split date and time for two-line presentation as in Image 1
-  let dateText = data.dateTime
-  let timeText = ''
-  if (data.dateTime.includes(' at ')) {
-    const parts = data.dateTime.split(' at ')
-    dateText = parts[0]
-    timeText = parts[1]
-  } else if (data.dateTime.includes('•')) {
-    const parts = data.dateTime.split('•')
-    dateText = parts[0].trim()
-    timeText = parts[1].trim()
-  }
+  const qrBox = confirmed && qr ? (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="p-1.5 rounded-xl bg-white border border-[#D5DBE6]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={qr} alt="Booking QR code" className="w-[96px] h-[96px]" />
+      </div>
+      <span className={`text-[11px] font-bold ${muted}`}>Scan at desk</span>
+    </div>
+  ) : (
+    <div className={`w-[104px] h-[104px] rounded-xl bg-white border border-[#D5DBE6] flex items-center justify-center text-center px-2 text-[11px] font-bold leading-[1.35] ${muted}`}>
+      {cancelled ? 'No QR code for a cancelled booking' : 'QR code appears after payment'}
+    </div>
+  )
+
+  const patientLine = [card.patient.name, card.patient.ageSex].filter(Boolean).join(' · ')
+  const fact = (label: string, value: string, tone = ink) => (
+    <div className="min-w-0">
+      <span className={`block text-[12.5px] ${muted}`}>{label}</span>
+      <span className={`block mt-0.5 text-[14px] font-extrabold ${tone} break-words`}>{value}</span>
+    </div>
+  )
 
   return (
-    <div className="bg-[#F6F8FC] lg:bg-transparent text-on-surface antialiased min-h-screen font-body-md">
-      <PatientNavHeader
-        isSignedIn
-        name={data.patientName}
-        backHref="/patient/appointments"
-        container="max-w-[1080px] px-margin-x-mobile lg:px-margin-x-desktop"
-        eyebrow={data.isConsultation ? 'Appointment' : 'Lab booking'}
-        title={isPaid ? 'Booking Confirmed' : isFailed ? 'Payment Failed' : 'Awaiting Payment'}
-        subtitle={[cleanDoctorName, data.dateTime].filter(Boolean).join(' • ')}
-      />
+    <div className="bg-[#EEF2F7] min-h-screen antialiased font-(family-name:--font-manrope)">
+      <div className="print:hidden">
+        <PatientNavHeader
+          isSignedIn={!!pay || confirmed}
+          name={card.patient.name}
+          backHref="/patient/appointments"
+          container="max-w-[1080px] px-margin-x-mobile lg:px-margin-x-desktop"
+          eyebrow={isLab ? 'Lab booking' : 'Appointment'}
+          title={confirmed ? 'Booking confirmed' : cancelled ? 'Booking cancelled' : 'Awaiting payment'}
+          subtitle={[card.title, card.when].filter(Boolean).join(' • ')}
+        />
+      </div>
 
-      {/* Phones: room under the buttons for the tab bar and the assistant's round button above it. */}
-      <main className="max-w-[1080px] mx-auto px-4 sm:px-6 pt-5 md:pt-6 pb-[calc(9.5rem+env(safe-area-inset-bottom))] lg:pb-16">
-        
-        {/* Minimalist Card Container (Matches Image 1) */}
-        <div className="bg-white rounded-3xl border border-gray-200/80 shadow-xl overflow-hidden max-w-[500px] mx-auto p-6 sm:p-8 print:shadow-none print:border-none print:p-0">
-          
-          {/* Card Header: Stethoscope Logo + Brand + APPOINTMENT CONFIRMATION */}
-          <div className="flex items-center justify-between gap-3 pb-6 border-b border-gray-100">
-            <div className="flex items-center gap-3 min-w-0">
-              <Image
-                src="/logo-icon.png"
-                alt="Consult Your Doctor"
-                width={38}
-                height={38}
-                className="w-9 h-9 object-contain shrink-0"
-              />
-              <span className="font-extrabold text-[19px] sm:text-[21px] tracking-tight text-gray-900 leading-tight whitespace-nowrap">
-                Consult Your Doctor
-              </span>
+      {/* Phones: room under the card for the tab bar and the assistant's round button above it. */}
+      <main className="px-3 sm:px-6 pt-5 md:pt-8 pb-[calc(9.5rem+env(safe-area-inset-bottom))] lg:pb-16">
+        <article className="max-w-[640px] mx-auto bg-white rounded-[14px] border border-[#E3E8F0] px-4 sm:px-7 py-7 print:border-none">
+          <header className="text-center">
+            <div className="flex items-center justify-center gap-2.5">
+              <Stethoscope className="w-8 h-8 text-[#2A4DD0]" strokeWidth={2.2} aria-hidden="true" />
+              <span className={`text-[22px] font-extrabold tracking-[-0.01em] ${ink}`}>Consult your Doctor</span>
             </div>
+            <h1 className={`mt-5 text-[21px] sm:text-[22px] font-extrabold ${headColor}`}>{headline}</h1>
+            <p className={`mt-1.5 text-[14px] ${muted}`}>
+              Booking ID <b className={`font-extrabold ${ink}`}>{card.code}</b>
+            </p>
+          </header>
 
-            {/* Phones leave this out, so the name stays on one line. */}
-            <div className="hidden sm:block shrink-0 text-right border-l border-gray-200 pl-3">
-              <span className="block text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-gray-400 leading-tight">
-                Appointment<br />Confirmation
-              </span>
-            </div>
-          </div>
-
-          {/* Token Number & Status Highlight Box */}
-          {/* Both labels on the top line; the status pill sits level with the token number below. */}
-          <div className="mt-6 bg-[#f0f7ff] rounded-2xl p-4 sm:p-5 border border-blue-100/70 flex items-start justify-between gap-4">
-            <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block">
-                Token Number
-              </span>
-              <div className="font-black text-2xl sm:text-3xl leading-[36px] sm:leading-[40px] text-[#1D4ED8] tracking-tight mt-1">
-                {data.tokenNumber.replace(/^#/, '')}
-              </div>
-            </div>
-
-            <div className="flex flex-col items-end">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block">
-                Status
-              </span>
-              <span
-                className={`mt-1 sm:mt-2 inline-flex items-center h-8 px-3.5 rounded-full text-xs font-bold border ${
-                  isPaid
-                    ? 'bg-[#ecfdf5] text-[#059669] border-[#a7f3d0]'
-                    : isFailed
-                    ? 'bg-[#fef2f2] text-[#dc2626] border-[#fecaca]'
-                    : 'bg-[#fff8eb] text-[#d97706] border-[#fde68a]'
-                }`}
-              >
-                {isPaid ? 'Confirmed' : isFailed ? 'Failed' : 'Pending Payment'}
-              </span>
-            </div>
-          </div>
-
-          {/* Details List with Circular Icon Chips */}
-          <div className="mt-6 flex flex-col divide-y divide-gray-100">
-            
-            {/* 1. Doctor */}
-            <div className="py-4 flex items-start gap-4">
-              <div className="w-11 h-11 rounded-full bg-[#f0f7ff] text-[#1D4ED8] flex items-center justify-center shrink-0 border border-blue-100/60 mt-0.5">
-                <User className="w-5 h-5 text-[#1D4ED8]" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block">
-                  {data.isConsultation ? 'Doctor' : 'Diagnostic Service'}
-                </span>
-                <div className="font-bold text-[15.5px] text-gray-900 mt-0.5 truncate">
-                  {cleanDoctorName}
+          {/* The ticket */}
+          <section className="mt-6 rounded-2xl bg-[#F5F7FB]">
+            <div className="p-5 sm:p-6 flex flex-col sm:flex-row gap-4">
+              <div className="flex gap-4 flex-1 min-w-0">
+                <div className="relative w-[72px] h-[96px] sm:w-[84px] sm:h-[112px] rounded-[10px] overflow-hidden bg-[#E3E9F4] shrink-0">
+                  {card.image && <RemoteImage src={card.image} alt="" fill sizes="84px" className="object-cover" />}
                 </div>
-                <div className="text-[13px] font-semibold text-[#1D4ED8] mt-0.5">
-                  {data.subtitle || 'Specialist Consultation'}
+                <div className="min-w-0">
+                  <p className={`text-[17px] font-extrabold break-words ${ink}`}>
+                    {card.title}
+                    {card.verified && <BadgeCheck className="inline-block ml-1.5 align-[-3px] w-[18px] h-[18px] fill-[#1D9BF0] text-white" aria-label="Verified doctor" />}
+                  </p>
+                  <p className="mt-0.5 text-[13.5px] font-bold text-[#2A4DD0]">{card.subtitle}</p>
+                  {card.when && <p className={`mt-2 text-[14px] font-extrabold ${ink}`}>{card.when}</p>}
+                  <p className={`mt-1.5 text-[13px] leading-[1.5] ${muted}`}>
+                    {[card.place, ...card.placeLines].map((line, i) => (
+                      <span key={i} className="block">{line}</span>
+                    ))}
+                  </p>
+                  <p className={`mt-2 text-[13.5px] font-extrabold ${ink}`}>{card.typeLabel}</p>
                 </div>
               </div>
+              <div className="self-center sm:self-start shrink-0">{qrBox}</div>
             </div>
 
-            {/* 2. Schedule */}
-            <div className="py-4 flex items-start gap-4">
-              <div className="w-11 h-11 rounded-full bg-[#f0f7ff] text-[#1D4ED8] flex items-center justify-center shrink-0 border border-blue-100/60 mt-0.5">
-                <CalendarDays className="w-5 h-5 text-[#1D4ED8]" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block">
-                  Schedule
-                </span>
-                <div className="font-bold text-[15.5px] text-gray-900 mt-0.5">
-                  {dateText}
-                </div>
-                {timeText && (
-                  <div className="text-[13px] font-medium text-gray-500 mt-0.5">
-                    Time: {timeText}
+            <Perforation />
+            <div className="px-5 sm:px-6 py-4 flex items-center gap-5 sm:gap-10 [&_span]:whitespace-nowrap">
+              {isLab ? (
+                <>
+                  <div>
+                    <Label>Visit on</Label>
+                    <span className={`block mt-1 text-[15px] font-extrabold ${ink}`}>{card.when ?? 'To be confirmed'}</span>
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* 3. Hospital / Clinic */}
-            <div className="py-4 flex items-start gap-4">
-              <div className="w-11 h-11 rounded-full bg-[#f0f7ff] text-[#1D4ED8] flex items-center justify-center shrink-0 border border-blue-100/60 mt-0.5">
-                <Building2 className="w-5 h-5 text-[#1D4ED8]" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block">
-                  Hospital / Clinic
-                </span>
-                <div className="font-bold text-[15.5px] text-gray-900 mt-0.5 truncate">
-                  {data.providerName}
-                </div>
-                <div className="text-[13px] font-medium text-gray-500 mt-0.5">
-                  {data.location}
-                </div>
-              </div>
-            </div>
-
-            {/* 4. Booking Reference */}
-            <div className="py-4 flex items-start gap-4">
-              <div className="w-11 h-11 rounded-full bg-[#f0f7ff] text-[#1D4ED8] flex items-center justify-center shrink-0 border border-blue-100/60 mt-0.5">
-                <FileText className="w-5 h-5 text-[#1D4ED8]" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block">
-                  Booking Reference
-                </span>
-                <div className="font-mono font-bold text-[15.5px] text-[#1D4ED8] mt-0.5 tracking-wide">
-                  #{data.bookingReference}
-                </div>
-              </div>
-            </div>
-
-            {/* 5. Booking fee: the only amount paid online */}
-            <div className="py-4 flex items-start gap-4">
-              <div className="w-11 h-11 rounded-full bg-[#f0f7ff] text-[#1D4ED8] flex items-center justify-center shrink-0 border border-blue-100/60 mt-0.5">
-                <IndianRupee className="w-5 h-5 text-[#1D4ED8]" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block">
-                  Booking Fee
-                </span>
-                <div className="font-bold text-[15.5px] text-gray-900 mt-0.5">
-                  {data.bookingFee == null ? 'None (booked at the desk)' : `${formatINR(data.bookingFee)} ${isPaid ? 'paid online' : 'to pay online'}`}
-                </div>
-                {data.bookingFee != null && (
-                  <div className="text-[13px] font-medium text-gray-500 mt-0.5">
-                    {data.venueNote || payAtVenueNote(data.isConsultation)}
+                  <div>
+                    <Label>Status</Label>
+                    <span className={`block mt-1 text-[15px] font-extrabold ${confirmed ? 'text-[#2A4DD0]' : 'text-[#C2410C]'}`}>{confirmed ? 'Booked' : cancelled ? 'Cancelled' : 'Payment pending'}</span>
                   </div>
-                )}
-              </div>
-            </div>
-
-          </div>
-
-          {/* Bottom Box: Important Message & QR Code (Matches Image 1) */}
-          <div className="mt-5 bg-[#f0f7ff] rounded-2xl p-4 sm:p-5 border border-blue-100/70 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="text-center sm:text-left flex-1">
-              <span className="text-[11px] font-extrabold text-[#1D4ED8] tracking-wider uppercase block mb-1">
-                Important
-              </span>
-              <p className="text-[12.5px] text-gray-600 leading-snug">
-                {isPaid
-                  ? 'Your appointment is confirmed. Please show this token or QR code at reception upon arrival.'
-                  : isFailed
-                  ? 'Payment was not completed. Please retry payment to confirm your booking.'
-                  : 'Please complete your payment to confirm your appointment.'}
-              </p>
-              {isFailed && data.failureReason && (
-                <p className="mt-1.5 text-[12px] font-semibold text-red-700 leading-snug">{data.failureReason}</p>
+                </>
+              ) : (
+                <>
+                  {confirmed ? (
+                    <div>
+                      <Label>Token</Label>
+                      <span className="block text-[30px] leading-[1.15] font-extrabold text-[#2A4DD0]">{card.token}</span>
+                    </div>
+                  ) : (
+                    <div>
+                      <Label>Status</Label>
+                      <span className={`block mt-1 text-[15px] font-extrabold ${cancelled ? 'text-[#B42318]' : 'text-[#C2410C]'}`}>{cancelled ? 'Cancelled' : 'Payment pending'}</span>
+                    </div>
+                  )}
+                  <div>
+                    <Label>Report by</Label>
+                    <span className={`block mt-1 text-[15px] font-extrabold ${ink}`}>{card.reportBy ?? '-'}</span>
+                  </div>
+                </>
+              )}
+              {confirmed && (
+                <div className="ml-auto -rotate-[8deg] rounded-lg border-2 border-[#2A4DD0] px-2 sm:px-2.5 py-1 text-center text-[#2A4DD0] shrink-0 max-[379px]:hidden" aria-label="Booking confirmed">
+                  <span className="block text-[7px] sm:text-[8.5px] font-extrabold tracking-[0.1em] sm:tracking-[0.12em]">★ CONSULT YOUR DOCTOR ★</span>
+                  <span className="block text-[11px] sm:text-[13px] font-extrabold leading-[1.15] tracking-[0.04em]">BOOKING<br />CONFIRMED</span>
+                </div>
               )}
             </div>
+            <Perforation />
 
-            <div className="flex flex-col items-center shrink-0">
-              <div className="p-1.5 rounded-xl bg-white shadow-sm border border-gray-200">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={data.qrDataUrl}
-                  alt="Booking Verification QR"
-                  className="w-20 h-20 object-contain"
-                />
-              </div>
-              <span className="text-[9.5px] font-semibold text-gray-400 mt-1.5 text-center">
-                Scan to view confirmation slip
-              </span>
+            <div className="px-5 sm:px-6 pt-4 pb-6 text-center">
+              {failureReason && (
+                <p role="alert" className="mb-3.5 p-3 rounded-xl bg-[#FEF3F2] border border-[#FECDCA] text-left text-[13px] leading-[1.45] text-[#B42318]">
+                  <b>Your last payment didn&apos;t go through.</b> {failureReason} No money was taken for it; you can try again.
+                </p>
+              )}
+              <p className={`max-w-[400px] mx-auto text-[14px] leading-[1.55] ${muted}`}>{message}</p>
+              {payError && <p role="alert" className="mt-2.5 text-[13px] font-bold text-[#B42318]">{payError}</p>}
+              <div className="mt-4 print:hidden">{action}</div>
             </div>
-          </div>
+          </section>
 
-        </div>
-
-        {/* Actions: one grid as wide as the card, every button the same height. Retry payment (when it failed) and My
-            bookings (once paid) take the whole row; the slip buttons share one. */}
-        <div className="max-w-[500px] mx-auto mt-5 grid grid-cols-2 gap-3 print:hidden">
-          {isFailed && data.checkoutUrl && (
-            <a href={data.checkoutUrl} className={`${action} col-span-2 bg-[#D92D20] hover:bg-[#B42318] text-white shadow-[0_10px_20px_-10px_rgba(217,45,32,0.7)]`}>
-              <RefreshCw className="w-4 h-4" strokeWidth={2.4} /> Retry payment
-            </a>
+          {card.followUp && (
+            <section className="mt-3 rounded-2xl bg-[#2A4DD0] text-white px-5 sm:px-6 py-5 flex items-center gap-4">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-[18px] font-extrabold">Free follow-up for {card.followUp.days} days</h2>
+                <p className="mt-1 text-[13.5px] leading-[1.5] text-[#E6ECFF]">
+                  Need to see {card.followUp.doctor} again about the same problem? Book a follow-up in the app within {card.followUp.days} days at no booking fee.
+                </p>
+              </div>
+              <Stethoscope className="w-14 h-14 shrink-0 text-white" strokeWidth={1.8} aria-hidden="true" />
+            </section>
           )}
 
-          {isPaid && (
-            <a href={`/api/booking/${data.id}/slip`} target="_blank" rel="noopener noreferrer" download className={actionOutline}>
-              <Download className="w-4 h-4 text-[#1D4ED8]" strokeWidth={2.4} /> Download slip
+          <p className="mt-3 rounded-xl bg-[#F5F7FB] px-5 py-3.5 text-center text-[13px] leading-[1.5] text-[#3F4A5E]">
+            <b className={ink}>Note:</b>{' '}
+            {isLab
+              ? 'Please carry a photo ID and your doctor’s prescription if you have one. The test charges are paid at the lab. In an emergency, call 108.'
+              : card.venueTitle === 'PAID AT HOSPITAL'
+                ? 'Please carry a photo ID and any previous reports. In an emergency, call 108.'
+                : 'Please carry a photo ID and any previous reports. The consultation fee is paid at the hospital counter. In an emergency, call 108.'}
+          </p>
+
+          <h2 className={`mt-7 text-[12px] font-extrabold tracking-[0.08em] ${muted}`}>ORDER SUMMARY</h2>
+          <section className="mt-2 rounded-xl border border-[#E3E8F0] overflow-hidden">
+            <div className="px-5 pt-4 pb-2">
+              <SummaryRow strong label={card.isFollowUp ? 'BOOKING FEE (FREE FOLLOW-UP)' : 'BOOKING FEE'} value={money(card.bookingFee)} />
+              {card.bookingFeeLines.map((l) => (
+                <SummaryRow key={l.label} label={l.label} value={l.value} />
+              ))}
+            </div>
+            {card.venueTotal != null && (
+              <div className="mx-5 pt-2 pb-3 border-t border-dashed border-[#E3E8F0]">
+                <div className="pt-1.5">
+                  <SummaryRow strong label={card.venueTitle} value={money(card.venueTotal)} />
+                </div>
+                {card.venueItems.length > 1 ? (
+                  <>
+                    {card.venueItems.map((i) => (
+                      <SummaryRow key={i.label} label={i.label} value={i.amount != null ? money(i.amount) : '-'} />
+                    ))}
+                    <SummaryRow label="Paid at" value={card.venueNote} />
+                  </>
+                ) : (
+                  <SummaryRow label={card.venueItems[0]?.label ?? 'Consultation fee'} value={card.venueNote} />
+                )}
+              </div>
+            )}
+            <div className="bg-[#EDF1F8] px-5 py-3.5 flex justify-between gap-4 text-[15px] font-extrabold text-[#0B1B3F]">
+              <span>{card.amountLabel}</span>
+              <span>{money(card.amount)}</span>
+            </div>
+            {/* The receipt's torn edge */}
+            <div
+              aria-hidden="true"
+              className="h-2"
+              style={{ background: 'radial-gradient(circle at 6px 8px, #ffffff 4px, #EDF1F8 4.5px) repeat-x', backgroundSize: '12px 8px' }}
+            />
+          </section>
+
+          <section className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4">
+            {confirmed ? (
+              <>
+                {fact('Booking date & time', cardStamp(card.bookedAt))}
+                {fact('Payment type', card.paymentType ?? (card.isFollowUp ? 'Free follow-up' : 'Online'))}
+                {fact('Transaction ID', card.transactionId ?? card.code)}
+                {fact('Patient', patientLine)}
+              </>
+            ) : (
+              <>
+                {card.holdUntil && !cancelled ? fact('Slot held until', cardStamp(card.holdUntil), 'text-[#C2410C]') : fact('Booked on', cardStamp(card.bookedAt))}
+                {fact('Patient', patientLine)}
+              </>
+            )}
+          </section>
+
+          <nav className="mt-5 pt-4 border-t border-[#EEF1F6] flex flex-wrap justify-center gap-x-6 gap-y-2 text-[13.5px] font-extrabold text-[#2A4DD0] print:hidden">
+            {card.links.directions && (
+              <a href={card.links.directions} target="_blank" rel="noreferrer" className="hover:underline">
+                Get directions
+              </a>
+            )}
+            <Link href={local(card.links.support)} className="hover:underline">Reschedule</Link>
+            <Link href={local(card.links.support)} className="hover:underline">Help &amp; Support</Link>
+          </nav>
+          <p className="mt-3 text-center text-[11.5px] leading-[1.6] text-[#8A94A6]">
+            This is a booking confirmation, not a medical record or prescription.
+            <br />
+            Consult your Doctor · Zebrold Private Limited · Hyderabad
+          </p>
+        </article>
+
+        <div className="max-w-[640px] mx-auto mt-4 flex justify-center gap-3 print:hidden">
+          {confirmed && (
+            <a href={`/api/booking/${card.id}/slip`} target="_blank" rel="noopener noreferrer" className="h-11 px-4 rounded-xl bg-white border border-[#D6DDE8] text-[13.5px] font-extrabold text-[#27324A] flex items-center gap-2 hover:bg-[#F7F9FC]">
+              <Download className="w-4 h-4 text-[#2A4DD0]" /> Download slip
             </a>
           )}
-
-          <button type="button" onClick={printReceipt} className={actionOutline}>
-            <Printer className="w-4 h-4 text-[#5B667A]" strokeWidth={2.4} /> Print slip
+          <button type="button" onClick={() => window.print()} className="h-11 px-4 rounded-xl bg-white border border-[#D6DDE8] text-[13.5px] font-extrabold text-[#27324A] flex items-center gap-2 hover:bg-[#F7F9FC]">
+            <Printer className="w-4 h-4 text-[#5B667A]" /> Print
           </button>
-
-          <Link
-            href="/patient/appointments"
-            className={`${action} ${isPaid ? 'col-span-2' : ''} bg-[#1D4ED8] hover:bg-[#1E40AF] text-white shadow-[0_10px_20px_-10px_rgba(29,78,216,0.7)]`}
-          >
-            My bookings <ArrowRight className="w-4 h-4" strokeWidth={2.4} />
-          </Link>
         </div>
-
       </main>
 
-      <PatientDock activeTab="book" name={data.patientName} />
+      <div className="print:hidden">
+        <PatientDock activeTab="book" name={card.patient.name} />
+      </div>
     </div>
   )
 }

@@ -17,6 +17,7 @@ import { HospitalBooking, HospitalDistance, HeroButtons, type HospitalDoctor } f
 import { toLatLng } from '@/lib/geo'
 import { Dots, btnOutline, card } from '@/components/patient/app-ui'
 import { currentTime, loadPatientDefaults, one } from '@/components/patient/data'
+import { freeFollowUpDoctors } from '@/lib/follow-up'
 import { directionsHref, formatINR } from '@/components/patient/format'
 import { RemoteImage } from '@/components/RemoteImage'
 
@@ -66,13 +67,15 @@ export default async function HospitalProfilePage(props: {
   const user = await getCurrentUser()
   const now = currentTime()
 
-  const [{ data: hospital, error: hospitalError }, { data: viewer }, fees, choices, patient] = await Promise.all([
+  const [{ data: hospital, error: hospitalError }, { data: viewer }, fees, choices, patient, freeFollowUp] = await Promise.all([
     supabase.from('hospitals').select('*').eq('id', id).single(),
     user ? createAdminClient().from('profiles').select('full_name, role, email').eq('id', user.id).maybeSingle() : Promise.resolve({ data: null }),
     getBookingFees(),
     bookingOptionsReady(),
     // The details the booking is made with (booking happens on this page).
     user ? loadPatientDefaults(supabase, createAdminClient()) : Promise.resolve(null),
+    // Doctors this patient saw in the last 12 days: a general booking with them has no booking fee.
+    user ? freeFollowUpDoctors(createAdminClient(), user.id) : Promise.resolve([] as string[]),
   ])
   if (hospitalError || !hospital) notFound()
 
@@ -255,6 +258,7 @@ export default async function HospitalProfilePage(props: {
               initialSlot={pickedSlot}
               initialFastTrack={choices && isFastTrack(query.type)}
               initialServices={tests.filter((t) => askedServices.includes(t.name)).map((t) => t.name)}
+              freeFollowUp={freeFollowUp}
               intro={
                 <Card id="fees" title="Consultation charges">
                   <div className="flex justify-between gap-3 py-2.5 border-b border-[#EEF2F7]">

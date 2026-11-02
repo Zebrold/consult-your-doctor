@@ -2,7 +2,8 @@ import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, UserPlus } from 'lucide-react'
-import { WalkInForm } from './WalkInForm'
+import { WalkInForm, type WalkInDoctor } from './WalkInForm'
+import { getBookingFees } from '@/lib/booking-fees'
 
 export default async function WalkInBookingPage() {
   const supabase = await createClient()
@@ -47,7 +48,7 @@ export default async function WalkInBookingPage() {
       </div>
 
       <div className="bg-white rounded-3xl p-6 sm:p-10 border border-gray-100 shadow-sm">
-        <WalkInForm doctors={doctors || []} />
+        <WalkInForm doctors={(doctors || []) as unknown as WalkInDoctor[]} bookingFee={(await getBookingFees()).consultation} />
       </div>
     </div>
   )

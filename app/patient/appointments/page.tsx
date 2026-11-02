@@ -5,7 +5,8 @@ import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { signRecordFiles } from '@/lib/records'
 import { signReportLinks } from '@/lib/lab-reports'
-import { bookedServices, doctorBookingFee, isFastTrack, labBookingFee, matchBookedTests } from '@/lib/pricing'
+import { bookedServices, isFastTrack, labBookingFee, matchBookedTests } from '@/lib/pricing'
+import { appointmentBookingFee } from '@/lib/wallet'
 import { getBookingFees } from '@/lib/booking-fees'
 import { siteUrl } from '@/lib/site-url'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
@@ -134,7 +135,7 @@ export default async function PatientAppointments() {
       directions: directionsHref(hospital?.name, hospital?.address, hospital?.city),
       token: visitToken(v.id),
       bookingId: v.id.slice(0, 8).toUpperCase(),
-      fee: paid ? formatINR(Number(paid.amount) || 0) : unpaid ? formatINR(doctorBookingFee(fees, v.booking_type)) : null,
+      fee: paid ? formatINR(Number(paid.amount) || 0) : unpaid ? formatINR(appointmentBookingFee(v, fees)) : null,
       rest: ['Consultation fee', ...bookedServices(v.services).map((s) => `${s.name} ${formatINR(s.price)}`)].join(' · '),
       payHref: unpaid && upcoming ? `/patient/checkout/${v.id}` : null,
       passHref: `/book/confirmation/${v.id}`,

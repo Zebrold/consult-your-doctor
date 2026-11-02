@@ -6,6 +6,8 @@ import { PatientDock } from "@/components/PatientDock";
 import { formatINR } from "@/components/patient/format";
 import { RefundNote } from "@/components/patient/booking-ui";
 import { PageBody, btnPrimary, card } from "@/components/patient/app-ui";
+import { PayableTable } from "@/components/patient/PayableTable";
+import type { OnlinePayable } from "@/lib/pricing";
 
 /** The patient portal around a checkout page: the blue header, the page, and the navigation pill. */
 export function CheckoutShell({ name, email, children }: { name: string | null; email: string | null; children: ReactNode }) {
@@ -82,30 +84,35 @@ export function DetailRow({ icon: Icon, label, value, sub }: { icon: LucideIcon;
  * The booking fee, the online total and the pay button. `atVenue` is what the patient pays in person (the consultation
  * fee at the hospital counter, or the lab's test charges): shown below, never part of the total.
  */
-export function PaymentSummary({ lines, total, atVenue, isConsultation, children }: {
-  lines: { label: string; sub?: string; amount: number }[];
-  total: number;
+/**
+ * The checkout's money card: any detail lines (each lab test's fee), then the checkout table of what PayU collects (the
+ * booking fee, the payment convenience fee and the total payable), what is paid at the venue, and the Pay button.
+ */
+export function PaymentSummary({ lines = [], payable, item, atVenue, isConsultation, children }: {
+  lines?: { label: string; sub?: string; amount: number }[];
+  payable: OnlinePayable;
+  /** The booking fee's name in the table, e.g. "Appointment booking fee". */
+  item: string;
   atVenue?: ReactNode;
   isConsultation: boolean;
   children: ReactNode;
 }) {
   return (
     <CheckoutCard title="Payment summary">
-      <dl className="flex flex-col gap-3 text-[14px]">
-        {lines.map((line) => (
-          <div key={line.label} className="flex items-start justify-between gap-4">
-            <dt className="text-[#27324A]">
-              <span className="block font-bold">{line.label}</span>
-              {line.sub && <span className="block text-[12px] text-[#5B667A] mt-0.5">{line.sub}</span>}
-            </dt>
-            <dd className="font-extrabold tabular-nums shrink-0">{formatINR(line.amount)}</dd>
-          </div>
-        ))}
-        <div className="flex items-center justify-between gap-4 pt-3.5 mt-1 border-t border-dashed border-[#D6DDE8]">
-          <dt className="font-extrabold">Pay online now</dt>
-          <dd className="text-[24px] font-extrabold text-[#2A4DD0] tabular-nums">{formatINR(total)}</dd>
-        </div>
-      </dl>
+      {lines.length > 0 && (
+        <dl className="flex flex-col gap-3 text-[14px]">
+          {lines.map((line) => (
+            <div key={line.label} className="flex items-start justify-between gap-4">
+              <dt className="text-[#27324A]">
+                <span className="block font-bold">{line.label}</span>
+                {line.sub && <span className="block text-[12px] text-[#5B667A] mt-0.5">{line.sub}</span>}
+              </dt>
+              <dd className="font-extrabold tabular-nums shrink-0">{formatINR(line.amount)}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      <PayableTable payable={payable} item={item} />
       {atVenue}
       <div className="flex flex-col gap-3">
         {children}

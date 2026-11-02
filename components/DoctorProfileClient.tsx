@@ -517,7 +517,7 @@ export function DoctorProfileClient({ doctor, bookingFee, now, account }: Doctor
                     See other doctors
                   </Link>
                 ))}
-              <p className="mt-2.5 text-[12px] leading-normal text-[#5B667A]">Only the booking fee is paid online. The consultation fee is paid at the hospital and never added to your booking total.</p>
+              <p className="mt-2.5 text-[12px] leading-normal text-[#5B667A]">Only the booking fee and its payment convenience fee are paid online. The consultation fee is paid at the hospital and never added to your booking total.</p>
             </aside>
           </div>
         </div>

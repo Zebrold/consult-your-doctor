@@ -82,9 +82,12 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
-      // A PayU payment is the booking fee. A desk payment (cash or UPI) is what the counter took, which the slip doesn't show.
+      // A PayU payment is the booking fee and the convenience fee on it. A desk payment (cash or UPI) is what the counter
+      // took, which the slip doesn't show.
       const online = !paymentRow || paymentRow.gateway === 'payu'
-      const bookingFee = paymentRow ? Number(paymentRow.amount) || 0 : appointmentBookingFee(apt, await getBookingFees())
+      const fee = appointmentBookingFee(apt, await getBookingFees())
+      const bookingFee = paymentRow ? Number(paymentRow.amount) || 0 : fee
+      const convenienceFee = online && paymentRow ? Math.max(0, Math.round((bookingFee - fee) * 100) / 100) : 0
 
       const pdfBytes = await generateAppointmentSlipPdf({
         bookingId: id,
@@ -108,6 +111,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
         payment: {
           online,
           amount: online ? bookingFee : 0,
+          convenienceFee,
           transactionId: paymentRow?.transaction_id || id,
           status: 'PAID',
           gateway: online ? 'Online (Paid)' : 'Hospital desk',
@@ -152,8 +156,10 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
         .limit(1)
         .maybeSingle()
       const online = !paymentRow || paymentRow.gateway === 'payu'
-      const tests = paymentRow ? null : matchBookedTests(diag.test_name || '', center?.test_prices)
-      const bookingFee = paymentRow ? Number(paymentRow.amount) || 0 : tests ? labBookingFee(tests, (await getBookingFees()).diagnosticPercent) : 0
+      const tests = matchBookedTests(diag.test_name || '', center?.test_prices)
+      const fee = tests ? labBookingFee(tests, (await getBookingFees()).diagnosticPercent) : null
+      const bookingFee = paymentRow ? Number(paymentRow.amount) || 0 : fee ?? 0
+      const convenienceFee = online && paymentRow && fee != null ? Math.max(0, Math.round((bookingFee - fee) * 100) / 100) : 0
 
       const pdfBytes = await generateAppointmentSlipPdf({
         bookingId: id,
@@ -177,6 +183,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
         payment: {
           online,
           amount: online ? bookingFee : 0,
+          convenienceFee,
           transactionId: paymentRow?.transaction_id || id,
           status: 'PAID',
           gateway: online ? 'Online (Paid)' : 'Centre desk',

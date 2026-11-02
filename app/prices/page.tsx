@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Check, FlaskConical, Stethoscope } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { formatPercent, labTestBookingFee, pricedTests, type BookingFees } from "@/lib/pricing";
+import { convenienceClause, formatPercent, labTestBookingFee, onlinePayable, pricedTests, type BookingFees } from "@/lib/pricing";
 import { getBookingFees } from "@/lib/booking-fees";
 import { formatINR as inr } from "@/components/patient/format";
 import { Faq, IconTile, PageHero, Section, SectionHead, SitePage, TextLink, btnBlue, card } from "@/components/site/ui";
@@ -23,7 +23,7 @@ const plans = (fees: BookingFees) => [
     price: inr(fees.consultation),
     unit: "booking fee",
     points: [
-      "The booking fee is all you pay online",
+      fees.conveniencePercent > 0 ? `The booking fee and a ${formatPercent(fees.conveniencePercent)} payment convenience fee on it are all you pay online` : "The booking fee is all you pay online",
       "The consultation fee is set by the hospital, shown on the doctor's profile and paid at the hospital counter",
       "In person, at the doctor's partner hospital",
       "Booking slip and token number on WhatsApp and email",
@@ -36,7 +36,7 @@ const plans = (fees: BookingFees) => [
     price: formatPercent(fees.diagnosticPercent),
     unit: "of each test",
     points: [
-      `${formatPercent(fees.diagnosticPercent)} of each test's price, paid online to book`,
+      `${formatPercent(fees.diagnosticPercent)} of each test's price${convenienceClause(fees)}, paid online to book`,
       "The test prices themselves, and any home collection, are paid at the lab",
       "Choose your tests and the day you'll visit",
       "Your report appears in your account when it's ready",
@@ -128,10 +128,11 @@ export default async function PricesPage() {
         </div>
 
         <div className="mt-4 md:mt-5 p-5 md:p-6 rounded-[20px] bg-[#F6F8FC] text-[14.5px] md:text-[15px] leading-[1.65] text-[#27324A]">
-          <span className="font-extrabold text-[#0B1B3F]">Example:</span> booking a doctor costs <strong className="text-[#0B1B3F]">{inr(fees.consultation)}</strong> online, and you
-          pay the consultation fee at the hospital counter. Fast track, where the hospital offers it, is <strong className="text-[#0B1B3F]">{inr(fees.fastTrack)}</strong> online and
+          <span className="font-extrabold text-[#0B1B3F]">Example:</span> booking a doctor costs <strong className="text-[#0B1B3F]">{inr(onlinePayable(fees.consultation, fees.conveniencePercent).total)}</strong> online
+          {fees.conveniencePercent > 0 && <> ({inr(fees.consultation)} booking fee and {inr(onlinePayable(fees.consultation, fees.conveniencePercent).convenience)} payment convenience fee)</>}, and you
+          pay the consultation fee at the hospital counter. Fast track, where the hospital offers it, is <strong className="text-[#0B1B3F]">{inr(onlinePayable(fees.fastTrack, fees.conveniencePercent).total)}</strong> online and
           you are seen ahead of general patients once checked in. A {inr(exampleTest)} lab test costs{" "}
-          <strong className="text-[#0B1B3F]">{inr(labTestBookingFee(exampleTest, fees.diagnosticPercent))}</strong> online, and {inr(exampleTest)} at the lab.
+          <strong className="text-[#0B1B3F]">{inr(onlinePayable(labTestBookingFee(exampleTest, fees.diagnosticPercent), fees.conveniencePercent).total)}</strong> online, and {inr(exampleTest)} at the lab.
         </div>
       </Section>
 

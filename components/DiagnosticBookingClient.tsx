@@ -9,7 +9,8 @@ import { HeroButtons } from "@/components/patient/HospitalBooking";
 import { Dots, btnPrimary, card } from "@/components/patient/app-ui";
 import { createDiagnosticBooking } from "@/app/actions/booking";
 import { startPayuPayment } from "@/lib/payu-client";
-import { DEFAULT_DOORSTEP_FEE, formatPercent, labBookingFee, labTestBookingFee, type BookedTest } from "@/lib/pricing";
+import { DEFAULT_DOORSTEP_FEE, formatPercent, labBookingFee, labTestBookingFee, onlinePayable, type BookedTest } from "@/lib/pricing";
+import { PayableTable } from "@/components/patient/PayableTable";
 import {
   appendPatientDetails, DayStrip, FormError, LabChargesAtVenue, PayuNote, patientDetailsError, RefundNote, SummaryRow, type PatientDetails,
 } from "@/components/patient/booking-ui";
@@ -35,11 +36,13 @@ interface DiagnosticBookingClientProps {
   payuKey: string;
   /** The booking fee, as a per cent of each test's price, that /api/payu/hash will charge (lib/booking-fees.ts). */
   bookingFeePercent: number;
+  /** The payment convenience fee, as a per cent of the booking fee, that /api/payu/hash adds (lib/booking-fees.ts). */
+  conveniencePercent: number;
 }
 
 const COLLAPSED = 8;
 
-export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, bookingFeePercent }: DiagnosticBookingClientProps) {
+export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, bookingFeePercent, conveniencePercent }: DiagnosticBookingClientProps) {
   const days = useMemo(() => upcomingDays(now, 6), [now]);
   const today = days[0].key;
   const doorstepEnabled = center.doorstepEnabled !== false;
@@ -62,7 +65,9 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, 
 
   const selectedTests = tests.filter((t) => chosen.includes(t.name));
   // The whole online payment: the booking fee on each test. The tests and home collection are paid to the lab.
-  const total = labBookingFee(selectedTests, bookingFeePercent);
+  // What PayU collects: the booking fee on the tests and the payment convenience fee on it (lib/pricing.ts).
+  const payable = onlinePayable(labBookingFee(selectedTests, bookingFeePercent), conveniencePercent);
+  const total = payable.total;
   const feeOf = (t: BookedTest) => labTestBookingFee(t.price, bookingFeePercent);
 
   const q = filter.trim().toLowerCase();
@@ -302,6 +307,15 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, 
                 )}
               </Card>
 
+              {/* Phones: what is paid online now (desktops have it in the summary) */}
+              {patient && selectedTests.length > 0 && (
+                <div className="lg:hidden">
+                  <Card title="Payment">
+                    <PayableTable payable={payable} item="Lab booking fee" />
+                  </Card>
+                </div>
+              )}
+
               {error && (
                 <div className="lg:hidden">
                   <FormError>
@@ -332,13 +346,17 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, 
                 )}
                 <SummaryRow label="Sample collection" sub={isDoorstep ? "Collected by the lab" : "At the lab"} value={isDoorstep ? "Paid to lab" : "Free"} tone={isDoorstep ? undefined : "free"} />
               </div>
-              <div className="flex items-center justify-between gap-3 -mx-[22px] px-[22px] py-4 bg-[#F6F8FC]">
-                <span>
-                  <span className="block text-[12px] font-extrabold tracking-[0.04em] uppercase text-[#5B667A]">Pay online now</span>
-                  <span className="block mt-0.5 text-[11.5px] text-[#5B667A]">{formatLongDate(`${date}T12:00:00+05:30`)}</span>
-                </span>
-                <span className="text-[24px] font-extrabold text-[#2A4DD0]">{selectedTests.length ? formatINR(total) : "—"}</span>
-              </div>
+              {selectedTests.length > 0 ? (
+                <PayableTable payable={payable} item="Lab booking fee" />
+              ) : (
+                <div className="flex items-center justify-between gap-3 -mx-[22px] px-[22px] py-4 bg-[#F6F8FC]">
+                  <span>
+                    <span className="block text-[12px] font-extrabold tracking-[0.04em] uppercase text-[#5B667A]">Pay online now</span>
+                    <span className="block mt-0.5 text-[11.5px] text-[#5B667A]">{formatLongDate(`${date}T12:00:00+05:30`)}</span>
+                  </span>
+                  <span className="text-[24px] font-extrabold text-[#2A4DD0]">—</span>
+                </div>
+              )}
               <div className="mt-4 flex flex-col gap-3.5">
                 <LabChargesAtVenue tests={selectedTests} doorstepFee={currentDoorstepFee} />
                 <PayuNote />

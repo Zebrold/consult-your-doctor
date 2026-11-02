@@ -58,8 +58,9 @@ export function PatientAppHome({ greeting, name, isSignedIn, hospitals, cities, 
 
   return (
     <>
+      {/* Outside the header's wrapper, so it stays stuck to the top for the whole page */}
+      <AppPromoStrip />
       <div className="lg:hidden">
-        <AppPromoStrip />
         <PhoneHeader isSignedIn={isSignedIn} name={name} eyebrow={`${greeting},`} title={name || "Welcome"} container="max-w-[900px] px-4 md:px-6">
           <div className="-mt-2 flex flex-col gap-4">
             <button

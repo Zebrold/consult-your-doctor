@@ -61,7 +61,7 @@ export function buildBookingEmailHtml(card: BookingCard, opts: { failureReason?:
       : 'Pay the booking fee to confirm your booking and get your QR code.'
   const button = confirmed
     ? { text: isLab ? 'Open booking' : 'Open appointment', href: card.links.appointment }
-    : { text: `Pay ${formatINR(card.bookingFee)} now`, href: card.links.checkout }
+    : { text: `Pay ${formatINR(card.amount)} now`, href: card.links.checkout }
 
   const failure = !confirmed && opts.failureReason
     ? `<tr><td style="padding:0 24px 14px;"><div style="background:#FEF3F2;border:1px solid #FECDCA;border-radius:10px;padding:10px 12px;${FONT}font-size:13px;line-height:1.45;color:#B42318;"><b>Your last payment didn't go through.</b> ${esc(opts.failureReason)} No money was taken for it; you can try again.</div></td></tr>`
@@ -89,6 +89,7 @@ export function buildBookingEmailHtml(card: BookingCard, opts: { failureReason?:
       <tr><td style="padding:16px 20px 8px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
         ${row(card.isFollowUp ? 'BOOKING FEE (FREE FOLLOW-UP)' : 'BOOKING FEE', money(card.bookingFee), true)}
         ${card.bookingFeeLines.map((l) => row(esc(l.label), esc(l.value))).join('')}
+        ${card.convenienceFee > 0 ? row('PAYMENT CONVENIENCE FEE', money(card.convenienceFee), true) : ''}
       </table></td></tr>
       ${card.venueTotal != null ? `<tr><td style="padding:0 20px;"><div style="border-top:1px dashed #E3E8F0;font-size:0;line-height:0;">&nbsp;</div></td></tr>
       <tr><td style="padding:8px 20px 14px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -187,6 +188,7 @@ export function bookingEmailLines(card: BookingCard, opts: { failureReason?: str
     confirmed && card.token ? `Token: ${card.token}` : null,
     card.reportBy ? `Report by: ${card.reportBy}` : null,
     `Booking fee: ${formatINR(card.bookingFee)}`,
+    ...(card.convenienceFee > 0 ? [`Payment convenience fee: ${formatINR(card.convenienceFee)}`] : []),
     card.venueTotal != null ? `${card.venueTitle.toLowerCase()}: ${formatINR(card.venueTotal)}` : null,
     `${card.amountLabel.toLowerCase()}: ${formatINR(card.amount)}`,
     confirmed ? `Open your appointment: ${card.links.appointment}` : `Pay now: ${card.links.checkout}`,

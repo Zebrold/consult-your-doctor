@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { doctorBookingFee, isFastTrack, labDoorstepFee, matchBookedTests, pricedTests, type BookedTest } from '@/lib/pricing'
+import { patientServices } from '@/lib/hospital-services'
 import { loadBookingFees } from '@/lib/booking-fees'
 import { followUpBase } from '@/lib/follow-up'
 import { notifyBookingConfirmed } from '@/lib/notify/patient'
@@ -381,9 +382,10 @@ async function claimSlotAndCreateAppointment(
     let services: BookedTest[] = []
     if (options.services.length > 0) {
       const { data: hospital } = doctor.hospital_id
-        ? await admin.from('hospitals').select('test_prices').eq('id', doctor.hospital_id).maybeSingle()
+        ? await admin.from('hospitals').select('*').eq('id', doctor.hospital_id).maybeSingle()
         : { data: null }
-      const offered = new Map(pricedTests(hospital?.test_prices).map((t) => [t.name, t]))
+      // Only services the hospital shows patients can be booked (`*`: service_details arrives with 20261103_hospital_services.sql).
+      const offered = new Map(patientServices(hospital).map((t) => [t.name, t]))
       services = options.services.map((name) => offered.get(name)).filter((t): t is BookedTest => !!t)
       if (services.length !== options.services.length) {
         return { error: 'Some of the services you picked are no longer offered by this hospital. Please review your selection.' }

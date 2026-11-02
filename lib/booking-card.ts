@@ -2,7 +2,7 @@ import type { createAdminClient } from '@/lib/supabase/admin'
 import { ageFrom, directionsHref, doctorName, visitToken } from '@/components/patient/format'
 import { cardDate, cardTime } from '@/lib/booking-card-format'
 import { getBookingFees } from '@/lib/booking-fees'
-import { bookedServices, bookedTestsFor, isFastTrack, labBookingFee, sumPrices } from '@/lib/pricing'
+import { bookedServices, bookedTestsFor, isFastTrack, labBookingFee, onlinePayable, sumPrices, type BookingFees } from '@/lib/pricing'
 import { appointmentBookingFee } from '@/lib/wallet'
 import { FOLLOW_UP_DAYS } from '@/lib/follow-up'
 import { siteUrl } from '@/lib/site-url'
@@ -54,12 +54,14 @@ export type BookingCard = {
 
   /** Order summary: the booking fee (Consult your Doctor's) and what is paid at the hospital or lab. */
   bookingFee: number
+  /** The payment convenience fee on the booking fee: due with it while unpaid, or what an online payment included. */
+  convenienceFee: number
   bookingFeeLines: CardLine[]
   venueTitle: 'PAY AT HOSPITAL' | 'PAY AT LAB' | 'PAID AT HOSPITAL' | 'PAID AT LAB'
   venueItems: { label: string; amount: number | null }[]
   venueTotal: number | null
   venueNote: string
-  /** Pending: the booking fee due now. Confirmed: what has been paid so far. */
+  /** Pending: the booking fee and convenience fee due now. Confirmed: what has been paid so far. */
   amountLabel: 'AMOUNT DUE NOW' | 'AMOUNT PAID'
   amount: number
 
@@ -103,6 +105,24 @@ function ageSexOf(details: { date_of_birth?: string | null; gender?: string | nu
   return [age != null ? String(age) : null, sex].filter(Boolean).join(' ') || null
 }
 
+/**
+ * The convenience fee and the amount for the order summary. Unpaid: the convenience fee on today's terms and the total
+ * payable. Paid: what was paid, and the convenience fee as the part of the PayU payment above the booking fee (counter
+ * payments carry none). A paid booking with no payment on record (from before payments were recorded) shows its fee.
+ */
+function amounts(state: BookingCard['state'], bookingFee: number, payments: PaymentRow[], fees: BookingFees) {
+  if (state !== 'confirmed') {
+    const payable = onlinePayable(bookingFee, fees.conveniencePercent)
+    return { convenienceFee: payable.convenience, amount: payable.total }
+  }
+  const sum = (rows: PaymentRow[]) => rows.reduce((total, p) => total + (Number(p.amount) || 0), 0)
+  const online = sum(payments.filter((p) => p.gateway === 'payu'))
+  return {
+    convenienceFee: online > bookingFee ? Math.round((online - bookingFee) * 100) / 100 : 0,
+    amount: payments.length ? sum(payments) : bookingFee,
+  }
+}
+
 const stateOf = (status: string): BookingCard['state'] => (PAID.includes(status) ? 'confirmed' : status === 'cancelled' || status === 'refunded' ? 'cancelled' : 'pending')
 
 /** One booking (a doctor appointment or a lab booking) as the page and the emails show it, or null. */
@@ -136,7 +156,7 @@ export async function loadBookingCard(admin: Admin, id: string, now = Date.now()
 
     const venueItems = [{ label: 'Consultation fee', amount: consultation || null }, ...services.map((s) => ({ label: s.name, amount: s.price }))]
     const venueTotal = consultation || services.length ? consultation + sumPrices(services) : null
-    const paidTotal = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
+    const { convenienceFee, amount } = amounts(state, bookingFee, payments, fees)
 
     return {
       id,
@@ -159,6 +179,7 @@ export async function loadBookingCard(admin: Admin, id: string, now = Date.now()
       followUp: isFollowUp || state === 'cancelled' ? null : { doctor: name, days: FOLLOW_UP_DAYS },
       isFollowUp,
       bookingFee,
+      convenienceFee,
       bookingFeeLines: [
         { label: 'Appointment type', value: isFollowUp ? 'Free follow-up' : fastTrack ? 'Fast track' : 'General' },
         { label: 'Collected by', value: facts.online || !facts.counter ? 'Consult your Doctor' : deskName },
@@ -168,8 +189,7 @@ export async function loadBookingCard(admin: Admin, id: string, now = Date.now()
       venueTotal,
       venueNote: counterPaid ? 'Paid at the counter' : 'Not charged online',
       amountLabel: state === 'confirmed' ? 'AMOUNT PAID' : 'AMOUNT DUE NOW',
-      // A confirmed booking with no payment on record (made before payments were recorded) shows its booking fee.
-      amount: state === 'confirmed' && payments.length ? paidTotal : bookingFee,
+      amount,
       bookedAt: apt.created_at,
       holdUntil: state === 'pending' ? new Date(Date.parse(apt.created_at) + HOLD_MINUTES * 60_000).toISOString() : null,
       paymentType: facts.paymentType,
@@ -205,7 +225,7 @@ export async function loadBookingCard(admin: Admin, id: string, now = Date.now()
   const counterPaid = !!facts.counter
   const label = tests ? tests.map((t) => t.name).join(', ') : String(lab.test_name || 'Lab tests').replace(/-/g, ' ')
   const venueItems = [...(tests ?? []).map((t) => ({ label: t.name, amount: t.price as number | null })), ...(doorstepFee ? [{ label: 'Home collection', amount: doorstepFee }] : [])]
-  const paidTotal = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
+  const { convenienceFee, amount } = amounts(state, bookingFee, payments, fees)
   const day = lab.preferred_date ? `${lab.preferred_date}T12:00:00+05:30` : null
 
   return {
@@ -229,6 +249,7 @@ export async function loadBookingCard(admin: Admin, id: string, now = Date.now()
     followUp: null,
     isFollowUp: false,
     bookingFee,
+    convenienceFee,
     bookingFeeLines: [
       { label: 'Booking fee', value: `${fees.diagnosticPercent}% of each test` },
       { label: 'Collected by', value: facts.online || !facts.counter ? 'Consult your Doctor' : deskName },
@@ -238,7 +259,7 @@ export async function loadBookingCard(admin: Admin, id: string, now = Date.now()
     venueTotal: venueItems.length ? venueItems.reduce((s, i) => s + (i.amount ?? 0), 0) : null,
     venueNote: counterPaid ? 'Paid at the lab' : 'Not charged online',
     amountLabel: state === 'confirmed' ? 'AMOUNT PAID' : 'AMOUNT DUE NOW',
-    amount: state === 'confirmed' && payments.length ? paidTotal : bookingFee,
+    amount,
     bookedAt: lab.created_at,
     holdUntil: null,
     paymentType: facts.paymentType,

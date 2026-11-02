@@ -7,7 +7,7 @@ import { newPayuTxnid } from '@/lib/payu-txn'
 import { CheckoutCard, CheckoutGrid, CheckoutHeading, CheckoutMessage, CheckoutShell, DetailRow, PaymentSummary } from '@/components/patient/CheckoutShell'
 import { LabChargesAtVenue } from '@/components/patient/booking-ui'
 import { formatINR, formatLongDate } from '@/components/patient/format'
-import { formatPercent, labBookingFee, labDoorstepFee, labTestBookingFee, matchBookedTests } from '@/lib/pricing'
+import { formatPercent, labBookingFee, labDoorstepFee, labTestBookingFee, matchBookedTests, onlinePayable } from '@/lib/pricing'
 import { getBookingFees } from '@/lib/booking-fees'
 
 type Joined<T> = T | T[] | null
@@ -64,9 +64,11 @@ export default async function DiagnosticCheckoutPage({ params }: { params: Promi
   const isDoorstep = booking.booking_type === 'doorstep'
   // The home-collection fee is the lab's listed one, paid to the lab with the tests.
   const doorstepFee = isDoorstep ? labDoorstepFee(center) : 0
-  // The same amount /api/payu/hash charges: the booking fee on each test, and nothing the lab charges itself.
+  // The same amount /api/payu/hash charges: the booking fee on each test and the payment convenience fee on it, and
+  // nothing the lab charges itself.
   const percent = fees.diagnosticPercent
-  const total = bookedTests ? labBookingFee(bookedTests, percent) : 0
+  const payable = onlinePayable(bookedTests ? labBookingFee(bookedTests, percent) : 0, fees.conveniencePercent)
+  const total = payable.total
 
   return (
     <CheckoutShell name={name} email={email}>
@@ -95,7 +97,8 @@ export default async function DiagnosticCheckoutPage({ params }: { params: Promi
               sub: `${formatPercent(percent)} of the ${formatINR(t.price)} test price`,
               amount: labTestBookingFee(t.price, percent),
             }))}
-            total={total}
+            payable={payable}
+            item="Lab booking fee"
             isConsultation={false}
             atVenue={<LabChargesAtVenue tests={bookedTests ?? []} doorstepFee={doorstepFee} />}
           >

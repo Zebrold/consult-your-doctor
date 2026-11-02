@@ -3,7 +3,8 @@
 import { revalidatePath, updateTag } from 'next/cache'
 import { requireExecutive } from '@/app/executive/_lib/ops'
 import {
-  BOOKING_FEES_TAG, MAX_CONSULTATION_BOOKING_FEE, getBookingFees, saveBookingFees, validConsultationBookingFee, validDiagnosticPercent,
+  BOOKING_FEES_TAG, MAX_CONSULTATION_BOOKING_FEE, MAX_CONVENIENCE_PERCENT, getBookingFees, saveBookingFees, validConsultationBookingFee,
+  validConveniencePercent, validDiagnosticPercent,
 } from '@/lib/booking-fees'
 import type { BookingFees } from '@/lib/pricing'
 
@@ -20,6 +21,7 @@ export async function updateBookingFeesAction(input: BookingFees): Promise<{ suc
     const consultation = Number(input?.consultation)
     const fastTrack = Number(input?.fastTrack)
     const diagnosticPercent = Number(input?.diagnosticPercent)
+    const conveniencePercent = Number(input?.conveniencePercent)
     const max = MAX_CONSULTATION_BOOKING_FEE.toLocaleString('en-IN')
     if (!validConsultationBookingFee(consultation)) {
       return { success: false, error: `The doctor booking fee must be a whole number of rupees from ₹0 to ₹${max}.` }
@@ -30,8 +32,11 @@ export async function updateBookingFeesAction(input: BookingFees): Promise<{ suc
     if (!validDiagnosticPercent(diagnosticPercent)) {
       return { success: false, error: 'The lab booking fee must be a percentage from 0 to 100, with at most two decimals.' }
     }
+    if (!validConveniencePercent(conveniencePercent)) {
+      return { success: false, error: `The payment convenience fee must be a percentage from 0 to ${MAX_CONVENIENCE_PERCENT}, with at most two decimals.` }
+    }
 
-    const fees: BookingFees = { consultation, fastTrack, diagnosticPercent }
+    const fees: BookingFees = { consultation, fastTrack, diagnosticPercent, conveniencePercent }
     await saveBookingFees(fees)
 
     // Every page that shows a fee, and the PayU hash and callback, read it through this tag.

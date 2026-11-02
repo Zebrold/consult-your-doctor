@@ -226,7 +226,7 @@ export function assistantTools({ admin, patientId, onPdf }: { admin: Admin; pati
       return JSON.stringify({
         labs,
         booking_fee_percent: diagnosticPercent,
-        note: `Only tests with a price can be booked online. Online the patient pays only the booking fee (${diagnosticPercent}% of each test's price, booking_fee_inr); the lab price itself (lab_price_inr) and any home-collection fee are paid to the lab.`,
+        note: `Only tests with a price can be booked online. Online the patient pays only the booking fee (${diagnosticPercent}% of each test's price, booking_fee_inr) and the payment convenience fee on it; the lab price itself (lab_price_inr) and any home-collection fee are paid to the lab.`,
       })
     },
   })

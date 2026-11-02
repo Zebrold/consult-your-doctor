@@ -2,9 +2,10 @@
 
 import { useId, type ReactNode } from "react";
 import { Check } from "lucide-react";
-import { sumPrices, type BookedTest, type BookingFees } from "@/lib/pricing";
+import { sumPrices, type BookedTest, type BookingFees, type OnlinePayable } from "@/lib/pricing";
 import { formatINR } from "./format";
 import { card } from "./app-ui";
+import { PayableTable } from "./PayableTable";
 
 // What a patient picks on top of the doctor and time (lib/booking-options.ts): fast track, and hospital services paid
 // at the hospital. The hospital page, where patients book, shows these; so does the booking page for doctors without a
@@ -109,15 +110,21 @@ export function ServicePicker({ services, picked, onToggle, children }: { servic
   );
 }
 
-/** The summary's money box: the booking fee paid online, then what is paid at the hospital. */
-export function PaySummary({ fee, fastTrack, services }: { fee: number; fastTrack: boolean; services: BookedTest[] }) {
+/** What the booking fee line is called in the checkout table. */
+export const bookingFeeItem = (fastTrack: boolean, followUp = false) =>
+  followUp ? "Booking fee (free follow-up)" : fastTrack ? "Fast-track booking fee" : "Appointment booking fee";
+
+/** The summary's money box: the checkout table of what is paid online now, then what is paid at the hospital. */
+export function PaySummary({ payable, fastTrack, followUp = false, services }: { payable: OnlinePayable; fastTrack: boolean; followUp?: boolean; services: BookedTest[] }) {
   return (
-    <div className="mt-2.5 px-3.5 py-1 rounded-[14px] bg-[#F6F8FC]">
-      <PayLine title="Pay now online" sub={fastTrack ? "Fast-track booking fee" : "Booking fee"} value={formatINR(fee)} blue />
-      <PayLine title="Pay at the hospital" sub="The consultation fee, set by the hospital" value="At the counter" />
-      {services.length > 0 && (
-        <PayLine title={`${services.length} service${services.length === 1 ? "" : "s"} at the hospital`} sub={services.map((s) => s.name).join(", ")} value={formatINR(sumPrices(services))} />
-      )}
+    <div className="mt-2.5 flex flex-col gap-2.5">
+      <PayableTable payable={payable} item={bookingFeeItem(fastTrack, followUp)} />
+      <div className="px-3.5 py-1 rounded-[14px] bg-[#F6F8FC]">
+        <PayLine title="Pay at the hospital" sub="The consultation fee, set by the hospital" value="At the counter" />
+        {services.length > 0 && (
+          <PayLine title={`${services.length} service${services.length === 1 ? "" : "s"} at the hospital`} sub={services.map((s) => s.name).join(", ")} value={formatINR(sumPrices(services))} />
+        )}
+      </div>
     </div>
   );
 }

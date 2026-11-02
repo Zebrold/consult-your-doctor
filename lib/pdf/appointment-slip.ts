@@ -31,8 +31,10 @@ export type AppointmentSlipData = {
      * took is the consultation fee or test charges.
      */
     online?: boolean
-    /** The booking fee paid online: the only amount on the slip. */
+    /** What was paid online (the booking fee and any convenience fee): the only amount on the slip. */
     amount: number
+    /** The payment convenience fee inside `amount`, shown on its own line. */
+    convenienceFee?: number
     transactionId?: string | null
     status: string
     gateway: string
@@ -226,12 +228,15 @@ export async function generateAppointmentSlipPdf(data: AppointmentSlipData): Pro
 
   y -= cardH + 18
 
-  // 4. Payment Receipt & Breakdown Table
+  // 4. Payment Receipt & Breakdown Table. An online payment with a convenience fee gets a line for it.
+  const online = data.payment.online !== false
+  const convenience = online ? Math.max(0, Math.round((data.payment.convenienceFee ?? 0) * 100) / 100) : 0
+  const extra = convenience > 0 ? 14 : 0
   page.drawRectangle({
     x: M,
-    y: y - 110,
+    y: y - 110 - extra,
     width: W,
-    height: 110,
+    height: 110 + extra,
     color: rgb(1, 1, 1),
     borderColor: C.line,
     borderWidth: 1,
@@ -253,11 +258,16 @@ export async function generateAppointmentSlipPdf(data: AppointmentSlipData): Pro
 
   const inr = (n: number) => `INR ${n.toLocaleString('en-IN', Number.isInteger(n) ? {} : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-  // Only the booking fee is paid online; the consultation fee or test charges are paid at the venue and never shown.
-  const online = data.payment.online !== false
+  // Only the booking fee (and the convenience fee on it) is paid online; the consultation fee or test charges are paid at
+  // the venue and never shown.
   let payY = y - 42
   page.drawText(online ? 'Booking Fee (Consult Your Doctor)' : `Booked at the ${data.isConsultation ? 'hospital' : 'lab'} desk`, { x: M + 14, y: payY, font: regular, size: 8.5, color: C.ink })
-  page.drawText(online ? inr(data.payment.amount) : 'No booking fee', { x: M + W - 90, y: payY, font: bold, size: 8.5, color: C.ink })
+  page.drawText(online ? inr(Math.round((data.payment.amount - convenience) * 100) / 100) : 'No booking fee', { x: M + W - 90, y: payY, font: bold, size: 8.5, color: C.ink })
+  if (convenience > 0) {
+    payY -= 14
+    page.drawText('Payment Convenience Fee', { x: M + 14, y: payY, font: regular, size: 8.5, color: C.ink })
+    page.drawText(inr(convenience), { x: M + W - 90, y: payY, font: bold, size: 8.5, color: C.ink })
+  }
 
   payY -= 16
   page.drawText(online ? safe(payAtVenueNote(data.isConsultation)) : 'Paid at the counter.', { x: M + 14, y: payY, font: regular, size: 8, color: C.muted })
@@ -277,7 +287,7 @@ export async function generateAppointmentSlipPdf(data: AppointmentSlipData): Pro
     color: C.muted,
   })
 
-  y -= 130
+  y -= 130 + extra
 
   // 5. Patient Instructions & Barcode Check-in
   page.drawRectangle({

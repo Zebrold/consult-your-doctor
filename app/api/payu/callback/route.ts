@@ -22,7 +22,8 @@ const field = (data: Record<string, FormDataEntryValue>, name: string) => {
 const PAID_STATES = ['confirmed', 'visited', 'completed', 'report_sent'];
 
 /**
- * The booking fee this payment had to cover, worked out the way /api/payu/hash priced it. Null when the fee settings
+ * What this payment had to cover (the booking fee and the convenience fee on it), worked out the way /api/payu/hash
+ * priced it. Null when the fee settings
  * can't be read: the amount was still signed by our own hash route, so PayU's verified amount is trusted then.
  */
 async function expectedCharge(productinfo: string, bookingId: string): Promise<number | null> {
@@ -108,7 +109,7 @@ export async function POST(request: Request) {
       const { data: current } = await supabase.from(table).select('*').eq('id', bookingId).maybeSingle();
       const currentStatus = (current as { status?: string } | null)?.status ?? null;
 
-      // Online money lands in Consult your Doctor's account and is all booking fee, so it adds nothing to the hospital's
+      // Online money lands in Consult your Doctor's account and is all booking and convenience fee, so it adds nothing to the hospital's
       // wallet (lib/wallet.ts). The payment method ("UPI", "CC"...) is shown on the booking page.
       const wallet = shareColumns(
         isConsultation ? ((current as { hospital_id?: string | null } | null)?.hospital_id ?? null) : null,
@@ -122,13 +123,13 @@ export async function POST(request: Request) {
         return res.error && /share|method|schema cache/i.test(res.error.message) ? supabase.from('payments').update(row).eq('id', earlierRow.id) : res;
       };
 
-      // PayU only ever collects the booking fee. A payment short of it (say the fee went up while the patient was on
-      // PayU's page) is kept for the operations team to settle and doesn't confirm the booking.
+      // PayU only ever collects the booking fee and the convenience fee on it. A payment short of that (say the fee went
+      // up while the patient was on PayU's page) is kept for the operations team to settle and doesn't confirm the booking.
       const expected = await expectedCharge(productinfo, bookingId);
       if (expected != null && !(paidAmount + 0.005 >= expected)) {
-        console.error(`PayU callback: ${bookingId} paid ${amount}, booking fee is ${expected}. Left for review.`);
+        console.error(`PayU callback: ${bookingId} paid ${amount}, amount due is ${expected}. Left for review.`);
         await recordPayment({ amount: paidAmount || 0, status: 'pending' });
-        return failed(`The amount paid (${formatINR(paidAmount || 0)}) doesn't match the booking fee (${formatINR(expected)}). Our team will refund or confirm it; you don't need to pay again.`);
+        return failed(`The amount paid (${formatINR(paidAmount || 0)}) doesn't match the amount due (${formatINR(expected)}). Our team will refund or confirm it; you don't need to pay again.`);
       }
 
       // The booking must still be open for payment. One that was cancelled (its unpaid hold went stale, so the slot may

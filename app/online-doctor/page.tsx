@@ -13,6 +13,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { OnlineDoctorRoster, type RosterDoctor } from "@/components/OnlineDoctorRoster";
 import { getBookingFees } from "@/lib/booking-fees";
+import { convenienceClause } from "@/lib/pricing";
 import { doctorName, formatINR } from "@/components/patient/format";
 import { FeatureCard, IconTile, PageHero, Section, SitePage, TextLink, btnBlue, btnGhost, btnWhite, card } from "@/components/site/ui";
 
@@ -30,7 +31,7 @@ const afterBooking = [
   { icon: FileText, text: "Your signed prescription is saved to your account as a PDF." },
 ];
 
-const assurances = (bookingFee: string) => [
+const assurances = (bookingFee: string, convenience: string) => [
   {
     icon: BadgeCheck,
     title: "Doctors at partner hospitals",
@@ -39,7 +40,7 @@ const assurances = (bookingFee: string) => [
   {
     icon: ReceiptIndianRupee,
     title: "The price before you pay",
-    desc: `You pay a ${bookingFee} booking fee online, nothing more. The consultation fee is set by the hospital, shown on the doctor's profile and paid at the hospital counter.`,
+    desc: `You pay a ${bookingFee} booking fee online${convenience}, nothing more. The consultation fee is set by the hospital, shown on the doctor's profile and paid at the hospital counter.`,
   },
   {
     icon: FolderLock,
@@ -50,7 +51,8 @@ const assurances = (bookingFee: string) => [
 
 export default async function OnlineDoctorPage() {
   const supabase = await createClient();
-  const bookingFee = formatINR((await getBookingFees()).consultation);
+  const fees = await getBookingFees();
+  const bookingFee = formatINR(fees.consultation);
   // Only doctors patients can actually book: a fee is set and their hospital is listed.
   const { data: dbDoctors } = await supabase
     .from("doctors")
@@ -159,7 +161,7 @@ export default async function OnlineDoctorPage() {
           </div>
         </div>
         <div className="mt-4 md:mt-5 grid md:grid-cols-3 gap-3.5 md:gap-5">
-          {assurances(bookingFee).map((a) => (
+          {assurances(bookingFee, convenienceClause(fees)).map((a) => (
             <FeatureCard key={a.title} icon={a.icon} title={a.title}>
               {a.desc}
             </FeatureCard>

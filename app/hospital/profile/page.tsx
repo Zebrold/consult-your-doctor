@@ -9,8 +9,6 @@ import { RemoteImage } from '@/components/RemoteImage'
 import { StaffAccount } from '@/components/portal/StaffAccount'
 import { loadHospitalBeds, summarizeBeds } from '@/lib/beds'
 import { loadHospitalReviews } from '@/lib/reviews'
-import { removeHospitalTest, saveHospitalTest } from '@/app/actions/hospital-profile'
-import { TestMenu } from '@/app/diagnostic-center/_components/TestMenu'
 import { dayOf, isPaidVisit, loadHospitalDoctors, loadHospitalVisits, requireHospital } from '../_lib/hospital'
 import { HospitalProfileEditor } from '../_components/HospitalProfileEditor'
 import { BarChart, EmptyLine, HosBackHeader, HosBody, Meter, MoreLink, Panel, PanelHead, PhoneStats, Row, Verified, btnOutline, btnPrimary, card, plural, telHref } from '../_components/hos-ui'
@@ -53,7 +51,7 @@ export default async function HospitalProfilePage() {
     { label: 'Facilities', done: hospital.facilities.length > 0 },
     { label: 'Insurance accepted', done: hospital.insurance.length > 0 },
     { label: 'Inpatient beds', done: bedSummary.total > 0 },
-    { label: 'Test charges', done: priced.length > 0 },
+    { label: 'Services & charges', done: priced.length > 0 },
   ]
   const completeness = Math.round((checks.filter((c) => c.done).length / checks.length) * 100)
 
@@ -144,18 +142,25 @@ export default async function HospitalProfilePage() {
     </Panel>
   )
 
+  // The services are managed on their own page (Settings, Services & charges); this card points there.
   const tests = (
     <Panel id="tests" className="scroll-mt-24">
-      <PanelHead title="Test charges" sub="Lab tests and investigations at your hospital, with the amount for each" />
-      {hospital.profileReady ? (
-        <TestMenu
-          tests={hospital.tests}
-          actions={{ save: saveHospitalTest, remove: removeHospitalTest }}
-          bookable={false}
-          note="These amounts show on your hospital page so patients know the charges before they come in."
-        />
+      <PanelHead
+        title="Services & charges"
+        sub="Tests, scans and procedures patients can add when they book a doctor, paid at the hospital"
+        right={<MoreLink href="/hospital/settings/services">Manage</MoreLink>}
+      />
+      {priced.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {priced.slice(0, 8).map((t) => (
+            <span key={t.name} className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-[#F4F6FA] text-[13px] font-bold text-[#27324A]">
+              {t.name} <span className="font-extrabold text-[#0B1B3F]">{formatINR(t.price ?? 0)}</span>
+            </span>
+          ))}
+          {priced.length > 8 && <span className="inline-flex items-center h-8 px-2 text-[13px] font-bold text-[#5B667A]">+{priced.length - 8} more</span>}
+        </div>
       ) : (
-        <EmptyLine>Test charges open up after the database update.</EmptyLine>
+        <EmptyLine>No services yet. Add the tests, scans and procedures you offer in Services &amp; charges.</EmptyLine>
       )}
     </Panel>
   )

@@ -131,7 +131,8 @@ export function notifyBookingConfirmed(bookingId: string) {
         schedule: { dateTimeStr },
         payment: {
           online: card.bookingFeeLines.some((l) => l.label === 'Collected by' && l.value === 'Consult your Doctor'),
-          amount: card.bookingFee,
+          amount: card.bookingFee + card.convenienceFee,
+          convenienceFee: card.convenienceFee,
           transactionId: card.transactionId ?? card.id,
           status: 'PAID',
           gateway: card.paymentType ?? 'Online',

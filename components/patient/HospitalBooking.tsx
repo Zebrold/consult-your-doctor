@@ -9,12 +9,13 @@ import { SPECIALITIES, specialityIcon } from "@/components/home/specialities";
 import { doctorName, formatDayLabel, formatINR, formatSlot, formatTime, initials, istDateKey } from "./format";
 import { InfoRow, card } from "./app-ui";
 import { RemoteImage } from "@/components/RemoteImage";
-import { sumPrices, type BookedTest, type BookingFees } from "@/lib/pricing";
+import { onlinePayable, sumPrices, type BookedTest, type BookingFees } from "@/lib/pricing";
 import { distanceKm, formatDistance, type LatLng } from "@/lib/geo";
 import { finalizeConsultationAppointment } from "@/app/actions/booking";
 import { startPayuPayment } from "@/lib/payu-client";
 import { doctorBookingHref } from "@/lib/booking-links";
-import { AppointmentTypePicker, PaySummary, ServicePicker } from "./BookingChoices";
+import { AppointmentTypePicker, PaySummary, ServicePicker, bookingFeeItem } from "./BookingChoices";
+import { PayableTable } from "./PayableTable";
 import { appendPatientDetails, FormError, PayuNote, patientDetailsError, RefundNote, type PatientDetails } from "./booking-ui";
 import { usePatientLocation } from "./location";
 
@@ -131,6 +132,8 @@ export function HospitalBooking({
   // A general booking with a doctor seen in the last 12 days is a free follow-up; the server decides it again on booking.
   const followUp = !!doctor && !(choices && fastTrack) && freeFollowUp.includes(doctor.id);
   const bookingFee = followUp ? 0 : choices && fastTrack ? fees.fastTrack : fees.consultation;
+  // What PayU collects: the booking fee and the payment convenience fee on it (lib/pricing.ts).
+  const payable = onlinePayable(bookingFee, fees.conveniencePercent);
   const pickedServices = choices ? services.filter((s) => picked.includes(s.name)) : [];
   const servicesTotal = sumPrices(pickedServices);
   const payLater = pickedServices.length ? `Consultation + ${pickedServices.length} ${pickedServices.length === 1 ? "service" : "services"}` : "Consultation fee";
@@ -154,7 +157,7 @@ export function HospitalBooking({
               ? "Reserving…"
               : followUp
                 ? "Confirm free follow-up"
-                : `Confirm & pay ${formatINR(bookingFee)}`;
+                : `Confirm & pay ${formatINR(payable.total)}`;
 
   const pickSpec = (s: string) => {
     setSpec(s);
@@ -384,9 +387,9 @@ export function HospitalBooking({
                   <div className="flex justify-between gap-3 py-2.5 border-b border-[#E6EBF3] text-[13px]">
                     <span>
                       <span className="block font-extrabold">Pay now in the app</span>
-                      <span className="block text-[11.5px] text-[#5B667A]">{followUp ? "Free follow-up: no booking fee" : `${fastTrack ? "Fast track" : "General"} booking fee`}</span>
+                      <span className="block text-[11.5px] text-[#5B667A]">{followUp ? "Free follow-up: no booking fee" : `${fastTrack ? "Fast track" : "General"} booking fee + convenience fee`}</span>
                     </span>
-                    <span className="font-extrabold text-[#2A4DD0]">{formatINR(bookingFee)}</span>
+                    <span className="font-extrabold text-[#2A4DD0]">{formatINR(payable.total)}</span>
                   </div>
                   <div className="flex justify-between gap-3 py-2.5 text-[13px]">
                     <span>
@@ -436,6 +439,7 @@ export function HospitalBooking({
                 </p>
               )}
               <div className="lg:hidden mt-3 pt-3 border-t border-[#EEF2F7] flex flex-col gap-2.5">
+                {patient && slot && <PayableTable payable={payable} item={bookingFeeItem(choices && fastTrack, followUp)} />}
                 <PayuNote />
                 <RefundNote isConsultation />
               </div>
@@ -454,7 +458,7 @@ export function HospitalBooking({
             {choices && <InfoRow label="Type" value={fastTrack ? "Fast track" : "General"} />}
             {patient && <InfoRow label="Patient" value={patient.name || "—"} />}
           </div>
-          <PaySummary fee={bookingFee} fastTrack={choices && fastTrack} services={pickedServices} />
+          <PaySummary payable={payable} fastTrack={choices && fastTrack} followUp={followUp} services={pickedServices} />
           <div className="mt-4 flex flex-col gap-3.5">
             <PayuNote />
             {errorNote}
@@ -484,7 +488,7 @@ export function HospitalBooking({
               Show your token or QR pass at the hospital reception to check in.
             </li>
           </ul>
-          <p className="mt-3 text-[12px] leading-normal text-[#5B667A]">Only the booking fee is paid online. You pay the consultation fee at the hospital at your visit.</p>
+          <p className="mt-3 text-[12px] leading-normal text-[#5B667A]">Only the booking fee and its payment convenience fee are paid online. You pay the consultation fee at the hospital at your visit.</p>
           <div className="mt-3">
             <RefundNote isConsultation />
           </div>
@@ -493,7 +497,7 @@ export function HospitalBooking({
 
       <div className="lg:hidden fixed z-40 inset-x-0 bottom-0 flex items-center gap-3 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] bg-white border-t border-[#E6EBF3] shadow-[0_-8px_20px_rgba(11,27,63,0.06)] font-(family-name:--font-manrope)">
         <span className="flex-1 min-w-0">
-          <span className="block text-[17px] font-extrabold">{formatINR(bookingFee)}</span>
+          <span className="block text-[17px] font-extrabold">{formatINR(payable.total)}</span>
           <span className="block text-[11.5px] text-[#5B667A] truncate">
             {ready && doctor && slot
               ? [choices && fastTrack ? "Fast track" : null, doctorName(doctor.name), formatSlot(slot.start, now)].filter(Boolean).join(" · ")

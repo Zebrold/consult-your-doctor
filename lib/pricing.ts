@@ -1,6 +1,7 @@
 /**
  * What Consult Your Doctor charges online: a flat booking fee for a doctor (a higher one for fast track), and a share
- * of the lab's test prices for lab tests. The doctor's consultation fee and any hospital services are paid at the
+ * of the lab's test prices for lab tests, plus a payment convenience fee on either (a per cent of the booking fee).
+ * The doctor's consultation fee and any hospital services are paid at the
  * hospital counter, and the tests (and any home collection) at the lab, so none of them is ever part of an online
  * payment. Executives set the fees on Payments (lib/booking-fees.ts).
  */
@@ -11,9 +12,11 @@ export type BookingFees = {
   fastTrack: number
   /** Per cent of the lab's price for each booked test. */
   diagnosticPercent: number
+  /** Per cent of the booking fee added to every online payment as the payment convenience fee. */
+  conveniencePercent: number
 }
 
-export const DEFAULT_BOOKING_FEES: BookingFees = { consultation: 119, fastTrack: 349, diagnosticPercent: 11 }
+export const DEFAULT_BOOKING_FEES: BookingFees = { consultation: 119, fastTrack: 349, diagnosticPercent: 11, conveniencePercent: 4.35 }
 
 /** A doctor booking's type (appointments.booking_type): the normal queue, or fast track. */
 export type BookingType = 'general' | 'fast_track'
@@ -33,8 +36,25 @@ export const labTestBookingFee = (price: number, percent: number) => testFeePais
 export const labBookingFee = (tests: BookedTest[], percent: number) =>
   tests.reduce((sum, t) => sum + testFeePaise(t.price, percent), 0) / 100
 
+/** What a patient pays online for a booking fee: the fee, the payment convenience fee on it, and the two together. */
+export type OnlinePayable = { bookingFee: number; convenience: number; total: number }
+
+/**
+ * The online payment for a booking fee: the fee plus the payment convenience fee (its share of the fee, to the paisa).
+ * A booking with no fee (a free follow-up) has nothing to pay, so no convenience fee either.
+ */
+export function onlinePayable(bookingFee: number, conveniencePercent: number): OnlinePayable {
+  const fee = Math.max(0, Math.round(bookingFee * 100))
+  const convenience = fee > 0 ? testFeePaise(fee / 100, conveniencePercent) : 0
+  return { bookingFee: fee / 100, convenience: convenience / 100, total: (fee + convenience) / 100 }
+}
+
 /** "11%" or "10.5%". */
 export const formatPercent = (percent: number) => `${Number(percent.toFixed(2))}%`
+
+/** " plus a 4.35% payment convenience fee on it", or nothing when the convenience fee is off. For copy about fees. */
+export const convenienceClause = (fees: BookingFees) =>
+  fees.conveniencePercent > 0 ? ` plus a ${formatPercent(fees.conveniencePercent)} payment convenience fee on it` : ''
 
 /** What a patient still pays in person after paying the booking fee online, said without an amount. */
 export const payAtVenueNote = (isConsultation: boolean) =>

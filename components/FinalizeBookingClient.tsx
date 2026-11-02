@@ -14,7 +14,7 @@ import { appendPatientDetails, DayStrip, FormError, PayuNote, patientDetailsErro
 import { directionsHref, doctorName, formatINR, formatLongDate, formatSlot, formatTime, initials, isMorning, istDateKey, upcomingDays } from "@/components/patient/format";
 import { RemoteImage } from "@/components/RemoteImage";
 import { AppointmentTypePicker, PaySummary, ServicePicker, bookingPath } from "@/components/patient/BookingChoices";
-import type { BookedTest, BookingFees } from "@/lib/pricing";
+import { onlinePayable, type BookedTest, type BookingFees } from "@/lib/pricing";
 import { doctorBookingHref } from "@/lib/booking-links";
 
 export interface BookingDoctor {
@@ -93,6 +93,8 @@ export function FinalizeBookingClient({
   const daySlots = slotsByDay.get(date) ?? [];
   const selected = slots.find((s) => s.id === slotId) ?? null;
   const bookingFee = choices && fastTrack ? fees.fastTrack : fees.consultation;
+  // What PayU collects: the booking fee and the payment convenience fee on it (lib/pricing.ts).
+  const payable = onlinePayable(bookingFee, fees.conveniencePercent);
   const pickedServices = choices ? services.filter((s) => picked.includes(s.name)) : [];
   const nextOpenAfter = slots.find((s) => !s.booked && istDateKey(s.start) > date) ?? null;
   const openTodayCount = (slotsByDay.get(today) ?? []).filter((s) => !s.booked).length;
@@ -158,7 +160,7 @@ export function FinalizeBookingClient({
 
   const directions = doctor.hospital ? directionsHref(doctor.hospital.name, doctor.hospital.address, doctor.hospital.city) : null;
   const signIn = `/login/patient?next=${encodeURIComponent(bookingPath(doctor.id, { slotId, fastTrack: choices && fastTrack, services: pickedServices.map((s) => s.name) }))}`;
-  const ctaLabel = submitting ? "Reserving…" : !canBook ? "Booking unavailable" : !selected ? "Pick a time" : `Pay ${formatINR(bookingFee)}`;
+  const ctaLabel = submitting ? "Reserving…" : !canBook ? "Booking unavailable" : !selected ? "Pick a time" : `Pay ${formatINR(payable.total)}`;
   // Back to the hospital page the booking came through, with the doctor and time still picked.
   const back = doctor.hospital ? doctorBookingHref(doctor.id, doctor.hospital.id, { slotId }) : `/doctors/${doctor.id}`;
 
@@ -323,6 +325,14 @@ export function FinalizeBookingClient({
                 )}
               </section>
 
+              {/* Phones: what is paid now and what at the hospital (desktops have it in the summary) */}
+              {patient && selected && canBook && (
+                <section aria-label="Payment" className={`lg:hidden p-4 ${card} rounded-[20px]!`}>
+                  <h2 className="text-[16px] font-extrabold">Payment</h2>
+                  <PaySummary payable={payable} fastTrack={choices && fastTrack} services={pickedServices} />
+                </section>
+              )}
+
               {error && (
                 <div className="lg:hidden">
                   <FormError>
@@ -347,7 +357,7 @@ export function FinalizeBookingClient({
                 <InfoRow label="Time" value={selected ? formatSlot(selected.start, now) : "Not chosen yet"} valueClass={selected ? "" : "text-[#8A94A6]"} />
                 <InfoRow label="Visit" value={choices && fastTrack ? "In person · Fast track" : "In person"} />
               </div>
-              <PaySummary fee={bookingFee} fastTrack={choices && fastTrack} services={pickedServices} />
+              <PaySummary payable={payable} fastTrack={choices && fastTrack} services={pickedServices} />
               <div className="mt-4 flex flex-col gap-3.5">
                 <PayuNote />
                 {error && (
@@ -379,7 +389,7 @@ export function FinalizeBookingClient({
                       "Select a time"
                     ) : (
                       <>
-                        <Lock className="w-4 h-4" /> Confirm &amp; pay {formatINR(bookingFee)}
+                        <Lock className="w-4 h-4" /> Confirm &amp; pay {formatINR(payable.total)}
                       </>
                     )}
                   </button>
@@ -414,7 +424,7 @@ export function FinalizeBookingClient({
       {/* Phones: the fee and the next step, fixed at the bottom. */}
       <div className="lg:hidden fixed z-40 inset-x-0 bottom-0 flex items-center gap-3 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] bg-white border-t border-[#E6EBF3] shadow-[0_-8px_20px_rgba(11,27,63,0.06)]">
         <span className="flex-1 min-w-0">
-          <span className="block text-[17px] font-extrabold">{formatINR(bookingFee)}</span>
+          <span className="block text-[17px] font-extrabold">{formatINR(payable.total)}</span>
           <span className="block text-[11.5px] text-[#5B667A] truncate">
             {selected ? [choices && fastTrack ? "Fast track" : null, formatSlot(selected.start, now)].filter(Boolean).join(" · ") : "Booking fee in app · consultation at hospital"}
           </span>

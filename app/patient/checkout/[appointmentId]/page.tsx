@@ -8,7 +8,7 @@ import { CheckoutCard, CheckoutGrid, CheckoutHeading, CheckoutMessage, CheckoutS
 import { PayAtVenue } from '@/components/patient/booking-ui'
 import { doctorName, formatINR, formatLongDate, formatTime } from '@/components/patient/format'
 import { getBookingFees } from '@/lib/booking-fees'
-import { bookedServices, isFastTrack } from '@/lib/pricing'
+import { bookedServices, isFastTrack, onlinePayable } from '@/lib/pricing'
 import { appointmentBookingFee } from '@/lib/wallet'
 
 type Joined<T> = T | T[] | null
@@ -69,10 +69,11 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
   const doctor = one(appointment.doctors as Joined<Doctor>)
   const hospital = one(appointment.hospitals as Joined<Hospital>)
   const startTime = one(appointment.schedules as Joined<{ start_time: string }>)?.start_time ?? null
-  // The same amount /api/payu/hash charges: the booking fee only. The consultation fee and any services are paid at the
-  // hospital counter.
+  // The same amount /api/payu/hash charges: the booking fee and the payment convenience fee on it. The consultation fee
+  // and any services are paid at the hospital counter.
   const fastTrack = isFastTrack(appointment.booking_type)
-  const total = appointmentBookingFee(appointment, fees)
+  const payable = onlinePayable(appointmentBookingFee(appointment, fees), fees.conveniencePercent)
+  const total = payable.total
   const services = bookedServices(appointment.services)
 
   return (
@@ -96,8 +97,8 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
         }
         summary={
           <PaymentSummary
-            lines={[{ label: fastTrack ? 'Fast-track booking fee' : 'Booking fee', sub: 'Consult Your Doctor', amount: total }]}
-            total={total}
+            payable={payable}
+            item={fastTrack ? 'Fast-track booking fee' : 'Appointment booking fee'}
             isConsultation
             atVenue={
               <PayAtVenue title={services.length ? 'Consultation fee and services: paid at the hospital' : 'Consultation fee: paid at the hospital counter'}>

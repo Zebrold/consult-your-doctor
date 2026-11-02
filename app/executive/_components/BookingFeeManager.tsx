@@ -1,36 +1,43 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { CheckCircle2, FlaskConical, IndianRupee, Info, Loader2, Percent, Save, ShieldAlert, Sparkles, Stethoscope, Zap } from 'lucide-react'
+import { CheckCircle2, CreditCard, FlaskConical, IndianRupee, Info, Loader2, Percent, Save, ShieldAlert, Sparkles, Stethoscope, Zap } from 'lucide-react'
 import { updateBookingFeesAction } from '@/app/actions/pricing'
-import { formatPercent, labTestBookingFee, type BookingFees } from '@/lib/pricing'
+import { formatPercent, labTestBookingFee, onlinePayable, type BookingFees } from '@/lib/pricing'
 import { formatINR } from '@/components/patient/format'
 
 const input =
   'w-full pl-7 pr-3 py-2 text-sm bg-white rounded-lg border border-slate-300 font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0066ff]/20 focus:border-[#0066ff]'
 
-/** The online booking fees: flat ones per doctor booking (general and fast track) and a percentage of the lab's test prices. */
+/**
+ * The online booking fees: flat ones per doctor booking (general and fast track), a percentage of the lab's test prices,
+ * and the payment convenience fee added to every online payment (a percentage of the booking fee).
+ */
 export function BookingFeeManager({ initialFees }: { initialFees: BookingFees }) {
   const [consultation, setConsultation] = useState(String(initialFees.consultation))
   const [fastTrack, setFastTrack] = useState(String(initialFees.fastTrack))
   const [percent, setPercent] = useState(String(initialFees.diagnosticPercent))
+  const [convenience, setConvenience] = useState(String(initialFees.conveniencePercent))
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [isPending, startTransition] = useTransition()
 
   const consultationFee = Number(consultation)
   const fastTrackFee = Number(fastTrack)
   const diagnosticPercent = Number(percent)
-  const previewReady = [consultation, fastTrack, percent].every((v) => v.trim() !== '' && Number.isFinite(Number(v)))
+  const conveniencePercent = Number(convenience)
+  const previewReady = [consultation, fastTrack, percent, convenience].every((v) => v.trim() !== '' && Number.isFinite(Number(v)))
+  const total = (fee: number) => formatINR(onlinePayable(fee, conveniencePercent).total)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setMessage(null)
     startTransition(async () => {
-      const res = await updateBookingFeesAction({ consultation: consultationFee, fastTrack: fastTrackFee, diagnosticPercent })
+      const res = await updateBookingFeesAction({ consultation: consultationFee, fastTrack: fastTrackFee, diagnosticPercent, conveniencePercent })
       if (res.success && res.fees) {
         setConsultation(String(res.fees.consultation))
         setFastTrack(String(res.fees.fastTrack))
         setPercent(String(res.fees.diagnosticPercent))
+        setConvenience(String(res.fees.conveniencePercent))
         setMessage({ type: 'success', text: 'Booking fees saved. Every booking page, checkout and online payment now uses them.' })
       } else {
         setMessage({ type: 'error', text: res.error || 'Could not save the booking fees.' })
@@ -64,7 +71,7 @@ export function BookingFeeManager({ initialFees }: { initialFees: BookingFees })
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <FeeCard
             badge={<><Stethoscope className="w-3 h-3" /> Doctor Booking</>}
             tone="bg-blue-50 text-blue-700 border-blue-200/70"
@@ -95,21 +102,31 @@ export function BookingFeeManager({ initialFees }: { initialFees: BookingFees })
             <Percent className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
             <input id="fee-diagnostic" type="number" min="0" max="100" step="0.01" required value={percent} onChange={(e) => setPercent(e.target.value)} className={input} />
           </FeeCard>
+          <FeeCard
+            badge={<><CreditCard className="w-3 h-3" /> Online Payment</>}
+            tone="bg-violet-50 text-violet-700 border-violet-200/70"
+            id="fee-convenience"
+            label="Payment convenience fee (% of booking fee)"
+            hint="Added to every online payment and shown at checkout. 0 turns it off."
+          >
+            <Percent className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+            <input id="fee-convenience" type="number" min="0" max="20" step="0.01" required value={convenience} onChange={(e) => setConvenience(e.target.value)} className={input} />
+          </FeeCard>
         </div>
 
         {previewReady && (
           <div className="p-3.5 rounded-lg border border-blue-100 bg-blue-50/50 flex flex-col gap-1 text-xs text-slate-700">
             <div>
               <span className="font-semibold text-slate-900">Doctor booking: </span>
-              the patient pays <strong className="text-blue-700">{formatINR(consultationFee)}</strong> online; the consultation fee is paid at the hospital counter.
+              the patient pays <strong className="text-blue-700">{total(consultationFee)}</strong> online ({formatINR(consultationFee)} + {formatPercent(conveniencePercent)} convenience fee); the consultation fee is paid at the hospital counter.
             </div>
             <div>
               <span className="font-semibold text-slate-900">Fast track: </span>
-              the patient pays <strong className="text-amber-700">{formatINR(fastTrackFee)}</strong> online and is seen ahead of general patients once checked in.
+              the patient pays <strong className="text-amber-700">{total(fastTrackFee)}</strong> online and is seen ahead of general patients once checked in.
             </div>
             <div>
               <span className="font-semibold text-slate-900">Lab booking: </span>
-              a ₹350 test costs <strong className="text-emerald-700">{formatINR(labTestBookingFee(350, diagnosticPercent))}</strong> online ({formatPercent(diagnosticPercent)}); the ₹350 is paid at the lab.
+              a ₹350 test costs <strong className="text-emerald-700">{total(labTestBookingFee(350, diagnosticPercent))}</strong> online ({formatPercent(diagnosticPercent)} and the convenience fee); the ₹350 is paid at the lab.
             </div>
           </div>
         )}

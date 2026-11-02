@@ -13,7 +13,6 @@ import { LocationMenu } from "@/components/patient/LocationMenu";
 import { PATIENT_ACCOUNT_LINKS } from "@/components/patient/PhoneHeader";
 import { AccountMenu } from "@/components/portal/TopBar";
 import { CorporateMenu } from "@/components/site/CorporateMenu";
-import { AppPromoStrip } from "./AppPromo";
 import type { HomeAccount } from "./types";
 
 type Place = ReturnType<typeof usePatientLocation>;
@@ -81,9 +80,7 @@ export function HomeHero({ account, place, cities, visitLine, onLocation, onMenu
 
   return (
     <>
-      <AppPromoStrip />
-
-      {/* Phones */}
+      {/* Phones (the app strip above this is placed by the page, so it can stay stuck to the top) */}
       <section className="md:hidden bg-[#1D4ED8] px-4 pt-[18px] pb-7 flex flex-col gap-[18px] overflow-hidden">
         <div className="flex items-center justify-between gap-3">
           <button type="button" onClick={onLocation} aria-haspopup="dialog" className="flex-1 min-w-0 text-left text-white">

@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { createClient, getCurrentUser } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { HomePage } from '@/components/home/HomePage';
+import { AppPromoStrip } from '@/components/home/AppPromo';
 import { loadHospitals } from '@/components/home/data';
 import type { HomeAccount, HomeDoctor } from '@/components/home/types';
 import { currentTime, loadAvailability, one } from '@/components/patient/data';
@@ -142,6 +143,8 @@ export default async function Home(props: {
 
   return (
     <>
+      {/* Phones: the Open app strip, stuck to the top of the screen over the whole page and footer */}
+      <AppPromoStrip />
       <HomePage
         account={account}
         now={now}

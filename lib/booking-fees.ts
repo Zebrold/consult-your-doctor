@@ -1,7 +1,7 @@
 import { unstable_cache } from 'next/cache'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { DEFAULT_BOOKING_FEES, bookedTestsFor, labBookingFee, type BookingFees } from '@/lib/pricing'
+import { DEFAULT_BOOKING_FEES, bookedTestsFor, labBookingFee, onlinePayable, type BookingFees } from '@/lib/pricing'
 import { appointmentBookingFee } from '@/lib/wallet'
 
 // The booking fees executives set on Payments, kept in platform_settings (supabase/migrations/20261018_booking_fees.sql).
@@ -15,9 +15,13 @@ export const MAX_CONSULTATION_BOOKING_FEE = 10_000
 export const validConsultationBookingFee = (n: number) => Number.isInteger(n) && n >= 0 && n <= MAX_CONSULTATION_BOOKING_FEE
 export const validDiagnosticPercent = (n: number) => Number.isFinite(n) && n >= 0 && n <= 100 && Math.round(n * 100) === n * 100
 
+/** The payment convenience fee: a per cent of the booking fee, at most 20%. */
+export const MAX_CONVENIENCE_PERCENT = 20
+export const validConveniencePercent = (n: number) => validDiagnosticPercent(n) && n <= MAX_CONVENIENCE_PERCENT
+
 /**
- * The fees in a stored value, or null when they aren't valid. Settings saved before fast track existed have no
- * fastTrack amount and get the standard one.
+ * The fees in a stored value, or null when they aren't valid. Settings saved before fast track or the convenience fee
+ * existed don't have them and get the standard ones.
  */
 function parseBookingFees(value: unknown): BookingFees | null {
   if (!value || typeof value !== 'object') return null
@@ -25,8 +29,9 @@ function parseBookingFees(value: unknown): BookingFees | null {
   const consultation = Number(v.consultation)
   const fastTrack = v.fastTrack == null ? DEFAULT_BOOKING_FEES.fastTrack : Number(v.fastTrack)
   const diagnosticPercent = Number(v.diagnosticPercent)
-  return validConsultationBookingFee(consultation) && validConsultationBookingFee(fastTrack) && validDiagnosticPercent(diagnosticPercent)
-    ? { consultation, fastTrack, diagnosticPercent }
+  const conveniencePercent = v.conveniencePercent == null ? DEFAULT_BOOKING_FEES.conveniencePercent : Number(v.conveniencePercent)
+  return validConsultationBookingFee(consultation) && validConsultationBookingFee(fastTrack) && validDiagnosticPercent(diagnosticPercent) && validConveniencePercent(conveniencePercent)
+    ? { consultation, fastTrack, diagnosticPercent, conveniencePercent }
     : null
 }
 
@@ -76,13 +81,20 @@ type Joined<T> = T | T[] | null
 const one = <T,>(v: Joined<T> | undefined) => (Array.isArray(v) ? v[0] : v) ?? null
 
 export type OnlineCharge =
-  | { amount: number; patientId: string; status: string }
+  /** `amount` is what PayU collects: the booking fee and the payment convenience fee on it. */
+  | { amount: number; bookingFee: number; convenience: number; patientId: string; status: string }
   | { error: string; status: number }
+
+const charged = (bookingFee: number, fees: BookingFees) => {
+  const payable = onlinePayable(bookingFee, fees.conveniencePercent)
+  return { amount: payable.total, bookingFee: payable.bookingFee, convenience: payable.convenience }
+}
 
 /**
  * What PayU collects for a booking: the doctor booking fee (general or fast track), or the lab booking fee on the tests
- * booked. It is worked out from the booking itself, never taken from the browser. The consultation fee, hospital
- * services, the test prices and any home-collection fee are paid at the hospital or lab and are never added.
+ * booked, plus the payment convenience fee on it. It is worked out from the booking itself, never taken from the
+ * browser. The consultation fee, hospital services, the test prices and any home-collection fee are paid at the hospital
+ * or lab and are never added.
  */
 export async function onlineChargeFor(db: SupabaseClient, product: string, id: string, fees: BookingFees): Promise<OnlineCharge> {
   if (product === 'Consultation') {
@@ -90,7 +102,7 @@ export async function onlineChargeFor(db: SupabaseClient, product: string, id: s
     const { data } = await db.from('appointments').select('*').eq('id', id).maybeSingle()
     if (!data) return { error: 'Appointment not found.', status: 404 }
     // The fee the booking was made at (0 for a free follow-up); bookings from before it was stored use today's fee.
-    return { amount: appointmentBookingFee(data, fees), patientId: data.patient_id, status: data.status }
+    return { ...charged(appointmentBookingFee(data, fees), fees), patientId: data.patient_id, status: data.status }
   }
 
   if (product === 'Diagnostic') {
@@ -101,7 +113,7 @@ export async function onlineChargeFor(db: SupabaseClient, product: string, id: s
     const { data: snapshot } = await db.from('diagnostic_bookings').select('priced_tests').eq('id', id).maybeSingle()
     const tests = bookedTestsFor({ test_name: data.test_name, priced_tests: snapshot?.priced_tests }, center?.test_prices)
     if (!tests) return { error: "We couldn't price this booking. Please contact support.", status: 422 }
-    return { amount: labBookingFee(tests, fees.diagnosticPercent), patientId: data.patient_id, status: data.status }
+    return { ...charged(labBookingFee(tests, fees.diagnosticPercent), fees), patientId: data.patient_id, status: data.status }
   }
 
   return { error: 'Unknown product.', status: 400 }

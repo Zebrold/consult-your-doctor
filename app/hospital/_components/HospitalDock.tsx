@@ -4,7 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  BedDouble, Bell, Building2, CalendarDays, CircleHelp, ExternalLink, IndianRupee, LayoutDashboard, LayoutGrid, LogOut, Search, Users, UsersRound, Wallet, type LucideIcon,
+  BedDouble, Bell, Building2, CalendarDays, CircleHelp, IndianRupee, LayoutDashboard, LayoutGrid, LogOut, Search, Settings, Users, UsersRound, Wallet, type LucideIcon,
 } from 'lucide-react'
 import { initials } from '@/components/patient/format'
 import { FloatingTabBar } from '@/components/FloatingTabBar'
@@ -31,17 +31,21 @@ const MENU: NavItem[] = [
 ]
 
 // Sections reached from More on phones.
-const MORE = ['/hospital/more', '/hospital/profile', '/hospital/revenue', '/hospital/staff', '/hospital/ai']
+const MORE = ['/hospital/more', '/hospital/settings', '/hospital/profile', '/hospital/revenue', '/hospital/wallet', '/hospital/staff', '/hospital/ai']
+
+// Account & settings (/hospital/more on desktops too) and the pages under it.
+const isSettings = (pathname: string) => isActive(pathname, '/hospital/more') || isActive(pathname, '/hospital/settings')
 
 const isActive = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`)
 
 /** The top bar's "where am I". */
 function crumb(pathname: string): string[] {
   if (/^\/hospital\/doctors\/[^/]+\/schedule/.test(pathname)) return ['Doctors & roster', 'Slots']
+  if (pathname.startsWith('/hospital/settings/services')) return ['Settings', 'Services & charges']
   const item = MENU.find((m) => isActive(pathname, m.href))
   if (item) return [item.label]
   if (pathname.startsWith('/hospital/ai')) return ['Help & support']
-  if (pathname.startsWith('/hospital/more')) return ['More']
+  if (isSettings(pathname)) return ['Settings']
   return ['Dashboard']
 }
 
@@ -77,7 +81,7 @@ export function HospitalDock({ hospital, staff }: { hospital: { id: string; name
           <RailLink key={item.href} item={item} active={isActive(pathname, item.href)} />
         ))}
         <span className="flex-1 min-h-8" />
-        <RailLink item={{ href: `/hospitals/${hospital.id}`, label: 'Patient page', icon: ExternalLink }} active={false} small />
+        <RailLink item={{ href: '/hospital/more', label: 'Settings', icon: Settings }} active={isSettings(pathname)} small />
         <RailLink item={{ href: '/hospital/ai', label: 'Help & support', icon: CircleHelp }} active={pathname.startsWith('/hospital/ai')} small />
         <div className="flex items-center gap-2.5 mt-3 p-3 rounded-[14px] border border-white/20">
           <Link href="/hospital/profile" className="flex flex-1 min-w-0 items-center gap-2.5">

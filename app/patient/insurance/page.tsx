@@ -80,7 +80,7 @@ export default async function BillingPage() {
         </div>
       )}
 
-      <AccountCard title="Payment history" sub="Online you pay only the booking fee. Consultation fees and test charges are paid at the hospital or lab.">
+      <AccountCard title="Payment history" sub="Online you pay only the booking fee and its payment convenience fee. Consultation fees and test charges are paid at the hospital or lab.">
         {payments.length === 0 ? (
           <p className="py-3 border-t border-[#EEF2F7] text-[13px] text-[#5B667A]">No payments yet.</p>
         ) : (

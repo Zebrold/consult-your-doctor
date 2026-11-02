@@ -7,8 +7,9 @@ import { bookingIdOf } from '@/lib/payu-txn';
 
 type Priced = { amount: number } | { error: string; status: number };
 
-// PayU only ever collects a patient's own booking fee: the doctor booking fee, or the lab booking fee on the booked
-// tests. The amount is worked out here from the booking itself, never taken from the browser, and the consultation fee,
+// PayU only ever collects a patient's own booking fee (the doctor booking fee, or the lab booking fee on the booked
+// tests) and the payment convenience fee on it. The amount is worked out here from the booking itself, never taken from
+// the browser, and the consultation fee,
 // test prices and home-collection fee are never part of it (they are paid at the hospital counter or the lab).
 // Hospital and lab desks take their own payments by UPI or cash (lib/desk-payments.ts), not through PayU.
 async function amountFor(txnid: string, productinfo: string): Promise<Priced> {

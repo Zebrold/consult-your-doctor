@@ -106,10 +106,10 @@ export function ConfirmationClient({
     card.links.bookAgain ? <Link href={local(card.links.bookAgain)} className={button}>Book again</Link> : null
   ) : pay ? (
     <button type="button" onClick={startPay} disabled={paying} className={button}>
-      {paying && <LoaderCircle className="w-4 h-4 animate-spin" />} Pay {formatINR(card.bookingFee)} now
+      {paying && <LoaderCircle className="w-4 h-4 animate-spin" />} Pay {formatINR(card.amount)} now
     </button>
   ) : (
-    <Link href={local(card.links.checkout)} className={button}>Pay {formatINR(card.bookingFee)} now</Link>
+    <Link href={local(card.links.checkout)} className={button}>Pay {formatINR(card.amount)} now</Link>
   )
 
   const qrBox = confirmed && qr ? (
@@ -268,6 +268,7 @@ export function ConfirmationClient({
               {card.bookingFeeLines.map((l) => (
                 <SummaryRow key={l.label} label={l.label} value={l.value} />
               ))}
+              {card.convenienceFee > 0 && <SummaryRow strong label="PAYMENT CONVENIENCE FEE" value={money(card.convenienceFee)} />}
             </div>
             {card.venueTotal != null && (
               <div className="mx-5 pt-2 pb-3 border-t border-dashed border-[#E3E8F0]">

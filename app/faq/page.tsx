@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { formatPercent, type BookingFees } from "@/lib/pricing";
+import { convenienceClause, formatPercent, type BookingFees } from "@/lib/pricing";
 import { getBookingFees } from "@/lib/booking-fees";
 import { formatINR } from "@/components/patient/format";
 import { Faq, PageHero, Section, SitePage, btnGhost, btnWhite } from "@/components/site/ui";
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 const faqs = (fees: BookingFees) => [
   {
     q: "What does a consultation cost?",
-    a: `Online you pay only a ${formatINR(fees.consultation)} booking fee, or ${formatINR(fees.fastTrack)} if you choose fast track where it's offered (you're seen ahead of general patients once checked in). The consultation fee is set by the hospital, shown on the doctor's profile, and paid at the hospital counter when you visit. It is never added to the online payment.`,
+    a: `Online you pay only a ${formatINR(fees.consultation)} booking fee, or ${formatINR(fees.fastTrack)} if you choose fast track where it's offered (you're seen ahead of general patients once checked in)${convenienceClause(fees)}. The consultation fee is set by the hospital, shown on the doctor's profile, and paid at the hospital counter when you visit. It is never added to the online payment.`,
   },
   {
     q: "Are consultations online or in person?",
@@ -24,7 +24,7 @@ const faqs = (fees: BookingFees) => [
   },
   {
     q: "How do lab test bookings work?",
-    a: `Pick a partner lab, choose your tests and the day you'll visit. Online you pay a booking fee of ${formatPercent(fees.diagnosticPercent)} of each test's price; the tests themselves are paid at the lab. Labs book by day rather than by exact time.`,
+    a: `Pick a partner lab, choose your tests and the day you'll visit. Online you pay a booking fee of ${formatPercent(fees.diagnosticPercent)} of each test's price${convenienceClause(fees)}; the tests themselves are paid at the lab. Labs book by day rather than by exact time.`,
   },
   {
     q: "Who can see my medical records?",

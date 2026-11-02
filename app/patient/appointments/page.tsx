@@ -5,7 +5,7 @@ import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { signRecordFiles } from '@/lib/records'
 import { signReportLinks } from '@/lib/lab-reports'
-import { bookedServices, isFastTrack, labBookingFee, matchBookedTests } from '@/lib/pricing'
+import { bookedServices, isFastTrack, labBookingFee, matchBookedTests, onlinePayable } from '@/lib/pricing'
 import { appointmentBookingFee } from '@/lib/wallet'
 import { getBookingFees } from '@/lib/booking-fees'
 import { siteUrl } from '@/lib/site-url'
@@ -135,7 +135,7 @@ export default async function PatientAppointments() {
       directions: directionsHref(hospital?.name, hospital?.address, hospital?.city),
       token: visitToken(v.id),
       bookingId: v.id.slice(0, 8).toUpperCase(),
-      fee: paid ? formatINR(Number(paid.amount) || 0) : unpaid ? formatINR(appointmentBookingFee(v, fees)) : null,
+      fee: paid ? formatINR(Number(paid.amount) || 0) : unpaid ? formatINR(onlinePayable(appointmentBookingFee(v, fees), fees.conveniencePercent).total) : null,
       rest: ['Consultation fee', ...bookedServices(v.services).map((s) => `${s.name} ${formatINR(s.price)}`)].join(' · '),
       payHref: unpaid && upcoming ? `/patient/checkout/${v.id}` : null,
       passHref: `/book/confirmation/${v.id}`,
@@ -158,7 +158,7 @@ export default async function PatientAppointments() {
     const unpaid = b.status === 'pending_payment'
     const state: BookingItem['state'] = cancelled ? 'cancelled' : done ? 'done' : !upcoming ? 'past' : unpaid ? 'unpaid' : 'ok'
     const paid = paidOnline(b.id)
-    const due = tests ? labBookingFee(tests, fees.diagnosticPercent) : null
+    const due = tests ? onlinePayable(labBookingFee(tests, fees.diagnosticPercent), fees.conveniencePercent).total : null
     const at = day ? `${day}T09:00:00+05:30` : null
     const doorstep = b.booking_type === 'doorstep'
     items.push({

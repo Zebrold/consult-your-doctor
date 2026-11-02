@@ -6,7 +6,8 @@ import { ArrowLeft, Building2, Mail, MapPin, Navigation, Phone, ShieldCheck, Sir
 import { jsonLd } from '@/lib/json-ld'
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { isFastTrack, testList } from '@/lib/pricing'
+import { isFastTrack } from '@/lib/pricing'
+import { patientServices } from '@/lib/hospital-services'
 import { getBookingFees } from '@/lib/booking-fees'
 import { bookingOptionsReady } from '@/lib/booking-options'
 import { PatientDock } from '@/components/PatientDock'
@@ -84,7 +85,8 @@ export default async function HospitalProfilePage(props: {
   const facilities = list(hospital.facilities)
   const accreditations = list(hospital.accreditations)
   const insurance = list(hospital.insurance_accepted)
-  const tests = testList(list(hospital.available_tests), hospital.test_prices).filter((t): t is { name: string; price: number } => !!t.price)
+  // The priced services the hospital shows patients (Services & charges on its portal); hidden ones are left off.
+  const tests = patientServices(hospital)
 
   const { data: doctorRows } = await supabase
     .from('doctors')

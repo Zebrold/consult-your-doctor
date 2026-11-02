@@ -13,7 +13,7 @@ const MANAGE = [
   { href: '/hospital/revenue', title: 'Finance & revenue', sub: 'Collections and the payments ledger' },
   { href: '/hospital/wallet', title: 'Wallet', sub: 'Your balance, withdrawals and bank account' },
   { href: '/hospital/staff', title: 'Staff & access', sub: 'Doctors, front desk and admins' },
-  { href: '/hospital/profile#tests', title: 'Test charges', sub: 'Prices for tests at your hospital' },
+  { href: '/hospital/settings/services', title: 'Services & charges', sub: 'Tests, scans and procedures patients can add, with prices' },
 ]
 
 const ACCOUNT = [
@@ -58,7 +58,7 @@ export default async function HospitalMorePage() {
         }
       />
       <HosBody className="lg:max-w-[720px]">
-        <h1 className="hidden lg:block mb-4 text-[26px] font-extrabold tracking-[-0.02em]">More</h1>
+        <h1 className="hidden lg:block mb-4 text-[26px] font-extrabold tracking-[-0.02em]">Account &amp; settings</h1>
         <p className="mt-1.5 mb-3.5 mx-1 text-[12px] font-extrabold tracking-[0.04em] text-[#5B667A]">MANAGE</p>
         <Menu items={MANAGE} />
         <p className="mt-5 mb-3.5 mx-1 text-[12px] font-extrabold tracking-[0.04em] text-[#5B667A]">ACCOUNT</p>

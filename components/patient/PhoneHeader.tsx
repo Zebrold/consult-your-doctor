@@ -222,7 +222,7 @@ export function PhoneBar({
   return (
     <>
       <header
-        className={`${phoneOnly ? "md:hidden " : ""}sticky top-0 z-40 rounded-b-[24px] md:rounded-b-[30px] bg-[#2A4DD0] text-white font-(family-name:--font-manrope) px-3 md:px-0 pt-[calc(env(safe-area-inset-top)+10px)] pb-3 md:py-3.5 print:hidden desk:static desk:mx-9 desk:mt-7 desk:rounded-[20px] desk:px-5`}
+        className={`${phoneOnly ? "md:hidden " : ""}sticky top-(--strip-h) z-40 rounded-b-[24px] md:rounded-b-[30px] bg-[#2A4DD0] text-white font-(family-name:--font-manrope) px-3 md:px-0 pt-[calc(env(safe-area-inset-top)+10px)] pb-3 md:py-3.5 print:hidden desk:static desk:mx-9 desk:mt-7 desk:rounded-[20px] desk:px-5`}
       >
         <div className="relative flex items-center gap-2.5 md:gap-3.5 md:mx-auto md:max-w-(--bh-max) md:px-(--bh-pad-md) lg:px-(--bh-pad-lg) desk:max-w-none desk:px-0" style={containerVars(container)}>
           <Link href={backHref} aria-label={backLabel} className={glass}>

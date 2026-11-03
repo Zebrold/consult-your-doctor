@@ -5,11 +5,11 @@ export const COMPANY = {
   email: "info@zebrold.de",
   phone: "+49 69 21004800",
   phoneHref: "tel:+496921004800",
-  /** The footer's social profiles: each icon shows once its address is filled in. */
+  /** The footer's social profiles: each icon links once its address is filled in (Instagram shows without one). */
   social: {
     instagram: "",
     youtube: "",
-    linkedin: "",
+    linkedin: "https://www.linkedin.com/company/cydoctor/posts/?feedView=all",
   },
 };
 

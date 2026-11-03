@@ -118,8 +118,8 @@ export function AssistantPage({ role, viewer }: { role: string | null; viewer: s
         aria-label={title}
         className={`flex flex-col bg-white overflow-hidden min-h-[440px] ${
           isPatient
-            ? 'h-[calc(100dvh-78px-env(safe-area-inset-bottom))] lg:h-[calc(100dvh-72px-3.5rem)] lg:max-h-[920px] lg:rounded-2xl lg:shadow-[0_0_0_1px_#E6EAF0,0_1px_2px_rgba(11,27,63,0.04)]'
-            : 'rounded-3xl border border-outline-variant/30 shadow-[0_4px_24px_rgba(15,23,42,0.04)] h-[calc(100dvh-13.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] md:h-[calc(100dvh-14rem)] max-h-[920px]'
+            ? 'h-[calc(100dvh-78px-var(--strip-h)-env(safe-area-inset-bottom))] lg:h-[calc(100dvh-72px-3.5rem)] lg:max-h-[920px] lg:rounded-2xl lg:shadow-[0_0_0_1px_#E6EAF0,0_1px_2px_rgba(11,27,63,0.04)]'
+            : 'rounded-3xl border border-outline-variant/30 shadow-[0_4px_24px_rgba(15,23,42,0.04)] h-[calc(100dvh-13.5rem-var(--strip-h)-env(safe-area-inset-top)-env(safe-area-inset-bottom))] md:h-[calc(100dvh-14rem)] max-h-[920px]'
         }`}
       >
         <header className={`shrink-0 flex items-center gap-2.5 pr-3 lg:pr-4 pb-3 border-b border-[#E8EAEE] ${isPatient ? 'pl-2 lg:pl-5 pt-[calc(env(safe-area-inset-top)+14px)] lg:pt-3.5' : 'pl-4 md:pl-6 pt-3'}`}>

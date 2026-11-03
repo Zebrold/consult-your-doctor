@@ -77,14 +77,15 @@ export function AppPromo({ qr }: { qr: string }) {
 }
 
 /**
- * Phones: a slim dark strip at the very top of the home page, with the app's icon and Open app. It stays at the top of
- * the screen while the page scrolls under it. `data-top-strip` gives the top of the page (Safari's status bar and the
- * pull-down area) the strip's colour (globals.css). Keep it a direct child of a page-tall element so it stays stuck.
+ * Phones: a slim dark strip at the very top of every patient and public page (ConditionalLayout), with the app's icon
+ * and Open app. It stays at the top of the screen while the page scrolls under it, so it must stay a direct child of a
+ * page-tall element. Its height is --strip-h (globals.css), which sticky headers below it sit under; `data-top-strip`
+ * sets that and gives the top of the page (Safari's status bar and the pull-down area) the strip's colour.
  */
 export function AppPromoStrip() {
   return (
-    <section data-top-strip aria-label="Consult your Doctor app" className="md:hidden sticky top-0 z-40 bg-[#0A1022] text-white border-b border-white/[0.06] font-(family-name:--font-manrope)">
-      <div className="flex items-center gap-3 pl-4 pr-3 py-3">
+    <section data-top-strip aria-label="Consult your Doctor app" className="md:hidden sticky top-0 z-40 h-(--strip-h) bg-[#0A1022] text-white border-b border-white/[0.06] font-(family-name:--font-manrope) print:hidden">
+      <div className="h-full flex items-center gap-3 pl-4 pr-3">
         {/* The app's icon, as it sits on a home screen */}
         <span className="shrink-0 w-11 h-11 rounded-[12px] bg-[#2A4DD0] flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_6px_14px_rgba(42,77,208,0.35)]">
           <Image src="/logo-icon-white.png" alt="" width={96} height={96} className="w-7 h-7 object-contain" />

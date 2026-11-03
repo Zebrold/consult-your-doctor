@@ -7,7 +7,7 @@ import { byNearness, usePatientLocation } from "@/components/patient/location";
 import { LocationSheet } from "@/components/patient/LocationSheet";
 import { formatDistance } from "@/lib/geo";
 import { specialityIcon, type SpecialityInfo } from "./specialities";
-import { AppBanner, VerifiedBadge } from "./ui";
+import { VerifiedBadge } from "./ui";
 import type { HomeHospital } from "./types";
 import { RemoteImage } from "@/components/RemoteImage";
 
@@ -61,7 +61,6 @@ export function SpecialityHospitals({
 
   return (
     <main className="font-(family-name:--font-manrope) text-[#0B1B3F] bg-white">
-      <AppBanner />
 
       <header className="relative overflow-hidden h-[176px] md:h-[230px] bg-[#2A4DD0]">
         <div className="relative h-full max-w-[1100px] mx-auto">

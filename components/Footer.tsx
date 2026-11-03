@@ -60,11 +60,13 @@ function LinkedInIcon() {
   );
 }
 
+// Each icon links to its profile once the address is filled in (lib/company.ts). Instagram shows as a plain icon until
+// then, as asked; YouTube stays hidden without one.
 const SOCIAL = [
-  { label: "Instagram", href: COMPANY.social.instagram, Icon: InstagramIcon },
-  { label: "YouTube", href: COMPANY.social.youtube, Icon: YouTubeIcon },
-  { label: "LinkedIn", href: COMPANY.social.linkedin, Icon: LinkedInIcon },
-].filter((s) => s.href);
+  { label: "Instagram", href: COMPANY.social.instagram, Icon: InstagramIcon, always: true },
+  { label: "YouTube", href: COMPANY.social.youtube, Icon: YouTubeIcon, always: false },
+  { label: "LinkedIn", href: COMPANY.social.linkedin, Icon: LinkedInIcon, always: false },
+].filter((s) => s.href || s.always);
 
 const linkCls = "group inline-flex items-start gap-2 text-[14px] md:text-[14.5px] leading-6 text-white/85 hover:text-white transition-colors focus-visible:outline-none focus-visible:underline";
 
@@ -140,15 +142,21 @@ export function Footer() {
                 <ul className="mt-3 flex items-center gap-3">
                   {SOCIAL.map(({ label, href, Icon }) => (
                     <li key={label}>
-                      <a
-                        href={href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={`Consult your Doctor on ${label}`}
-                        className="block w-10 h-10 rounded-[10px] shadow-[0_4px_12px_rgba(5,20,80,0.2)] hover:-translate-y-0.5 transition-transform"
-                      >
-                        <Icon />
-                      </a>
+                      {href ? (
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={`Consult your Doctor on ${label}`}
+                          className="block w-10 h-10 rounded-[10px] shadow-[0_4px_12px_rgba(5,20,80,0.2)] hover:-translate-y-0.5 transition-transform"
+                        >
+                          <Icon />
+                        </a>
+                      ) : (
+                        <span role="img" aria-label={label} className="block w-10 h-10 rounded-[10px] shadow-[0_4px_12px_rgba(5,20,80,0.2)]">
+                          <Icon />
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>

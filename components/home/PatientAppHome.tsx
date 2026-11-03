@@ -12,7 +12,6 @@ import { HospitalGridCard, HospitalListCard } from "@/components/patient/Hospita
 import { IST, directionsHref, doctorName, firstName, formatTime, initials } from "@/components/patient/format";
 import { SPECIALITIES, specialityIcon } from "./specialities";
 import { VerifiedBadge } from "./ui";
-import { AppPromoStrip } from "./AppPromo";
 import type { HomeHospital } from "./types";
 import { RemoteImage } from "@/components/RemoteImage";
 
@@ -58,8 +57,6 @@ export function PatientAppHome({ greeting, name, isSignedIn, hospitals, cities, 
 
   return (
     <>
-      {/* Outside the header's wrapper, so it stays stuck to the top for the whole page */}
-      <AppPromoStrip />
       <div className="lg:hidden">
         <PhoneHeader isSignedIn={isSignedIn} name={name} eyebrow={`${greeting},`} title={name || "Welcome"} container="max-w-[900px] px-4 md:px-6">
           <div className="-mt-2 flex flex-col gap-4">

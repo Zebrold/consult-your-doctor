@@ -20,7 +20,7 @@ export default async function AiPage() {
   }
 
   return (
-    <div className="bg-white lg:bg-transparent text-[#0B1B3F] antialiased min-h-screen">
+    <div className="bg-white lg:bg-transparent text-[#0B1B3F] antialiased min-h-[calc(100dvh-var(--strip-h))]">
       <main className="w-full max-w-[1340px] lg:px-9 lg:pt-7 lg:pb-7">
         <AssistantPage role={user ? 'patient' : null} viewer={user?.id ?? null} />
       </main>

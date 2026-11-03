@@ -11,7 +11,7 @@ import { patientServices } from '@/lib/hospital-services'
 import { getBookingFees } from '@/lib/booking-fees'
 import { bookingOptionsReady } from '@/lib/booking-options'
 import { PatientDock } from '@/components/PatientDock'
-import { AppBanner, VerifiedBadge } from '@/components/home/ui'
+import { VerifiedBadge } from '@/components/home/ui'
 import { ALWAYS_OPEN } from '@/components/home/data'
 import { SPECIALITIES } from '@/components/home/specialities'
 import { HospitalBooking, HospitalDistance, HeroButtons, type HospitalDoctor } from '@/components/patient/HospitalBooking'
@@ -196,7 +196,6 @@ export default async function HospitalProfilePage(props: {
     <div className="bg-[#F6F8FC] lg:bg-transparent min-h-screen font-(family-name:--font-manrope) text-[#0B1B3F]">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(schema) }} />
 
-      <AppBanner />
       {/* Phones: the photo with back and share, then the details card over its edge. */}
       <div className="lg:hidden relative h-[230px] md:h-[300px] overflow-hidden">
         {photo}

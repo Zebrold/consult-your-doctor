@@ -80,7 +80,7 @@ export function HomeHero({ account, place, cities, visitLine, onLocation, onMenu
 
   return (
     <>
-      {/* Phones (the app strip above this is placed by the page, so it can stay stuck to the top) */}
+      {/* Phones (the app strip above this comes from ConditionalLayout, on every page) */}
       <section className="md:hidden bg-[#1D4ED8] px-4 pt-[18px] pb-7 flex flex-col gap-[18px] overflow-hidden">
         <div className="flex items-center justify-between gap-3">
           <button type="button" onClick={onLocation} aria-haspopup="dialog" className="flex-1 min-w-0 text-left text-white">

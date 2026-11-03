@@ -27,6 +27,8 @@ export type BoardRow = {
   services: string[]
   /** Booked and paid online; the consultation fee is still to be taken at the counter. */
   counterDue: boolean
+  /** The patient's saved health insurance, e.g. "Star Health · Policy 1234" (lib/insurance.ts). */
+  insurance: string | null
 }
 
 export type BoardView = 'today' | 'upcoming' | 'past' | 'unpaid' | 'all'
@@ -153,6 +155,7 @@ export function PatientsBoard({ rows, today, now, initialView, initialQuery = ''
                   </span>
                 </div>
                 {r.services.length > 0 && <p className="mt-1.5 text-[12px] text-[#5B667A] truncate">Services: {r.services.join(', ')}</p>}
+                {r.insurance && <p className="mt-1.5 text-[12px] text-[#5B667A] truncate">Insurance: {r.insurance}</p>}
                 <div className="grid grid-cols-2 gap-2 mt-3">
                   {r.status === 'pending_payment' ? (
                     r.phone ? (
@@ -232,7 +235,7 @@ export function PatientsBoard({ rows, today, now, initialView, initialQuery = ''
                   <Initials name={r.patientName} className="w-8 h-8 text-[11px]" />
                   <span className="min-w-0">
                     <span className="block font-extrabold truncate">{r.patientName}</span>
-                    <span className="block text-[12px] text-[#5B667A] truncate">{[r.ageSex, `#${r.code}`, ...r.services].filter(Boolean).join(' · ')}</span>
+                    <span className="block text-[12px] text-[#5B667A] truncate" title={r.insurance ? `Insurance: ${r.insurance}` : undefined}>{[r.ageSex, `#${r.code}`, r.insurance ? `Insured: ${r.insurance}` : null, ...r.services].filter(Boolean).join(' · ')}</span>
                   </span>
                 </span>
                 <span role="cell" className="min-w-0">

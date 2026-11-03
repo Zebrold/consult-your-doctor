@@ -3,6 +3,7 @@ import { Search } from 'lucide-react'
 import { currentTime } from '@/components/patient/data'
 import { IST, doctorName, istDateKey, visitToken } from '@/components/patient/format'
 import { ageSex, loadPatientFacts } from '@/lib/patient-facts'
+import { insuranceLine, loadInsuranceFor } from '@/lib/insurance'
 import { dayOf, hospitalShare, isPaidVisit, loadHospitalDoctors, loadHospitalVisits, paymentLook, PAYMENT_METHOD, requireHospital, shiftDay } from '../_lib/hospital'
 import { PatientsBoard, type BoardRow, type BoardView } from '../_components/PatientsBoard'
 import { AddPatientButton } from '../_components/PatientDesk'
@@ -21,7 +22,9 @@ export default async function HospitalPatientsPage(props: { searchParams?: Promi
 
   const doctors = await loadHospitalDoctors(admin, hospital.id)
   const visits = await loadHospitalVisits(admin, hospital.id, doctors.map((d) => d.id))
-  const facts = await loadPatientFacts(admin, Array.from(new Set(visits.map((v) => v.patient?.id).filter(Boolean) as string[])))
+  const patientIds = Array.from(new Set(visits.map((v) => v.patient?.id).filter(Boolean) as string[]))
+  // Patients' own details, and the health insurance they keep on their profile (shown so the desk has it).
+  const [facts, insurance] = await Promise.all([loadPatientFacts(admin, patientIds), loadInsuranceFor(admin, patientIds)])
   const doctorById = new Map(doctors.map((d) => [d.id, d]))
 
   const rows: BoardRow[] = visits.map((v) => {
@@ -44,6 +47,7 @@ export default async function HospitalPatientsPage(props: { searchParams?: Promi
       counterDue: v.counterDue,
       fastTrack: v.fastTrack,
       services: v.services.map((s) => s.name),
+      insurance: v.patient && insurance[v.patient.id] ? insuranceLine(insurance[v.patient.id]) : null,
     }
   })
 

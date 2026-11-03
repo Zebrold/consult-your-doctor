@@ -106,9 +106,10 @@ export default async function BillingPage() {
           <span>
             <span className="block text-[15px] font-extrabold">Health insurance</span>
             <span className="block mt-0.5 text-[13px] leading-relaxed text-[#4A5878]">
-              Insurance claims aren&apos;t handled through Consult your Doctor. Each hospital&apos;s page lists the insurers it works with; check cover with the hospital&apos;s insurance desk.{' '}
-              <Link href="/hospitals" className="font-extrabold text-[#2A4DD0] hover:underline">
-                See hospitals
+              Keep your policy as a digital insurance card in your profile, and the hospitals you book see it at the desk. Claims and
+              cashless approval are handled by the hospital and your insurer; each hospital&apos;s page lists the insurers it works with.{' '}
+              <Link href="/patient/profile#insurance" className="font-extrabold text-[#2A4DD0] hover:underline">
+                Your insurance card
               </Link>
             </span>
           </span>

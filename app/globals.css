@@ -113,9 +113,11 @@
   --text-body-md--font-weight: 400;
 }
 
-/* Height of the public site's fixed header (see ClientHeader): slimmer on phones, plus the notch in standalone mode. */
+/* Height of the public site's fixed header (see ClientHeader): slimmer on phones, plus the notch in standalone mode.
+   --strip-h is the phone's "Open in app" strip (AppPromoStrip) above it: sticky headers sit just under the strip. */
 :root {
   --header-h: calc(4rem + env(safe-area-inset-top));
+  --strip-h: 0px;
 }
 @media (min-width: 768px) {
   :root {
@@ -127,7 +129,7 @@ html {
   /* Stop phones from inflating text in landscape, and keep anchors clear of the sticky headers. */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  scroll-padding-top: var(--header-h);
+  scroll-padding-top: calc(var(--header-h) + var(--strip-h));
 }
 
 body {
@@ -147,6 +149,7 @@ body {
   }
   html:has([data-top-strip]) {
     background-color: #0a1022;
+    --strip-h: 68px;
   }
   body {
     min-height: 100dvh;

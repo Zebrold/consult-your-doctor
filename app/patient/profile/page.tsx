@@ -13,7 +13,9 @@ import { PatientNavHeader } from '@/components/PatientNavHeader'
 import { ProfileEditButton } from '@/components/patient/ProfileEditButton'
 import { DeskTitle, PageBody, btnOutline, card } from '@/components/patient/app-ui'
 import { currentTime, one } from '@/components/patient/data'
-import { ageFrom, doctorName, formatINR, formatShortDate, initials } from '@/components/patient/format'
+import { ageFrom, doctorName, formatINR, formatShortDate, initials, istDateKey } from '@/components/patient/format'
+import { InsuranceCard } from '@/components/patient/InsuranceCard'
+import { knownInsurers, loadInsurance } from '@/lib/insurance'
 import { matchBookedTests } from '@/lib/pricing'
 import { signReportLinks } from '@/lib/lab-reports'
 import { signRecordFiles } from '@/lib/records'
@@ -130,7 +132,7 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
   const visitIds = visits.map((v) => v.id)
   const labIds = labBookings.map((b) => b.id)
   const admin = createAdminClient()
-  const [visitPayments, labPayments, admissions] = await Promise.all([
+  const [visitPayments, labPayments, admissions, insurance, insurers] = await Promise.all([
     visitIds.length > 0
       ? admin.from('payments').select('*').in('appointment_id', visitIds).eq('status', 'success')
       : Promise.resolve({ data: [] as PaymentRow[] }),
@@ -139,6 +141,9 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
       : Promise.resolve({ data: [] as PaymentRow[] }),
     // The patient's own hospital stays: the bed the hospital has given them now, and earlier ones.
     loadPatientAdmissions(admin, user.id),
+    // Their health insurance card, and the insurers partner hospitals list (suggested when adding one).
+    loadInsurance(admin, user.id),
+    knownInsurers(admin),
   ])
   const payments: Payment[] = [...((visitPayments.data ?? []) as PaymentRow[]), ...((labPayments.data ?? []) as PaymentRow[])]
     .map((p) => ({ ...p, booking_id: (p.appointment_id ?? p.diagnostic_booking_id) as string }))
@@ -247,7 +252,7 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
 
           <nav aria-label="Your account" className="lg:hidden grid grid-cols-5 gap-1 pt-[18px] px-4 md:px-6">
             <QuickLink href="#records" icon={Pill} label="Records" />
-            <QuickLink href="#labs" icon={FlaskConical} label="Reports" />
+            <QuickLink href="#insurance" icon={ShieldCheck} label="Insurance" />
             <QuickLink href="#payments" icon={Receipt} label="Payments" />
             <QuickLink href="/patient/preferences" icon={Settings} label="Settings" />
             <QuickLink href="/patient/support" icon={CircleHelp} label="Help" />
@@ -372,6 +377,10 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
                     <MapPin className="w-4 h-4 text-[#7A8599] shrink-0 mt-px" /> {details.address}
                   </p>
                 )}
+              </Panel>
+
+              <Panel id="insurance" title="Health insurance" sub="Add your policy so the hospital desk has it at your visit">
+                <InsuranceCard policy={insurance.policy} patientName={name} ready={insurance.ready} insurers={insurers} today={istDateKey(now)} />
               </Panel>
 
               <Panel id="vitals" title="Latest vitals" action={latestVitals?.at ? <span className="shrink-0 text-[12px] text-[#5B667A]">Recorded {formatShortDate(latestVitals.at)}</span> : undefined}>

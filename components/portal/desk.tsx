@@ -114,12 +114,15 @@ export function PaymentPanel({
   payment,
   onRecord,
   onPaid,
+  initialMethod,
 }: {
   payment: DeskPayment
   onRecord: (method: 'upi_qr' | 'cash', reference: string) => Promise<DeskResult>
   onPaid: () => void
+  /** The method chosen before booking (the hospital's Add patient form); the scanner otherwise, when it's set up. */
+  initialMethod?: Method
 }) {
-  const [method, setMethod] = useState<Method>(payment.upi ? 'upi_qr' : 'cash')
+  const [method, setMethod] = useState<Method>(initialMethod ?? (payment.upi ? 'upi_qr' : 'cash'))
   const [reference, setReference] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()

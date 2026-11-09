@@ -59,8 +59,11 @@ export async function saveHospitalPayoutAccount(input: { name: string; accountNu
   return { ok: true }
 }
 
-/** Asks for a withdrawal of the hospital's balance. One can wait at a time; it holds its amount until it is paid. */
-export async function requestHospitalPayout(rawAmount: number): Promise<Result> {
+/**
+ * Asks for a withdrawal of the hospital's balance. One can wait at a time; it holds its amount until it is paid. `via`
+ * picks the saved bank account or UPI ID when both are saved; the withdrawal keeps only that one.
+ */
+export async function requestHospitalPayout(rawAmount: number, via?: 'bank' | 'upi'): Promise<Result> {
   const ctx = await caller('hospital_admin')
   if (!ctx?.hospitalId) return fail('Please log in with your hospital account.')
   const amount = Math.round(Number(rawAmount) * 100) / 100
@@ -72,7 +75,12 @@ export async function requestHospitalPayout(rawAmount: number): Promise<Result> 
   if (wallet.waiting > 0) return fail('A withdrawal is already waiting to be paid. You can ask for another once it is paid.')
   if (amount > wallet.available) return fail(`You can withdraw up to ${formatINR(wallet.available)}.`)
 
-  const account: PayoutAccount = wallet.account
+  const saved: PayoutAccount = wallet.account
+  const hasBank = !!(saved.accountNumber && saved.ifsc)
+  if (via === 'bank' && !hasBank) return fail('Add your bank account first, or withdraw to your UPI ID.')
+  if (via === 'upi' && !saved.upiId) return fail('Add your UPI ID first, or withdraw to your bank account.')
+  const account: PayoutAccount =
+    via === 'bank' ? { ...saved, upiId: null } : via === 'upi' ? { ...saved, accountNumber: null, ifsc: null } : saved
   const { error } = await ctx.admin.from('hospital_payouts').insert({ hospital_id: ctx.hospitalId, amount, account, requested_by: ctx.userId })
   if (error?.code === '23505') return fail('A withdrawal is already waiting to be paid.')
   if (error) return fail(missing(error) ? NEEDS_UPDATE : 'Could not ask for the withdrawal. Please try again.')

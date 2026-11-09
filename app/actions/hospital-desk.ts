@@ -14,6 +14,7 @@ import { getBookingFees } from '@/lib/booking-fees'
 import { bookedServices, sumPrices } from '@/lib/pricing'
 import { appointmentBookingFee, shareColumns, type Shares } from '@/lib/wallet'
 import { followUpBase } from '@/lib/follow-up'
+import { bookingOptionsReady } from '@/lib/booking-options'
 
 // The hospital desk: register a patient with a one-time code, book them with one of the hospital's doctors, take
 // the payment (the UPI scanner or cash) and record their health details for the doctor.
@@ -74,32 +75,39 @@ export async function verifyHospitalPatient(input: { name: string; phone: string
   return { ok: true, token: issuePatientToken(verified.userId, ctx.scope, verified.created), patient: { name: profile.name, phone, email: email || null, created: profile.created } }
 }
 
-/** The doctor's open slots over the next week, for booking at the desk. */
-export async function hospitalOpenSlots(doctorId: string): Promise<DeskResult<{ slots: { id: string; start: string; end: string | null }[] }>> {
+/** The doctor's slots over the next week, for booking at the desk. Booked ones come back `taken`, to show crossed out. */
+export async function hospitalOpenSlots(doctorId: string): Promise<DeskResult<{ slots: { id: string; start: string; end: string | null; taken: boolean }[] }>> {
   const ctx = await hospitalContext()
   if (!ctx) return fail(NOT_SIGNED_IN)
   const { data: doctor } = await ctx.admin.from('doctors').select('hospital_id').eq('id', doctorId).maybeSingle()
   if (doctor?.hospital_id !== ctx.hospital.id) return fail('Doctor not found in your hospital.')
   const { data } = await ctx.admin
     .from('schedules')
-    .select('id, start_time, end_time')
+    .select('id, start_time, end_time, is_booked')
     .eq('doctor_id', doctorId)
-    .eq('is_booked', false)
     .gte('start_time', new Date().toISOString())
     .lt('start_time', new Date(Date.now() + 7 * 86_400_000).toISOString())
     .order('start_time', { ascending: true })
-    .limit(48)
-  return { ok: true, slots: ((data ?? []) as { id: string; start_time: string; end_time: string | null }[]).map((s) => ({ id: s.id, start: s.start_time, end: s.end_time })) }
+    .limit(96)
+  type Slot = { id: string; start_time: string; end_time: string | null; is_booked: boolean | null }
+  return { ok: true, slots: ((data ?? []) as Slot[]).map((s) => ({ id: s.id, start: s.start_time, end: s.end_time, taken: !!s.is_booked })) }
 }
 
 /**
  * Creates a desk visit, unpaid until the desk takes payment. It carries the general booking fee, or none when it is the
- * patient's free follow-up with this doctor (lib/follow-up.ts).
+ * patient's free follow-up with this doctor (lib/follow-up.ts). A fast-track visit carries the fast-track fee and is
+ * never a free follow-up.
  */
-async function insertDeskVisit(admin: Admin, row: { patient_id: string; doctor_id: string; hospital_id: string; schedule_id: string }) {
+async function insertDeskVisit(admin: Admin, row: { patient_id: string; doctor_id: string; hospital_id: string; schedule_id: string }, fastTrack = false) {
   const fees = await getBookingFees()
-  const followUpOf = await followUpBase(admin, row.patient_id, row.doctor_id)
   const insert = (values: Record<string, unknown>) => admin.from('appointments').insert(values).select('id').single()
+  if (fastTrack) {
+    const res = await insert({ ...row, status: 'pending_payment', booking_type: 'fast_track', booking_fee: fees.fastTrack })
+    // Without the 20261102 booking_fee column the desk works the fee out from the booking type.
+    if (res.error && /booking_fee|schema cache/.test(res.error.message)) return insert({ ...row, status: 'pending_payment', booking_type: 'fast_track' })
+    return res
+  }
+  const followUpOf = await followUpBase(admin, row.patient_id, row.doctor_id)
   const paid = { ...row, status: 'pending_payment', booking_fee: fees.consultation }
   let res = await insert(followUpOf ? { ...row, status: 'pending_payment', booking_fee: 0, follow_up_of: followUpOf } : paid)
   if (res.error && followUpOf && /follow_up/.test(res.error.message)) res = await insert(paid)
@@ -146,7 +154,24 @@ export async function createHospitalVisit(input: { token: string; doctorId: stri
   return payment ? { ok: true, payment } : fail('The booking was made but its payment details couldn’t be loaded. Find it under Unpaid.')
 }
 
-/** Registers a patient directly at the hospital desk, creates their visit, and optionally logs initial vitals. */
+/** Fills in the patient's sex on their own profile when they haven't, never changing what they set. */
+async function fillGender(admin: Admin, patientId: string, gender: string) {
+  try {
+    const { data } = await admin.from('patient_details').select('gender').eq('id', patientId).maybeSingle()
+    if (!data) await admin.from('patient_details').insert({ id: patientId, gender })
+    else if (!data.gender) await admin.from('patient_details').update({ gender }).eq('id', patientId)
+  } catch (err) {
+    console.error('registerHospitalPatient gender:', err)
+  }
+}
+
+const GENDERS = ['Female', 'Male', 'Other']
+
+/**
+ * Registers a patient at the hospital desk, books their visit (general or fast track), and keeps the desk's vitals and
+ * notes for the doctor. The patient's number is confirmed first: either `token` from verifyHospitalPatient, or the
+ * one-time `code` checked here.
+ */
 export async function registerHospitalPatient(formData: FormData): Promise<DeskResult<{
   patientId: string
   appointmentId: string
@@ -154,6 +179,8 @@ export async function registerHospitalPatient(formData: FormData): Promise<DeskR
   patientName: string
   doctorName: string
   fee: number
+  fastTrack: boolean
+  start: string
   payment: DeskPayment | null
 }>> {
   const ctx = await hospitalContext()
@@ -165,21 +192,34 @@ export async function registerHospitalPatient(formData: FormData): Promise<DeskR
   const doctorId = String(formData.get('doctorId') || '').trim()
   const scheduleId = String(formData.get('scheduleId') || 'now').trim()
   const code = String(formData.get('code') || '')
+  const token = String(formData.get('token') || '')
+  const wantsFastTrack = formData.get('bookingType') === 'fast_track'
 
-  if (rawFullName.length < 2) return fail('Please enter the patient’s full name.')
-  const phone = indianMobile(rawPhone)
-  if (!phone) return fail('Please enter a valid 10-digit Indian mobile number.')
-  if (email && !emailPattern.test(email)) return fail('Enter a valid email address or leave it blank.')
   if (!doctorId) return fail('Please select an attending doctor.')
+  if (wantsFastTrack && !(await bookingOptionsReady())) return fail('Fast track needs the latest database update (supabase/migrations/20261028_fast_track_services.sql). Book a general visit for now.')
 
   // The patient must confirm their number with the code sent to it before anything is booked to their account. Without
   // this, a desk could attach visits, records and payments to whoever owns a number.
-  const verified = await verifyPatientOtp(ctx.admin, phone, code)
-  if (!verified.ok) return fail(verified.error)
-  const profile = await ensurePatientProfile(ctx.admin, verified.userId, { name: rawFullName, phone, email })
-  if (!profile.ok) return fail(profile.error)
-  const patientId = verified.userId
-  const fullName = profile.name
+  let patientId: string
+  let fullName: string
+  if (token) {
+    const id = readPatientToken(token, ctx.scope)
+    if (!id) return fail('The patient’s confirmation has expired. Send a new code and confirm the number again.')
+    const { data: who } = await ctx.admin.from('profiles').select('full_name').eq('id', id).maybeSingle()
+    patientId = id
+    fullName = who?.full_name || rawFullName || 'Patient'
+  } else {
+    if (rawFullName.length < 2) return fail('Please enter the patient’s full name.')
+    const phone = indianMobile(rawPhone)
+    if (!phone) return fail('Please enter a valid 10-digit Indian mobile number.')
+    if (email && !emailPattern.test(email)) return fail('Enter a valid email address or leave it blank.')
+    const verified = await verifyPatientOtp(ctx.admin, phone, code)
+    if (!verified.ok) return fail(verified.error)
+    const profile = await ensurePatientProfile(ctx.admin, verified.userId, { name: rawFullName, phone, email })
+    if (!profile.ok) return fail(profile.error)
+    patientId = verified.userId
+    fullName = profile.name
+  }
 
   // 2. Verify doctor
   const { data: doctor } = await ctx.admin
@@ -194,6 +234,7 @@ export async function registerHospitalPatient(formData: FormData): Promise<DeskR
 
   // 3. Slot handling
   let slotId = scheduleId
+  let slotStart = new Date().toISOString()
   if (slotId === 'now') {
     const start = new Date()
     const { data: slot, error: slotErr } = await ctx.admin
@@ -215,12 +256,13 @@ export async function registerHospitalPatient(formData: FormData): Promise<DeskR
       .eq('id', slotId)
       .eq('doctor_id', doctor.id)
       .eq('is_booked', false)
-      .select('id')
+      .select('id, start_time')
     if (!claimed?.length) return fail('That appointment slot was just taken. Please choose another.')
+    slotStart = (claimed[0] as { start_time: string }).start_time
   }
 
   // 4. Create appointment
-  const { data: visit, error: visitErr } = await insertDeskVisit(ctx.admin, { patient_id: patientId, doctor_id: doctor.id, hospital_id: ctx.hospital.id, schedule_id: slotId })
+  const { data: visit, error: visitErr } = await insertDeskVisit(ctx.admin, { patient_id: patientId, doctor_id: doctor.id, hospital_id: ctx.hospital.id, schedule_id: slotId }, wantsFastTrack)
 
   if (visitErr || !visit) {
     console.error('registerHospitalPatient appointment error:', visitErr)
@@ -228,31 +270,26 @@ export async function registerHospitalPatient(formData: FormData): Promise<DeskR
     return fail('Could not book the appointment. Please try again.')
   }
 
-  // 5. Save triage/vitals if provided
-  const bp = String(formData.get('bp') || '').trim()
-  const hr = String(formData.get('hr') || '').trim()
-  const temp = String(formData.get('temp') || '').trim()
-  const complaint = String(formData.get('complaint') || '').trim()
+  // 5. The patient's sex, if they haven't given it on their profile.
+  const gender = String(formData.get('gender') || '')
+  if (GENDERS.includes(gender)) await fillGender(ctx.admin, patientId, gender)
 
-  const triageParts = []
-  if (bp) triageParts.push(`BP: ${bp}`)
-  if (hr) triageParts.push(`Pulse: ${hr} bpm`)
-  if (temp) triageParts.push(`Temp: ${temp}°F`)
-  const triageNotes = [complaint, triageParts.join(', ')].filter(Boolean).join(' | ')
-
-  if (triageNotes) {
-    try {
-      await ctx.admin
-        .from('medical_records')
-        .insert({
-          appointment_id: visit.id,
-          document_type: 'health_record',
-          notes: `Front Desk Triage: ${triageNotes}`,
-          file_url: 'none',
-        })
-    } catch (e) {
-      console.error('Triage save error:', e)
-    }
+  // 6. The desk's vitals and notes, in the same form as a health record (lib/vitals.ts), so the doctor sees the readings.
+  const field = (name: string, max = 200) => String(formData.get(name) || '').trim().replace(/\s+/g, ' ').slice(0, max)
+  const sentence = (label: string, value: string) => (value ? `${label}: ${value.replace(/[.\s]+$/, '')}.` : '')
+  const age = Number(field('age', 3))
+  const vitals = vitalsSentence({ bp: field('bp', 20), hr: field('hr', 10), spo2: field('spo2', 10), temp: field('temp', 10), weight: field('weight', 10) })
+  const notes = [
+    sentence('Reason for visit', field('complaint', 1000)),
+    sentence('Known allergies', field('allergies', 500)),
+    Number.isInteger(age) && age > 0 && age <= 120 ? `Age at visit: ${age}.` : '',
+    vitals,
+  ]
+    .filter(Boolean)
+    .join(' ')
+  if (notes) {
+    const { error: recordErr } = await ctx.admin.from('medical_records').insert({ appointment_id: visit.id, document_type: 'health_record', notes, file_url: 'none' })
+    if (recordErr) console.error('registerHospitalPatient health record:', recordErr)
   }
 
   revalidateVisitPages()
@@ -267,6 +304,8 @@ export async function registerHospitalPatient(formData: FormData): Promise<DeskR
     patientName: fullName,
     doctorName: docName,
     fee,
+    fastTrack: wantsFastTrack,
+    start: slotStart,
     payment,
   }
 }

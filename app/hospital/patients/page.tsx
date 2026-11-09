@@ -4,6 +4,8 @@ import { currentTime } from '@/components/patient/data'
 import { IST, doctorName, istDateKey, visitToken } from '@/components/patient/format'
 import { ageSex, loadPatientFacts } from '@/lib/patient-facts'
 import { insuranceLine, loadInsuranceFor } from '@/lib/insurance'
+import { getBookingFees } from '@/lib/booking-fees'
+import { bookingOptionsReady } from '@/lib/booking-options'
 import { dayOf, hospitalShare, isPaidVisit, loadHospitalDoctors, loadHospitalVisits, paymentLook, PAYMENT_METHOD, requireHospital, shiftDay } from '../_lib/hospital'
 import { PatientsBoard, type BoardRow, type BoardView } from '../_components/PatientsBoard'
 import { AddPatientButton } from '../_components/PatientDesk'
@@ -77,7 +79,15 @@ export default async function HospitalPatientsPage(props: { searchParams?: Promi
   const query = (params.q ?? '').trim().slice(0, 80)
   const walkIn = params.walkin === '1'
 
-  const deskDoctors = doctors.map((d) => ({ id: d.id, name: doctorName(d.name), department: d.department, fee: d.fee }))
+  // Today's visits each doctor still has to see, and today's booking fees, for the Add patient dialog.
+  const queue = new Map<string, number>()
+  for (const v of visits) {
+    if (!v.doctorId || dayOf(v.start) !== today || ['completed', 'cancelled', 'pending_payment'].includes(v.status)) continue
+    queue.set(v.doctorId, (queue.get(v.doctorId) ?? 0) + 1)
+  }
+  const [fees, fastTrackOn] = await Promise.all([getBookingFees(), bookingOptionsReady()])
+  const deskFees = { general: fees.consultation, fastTrack: fastTrackOn ? fees.fastTrack : null }
+  const deskDoctors = doctors.map((d) => ({ id: d.id, name: doctorName(d.name), department: d.department, fee: d.fee, queue: queue.get(d.id) ?? 0 }))
   const subtitle = 'Everyone booked with your doctors: today’s queue, upcoming visits and history.'
 
   return (
@@ -93,7 +103,7 @@ export default async function HospitalPatientsPage(props: { searchParams?: Promi
         <DeskHead
           title="Patients & appointments"
           subtitle={subtitle}
-          actions={<AddPatientButton doctors={deskDoctors} label="Add walk-in patient" defaultOpen={walkIn} className={btnPrimary} />}
+          actions={<AddPatientButton doctors={deskDoctors} fees={deskFees} label="Add walk-in patient" defaultOpen={walkIn} className={btnPrimary} />}
         />
 
         <PhoneStats
@@ -106,7 +116,7 @@ export default async function HospitalPatientsPage(props: { searchParams?: Promi
           ]}
         />
         <div className="lg:hidden mb-3.5">
-          <AddPatientButton doctors={deskDoctors} label="Add walk-in patient" defaultOpen={walkIn} className={`${btnPrimary} w-full !h-[46px] !shadow-none`} />
+          <AddPatientButton doctors={deskDoctors} fees={deskFees} label="Add walk-in patient" defaultOpen={walkIn} className={`${btnPrimary} w-full !h-[46px] !shadow-none`} />
         </div>
 
         <section className="hidden lg:grid grid-cols-4 gap-4 mb-5">

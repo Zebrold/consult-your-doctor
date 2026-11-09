@@ -25,7 +25,7 @@ const MENU: NavItem[] = [
   { href: '/hospital/beds', label: 'Beds', icon: BedDouble },
   { href: '/hospital/doctors', label: 'Doctors & roster', icon: CalendarDays },
   { href: '/hospital/revenue', label: 'Finance', icon: IndianRupee },
-  { href: '/hospital/wallet', label: 'Wallet', icon: Wallet },
+  { href: '/hospital/wallet', label: 'Payouts', icon: Wallet },
   { href: '/hospital/staff', label: 'Staff & access', icon: UsersRound },
   { href: '/hospital/profile', label: 'Hospital profile', icon: Building2 },
 ]

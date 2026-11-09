@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 const MANAGE = [
   { href: '/hospital/profile', title: 'Hospital profile', sub: 'What patients see on your hospital page' },
   { href: '/hospital/revenue', title: 'Finance & revenue', sub: 'Collections and the payments ledger' },
-  { href: '/hospital/wallet', title: 'Wallet', sub: 'Your balance, withdrawals and bank account' },
+  { href: '/hospital/wallet', title: 'Payouts', sub: 'Your balance, withdrawals and payout accounts' },
   { href: '/hospital/staff', title: 'Staff & access', sub: 'Doctors, front desk and admins' },
   { href: '/hospital/settings/services', title: 'Services & charges', sub: 'Tests, scans and procedures patients can add, with prices' },
 ]

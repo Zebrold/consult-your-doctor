@@ -79,7 +79,14 @@ export default async function RootLayout({
       lang="en"
       data-scroll-behavior="smooth"
       className={`${inter.variable} ${manrope.variable} h-full antialiased scroll-smooth light`}
+      // The script below may set data-splash before React hydrates.
+      suppressHydrationWarning
     >
+      <head>
+        {/* The opening intro shows once per browser session (components/SplashScreen.tsx): on later loads this marks
+            <html> before the first paint, and the CSS hides the intro. */}
+        <script dangerouslySetInnerHTML={{ __html: "try{if(sessionStorage.getItem('cyd-splash'))document.documentElement.dataset.splash='seen'}catch(e){}" }} />
+      </head>
       <body
         suppressHydrationWarning
         className="font-sans overflow-x-hidden text-on-surface bg-background"

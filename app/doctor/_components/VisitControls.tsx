@@ -230,7 +230,7 @@ function VisitPicker({ visits, onPick, onClose }: { visits: PickVisit[]; onPick:
           </ul>
         ) : (
           <p className="p-4 rounded-xl bg-[#F4F6FA] text-[13px] text-[#5B667A]">
-            No paid visits in the last 30 days. Add the patient with New consult first, then write their prescription.
+            No paid visits in the last 30 days. Prescriptions are written for patients booked with you, online or at your hospital&apos;s desk.
           </p>
         )}
       </div>

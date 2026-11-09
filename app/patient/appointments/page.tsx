@@ -207,13 +207,6 @@ export default async function PatientAppointments() {
 
   const name = profile?.full_name || user.user_metadata?.full_name || 'Patient'
   const uhid = `CYD-${user.id.slice(0, 8).toUpperCase()}`
-  const spent = payments.filter((p) => p.gateway === 'payu').reduce((s, p) => s + (Number(p.amount) || 0), 0)
-  const stats = {
-    upcoming: items.filter((b) => b.tab === 'upcoming').length,
-    completed: items.filter((b) => b.state === 'done').length,
-    spent: formatINR(spent),
-    records: Object.keys(reportLinks).length + items.filter((b) => b.prescription).length,
-  }
 
   return (
     <div className="bg-[#F6F8FC] lg:bg-transparent min-h-screen">
@@ -229,7 +222,7 @@ export default async function PatientAppointments() {
       />
       <PageBody>
         <div className="max-w-[900px] lg:max-w-none mx-auto lg:mx-0">
-          <BookingsClient items={items} stats={stats} patient={{ name, uhid }} />
+          <BookingsClient items={items} patient={{ name, uhid }} />
         </div>
       </PageBody>
       <PatientDock activeTab="book" name={name} detail={`UHID ${uhid}`} />

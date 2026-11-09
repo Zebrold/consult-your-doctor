@@ -43,7 +43,6 @@ export type BookingItem = {
   review: { doctorName: string; hospital: { id: string; name: string; city: string | null } | null; existing: ExistingReview | null } | null;
 };
 
-export type BookingStats = { upcoming: number; completed: number; spent: string; records: number };
 
 const COLORS: Record<BookingItem["state"], string> = { ok: "#067647", unpaid: "#B42318", done: "#475467", past: "#B54708", cancelled: "#475467" };
 const TABS: [BookingTab, string][] = [
@@ -53,7 +52,7 @@ const TABS: [BookingTab, string][] = [
 ];
 
 /** The patient's bookings: a reminder for unpaid ones, the next visit, every booking by tab, and the pass for one. */
-export function BookingsClient({ items, stats, patient }: { items: BookingItem[]; stats: BookingStats; patient: { name: string; uhid: string } }) {
+export function BookingsClient({ items, patient }: { items: BookingItem[]; patient: { name: string; uhid: string } }) {
   const [tab, setTab] = useState<BookingTab>("upcoming");
   const [phonePass, setPhonePass] = useState<string | null>(null);
   const upcoming = items.filter((b) => b.tab === "upcoming");
@@ -80,13 +79,6 @@ export function BookingsClient({ items, stats, patient }: { items: BookingItem[]
           </Link>
         }
       />
-
-      <section aria-label="Booking summary" className="hidden lg:grid grid-cols-4 gap-4 mb-5">
-        <Stat label="Upcoming" value={stats.upcoming} note="Doctor visits and lab tests" />
-        <Stat label="Completed visits" value={stats.completed} note="Consultations and tests done" />
-        <Stat label="Spent on bookings" value={stats.spent} note="Booking fees paid online" />
-        <Stat label="Records" value={stats.records} note="Prescriptions and lab reports" />
-      </section>
 
       {unpaid && (
         <div role="alert" className="mx-4 md:mx-6 lg:mx-0 mt-4 lg:mt-0 lg:mb-[18px] flex items-center gap-3 lg:gap-4 p-3 pl-3.5 lg:px-[18px] lg:py-3.5 rounded-2xl lg:rounded-[14px] bg-[#FEF3F2] shadow-[0_0_0_1px_#FBD5D1]">
@@ -214,16 +206,6 @@ export function BookingsClient({ items, stats, patient }: { items: BookingItem[]
 
       {passItem && <PhonePass item={passItem} patient={patient} onClose={() => setPhonePass(null)} />}
     </>
-  );
-}
-
-function Stat({ label, value, note }: { label: string; value: string | number; note: string }) {
-  return (
-    <div className={`${card} px-5 py-[18px]`}>
-      <span className="block text-[13px] font-bold text-[#5B667A]">{label}</span>
-      <span className="block mt-2 text-[28px] font-extrabold tracking-[-0.03em] leading-[1.1] tabular-nums">{value}</span>
-      <span className="block mt-1.5 text-[12.5px] font-bold text-[#5B667A]">{note}</span>
-    </div>
   );
 }
 

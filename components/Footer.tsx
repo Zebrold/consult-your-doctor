@@ -1,25 +1,40 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
-import { StoreBadges } from "@/components/StoreBadges";
+import { ChevronRight, Stethoscope } from "lucide-react";
+import { StoreBadge } from "@/components/StoreBadges";
+import { FooterCities } from "@/components/FooterCities";
 import { COMPANY } from "@/lib/company";
+import { partnerCities } from "@/lib/partner-cities";
 
-// The home page's footer: the brand with trust badges and social links, the 2 navigation columns (Contact us, Legal),
-// and the app badges.
+// The site footer, after the user's design (the footer of the Contact / Partner exports): the brand with trust badges
+// and social links; Services, Contact us + Legal and Available in; the app banner; then the providers note and
+// copyright. Phones stack the brand, then two columns, then the cities in two columns.
 
 type FooterLinkItem = { label: string; href: string };
 
+const SERVICES: FooterLinkItem[] = [
+  { label: "Find a doctor", href: "/find" },
+  { label: "Book a doctor online", href: "/doctors" },
+  { label: "Hospitals", href: "/hospitals" },
+  { label: "Lab tests", href: "/diagnostics" },
+  { label: "What we treat", href: "/what-we-treat" },
+  { label: "Prices", href: "/prices" },
+  { label: "Join as a doctor", href: "/signup/doctor" },
+  { label: "Join as a hospital", href: "/signup/hospital" },
+  { label: "Join as a diagnostic centre", href: "/signup/diagnostic-centre" },
+];
+
 const CONTACT: FooterLinkItem[] = [
   { label: "Help & Support", href: "/contact" },
-  { label: "Help & FAQ", href: "/faq" },
   { label: "Partner With Us", href: "/corporate" },
+  // No careers page yet: this writes to the company inbox.
+  { label: "Work With Us", href: `mailto:${COMPANY.email}?subject=${encodeURIComponent("Working with Consult your Doctor")}` },
 ];
 
 const LEGAL: FooterLinkItem[] = [
   { label: "Terms & Conditions", href: "/terms-of-use" },
   { label: "Cookie Policy", href: "/privacy-policy#cookies" },
   { label: "Privacy Policy", href: "/privacy-policy" },
-  { label: "All legal documents", href: "/legal" },
 ];
 
 function InstagramIcon() {
@@ -60,20 +75,20 @@ function LinkedInIcon() {
   );
 }
 
-// Each icon links to its profile once the address is filled in (lib/company.ts). Instagram shows as a plain icon until
-// then, as asked; YouTube stays hidden without one.
+// Each icon links to its profile once its address is filled in (lib/company.ts); until then it shows as a plain icon.
 const SOCIAL = [
-  { label: "Instagram", href: COMPANY.social.instagram, Icon: InstagramIcon, always: true },
-  { label: "YouTube", href: COMPANY.social.youtube, Icon: YouTubeIcon, always: false },
-  { label: "LinkedIn", href: COMPANY.social.linkedin, Icon: LinkedInIcon, always: false },
-].filter((s) => s.href || s.always);
+  { label: "Instagram", href: COMPANY.social.instagram, Icon: InstagramIcon },
+  { label: "YouTube", href: COMPANY.social.youtube, Icon: YouTubeIcon },
+  { label: "LinkedIn", href: COMPANY.social.linkedin, Icon: LinkedInIcon },
+];
 
-const linkCls = "group inline-flex items-start gap-2 text-[14px] md:text-[14.5px] leading-6 text-white/85 hover:text-white transition-colors focus-visible:outline-none focus-visible:underline";
+const linkCls = "flex items-center gap-2 md:gap-2.5 py-1.5 md:py-[7px] text-[13.5px] md:text-[14.5px] leading-[1.35] text-[#E8EEFC] hover:text-white transition-colors";
+const headCls = "mb-2 md:mb-[18px] text-[15px] md:text-[16px] font-extrabold text-white";
 
 function FooterLink({ item }: { item: FooterLinkItem }) {
   const body = (
     <>
-      <ChevronRight className="w-3.5 h-3.5 mt-[5px] shrink-0 text-white/50 group-hover:text-white group-hover:translate-x-0.5 transition-transform" strokeWidth={2.4} />
+      <ChevronRight className="w-[11px] h-[11px] md:w-3 md:h-3 shrink-0 text-[#B7C8F2]" strokeWidth={3} />
       <span>{item.label}</span>
     </>
   );
@@ -91,8 +106,8 @@ function FooterLink({ item }: { item: FooterLinkItem }) {
 function Column({ title, items, className = "" }: { title: string; items: FooterLinkItem[]; className?: string }) {
   return (
     <nav aria-label={title} className={className}>
-      <h2 className="text-[16px] md:text-[17px] font-extrabold tracking-[-0.01em] text-white">{title}</h2>
-      <ul className="mt-4 md:mt-5 flex flex-col gap-2 md:gap-2.5">
+      <h2 className={headCls}>{title}</h2>
+      <ul>
         {items.map((item) => (
           <li key={item.label}>
             <FooterLink item={item} />
@@ -103,93 +118,98 @@ function Column({ title, items, className = "" }: { title: string; items: Footer
   );
 }
 
-export function Footer() {
+export async function Footer() {
+  const cities = await partnerCities().catch(() => [] as string[]);
+
   return (
-    <footer className="relative isolate overflow-hidden bg-[#2A4DD0] text-white font-(family-name:--font-manrope)">
-      <div className="max-w-[1360px] mx-auto px-5 md:px-8 lg:px-12 pt-12 md:pt-16 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:pb-10">
-        {/* Brand + 2 Nav Columns (Contact us, Legal) */}
-        <div className="grid grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
-          {/* Brand */}
-          <div className="col-span-2 lg:col-span-6 flex flex-col justify-between pr-0 lg:pr-8">
-            <div>
-              <Link
-                href="/"
-                aria-label="Consult your Doctor home"
-                className="inline-flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 rounded-lg"
-              >
-                <Image src="/logo-icon-white.png" alt="" width={44} height={44} className="w-10 h-10 md:w-11 md:h-11 object-contain shrink-0" />
-                <span className="font-['Helvetica_Neue',Helvetica,Arial,sans-serif] text-[24px] md:text-[27px] font-bold tracking-[-0.01em] whitespace-nowrap text-white">
-                  Consult your Doctor
-                </span>
-              </Link>
-              <p className="mt-4 max-w-[420px] text-[14px] md:text-[15px] leading-[1.65] text-white/80">
-                Find doctors at partner hospitals and diagnostic labs, book and pay online, and keep your prescriptions and reports in one place.
-              </p>
-              <div className="mt-6 flex items-center gap-4">
-                {[
-                  { src: "/badge-trustpilot.svg", alt: "Trustpilot" },
-                  { src: "/badge-legitscript.svg", alt: "LegitScript" },
-                ].map((b) => (
-                  <div key={b.src} className="h-16 md:h-[72px] flex items-center">
-                    <Image src={b.src} alt={b.alt} width={80} height={86} unoptimized className="h-16 md:h-[72px] w-auto object-contain select-none" />
-                  </div>
-                ))}
-              </div>
-            </div>
-            {SOCIAL.length > 0 && (
-              <div className="mt-6">
-                <h3 className="text-[13px] font-bold tracking-wide uppercase text-white/70">Follow us</h3>
-                <ul className="mt-3 flex items-center gap-3">
-                  {SOCIAL.map(({ label, href, Icon }) => (
-                    <li key={label}>
-                      {href ? (
-                        <a
-                          href={href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          aria-label={`Consult your Doctor on ${label}`}
-                          className="block w-10 h-10 rounded-[10px] shadow-[0_4px_12px_rgba(5,20,80,0.2)] hover:-translate-y-0.5 transition-transform"
-                        >
-                          <Icon />
-                        </a>
-                      ) : (
-                        <span role="img" aria-label={label} className="block w-10 h-10 rounded-[10px] shadow-[0_4px_12px_rgba(5,20,80,0.2)]">
-                          <Icon />
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+    <footer className="relative isolate overflow-hidden bg-[#2A4DD0] text-[#E1E8FA] font-(family-name:--font-manrope) px-5 md:px-[max(24px,10%)] pt-9 md:pt-16 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:pb-10">
+      <Stethoscope aria-hidden className="absolute -z-10 -right-[70px] top-2.5 w-[260px] h-[260px] md:-right-10 md:top-10 md:w-[420px] md:h-[420px] text-white opacity-[0.08]" strokeWidth={1.6} />
+
+      <div className="md:flex md:flex-wrap md:gap-x-10 md:gap-y-12">
+        {/* The brand, trust badges and social links */}
+        <div className="md:flex-[1_1_310px] md:max-w-[400px]">
+          <Link href="/" aria-label="Consult your Doctor home" className="inline-flex items-center gap-3 md:gap-3.5 text-white">
+            <Image src="/logo-icon-white.png" alt="" width={84} height={84} sizes="42px" className="w-[34px] h-[34px] md:w-[42px] md:h-[42px] object-contain shrink-0" />
+            <span className="font-['Helvetica_Neue',Helvetica,Arial,sans-serif] text-[22px] md:text-[26px] font-bold tracking-[-0.01em] whitespace-nowrap">Consult your Doctor</span>
+          </Link>
+          <p className="mt-3.5 md:mt-[18px] text-[14px] md:text-[15px] leading-[1.6] md:leading-[1.65]">
+            Find doctors at partner hospitals and diagnostic labs, book and pay online, and keep your prescriptions and reports in one place.
+          </p>
+          <div className="flex gap-3 md:gap-3.5 mt-[18px] md:mt-6">
+            {[
+              { src: "/badge-trustpilot.svg", alt: "Trustpilot" },
+              { src: "/badge-legitscript.svg", alt: "LegitScript" },
+            ].map((b) => (
+              <Image key={b.src} src={b.src} alt={b.alt} width={80} height={86} unoptimized className="h-[72px] md:h-[84px] w-auto object-contain select-none" />
+            ))}
           </div>
-
-          {/* 1. Contact us */}
-          <Column title="Contact us" items={CONTACT} className="col-span-1 lg:col-span-3" />
-
-          {/* 2. Legal */}
-          <Column title="Legal" items={LEGAL} className="col-span-1 lg:col-span-3" />
+          <h2 className="mt-[22px] md:mt-[26px] mb-2 md:mb-3 text-[15px] md:text-[16px] font-extrabold text-white">Social links</h2>
+          <ul className="flex gap-3">
+            {SOCIAL.map(({ label, href, Icon }) => (
+              <li key={label}>
+                {href ? (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Consult your Doctor on ${label}`}
+                    className="block w-[38px] h-[38px] md:w-10 md:h-10 rounded-[10px] overflow-hidden shadow-[0_2px_6px_rgba(8,20,51,0.2)] hover:-translate-y-0.5 transition-transform"
+                  >
+                    <Icon />
+                  </a>
+                ) : (
+                  <span role="img" aria-label={label} className="block w-[38px] h-[38px] md:w-10 md:h-10 rounded-[10px] overflow-hidden shadow-[0_2px_6px_rgba(8,20,51,0.2)]">
+                    <Icon />
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
 
-        {/* The app banner */}
-        <div className="mt-11 pt-8 border-t border-white/15 flex flex-col md:flex-row md:items-center md:justify-between gap-5 md:gap-8">
-          <p className="text-[18px] md:text-[22px] leading-[1.3] font-extrabold tracking-[-0.02em] text-balance">
-            For a better experience, download the Consult your Doctor app
-          </p>
-          <StoreBadges className="shrink-0" />
+        {/* Phones: two columns under a hairline. Desktops: these sit in the row beside the brand. */}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-7 mt-7 pt-[26px] border-t border-white/[0.22] md:contents">
+          <Column title="Services" items={SERVICES} className="min-w-0 md:flex-[1_1_190px]" />
+          <div className="min-w-0 md:flex-[1_1_170px]">
+            <Column title="Contact us" items={CONTACT} />
+            <Column title="Legal" items={LEGAL} className="mt-[22px] md:mt-[34px]" />
+          </div>
+          {cities.length > 0 && (
+            <nav aria-label="Available in" className="col-span-2 min-w-0 md:flex-[1_1_130px]">
+              <h2 className={headCls}>Available in</h2>
+              <FooterCities cities={cities} linkClass={linkCls} />
+            </nav>
+          )}
         </div>
+      </div>
 
-        {/* Subfooter */}
-        <div className="mt-7 pt-6 border-t border-white/10 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 lg:gap-10 text-[12px] md:text-[12.5px] leading-relaxed text-white/70">
-          <p className="max-w-3xl">
-            Consult your Doctor is a healthcare technology platform. Your care is provided by the independent doctors, hospitals and diagnostic centres you book; we
-            provide booking, payments and your digital records. In an emergency, call 108.{" "}
-            <Link href="/terms-of-use" className="font-semibold text-white underline underline-offset-2 hover:text-white/90">
-              How we work with providers
-            </Link>
-          </p>
-          <p className="shrink-0">&copy; {new Date().getFullYear()} Zebrold International Holdings Pvt Ltd. All rights reserved.</p>
+      {/* The app banner */}
+      <div className="mt-7 md:mt-11 pt-6 md:py-[26px] border-t border-white/[0.22] md:flex md:flex-wrap md:items-center md:justify-between md:gap-x-8 md:gap-y-[18px]">
+        <p className="text-[18px] md:text-[22px] leading-[1.3] font-extrabold tracking-[-0.01em] text-white">For a better experience, download the Consult your Doctor app</p>
+        <div className="flex gap-2.5 md:gap-3.5 mt-3.5 md:mt-0 [&>*]:flex-1 md:[&>*]:flex-none [&>*>*]:w-full [&>*>*]:justify-center">
+          <span>
+            <StoreBadge store="apple" />
+          </span>
+          <span>
+            <StoreBadge store="google" />
+          </span>
         </div>
+      </div>
+
+      {/* Providers note and copyright */}
+      <div className="mt-6 md:mt-2 pt-5 md:pt-6 border-t border-white/10 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 lg:gap-10 text-[12px] md:text-[12.5px] leading-relaxed text-white/70">
+        <p className="max-w-3xl">
+          Consult your Doctor is a healthcare technology platform. Your care is provided by the independent doctors, hospitals and diagnostic centres you book; we
+          provide booking, payments and your digital records. In an emergency, call 108.{" "}
+          <Link href="/terms-of-use" className="font-semibold text-white underline underline-offset-2 hover:text-white/90">
+            How we work with providers
+          </Link>
+          {" · "}
+          <Link href="/legal" className="font-semibold text-white underline underline-offset-2 hover:text-white/90">
+            All legal documents
+          </Link>
+        </p>
+        <p className="shrink-0">&copy; {new Date().getFullYear()} Zebrold International Holdings Pvt Ltd. All rights reserved.</p>
       </div>
     </footer>
   );

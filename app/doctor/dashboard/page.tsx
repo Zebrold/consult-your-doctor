@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Plus, Star } from 'lucide-react'
+import { Star } from 'lucide-react'
 import { currentTime } from '@/components/patient/data'
 import { IST, ageFrom, doctorName, formatSlot, formatTime, istDateKey, visitToken } from '@/components/patient/format'
 import { showHR, showSpO2 } from '@/lib/vitals'
@@ -9,11 +9,10 @@ import { loadDoctorReviews } from '@/lib/reviews'
 import { isOpenVisit, latestVitals, loadPatientFacts, loadSlots, loadVisits, patientCode, requireDoctor, type PatientFacts, type RecordedVitals, type Visit } from '../_lib/doctor'
 import { latestAllergy } from '../_lib/notes'
 import { NextStepButton, PrescriptionButton, SIZE, WritePrescriptionButton, type PickVisit, type VisitRef } from '../_components/VisitControls'
-import { WalkInButton } from '../_components/WalkInModal'
 import { Inpatients } from '../_components/Inpatients'
 import {
   BarChart, DeskHead, DocBody, DocHeader, Donut, EmptyLine, Initials, MoreLink, Panel, PanelHead, Readings, Row, StatCard, Status, Verified, btnOutline,
-  btnPrimary, btnSmall, card, delta,
+  btnSmall, card, delta,
 } from '../_components/doc-ui'
 
 export const metadata: Metadata = { title: 'Dashboard | Doctor Portal' }
@@ -130,8 +129,7 @@ export default async function DoctorDashboard() {
     return `${part({ weekday: 'long' })}, ${part({ day: 'numeric' })} ${part({ month: 'long' })}`
   })()
 
-  const writeRx = () => <WritePrescriptionButton current={prescribeFor ? ref(prescribeFor) : null} recent={recentVisits} kind="outline" />
-  const newConsult = (className: string) => <WalkInButton label="New consult" icon={<Plus className="w-4 h-4" strokeWidth={2.6} />} className={className} />
+  const writeRx = () => <WritePrescriptionButton current={prescribeFor ? ref(prescribeFor) : null} recent={recentVisits} kind="primary" />
 
   const glance = [
     { label: "Today's appointments", value: todays.length, note: `${checkedIn.length} checked in`, color: '#067647' },
@@ -159,19 +157,11 @@ export default async function DoctorDashboard() {
               ? `You have ${plural(todays.length, 'appointment')} today. ${checkedIn.length ? `${plural(checkedIn.length, 'patient')} ${checkedIn.length === 1 ? 'is' : 'are'} waiting.` : 'No one is waiting yet.'}`
               : 'No appointments today.'
           }
-          actions={
-            <>
-              {writeRx()}
-              {newConsult(btnPrimary)}
-            </>
-          }
+          actions={writeRx()}
         />
 
         {/* Phone: quick actions and today at a glance */}
-        <div className="lg:hidden grid grid-cols-2 gap-2.5 mb-3.5">
-          {newConsult(btnPrimary)}
-          {writeRx()}
-        </div>
+        <div className="lg:hidden grid gap-2.5 mb-3.5">{writeRx()}</div>
         <section aria-label="Today at a glance" className={`lg:hidden ${card} grid grid-cols-2 overflow-hidden mb-3.5`}>
           {glance.map((s) => (
             <div key={s.label} className="px-4 py-3.5 shadow-[inset_-1px_-1px_0_#EEF2F7]">
@@ -334,7 +324,6 @@ export default async function DoctorDashboard() {
                   ))}
                 </ul>
               )}
-              <WalkInButton label="Add walk-in patient" icon={<Plus className="w-[15px] h-[15px]" strokeWidth={2.4} />} className={`${btnOutline} lg:border w-full mt-1`} />
             </Panel>
 
             <Inpatients admissions={inpatients} now={now} className="order-4 lg:order-none" />

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { CalendarPlus, ChevronDown, Download, Phone } from 'lucide-react'
 import { EmptyLine, Initials, Panel, PanelHead, btnOutline, btnPrimary, card, plural, telHref } from './hos-ui'
 import { EditDoctorButton, type EditableDoctor } from './DoctorDialogs'
+import { DoctorFeeButton } from './DoctorFee'
 
 export type RosterState = 'consulting' | 'available' | 'later' | 'done' | 'scheduled' | 'off'
 
@@ -39,7 +40,8 @@ const STATE: Record<RosterState, { label: string; color: string }> = {
 
 const AXIS = [8, 10, 12, 14, 16, 18, 20]
 const axisLabel = (h: number) => `${h > 12 ? h - 12 : h}${h < 12 ? 'a' : 'p'}`
-const timeGrid = 'grid grid-cols-[230px_minmax(0,1fr)_150px] xl:grid-cols-[250px_minmax(0,1fr)_160px] gap-4'
+const timeGrid = 'grid grid-cols-[230px_minmax(0,1fr)_230px] xl:grid-cols-[250px_minmax(0,1fr)_240px] gap-4'
+const feeText = (fee: number | null) => (fee ? `₹${fee.toLocaleString('en-IN')}` : 'Set fee')
 
 function exportCsv(rows: RosterDoctor[], day: string) {
   const header = ['Doctor', 'Department', 'Phone', 'Shift', 'Slots', 'Booked', 'Status']
@@ -101,6 +103,20 @@ export function RosterList({ doctors, departments, day }: { doctors: RosterDocto
               </button>
               {isOpen && (
                 <div className="mt-3">
+                  <div className="flex items-center justify-between gap-2 py-2.5 border-t border-[#EEF2F7] text-[13px]">
+                    <span className="min-w-0">
+                      <span className="block font-extrabold">Consultation fee</span>
+                      <span className="block text-[12px] text-[#5B667A]">Paid at your counter</span>
+                    </span>
+                    <DoctorFeeButton
+                      doctorId={d.id}
+                      doctorName={d.name}
+                      fee={d.edit.fee}
+                      className={`shrink-0 h-[34px] px-3 rounded-[10px] text-[13px] font-extrabold ${d.edit.fee ? 'border border-[#D6DDE8] bg-white text-[#0B1B3F]' : 'bg-[#FFF6E8] text-[#B54708] shadow-[inset_0_0_0_1px_#FEDF89]'}`}
+                    >
+                      {d.edit.fee ? `${feeText(d.edit.fee)} · Change` : 'Set fee'}
+                    </DoctorFeeButton>
+                  </div>
                   {d.periods.map((p) => (
                     <div key={p.label} className="flex justify-between gap-2 py-2.5 border-t border-[#EEF2F7] text-[13px]">
                       <span className="min-w-0">
@@ -183,6 +199,16 @@ export function RosterList({ doctors, departments, day }: { doctors: RosterDocto
                   </span>
                   <span role="cell" className="flex items-center justify-end gap-2">
                     <span className="text-[13px] font-extrabold whitespace-nowrap">{d.slots ? `${d.booked} / ${d.slots}` : '—'}</span>
+                    <DoctorFeeButton
+                      doctorId={d.id}
+                      doctorName={d.name}
+                      fee={d.edit.fee}
+                      className={`shrink-0 h-[34px] px-2.5 rounded-[10px] text-[12.5px] font-extrabold whitespace-nowrap transition-colors ${
+                        d.edit.fee ? 'border border-[#D6DDE8] bg-white text-[#0B1B3F] hover:bg-[#F4F6FA]' : 'bg-[#FFF6E8] text-[#B54708] shadow-[inset_0_0_0_1px_#FEDF89] hover:bg-[#FFEFD5]'
+                      }`}
+                    >
+                      {feeText(d.edit.fee)}
+                    </DoctorFeeButton>
                     <EditDoctorButton
                       doctor={d.edit}
                       departments={departments}

@@ -3,11 +3,10 @@
 import { useMemo, useState, useTransition, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Ban, ChevronLeft, ChevronRight, LoaderCircle, Plus } from 'lucide-react'
+import { Ban, ChevronLeft, ChevronRight, LoaderCircle } from 'lucide-react'
 import { blockScheduleSlot } from '@/app/actions/doctor'
 import { formatINR, formatTime, istDateKey, visitToken } from '@/components/patient/format'
 import { CallLink, CheckInButton, PrescriptionButton, SIZE, type VisitRef } from './VisitControls'
-import { WalkInButton } from './WalkInModal'
 import { ProfileEditor, type EditableProfile } from './ProfileEditor'
 import { DeskHead, Donut, EmptyLine, Meter, Panel, PanelHead, Row, StatCard, btnOutline, card, delta, lineTab, segGroup, segTab } from './doc-ui'
 
@@ -389,7 +388,6 @@ function WaitingRoom({ waiting }: { waiting: Item[] }) {
           ))}
         </ul>
       )}
-      <WalkInButton label="Add walk-in patient" icon={<Plus className="w-[15px] h-[15px]" strokeWidth={2.4} />} className={`${btnOutline} lg:border w-full mt-2.5`} />
     </Panel>
   )
 }

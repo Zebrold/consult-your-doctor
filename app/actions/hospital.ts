@@ -330,6 +330,33 @@ export async function updateHospitalDoctor(formData: FormData): Promise<{ succes
   return { success: true }
 }
 
+/**
+ * Sets the consultation fee of one of this hospital's doctors: shown on the doctor's profile page and paid at the
+ * hospital counter, never online.
+ */
+export async function setHospitalDoctorFee(doctorId: string, rawFee: number): Promise<{ success: true } | { success: false; error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Please log in with your hospital account.' }
+  const admin = createServiceClient()
+  const { data: profile } = await admin.from('profiles').select('role, hospital_id').eq('id', user.id).maybeSingle()
+  if (profile?.role !== 'hospital_admin' || !profile.hospital_id) return { success: false, error: 'Please log in with your hospital account.' }
+
+  const fee = Math.round(Number(rawFee))
+  if (!Number.isFinite(fee) || fee < 1 || fee > 100_000) return { success: false, error: 'Enter a fee between ₹1 and ₹1,00,000.' }
+
+  const { data: doctor } = await admin.from('doctors').select('id, hospital_id').eq('id', doctorId).maybeSingle()
+  if (!doctor || doctor.hospital_id !== profile.hospital_id) return { success: false, error: 'Doctor not found in your hospital.' }
+
+  const { error } = await admin.from('doctors').update({ consultation_fee: fee }).eq('id', doctorId)
+  if (error) {
+    console.error('setHospitalDoctorFee:', error)
+    return { success: false, error: 'Could not save the fee. Please try again.' }
+  }
+  for (const path of ['/hospital/doctors', '/hospital/patients', '/hospital/dashboard', '/hospital/revenue', `/doctors/${doctorId}`, `/hospitals/${profile.hospital_id}`]) revalidatePath(path)
+  return { success: true }
+}
+
 export async function deleteHospitalDoctor(formData: FormData): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

@@ -87,7 +87,6 @@ export function GetTheApp({
             </span>
             <span className="min-w-0">
               <span className="block text-[16px] font-extrabold leading-tight">Consult your Doctor</span>
-              <span className="block mt-0.5 text-[12.5px] font-semibold text-[#5B667A]">For iPhone and Android</span>
             </span>
           </div>
           <p className="mt-3 text-[13px] leading-[1.55] text-[#4A5878]">Book doctors and lab tests, pay the booking fee and keep your prescriptions and reports with you.</p>

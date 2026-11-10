@@ -271,12 +271,11 @@ a, button, summary, label, select, [role="button"], input[type="checkbox"], inpu
 .delay-200 { transition-delay: 200ms; }
 .delay-300 { transition-delay: 300ms; }
 
-/* ── Premium Cinematic Zoom & Erase Splash Animation ─────────────────────────────
-   1. The logo icon and brand title enter with smooth optical zoom and fade-in.
-   2. Soft luxury aura glows behind the mark.
-   3. The brand zooms dynamically towards the viewer while an outward iris-erase
-      reveals the underlying page seamlessly.
-   Hidden before paint on subsequent session loads and for reduced motion. */
+/* ── Brand Splash Animation ─────────────────────────────────────────────
+   Clean, authentic brand opening:
+   Horizontal lockup [Logo Icon] + "Consult your Doctor"
+   Centers on clean brand blue (#1D4ED8), zooms in smoothly and fades away
+   into the live website. */
 .cyd-splash {
   position: fixed;
   inset: 0;
@@ -286,195 +285,89 @@ a, button, summary, label, select, [role="button"], input[type="checkbox"], inpu
   justify-content: center;
   overflow: hidden;
   cursor: pointer;
-  color: #fff;
-  font-family: var(--font-manrope), system-ui, sans-serif;
+  background-color: #1D4ED8;
+  color: #ffffff;
   pointer-events: auto;
   user-select: none;
-  animation: cyd-splash-erase 0.75s cubic-bezier(0.77, 0, 0.175, 1) 1.35s forwards;
-  will-change: clip-path, opacity, transform;
+  animation: cyd-splash-fade-out 0.55s cubic-bezier(0.4, 0, 0.2, 1) 1.25s forwards;
+  will-change: opacity, transform;
 }
-html[data-splash="seen"] .cyd-splash { display: none; }
+
+html[data-splash="seen"] .cyd-splash {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .cyd-splash { display: none; }
+  .cyd-splash {
+    display: none;
+  }
 }
+
 .cyd-splash.is-skipping {
-  animation: cyd-splash-skip 0.28s ease-out forwards;
+  animation: cyd-splash-skip 0.2s ease-out forwards;
 }
 
-.cyd-splash__backdrop {
-  position: absolute;
-  inset: -10%;
-  background:
-    radial-gradient(45% 40% at 50% 45%, rgba(68, 126, 255, 0.45), rgba(42, 77, 208, 0) 70%),
-    radial-gradient(80% 60% at 85% 15%, rgba(135, 185, 255, 0.22), transparent 60%),
-    linear-gradient(135deg, #1B3BA8 0%, #2A4DD0 50%, #152A7D 100%);
-  animation: cyd-splash-bg 2.1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.cyd-splash__stage {
-  position: relative;
-  z-index: 2;
+.cyd-splash__lockup {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 0 24px;
-  animation: cyd-splash-zoom-out 0.75s cubic-bezier(0.77, 0, 0.175, 1) 1.35s forwards;
-  will-change: transform, opacity, filter;
-}
-
-.cyd-splash__brand {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.cyd-splash__icon-wrap {
-  position: relative;
-  width: 104px;
-  height: 104px;
-  display: grid;
-  place-items: center;
-  animation: cyd-splash-icon-enter 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.05s forwards;
-  opacity: 0;
-  transform: scale(0.75);
-}
-
-.cyd-splash__aura {
-  position: absolute;
-  inset: -22px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.38) 0%, rgba(99, 153, 255, 0.25) 40%, rgba(42, 77, 208, 0) 72%);
-  filter: blur(12px);
-  animation: cyd-splash-aura 1.5s ease-in-out infinite alternate;
-}
-
-.cyd-splash__glow {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.45);
-  box-shadow: 0 0 28px rgba(255, 255, 255, 0.35), inset 0 0 16px rgba(255, 255, 255, 0.2);
-  animation: cyd-splash-pulse-glow 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  gap: 16px;
+  animation: cyd-splash-zoom 1.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
 }
 
 .cyd-splash__icon {
-  position: relative;
-  z-index: 3;
-  width: 74px;
-  height: 74px;
+  width: 52px;
+  height: 52px;
   object-fit: contain;
-  filter: drop-shadow(0 10px 22px rgba(5, 20, 80, 0.45));
+  shrink: 0;
 }
 
-.cyd-splash__word {
-  margin-top: 22px;
-  overflow: hidden;
-  padding: 2px 8px 6px;
-}
-
-.cyd-splash__word > span {
-  display: block;
+.cyd-splash__title {
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  font-size: 30px;
-  line-height: 1.15;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
-  color: #ffffff;
-  text-shadow: 0 2px 14px rgba(4, 18, 66, 0.35);
-  opacity: 0;
-  transform: translateY(110%);
-  animation: cyd-splash-title-enter 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.25s forwards;
-}
-
-.cyd-splash__tag {
-  margin-top: 8px;
-  overflow: hidden;
-}
-
-.cyd-splash__tag > span {
-  display: block;
-  font-size: 12px;
+  font-size: 34px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.32em;
-  padding-left: 0.32em;
-  color: #D3E2FF;
-  opacity: 0;
-  transform: translateY(100%);
-  animation: cyd-splash-tag-enter 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.42s forwards;
+  letter-spacing: -0.015em;
+  color: #ffffff;
+  white-space: nowrap;
 }
 
 @media (max-width: 640px) {
-  .cyd-splash__icon-wrap { width: 90px; height: 90px; }
-  .cyd-splash__icon { width: 62px; height: 62px; }
-  .cyd-splash__word { margin-top: 18px; }
-  .cyd-splash__word > span { font-size: 24px; }
-  .cyd-splash__tag > span { font-size: 10.5px; letter-spacing: 0.24em; padding-left: 0.24em; }
+  .cyd-splash__lockup {
+    gap: 12px;
+  }
+  .cyd-splash__icon {
+    width: 42px;
+    height: 42px;
+  }
+  .cyd-splash__title {
+    font-size: 26px;
+  }
 }
 
-/* Animations */
-@keyframes cyd-splash-icon-enter {
-  0% { opacity: 0; transform: scale(0.65) translateY(8px); }
-  100% { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-@keyframes cyd-splash-title-enter {
-  0% { opacity: 0; transform: translateY(110%); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes cyd-splash-tag-enter {
-  0% { opacity: 0; transform: translateY(100%); }
-  100% { opacity: 0.95; transform: translateY(0); }
-}
-
-@keyframes cyd-splash-aura {
-  0% { transform: scale(0.92); opacity: 0.65; }
-  100% { transform: scale(1.1); opacity: 1; }
-}
-
-@keyframes cyd-splash-pulse-glow {
-  0% { opacity: 0; transform: scale(0.8); }
-  50% { opacity: 1; transform: scale(1.05); }
-  100% { opacity: 0.85; transform: scale(1); }
-}
-
-@keyframes cyd-splash-bg {
-  0% { transform: scale(1); }
-  100% { transform: scale(1.08); }
-}
-
-/* Cinematic Zoom into screen and Erase */
-@keyframes cyd-splash-zoom-out {
+/* Animations: enter with slight scale, zoom slowly towards camera, then fade out */
+@keyframes cyd-splash-zoom {
   0% {
-    transform: scale(1);
-    opacity: 1;
-    filter: blur(0px);
-  }
-  45% {
-    opacity: 1;
-  }
-  100% {
-    transform: scale(2.4);
     opacity: 0;
-    filter: blur(14px);
+    transform: scale(0.92);
+  }
+  18% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 0.95;
+    transform: scale(1.4);
   }
 }
 
-/* Outward radial circle iris erase revealing the underlying page */
-@keyframes cyd-splash-erase {
+@keyframes cyd-splash-fade-out {
   0% {
-    clip-path: circle(150% at 50% 50%);
     opacity: 1;
   }
-  30% {
-    clip-path: circle(150% at 50% 50%);
-  }
   100% {
-    clip-path: circle(0% at 50% 50%);
     opacity: 0;
     visibility: hidden;
   }
@@ -483,7 +376,6 @@ html[data-splash="seen"] .cyd-splash { display: none; }
 @keyframes cyd-splash-skip {
   to {
     opacity: 0;
-    transform: scale(1.12);
     visibility: hidden;
   }
 }

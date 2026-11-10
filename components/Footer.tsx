@@ -19,9 +19,6 @@ const SERVICES: FooterLinkItem[] = [
   { label: "Lab tests", href: "/diagnostics" },
   { label: "What we treat", href: "/what-we-treat" },
   { label: "Prices", href: "/prices" },
-  { label: "Join as a doctor", href: "/signup/doctor" },
-  { label: "Join as a hospital", href: "/signup/hospital" },
-  { label: "Join as a diagnostic centre", href: "/signup/diagnostic-centre" },
 ];
 
 const CONTACT: FooterLinkItem[] = [

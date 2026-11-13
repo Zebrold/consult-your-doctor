@@ -399,13 +399,15 @@ export async function logout() {
 export async function staffLogin(prevState: any, formData: FormData) {
   const supabase = await createClient()
 
-  const rawStaffId = formData.get('staffId') as string
-  const staffId = rawStaffId ? rawStaffId.trim().toUpperCase() : ''
+  // Staff sign in with their Staff ID or, when their account has one, their work email.
+  const rawStaffId = ((formData.get('staffId') as string) || '').trim()
+  const byEmail = rawStaffId.includes('@')
+  const staffId = byEmail ? rawStaffId.toLowerCase() : rawStaffId.toUpperCase()
   const password = formData.get('password') as string
   const expectedRole = formData.get('role') as string
 
   if (!staffId || !password) {
-    return { error: 'Staff ID and password are required.' }
+    return { error: 'Enter your Staff ID or work email, and your password.' }
   }
 
   const ip = (await clientIp()) ?? 'unknown'
@@ -415,22 +417,19 @@ export async function staffLogin(prevState: any, formData: FormData) {
     return { error: 'Too many login attempts. Please wait 15 minutes and try again.' }
   }
 
-  // The email in Supabase is the ID lowercased + @cyd.internal OR their real email if updated
-  let email = `${staffId.toLowerCase()}@cyd.internal`
+  // The login email is the ID lowercased + @cyd.internal, or the staff member's real email when their account has one
+  // (lib/provisioning.ts). A typed email is used as it is.
+  let email = byEmail ? staffId : `${staffId.toLowerCase()}@cyd.internal`
 
-  // Let's check if the staff has a custom email set in profiles
-  // We need to use service role to bypass RLS if they aren't logged in yet
-  const { createAdminClient } = await import('@/lib/supabase/admin')
-  const adminClient = createAdminClient()
-  
-  const { data: profile } = await adminClient
-    .from('profiles')
-    .select('email')
-    .eq('staff_id', staffId)
-    .single()
-
-  if (profile?.email) {
-    email = profile.email
+  if (!byEmail) {
+    // The service role reads the profile: they aren't logged in yet.
+    const { createAdminClient } = await import('@/lib/supabase/admin')
+    const { data: profile } = await createAdminClient()
+      .from('profiles')
+      .select('email')
+      .eq('staff_id', staffId)
+      .single()
+    if (profile?.email) email = profile.email
   }
 
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -439,7 +438,7 @@ export async function staffLogin(prevState: any, formData: FormData) {
   })
 
   if (error) {
-    return { error: 'Invalid Staff ID or Password.' }
+    return { error: byEmail ? 'Invalid email or password.' : 'Invalid Staff ID or password.' }
   }
 
   // Verify Role

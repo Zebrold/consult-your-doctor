@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
-import { ART } from '../AuthShell'
-import { FooterLink, StaffLoginCard } from '../StaffLoginCard'
+import { AuthCorner } from '../AuthShell'
+import { FooterLine, StaffLoginCard } from '../StaffLoginCard'
 
 export const metadata: Metadata = { title: 'Executive Login' }
 
@@ -10,15 +10,27 @@ export default function ExecutiveLoginPage() {
     <StaffLoginCard
       role="executive"
       panel={{
-        eyebrow: 'Executive portal',
-        title: 'Your front desk, in one place',
-        lead: 'Help patients with their bookings and keep the desk running smoothly.',
-        points: ['Patients and their bookings', 'Doctors and hospitals', 'Lab bookings'],
-        art: ART.hospital,
+        title: 'Grow the network, in one place',
+        lead: 'The executive portal for the Consult your Doctor team.',
+        points: [
+          { title: 'Partner applications', text: 'Review doctor, hospital and diagnostic centre applications.' },
+          { title: 'Approve and add', text: 'Approving a hospital or lab creates its listing and staff login.' },
+          { title: 'Walk-in bookings', text: 'Book patients at the counter, paid in cash at the desk.' },
+          { title: 'Hospital wallets', text: 'Pay or reject withdrawals and record what a hospital pays in.' },
+          { title: 'Today and revenue', text: "The day's bookings and revenue across the network." },
+        ],
+        art: 'executive',
       }}
-      title="Executive login"
-      description="For front-desk executives and patient care coordinators. Use the Staff ID issued for your account."
-      footer={<>Need an executive account?<FooterLink href="/contact">Contact our team</FooterLink></>}
+      corner={<AuthCorner lead="Need access?" label="Ask your manager" />}
+      title="Sign in to the executive portal"
+      description="For Consult your Doctor team members only."
+      idLabel="Staff ID or work email"
+      idHelp="Use the Staff ID on your account, or your company email."
+      footer={
+        <FooterLine lead="Trouble signing in?" href="/contact">
+          Contact the admin team
+        </FooterLine>
+      }
     />
   )
 }

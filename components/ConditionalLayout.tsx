@@ -35,12 +35,15 @@ export function ConditionalLayout({
     pathname?.startsWith("/search") ||
     pathname?.startsWith("/book") ||
     pathname?.startsWith("/specialities") ||
-    pathname?.startsWith("/doctors");
+    pathname?.startsWith("/doctors") ||
+    // The login pages fill the screen, with the brand in their blue half (app/(auth)/login/AuthShell.tsx).
+    pathname?.startsWith("/login");
 
   // Phones: the app strip on every patient and public page, stuck to the top while the page scrolls. Sticky headers
   // below it sit at top: var(--strip-h) (globals.css).
   const staffArea = NO_APP_STRIP.some((base) => inSection(pathname ?? "", base));
-  const strip = staffArea ? null : <AppPromoStrip />;
+  // The partner page scrolls with its header and strip (SiteHeader).
+  const strip = staffArea ? null : <AppPromoStrip pinned={!inSection(pathname ?? "", "/corporate")} />;
   // The opening intro, for people opening the site (not staff, who open their portal all day, nor a booking slip
   // opened at the desk or from WhatsApp, which should show at once).
   const splash = <SplashScreen enabled={!staffArea && !inSection(pathname ?? "", "/book/confirmation")} />;

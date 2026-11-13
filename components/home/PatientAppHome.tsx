@@ -86,7 +86,7 @@ export function PatientAppHome({ greeting, name, isSignedIn, hospitals, cities, 
                 id="specialities-title"
                 title="Specialities"
                 sub={<span className="hidden lg:inline">{where ? `Consult verified specialists near ${where}` : "Consult verified specialists"}</span>}
-                href="/find"
+                href="/specialities"
                 link="See all"
               />
               <PhoneSpecialities />

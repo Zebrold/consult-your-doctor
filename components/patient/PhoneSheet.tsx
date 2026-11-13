@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { Building2, CalendarDays, ChevronDown, ChevronRight, FlaskConical, Handshake, LifeBuoy, LogIn, LogOut, Stethoscope, UserRound, X, type LucideIcon } from "lucide-react";
 import { JOIN_LINKS } from "@/components/site/CorporateMenu";
+import { PARTNER_LOGINS } from "@/components/site/LoginMenu";
 
 /** A panel that slides up from the bottom over a dimmed page (a centred dialog on wider screens). */
 export function Sheet({ title, subtitle, onClose, children }: { title: string; subtitle?: string; onClose: () => void; children: ReactNode }) {
@@ -81,12 +82,20 @@ export function MenuSheet({ name, email, isSignedIn, onClose }: { name: string |
                 <ChevronRight className="w-5 h-5 text-slate-300 shrink-0" />
               </Link>
             ))}
-            <div className="flex items-center justify-between gap-3 px-2.5 pt-2.5 pb-2 mt-1 border-t border-[#E2E8F3] text-[13.5px] font-extrabold">
+            <div className="px-2.5 pt-2.5 pb-1 mt-1 border-t border-[#E2E8F3]">
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-slate-500">Partner login</p>
+              <div className="mt-1.5 grid grid-cols-3 gap-1.5">
+                {PARTNER_LOGINS.map(({ href, title, icon: Icon }) => (
+                  <Link key={href} href={href} onClick={onClose} className="flex flex-col items-center gap-1 px-1 py-2 rounded-xl bg-white text-center text-[12px] font-bold leading-tight text-indigo-gray-900 shadow-[0_0_0_1px_#E6EBF3] active:bg-[#EEF3FF]">
+                    <Icon className="w-[18px] h-[18px] text-[#2A4DD0]" />
+                    {title.replace(" login", "")}
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div className="px-2.5 pt-2 pb-2 text-[13.5px] font-extrabold">
               <Link href="/corporate" onClick={onClose} className="py-1 text-[#2A4DD0]">
                 How partnering works
-              </Link>
-              <Link href="/corporate#login" onClick={onClose} className="py-1 text-indigo-gray-900">
-                Partner login
               </Link>
             </div>
           </div>

@@ -1,35 +1,53 @@
 'use client'
 
-import Link from 'next/link'
 import { useState, useActionState, type ReactNode } from 'react'
+import Link from 'next/link'
 import { staffLogin, sendPasswordResetOTP } from '@/app/actions/auth'
-import { ArrowLeft, ArrowRight, IdCard, Loader2, Lock, MailCheck } from 'lucide-react'
-import { AuthShell, authButton, authError, authField, authLabel, authLink, type AuthPanel } from './AuthShell'
+import { ArrowLeft, ChevronRight, Loader2, MailCheck } from 'lucide-react'
+import {
+  AuthShell,
+  AuthTerms,
+  authButton,
+  authError,
+  authField,
+  authFooter,
+  authHelp,
+  authLabel,
+  authLead,
+  authLink,
+  authRequired,
+  authTitle,
+  type AuthPanel,
+} from './AuthShell'
 
-const inputClass = `${authField} pl-11 pr-4`
-const iconClass = 'absolute left-4 w-[18px] h-[18px] text-[#9AA4B5] pointer-events-none'
-
-/** The sign-in every staff portal uses (doctor, hospital, executive, diagnostic center): Staff ID and password, with a
- * password reset by email, beside the portal's blue panel. */
+/** The sign-in every staff portal uses (doctor, hospital, executive, diagnostic centre): Staff ID (or work email) and
+ * password, with a password reset by email, beside the portal's blue half. */
 export function StaffLoginCard({
   role,
   panel,
+  corner,
   title,
   description,
+  idLabel,
+  idHelp,
   footer,
-  idLabel = 'Staff ID',
 }: {
   /** The account role this portal accepts; staffLogin turns other roles away. */
   role: 'doctor' | 'hospital_admin' | 'executive' | 'diagnostic_admin'
-  /** The blue panel beside the form: which portal this is and what's inside. */
+  /** The blue half: what the portal is and what's inside. */
   panel: AuthPanel
+  /** The line at the top right, e.g. how to register. */
+  corner?: ReactNode
   title: string
   description: string
-  /** The line under the form, e.g. how to get an account. */
+  /** The first field's label, e.g. "Staff ID or work email". */
+  idLabel: string
+  idHelp: string
+  /** The lines under the form, e.g. the patient login and help. */
   footer: ReactNode
-  idLabel?: string
 }) {
   const [state, formAction, isPending] = useActionState(staffLogin, null)
+  const [showPassword, setShowPassword] = useState(false)
 
   const [view, setView] = useState<'login' | 'forgot' | 'verify'>('login')
   const [staffId, setStaffId] = useState('')
@@ -40,24 +58,19 @@ export function StaffLoginCard({
     e.preventDefault()
     setIsResetting(true)
     setResetError('')
-
     const res = await sendPasswordResetOTP(staffId)
     setIsResetting(false)
-
-    if (res.error) {
-      setResetError(res.error)
-    } else {
-      setView('verify')
-    }
+    if (res.error) setResetError(res.error)
+    else setView('verify')
   }
 
   return (
-    <AuthShell panel={panel}>
+    <AuthShell panel={panel} corner={corner}>
       {view !== 'login' && (
         <button
           type="button"
           onClick={() => setView('login')}
-          className="self-start inline-flex items-center gap-1.5 mb-6 text-[13.5px] font-bold text-[#5B667A] hover:text-[#0B1B3F] transition-colors"
+          className="inline-flex items-center gap-1.5 mb-6 text-[14px] font-bold text-[#5B667A] hover:text-[#0B1B3F] transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Back to login
         </button>
@@ -65,10 +78,10 @@ export function StaffLoginCard({
 
       {view === 'login' && (
         <>
-          <h1 className="text-[28px] md:text-[32px] leading-[1.15] font-extrabold tracking-[-0.025em]">{title}</h1>
-          <p className="mt-2 text-[15px] leading-[1.6] text-[#5B667A]">{description}</p>
+          <h1 className={authTitle}>{title}</h1>
+          <p className={authLead}>{description}</p>
 
-          <form action={formAction} className="mt-7 space-y-5">
+          <form action={formAction} className="mt-8 space-y-6">
             <input type="hidden" name="role" value={role} />
 
             {state?.error && (
@@ -77,95 +90,110 @@ export function StaffLoginCard({
               </div>
             )}
 
-            <div className="flex flex-col gap-2">
-              <label className={authLabel} htmlFor="staff-id">{idLabel}</label>
-              <div className="relative flex items-center">
-                <IdCard className={iconClass} />
-                <input id="staff-id" required name="staffId" type="text" autoComplete="username" placeholder="e.g. CYDAB1234" className={`${inputClass} uppercase placeholder:normal-case`} />
-              </div>
+            <div>
+              <label className={authLabel} htmlFor="staff-id">
+                {idLabel}
+                {authRequired}
+              </label>
+              <input
+                id="staff-id"
+                required
+                name="staffId"
+                type="text"
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
+                aria-describedby="staff-id-help"
+                className={`${authField} mt-2`}
+              />
+              <p id="staff-id-help" className={authHelp}>
+                {idHelp}
+              </p>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <label className={authLabel} htmlFor="password">Password</label>
+            <div>
+              <div className="flex items-center justify-between gap-3">
+                <label className={authLabel} htmlFor="password">
+                  Password
+                  {authRequired}
+                </label>
                 <button
                   type="button"
-                  onClick={() => { setView('forgot'); setResetError('') }}
-                  className="text-[13px] font-bold text-[#1D4ED8] hover:underline underline-offset-4"
+                  onClick={() => {
+                    setView('forgot')
+                    setResetError('')
+                  }}
+                  className="text-[14px] font-bold text-[#1D4ED8] hover:underline underline-offset-4"
                 >
                   Forgot password?
                 </button>
               </div>
-              <div className="relative flex items-center">
-                <Lock className={iconClass} />
-                <input id="password" required name="password" type="password" autoComplete="current-password" placeholder="••••••••" className={inputClass} />
+              <div className="relative mt-2">
+                <input
+                  id="password"
+                  required
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  className={`${authField} pr-20`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-pressed={showPassword}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 h-9 px-3 rounded-lg text-[14px] font-bold text-[#1D4ED8] hover:bg-[#F2F6FF]"
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
               </div>
             </div>
 
-            <button disabled={isPending} type="submit" className={`${authButton} mt-1`}>
+            <button disabled={isPending} type="submit" className={authButton}>
               {isPending ? (
                 <>
-                  <Loader2 className="w-[18px] h-[18px] animate-spin" /> Logging in...
+                  <Loader2 className="w-[18px] h-[18px] animate-spin" /> Logging in…
                 </>
               ) : (
                 <>
-                  Log in <ArrowRight className="w-[18px] h-[18px]" strokeWidth={2.4} />
+                  Log in <ChevronRight className="w-[18px] h-[18px]" strokeWidth={2.6} />
                 </>
               )}
             </button>
 
-            <p className="text-center text-[12.5px] leading-normal text-[#7A8599]">
-              By logging in, you agree to our{' '}
-              <Link className="font-bold text-[#27324A] hover:underline" href="/terms-of-use">
-                Terms &amp; Conditions
-              </Link>{' '}
-              and{' '}
-              <Link className="font-bold text-[#27324A] hover:underline" href="/privacy-policy">
-                Privacy Policy
-              </Link>
-              .
-            </p>
+            <AuthTerms />
           </form>
 
-          <div className="mt-7 pt-6 border-t border-[#EEF2F7] space-y-2 text-[14px] text-[#5B667A]">
-            <p>{footer}</p>
-            <p>
-              Looking to book a visit?{' '}
-              <Link href="/login/patient" className={authLink}>
-                Patient login
-              </Link>
-            </p>
-          </div>
+          <div className={authFooter}>{footer}</div>
         </>
       )}
 
       {view === 'forgot' && (
         <>
-          <h1 className="text-[26px] md:text-[30px] leading-[1.15] font-extrabold tracking-[-0.025em]">Reset your password</h1>
-          <p className="mt-2 text-[15px] leading-[1.6] text-[#5B667A]">
-            Enter your {idLabel} and we&apos;ll email a reset link to the address registered on your account.
-          </p>
+          <h1 className={authTitle}>Reset your password</h1>
+          <p className={authLead}>Enter your Staff ID and we&apos;ll email a reset link to the address registered on your account.</p>
 
-          <form onSubmit={handleSendReset} className="mt-7 space-y-5">
+          <form onSubmit={handleSendReset} className="mt-8 space-y-6">
             {resetError && (
               <div role="alert" className={authError}>
                 {resetError}
               </div>
             )}
-            <div className="flex flex-col gap-2">
-              <label className={authLabel} htmlFor="reset-staff-id">{idLabel}</label>
-              <div className="relative flex items-center">
-                <IdCard className={iconClass} />
-                <input
-                  id="reset-staff-id"
-                  required
-                  value={staffId}
-                  onChange={(e) => setStaffId(e.target.value)}
-                  type="text"
-                  placeholder="e.g. CYDAB1234"
-                  className={`${inputClass} uppercase placeholder:normal-case`}
-                />
-              </div>
+            <div>
+              <label className={authLabel} htmlFor="reset-staff-id">
+                Staff ID
+                {authRequired}
+              </label>
+              <input
+                id="reset-staff-id"
+                required
+                value={staffId}
+                onChange={(e) => setStaffId(e.target.value)}
+                type="text"
+                autoCapitalize="characters"
+                className={`${authField} mt-2 uppercase`}
+              />
+              <p className={authHelp}>It&apos;s in the welcome email from our team.</p>
             </div>
             <button disabled={isResetting || !staffId} type="submit" className={authButton}>
               {isResetting ? <Loader2 className="w-[18px] h-[18px] animate-spin" /> : 'Send reset link'}
@@ -179,21 +207,22 @@ export function StaffLoginCard({
           <span className="mx-auto mb-5 w-14 h-14 rounded-full bg-[#E7F7EE] text-[#067647] flex items-center justify-center">
             <MailCheck className="w-7 h-7" />
           </span>
-          <h1 className="text-[26px] md:text-[30px] leading-[1.15] font-extrabold tracking-[-0.025em]">Check your email</h1>
-          <p className="mt-2 text-[15px] leading-[1.6] text-[#5B667A]">
-            We&apos;ve sent a password reset link to your registered email address. Open it to set a new password.
-          </p>
+          <h1 className={authTitle}>Check your email</h1>
+          <p className={authLead}>We&apos;ve sent a password reset link to your registered email address. Open it to set a new password.</p>
         </div>
       )}
     </AuthShell>
   )
 }
 
-/** A link in the line under the form, e.g. "Apply to join our network". */
-export function FooterLink({ href, children }: { href: string; children: ReactNode }) {
+/** A line under the form, e.g. "Booking an appointment? Patient login". */
+export function FooterLine({ lead, href, children }: { lead: string; href: string; children: ReactNode }) {
   return (
-    <Link href={href} className={`${authLink} ml-1`}>
-      {children}
-    </Link>
+    <p>
+      {lead}{' '}
+      <Link href={href} className={authLink}>
+        {children}
+      </Link>
+    </p>
   )
 }

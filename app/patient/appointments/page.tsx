@@ -28,7 +28,7 @@ type VisitRow = {
   booking_type?: string | null
   services?: unknown
   doctors: Rel<{ id: string; specialty: string | null; image_url: string | null; profiles: Rel<{ full_name: string | null }> }>
-  hospitals: Rel<{ id: string; name: string; city: string | null; address: string | null }>
+  hospitals: Rel<{ id: string; name: string; city: string | null; address: string | null; image_url: string | null }>
   schedules: Rel<{ start_time: string }>
   medical_records: { id: string; document_type: string | null; file_url: string | null }[] | null
 }
@@ -39,11 +39,15 @@ type LabRow = {
   preferred_date: string | null
   booking_type: string | null
   doorstep_fee: number | null
-  diagnostic_centers: Rel<{ id: string; name: string; city: string | null; address: string | null; test_prices: Parameters<typeof matchBookedTests>[1] }>
+  diagnostic_centers: Rel<{ id: string; name: string; city: string | null; address: string | null; image_url: string | null; test_prices: Parameters<typeof matchBookedTests>[1] }>
 }
 type PaymentRow = { appointment_id: string | null; diagnostic_booking_id: string | null; amount: number | string | null; gateway: string | null }
 
 const DAY_MS = 86_400_000
+/** Patients are asked to arrive this long before their slot (the pass shows it as "Report by"). */
+const ARRIVE_EARLY_MS = 15 * 60_000
+/** The slip PDF is a receipt, issued once the booking is paid (app/api/booking/[id]/slip). */
+const slipFor = (id: string, state: BookingItem['state']) => (state === 'ok' || state === 'done' ? `/api/booking/${id}/slip` : null)
 const ACTIVE = ['scheduled', 'confirmed', 'pending_payment', 'pending', 'rescheduled']
 
 /** "today", "tomorrow", "in 3 days" for a visit coming up. */
@@ -68,7 +72,7 @@ export default async function PatientAppointments() {
       .select(`
         *,
         doctors ( id, specialty, image_url, profiles!doctors_profile_id_fkey ( full_name ) ),
-        hospitals ( id, name, city, address ),
+        hospitals ( id, name, city, address, image_url ),
         schedules ( start_time ),
         medical_records ( id, document_type, file_url )
       `)
@@ -76,7 +80,7 @@ export default async function PatientAppointments() {
       .order('created_at', { ascending: false }),
     supabase
       .from('diagnostic_bookings')
-      .select('id, status, test_name, preferred_date, booking_type, doorstep_fee, diagnostic_centers ( id, name, city, address, test_prices )')
+      .select('id, status, test_name, preferred_date, booking_type, doorstep_fee, diagnostic_centers ( id, name, city, address, image_url, test_prices )')
       .eq('patient_id', user.id)
       .order('created_at', { ascending: false }),
     // The patient's own reviews, so finished visits show their rating instead of "Rate your visit".
@@ -126,7 +130,13 @@ export default async function PatientAppointments() {
       statusLabel: { ok: 'Confirmed', unpaid: 'Awaiting payment', done: 'Completed', past: 'Date passed', cancelled: 'Cancelled' }[state],
       title: name,
       sub: `${doctor?.specialty || 'General'} · ${isFastTrack(v.booking_type) ? 'Fast track' : 'Consultation'}`,
+      specialty: doctor?.specialty || 'General',
       image: doctor?.image_url ?? null,
+      placeName: hospital?.name || 'Partner hospital',
+      placeAddress: [hospital?.address, hospital?.city].filter(Boolean).join(', ') || null,
+      placeImage: hospital?.image_url ?? null,
+      reportBy: at && state === 'ok' ? formatTime(new Date(Date.parse(at) - ARRIVE_EARLY_MS).toISOString()) : null,
+      slipHref: slipFor(v.id, state),
       at,
       date: at ? formatDayLabel(at, now) : 'Date to be set',
       time: at ? formatTime(at) : null,
@@ -170,7 +180,13 @@ export default async function PatientAppointments() {
         { ok: 'Confirmed', unpaid: 'Awaiting payment', past: 'Date passed', cancelled: 'Cancelled', done: b.status === 'report_sent' ? 'Report ready' : b.status === 'visited' ? 'Sample collected' : 'Report on the way' }[state],
       title: tests ? tests.map((t) => t.name).join(', ') : (b.test_name || 'Lab test').replace(/-/g, ' '),
       sub: `Lab test · ${doorstep ? 'Sample collected at home' : 'Visit the lab'}`,
+      specialty: 'Lab test',
       image: null,
+      placeName: center?.name || 'Partner lab',
+      placeAddress: [center?.address, center?.city].filter(Boolean).join(', ') || null,
+      placeImage: center?.image_url ?? null,
+      reportBy: null,
+      slipHref: slipFor(b.id, state),
       at,
       date: at ? formatDayLabel(at, now) : 'Day to be set',
       time: null,

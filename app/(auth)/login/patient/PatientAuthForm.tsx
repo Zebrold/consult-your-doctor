@@ -4,12 +4,12 @@ import { safeNextPath } from '@/lib/safe-redirect'
 import { startTransition, useActionState, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { ArrowLeft, ArrowRight, ChevronDown, IdCard, KeyRound, Loader2, LogIn, MessageSquare, ShieldCheck, User } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronRight, IdCard, KeyRound, Loader2, LogIn, ShieldCheck } from 'lucide-react'
 import { patientIdLogin, sendOTP, verifyOTP } from '@/app/actions/auth'
 import { COUNTRY_CODES } from '@/lib/countryCodes'
 import { createClient } from '@/lib/supabase/client'
 import { getGoogleClientId } from '@/lib/google-auth'
-import { ART, AuthShell, authButton, authError, authField, authLabel, authLink, type AuthPanel } from '../AuthShell'
+import { AuthCorner, AuthShell, AuthTerms, authButton, authError, authField, authFooter, authHelp, authLabel, authLead, authLink, authRequired, authTitle, type AuthPanel } from '../AuthShell'
 
 declare global {
   interface Window {
@@ -28,11 +28,16 @@ const RESEND_SECONDS = 30
 const inputClass = authField
 
 const PANEL: AuthPanel = {
-  eyebrow: 'For patients',
-  title: 'Healthcare made simple, for everyone.',
-  lead: 'Book verified doctors at partner hospitals and lab tests near you, and keep every prescription and report in one place.',
-  points: ['Doctors at verified partner hospitals', 'Lab tests at partner labs', 'Prescriptions and reports in your account'],
-  art: ART.doctor,
+  title: 'Your health, in one place',
+  lead: 'Book doctors and lab tests, and keep your reports and prescriptions together.',
+  points: [
+    { title: 'Book in a few taps', text: 'Pick a doctor and a time, and pay the booking fee online.' },
+    { title: 'Your booking slip and token', text: 'Sent to your WhatsApp and email, with directions to the hospital.' },
+    { title: 'Reports and prescriptions', text: 'Every lab report and prescription saved to your account.' },
+    { title: 'Free follow-up visit', text: 'See the same doctor again within 12 days with no booking fee.' },
+    { title: 'Your health insurance card', text: 'Add your policy once and the hospitals you book can see it.' },
+  ],
+  art: 'doctor',
 }
 
 export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: boolean }) {
@@ -239,84 +244,71 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
   }
 
   const sentTo = sendState?.phone || `${countryCode} ${phone}`
+  const gatewayNotice = (sendState as { gatewayNotice?: string } | null)?.gatewayNotice
+  const sentBy = (sendState as { channel?: string } | null)?.channel === 'sms' ? 'by text message' : 'on WhatsApp'
 
   return (
-    <AuthShell panel={PANEL}>
-        <div className="mb-7">
-          <h1 className="text-[28px] md:text-[32px] leading-[1.15] font-extrabold tracking-[-0.025em]">
-            {isRegister ? 'Create your account' : 'Log in to your account'}
-          </h1>
-          <p className="mt-2 text-[15px] leading-[1.6] text-[#5B667A]">
-            Book consultations and lab tests, and keep your prescriptions and reports in one place.
-          </p>
-        </div>
+    <AuthShell
+      panel={PANEL}
+      corner={
+        isRegister ? (
+          <AuthCorner lead="Already have an account?" label="Log in" onClick={() => switchMode('signin')} />
+        ) : (
+          <AuthCorner lead="New to Consult your Doctor?" label="Create an account" onClick={() => switchMode('register')} />
+        )
+      }
+    >
+      <h1 className={authTitle}>{isRegister ? 'Create your account' : 'Sign in to Consult your Doctor'}</h1>
+      <p className={authLead}>
+        {step === 2 && !withPatientId
+          ? `Enter the 6-digit code we sent ${sentBy}.`
+          : isRegister
+            ? 'Use your mobile number or Google account. It only takes a minute.'
+            : 'Use your mobile number or Google account.'}
+      </p>
 
+      <div className="mt-8">
         {withPatientId ? (
           <PatientIdSignIn next={next} onBack={() => setWithPatientId(false)} />
         ) : step === 1 ? (
           <>
-            {/* Segmented tab switcher */}
-            <div className="bg-[#F1F4F9] p-1 rounded-[14px] flex mb-6" role="tablist" aria-label="Account">
-              {([
-                { id: 'signin', label: 'Login' },
-                { id: 'register', label: 'Create account' },
-              ] as const).map(({ id, label }) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={mode === id}
-                  onClick={() => switchMode(id)}
-                  className={`w-1/2 h-11 rounded-[10px] text-[14px] font-extrabold whitespace-nowrap transition-colors ${
-                    mode === id ? 'bg-white text-[#1D4ED8] shadow-[0_1px_3px_rgba(11,27,63,0.14)]' : 'text-[#5B667A] hover:text-[#0B1B3F]'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
             {googleEnabled && (
               <>
-                <div className="w-full flex flex-col items-center">
-                  <div ref={googleBtnContainerRef} className="hidden" aria-hidden="true" />
-                  <button
-                    type="button"
-                    onClick={handleGoogle}
-                    disabled={isGoogleLoading}
-                    className="w-full h-12 flex items-center justify-center gap-3 px-4 rounded-xl bg-white hover:bg-[#F7F9FF] text-[#0B1B3F] text-[15px] font-bold border border-[#D6DDE8] transition-colors active:scale-[0.99] disabled:opacity-60 cursor-pointer"
-                  >
-                    {isGoogleLoading ? (
-                      <Loader2 className="w-4 h-4 animate-spin text-[#1D4ED8]" />
-                    ) : (
-                      <svg aria-hidden="true" className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05" />
-                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335" />
-                      </svg>
-                    )}
-                    <span>{isGoogleLoading ? 'Connecting to Google...' : isRegister ? 'Sign up with Google' : 'Continue with Google'}</span>
-                  </button>
-                </div>
+                <div ref={googleBtnContainerRef} className="hidden" aria-hidden="true" />
+                <button
+                  type="button"
+                  onClick={handleGoogle}
+                  disabled={isGoogleLoading}
+                  className="w-full h-[50px] flex items-center justify-center gap-3 px-4 rounded-[10px] bg-[#F7F9FC] hover:bg-[#EEF2F8] text-[#0B1B3F] text-[15.5px] font-bold border border-[#D0D7E2] transition-colors active:scale-[0.99] disabled:opacity-60 cursor-pointer"
+                >
+                  {isGoogleLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-[#1D4ED8]" />
+                  ) : (
+                    <svg aria-hidden="true" className="w-[18px] h-[18px] shrink-0" viewBox="0 0 24 24">
+                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05" />
+                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335" />
+                    </svg>
+                  )}
+                  <span>{isGoogleLoading ? 'Connecting to Google…' : isRegister ? 'Sign up with Google' : 'Continue with Google'}</span>
+                </button>
 
-                <div className="relative flex items-center justify-center my-6">
-                  <div className="w-full h-px bg-[#E6EBF3]" />
-                  <span className="px-3 text-[12px] font-bold text-[#7A8599] uppercase tracking-[0.08em] shrink-0">
-                    {isRegister ? 'or register with mobile number' : 'or log in with mobile number'}
-                  </span>
-                  <div className="w-full h-px bg-[#E6EBF3]" />
+                <div aria-hidden className="flex items-center gap-4 my-6">
+                  <span className="flex-1 h-px bg-[#E6EBF3]" />
+                  <span className="text-[13.5px] text-[#7A8599]">or</span>
+                  <span className="flex-1 h-px bg-[#E6EBF3]" />
                 </div>
               </>
             )}
 
             {googleError && (
-              <div role="alert" className={`${authError} mb-4`}>
+              <div role="alert" className={`${authError} mb-5`}>
                 {googleError}
               </div>
             )}
 
-            <form action={sendAction} className="space-y-4">
+            <form action={sendAction} className="space-y-6">
               {showSendError && sendState?.error && (
                 <div role="alert" className={authError}>
                   {sendState.error}
@@ -327,39 +319,41 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
               <input type="hidden" name="role" value="patient" />
 
               {isRegister && (
-                <div className="flex flex-col gap-1.5">
+                <div>
                   <label className={authLabel} htmlFor="full-name">
-                    Full Legal Name
+                    Full name
+                    {authRequired}
                   </label>
-                  <div className="relative flex items-center">
-                    <User className="absolute left-3.5 w-[18px] h-[18px] text-outline pointer-events-none" />
-                    <input
-                      id="full-name"
-                      name="fullName"
-                      type="text"
-                      required
-                      autoComplete="name"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="e.g. Priya Sharma"
-                      className={`${inputClass} pl-10 pr-4`}
-                    />
-                  </div>
+                  <input
+                    id="full-name"
+                    name="fullName"
+                    type="text"
+                    required
+                    autoComplete="name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className={`${authField} mt-2`}
+                  />
+                  <p className={authHelp}>As it should appear on your bookings and prescriptions.</p>
                 </div>
               )}
 
-              <div className="flex flex-col gap-1.5">
+              <div>
                 <label className={authLabel} htmlFor="mobile-number">
-                  Mobile Number
+                  Mobile number
+                  {authRequired}
                 </label>
-                <div className="flex items-center gap-2">
-                  <div className="relative shrink-0">
+                <div className="mt-2 flex h-[50px] rounded-[10px] border border-[#D0D7E2] bg-white overflow-hidden transition-shadow focus-within:border-[#1D4ED8] focus-within:ring-4 focus-within:ring-[#1D4ED8]/15">
+                  {/* The dialling code shows as a short prefix; the list under it names each country. */}
+                  <span className="relative shrink-0 flex items-center gap-1 pl-3.5 pr-2.5 border-r border-[#D0D7E2] bg-[#F7F9FC] text-[15px] font-semibold text-[#0B1B3F]">
+                    {countryCode}
+                    <ChevronDown aria-hidden className="w-3.5 h-3.5 text-[#5B667A]" strokeWidth={2.4} />
                     <select
                       name="countryCode"
                       aria-label="Country code"
                       value={countryCode}
                       onChange={(e) => setCountryCode(e.target.value)}
-                      className="appearance-none h-12 w-[6.75rem] sm:w-auto truncate bg-[#F6F8FC] text-[#0B1B3F] text-[14px] font-bold pl-3 pr-8 rounded-xl border border-[#D6DDE8] outline-none cursor-pointer transition-shadow focus:border-[#1D4ED8] focus:ring-4 focus:ring-[#A9CBFF]/40"
+                      className="absolute inset-0 w-full opacity-0 cursor-pointer"
                     >
                       {countryCodes.map((country) => (
                         <option key={country.code} value={country.dialCode}>
@@ -367,8 +361,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5B667A] pointer-events-none" />
-                  </div>
+                  </span>
                   <input
                     id="mobile-number"
                     name="phone"
@@ -379,43 +372,33 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
                     maxLength={15}
                     value={phone}
                     onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Your mobile number"
-                    className={`${inputClass} px-3.5 sm:px-4 flex-1 min-w-0`}
+                    aria-describedby="mobile-help"
+                    className="flex-1 min-w-0 px-4 bg-transparent text-[15.5px] text-[#0B1B3F] outline-none"
                   />
                 </div>
-                <p className="mt-1 flex items-center gap-1.5 text-[12.5px] font-medium text-[#5B667A]">
-                  <ShieldCheck className="w-4 h-4 text-[#1D4ED8] shrink-0" />
-                  We&apos;ll send a 6-digit verification code to your WhatsApp / mobile number
+                <p id="mobile-help" className={authHelp}>
+                  We&apos;ll send a 6-digit code by WhatsApp or SMS. No password needed.
                 </p>
               </div>
 
-              <button
-                type="submit"
-                disabled={isSendPending}
-                className={`${authButton} mt-1`}
-              >
+              <button type="submit" disabled={isSendPending} className={authButton}>
                 {isSendPending ? (
                   <>
-                    <Loader2 className="w-[18px] h-[18px] animate-spin" /> Sending verification code...
+                    <Loader2 className="w-[18px] h-[18px] animate-spin" /> Sending code…
                   </>
                 ) : (
                   <>
-                    {isRegister ? 'Register and get a code' : 'Send verification code'}
-                    <ArrowRight className="w-[18px] h-[18px]" strokeWidth={2.4} />
+                    Send code <ChevronRight className="w-[18px] h-[18px]" strokeWidth={2.6} />
                   </>
                 )}
               </button>
 
-              <p className="text-center text-[12.5px] leading-normal text-[#7A8599]">
-                By continuing, you agree to our{' '}
-                <Link className="font-bold text-[#27324A] hover:underline" href="/terms-of-use">Terms &amp; Conditions</Link> and{' '}
-                <Link className="font-bold text-[#27324A] hover:underline" href="/privacy-policy">Privacy Policy</Link>.
-              </p>
+              <AuthTerms verb="continuing" />
             </form>
           </>
         ) : (
-          /* Step 2: enter the OTP */
-          <form action={verifyAction} className="space-y-5">
+          /* Step 2: enter the code */
+          <form action={verifyAction} className="space-y-6">
             <input type="hidden" name="phone" value={sendState?.phone || ''} />
             <input type="hidden" name="fullName" value={fullName} />
             <input type="hidden" name="role" value="patient" />
@@ -423,20 +406,15 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
             <input type="hidden" name="token" value={otp.join('')} />
             <input type="hidden" name="next" value={next} />
 
-            <div className="text-center">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EEF3FF] text-[#1D4ED8] text-[12px] font-extrabold mb-3">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Verification code sent
-              </div>
-              <p className="text-[14.5px] text-[#5B667A]">
-                Enter the 6-digit verification code sent to your WhatsApp at <span className="font-bold text-[#0B1B3F]">{sentTo}</span>
-              </p>
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="mt-1.5 inline-flex items-center gap-1 text-[13.5px] font-bold text-[#1D4ED8] hover:underline underline-offset-4"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" /> Change number
+            <div className="flex items-center justify-between gap-3 p-3.5 rounded-[10px] bg-[#F4F7FF] border border-[#DCE6FF]">
+              <span className="flex items-center gap-2.5 min-w-0 text-[14px] text-[#27324A]">
+                <ShieldCheck className="w-[18px] h-[18px] text-[#1D4ED8] shrink-0" />
+                <span className="truncate">
+                  Code sent to <span className="font-bold text-[#0B1B3F]">{sentTo}</span>
+                </span>
+              </span>
+              <button type="button" onClick={() => setStep(1)} className="shrink-0 inline-flex items-center gap-1 text-[13.5px] font-bold text-[#1D4ED8] hover:underline underline-offset-4">
+                <ArrowLeft className="w-3.5 h-3.5" /> Change
               </button>
             </div>
 
@@ -446,80 +424,75 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
               </div>
             )}
 
-            {(sendState as any)?.gatewayNotice && (
-              <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-[12.5px] rounded-xl text-left leading-relaxed shadow-sm">
-                <p className="font-semibold mb-0.5 flex items-center gap-1.5 text-amber-800 dark:text-amber-300">
-                  <span>ℹ️</span> Notice
-                </p>
-                <p className="text-[12px] opacity-90">{(sendState as any).gatewayNotice}</p>
+            {gatewayNotice && (
+              <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 text-[12.5px] rounded-[10px] leading-relaxed">
+                <p className="font-semibold mb-0.5 text-amber-800">Notice</p>
+                <p className="text-[12px] opacity-90">{gatewayNotice}</p>
               </div>
             )}
 
-            <div className="flex justify-center gap-2 sm:gap-3" role="group" aria-label="One-time password">
-              {otp.map((digit, index) => (
-                <input
-                  key={index}
-                  ref={(el) => { otpRefs.current[index] = el }}
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete={index === 0 ? 'one-time-code' : 'off'}
-                  autoFocus={index === 0}
-                  aria-label={`Digit ${index + 1}`}
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) => handleOtpChange(index, e.target.value)}
-                  onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                  onPaste={handleOtpPaste}
-                  className="w-11 h-12 sm:w-12 sm:h-14 text-center text-xl font-extrabold text-[#0B1B3F] rounded-xl border border-[#D6DDE8] outline-none transition-shadow focus:border-[#1D4ED8] focus:ring-4 focus:ring-[#A9CBFF]/40"
-                />
-              ))}
+            <div>
+              <span className={authLabel}>
+                6-digit code
+                {authRequired}
+              </span>
+              <div className="mt-2 flex justify-between gap-2" role="group" aria-label="One-time code">
+                {otp.map((digit, index) => (
+                  <input
+                    key={index}
+                    ref={(el) => {
+                      otpRefs.current[index] = el
+                    }}
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                    autoFocus={index === 0}
+                    aria-label={`Digit ${index + 1}`}
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(index, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                    onPaste={handleOtpPaste}
+                    className="w-full max-w-[64px] h-14 text-center text-[22px] font-extrabold text-[#0B1B3F] rounded-[10px] border border-[#D0D7E2] outline-none transition-shadow focus:border-[#1D4ED8] focus:ring-4 focus:ring-[#1D4ED8]/15"
+                  />
+                ))}
+              </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={isVerifyPending || otp.join('').length < 6}
-              className={authButton}
-            >
+            <button type="submit" disabled={isVerifyPending || otp.join('').length < 6} className={authButton}>
               {isVerifyPending ? (
                 <>
-                  <Loader2 className="w-[18px] h-[18px] animate-spin" /> Verifying...
+                  <Loader2 className="w-[18px] h-[18px] animate-spin" /> Verifying…
                 </>
-              ) : isRegister ? 'Verify & Create Account' : 'Verify & Login'}
+              ) : (
+                <>
+                  {isRegister ? 'Verify and create account' : 'Verify and log in'} <ChevronRight className="w-[18px] h-[18px]" strokeWidth={2.6} />
+                </>
+              )}
             </button>
 
-            <p className="text-center text-[14px] text-[#5B667A]">
+            <p className="text-[14px] text-[#5B667A]">
               Didn&apos;t get a code?{' '}
               {resendIn > 0 ? (
                 <span className="font-bold text-[#0B1B3F]">Resend in {resendIn}s</span>
               ) : (
-                <button
-                  type="button"
-                  onClick={handleResend}
-                  disabled={isSendPending}
-                  className={`${authLink} disabled:opacity-60`}
-                >
-                  {isSendPending ? 'Sending...' : 'Resend Code'}
+                <button type="button" onClick={handleResend} disabled={isSendPending} className={`${authLink} disabled:opacity-60`}>
+                  {isSendPending ? 'Sending…' : 'Resend code'}
                 </button>
               )}
             </p>
           </form>
         )}
+      </div>
 
-        {/* Switch between logging in and creating an account, and the way to the doctors' portal */}
-        <div className="mt-7 pt-6 border-t border-[#EEF2F7] space-y-2 text-[14px] text-[#5B667A]">
-          <p>
-            {isRegister ? 'Already have an account?' : 'New to Consult your Doctor?'}
-            <button type="button" onClick={() => switchMode(isRegister ? 'signin' : 'register')} className={`${authLink} ml-1`}>
-              {isRegister ? 'Login' : 'Create an account'}
-            </button>
-          </p>
-          <p>
-            Are you a doctor?{' '}
-            <Link href="/login/doctor" className={authLink}>
-              Doctor login
-            </Link>
-          </p>
-        </div>
+      <div className={authFooter}>
+        <p>
+          Need help with a booking?{' '}
+          <Link href="/contact" className={authLink}>
+            Help &amp; Support
+          </Link>
+        </p>
+      </div>
     </AuthShell>
   )
 }

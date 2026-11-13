@@ -132,6 +132,11 @@ html {
   scroll-padding-top: calc(var(--header-h) + var(--strip-h));
 }
 
+/* The partner page's header scrolls away with the page (SiteHeader), so its anchors need no room for it. */
+html:has([data-static-header]) {
+  scroll-padding-top: 0px;
+}
+
 body {
   background-color: var(--color-background);
   color: var(--color-on-background);

@@ -82,9 +82,9 @@ export function AppPromo({ qr }: { qr: string }) {
  * page-tall element. Its height is --strip-h (globals.css), which sticky headers below it sit under; `data-top-strip`
  * sets that and gives the top of the page (Safari's status bar and the pull-down area) the strip's colour.
  */
-export function AppPromoStrip() {
+export function AppPromoStrip({ pinned = true }: { /** Sticks to the top while the page scrolls (not on the partner page). */ pinned?: boolean }) {
   return (
-    <section data-top-strip aria-label="Consult your Doctor app" className="md:hidden sticky top-0 z-40 h-(--strip-h) bg-[#0A1022] text-white border-b border-white/[0.06] font-(family-name:--font-manrope) print:hidden">
+    <section data-top-strip aria-label="Consult your Doctor app" className={`md:hidden ${pinned ? "sticky top-0" : "relative"} z-40 h-(--strip-h) bg-[#0A1022] text-white border-b border-white/[0.06] font-(family-name:--font-manrope) print:hidden`}>
       <div className="h-full flex items-center gap-3 pl-4 pr-3">
         {/* The app's icon, as it sits on a home screen */}
         <span className="shrink-0 w-11 h-11 rounded-[12px] bg-[#2A4DD0] flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_6px_14px_rgba(42,77,208,0.35)]">

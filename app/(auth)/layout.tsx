@@ -4,15 +4,8 @@ export const metadata: Metadata = {
   title: 'Authentication',
 }
 
-// The site header and footer come from the root layout (ConditionalLayout).
-export default function AuthLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  return (
-    <div className="relative isolate overflow-hidden min-h-[calc(100dvh-var(--header-h)-var(--strip-h))] bg-white flex items-center justify-center p-4 sm:p-8 font-sans">
-      {children}
-    </div>
-  )
+// Each part brings its own frame: the login pages fill the screen (login/AuthShell.tsx), and the sign-up pages sit
+// under the site header (signup/layout.tsx), which comes from the root layout (ConditionalLayout).
+export default function AuthLayout({ children }: { children: React.ReactNode }) {
+  return children
 }

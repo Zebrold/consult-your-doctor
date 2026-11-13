@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, ArrowRight, CalendarDays, CircleAlert, Clock, Download, FlaskConical, MapPin, Navigation, Plus, Share2, UserRound } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Building2, CalendarDays, CircleAlert, Clock, Download, FlaskConical, MapPin, Navigation, Plus, Share2, Stethoscope, UserRound } from "lucide-react";
 import { VerifiedBadge } from "@/components/home/ui";
 import { ReviewButton, type ExistingReview } from "./ReviewButton";
 import { DeskTitle, InfoRow, StatusDot, btnDanger, btnOutline, btnPrimary, card } from "./app-ui";
@@ -19,7 +19,17 @@ export type BookingItem = {
   statusLabel: string;
   title: string;
   sub: string;
+  /** The doctor's speciality, or "Lab test". */
+  specialty: string;
   image: string | null;
+  /** The hospital or lab: its name, address and photo, for the pass. */
+  placeName: string;
+  placeAddress: string | null;
+  placeImage: string | null;
+  /** When to arrive for a confirmed visit ("10:15 AM"). */
+  reportBy: string | null;
+  /** The slip PDF, once the booking is paid. */
+  slipHref: string | null;
   at: string | null;
   date: string;
   time: string | null;
@@ -86,14 +96,18 @@ export function BookingsClient({ items, patient }: { items: BookingItem[]; patie
             <AlertTriangle className="w-[18px] h-[18px] text-[#B42318]" />
           </span>
           <span className="flex-1 min-w-0">
-            <span className="block text-[13.5px] lg:text-[14px] font-extrabold text-[#912018]">Booking fee not paid</span>
+            <span className="block text-[13.5px] lg:text-[14px] font-extrabold text-[#912018]">
+              Booking fee not paid for your {unpaid.kind === "lab" ? "lab test" : `${unpaid.specialty} visit`}
+            </span>
             <span className="block text-[12px] lg:text-[13px] leading-snug text-[#B42318]">
-              {unpaid.title} · {[unpaid.date, unpaid.time].filter(Boolean).join(", ")}. It is confirmed once the fee is paid.
+              {unpaid.title} · {[unpaid.date, unpaid.time].filter(Boolean).join(", ")} · confirmed once the fee is paid
             </span>
           </span>
           {unpaid.payHref && (
             <Link href={unpaid.payHref} className={`${btnDanger} h-9! lg:h-[42px]! px-3.5! text-[12.5px]! lg:text-[13.5px]! shrink-0`}>
-              Pay{unpaid.fee ? <span className="hidden lg:inline"> · {unpaid.fee}</span> : null}
+              <span>
+                Pay now{unpaid.fee ? <span className="hidden lg:inline"> · {unpaid.fee}</span> : null}
+              </span>
             </Link>
           )}
         </div>
@@ -338,13 +352,13 @@ function DeskTable({ items, selected, onPass }: { items: BookingItem[]; selected
               <Avatar item={b} size="w-10 h-10" />
               <span className="min-w-0">
                 <span className="block font-extrabold truncate capitalize">{b.title}</span>
-                <span className="block text-[12.5px] text-[#5B667A] truncate">
-                  {b.sub} · {unpaid || b.state === "cancelled" ? "Token after payment" : `Token ${b.token}`}
+                <span className="text-[12.5px] leading-snug text-[#5B667A] line-clamp-2">
+                  {b.kind === "lab" ? b.sub : b.specialty} · {unpaid || b.state === "cancelled" ? "Token after payment" : `Token ${b.token}`}
                 </span>
               </span>
             </span>
             <span className="font-bold">{[b.date, b.time].filter(Boolean).join(" · ")}</span>
-            <span className="text-[#27324A] truncate">{b.where}</span>
+            <span className="text-[#27324A] leading-snug line-clamp-2">{b.where}</span>
             <StatusDot label={b.statusLabel} color={COLORS[b.state]} />
             {unpaid && b.payHref ? (
               <Link href={b.payHref} className={`${btnDanger} h-9! px-3! text-[12.5px]!`}>
@@ -372,42 +386,115 @@ function QrBlock({ item, size }: { item: BookingItem; size: number }) {
   );
 }
 
-/** Desktop: the selected booking's pass beside the table. */
+/** What the pass says at the top, by the booking's state. */
+function passHeadline(b: BookingItem): { text: string; color: string } {
+  switch (b.state) {
+    case "ok":
+      return { text: b.kind === "lab" ? "Your lab test is booked!" : "Your appointment is confirmed!", color: "#2A4DD0" };
+    case "unpaid":
+      return { text: "Your booking is awaiting payment", color: "#B42318" };
+    case "done":
+      return { text: b.kind === "lab" ? `${b.statusLabel}` : "Your visit is complete", color: "#0B1B3F" };
+    case "past":
+      return { text: "The date of this booking has passed", color: "#B54708" };
+    default:
+      return { text: "This booking was cancelled", color: "#475467" };
+  }
+}
+
+/** The ticket's tear line: a dashed rule between two notches cut from the card's sides. */
+function TearLine() {
+  return (
+    <div aria-hidden className="relative h-5 flex items-center">
+      <span className="absolute -left-[11px] w-5 h-5 rounded-full bg-white shadow-[inset_-1px_0_0_#E6EBF3]" />
+      <span className="flex-1 mx-4 border-t-[1.5px] border-dashed border-[#D6DDE8]" />
+      <span className="absolute -right-[11px] w-5 h-5 rounded-full bg-white shadow-[inset_1px_0_0_#E6EBF3]" />
+    </div>
+  );
+}
+
+/** Desktop: the selected booking's pass beside the table, drawn like the booking slip. */
 function Pass({ item: b, patient }: { item: BookingItem; patient: { name: string; uhid: string } }) {
   const showToken = b.state === "ok" || b.state === "done";
+  const headline = passHeadline(b);
   return (
-    <div className="rounded-2xl bg-white shadow-[0_0_0_1px_#E6EAF0,0_1px_2px_rgba(11,27,63,0.04)] overflow-hidden">
-      <div className="px-[22px] py-[18px] bg-[#2A4DD0] text-white">
-        <span className="block text-[11.5px] font-extrabold tracking-[0.08em] text-[#CFDCFF]">{b.kind === "lab" ? "LAB TEST PASS" : "APPOINTMENT PASS"}</span>
-        <span className="flex items-center gap-1.5 mt-1 text-[19px] font-extrabold min-w-0">
-          <span className="truncate capitalize">{b.title}</span>
-        </span>
-        <span className="block text-[13px] text-[#E3EAFF] truncate">{b.sub}</span>
-      </div>
-      <div className="px-[22px] py-5">
+    <div className={`${card} px-5 pt-6 pb-5 text-center`}>
+      <p className="flex items-center justify-center gap-2 text-[16.5px] font-extrabold tracking-[-0.01em]">
+        <Stethoscope className="w-5 h-5 text-[#2A4DD0]" strokeWidth={2.4} /> Consult your Doctor
+      </p>
+      <h2 className="mt-4 text-[18.5px] font-extrabold tracking-[-0.01em] leading-snug" style={{ color: headline.color }}>
+        {headline.text}
+      </h2>
+      <p className="mt-0.5 text-[13px] text-[#5B667A]">
+        Booking ID <span className="font-extrabold text-[#0B1B3F]">{b.bookingId}</span>
+      </p>
+
+      <div className="mt-4 rounded-2xl bg-[#F7F9FC] shadow-[inset_0_0_0_1px_#E6EBF3] text-left">
+        <div className="flex gap-3.5 p-4">
+          <PlaceThumb item={b} />
+          <span className="min-w-0">
+            <Title item={b} className="text-[16px]" />
+            <span className="block text-[13px] font-bold text-[#2A4DD0] truncate">{b.specialty}</span>
+            <span className="block mt-1.5 text-[14px] font-extrabold">{[b.date, b.time].filter(Boolean).join(" · ")}</span>
+            <span className="block mt-0.5 text-[12.5px] text-[#5B667A] truncate">{b.placeName}</span>
+            {b.placeAddress && <span className="block text-[12.5px] leading-snug text-[#5B667A] line-clamp-2">{b.placeAddress}</span>}
+          </span>
+        </div>
+
         {showToken && b.qr ? (
-          <div className="flex items-center gap-5">
-            <QrBlock item={b} size={124} />
-            <span>
-              <span className="block text-[11.5px] font-extrabold tracking-[0.08em] text-[#5B667A]">TOKEN</span>
-              <span className="block text-[44px] font-extrabold text-[#2A4DD0] tracking-[-0.03em] leading-none">{b.token}</span>
-              <span className="block mt-1.5 text-[12.5px] leading-[1.45] text-[#5B667A]">{b.kind === "lab" ? "Show at the lab's front desk" : "Show at reception to check in"}</span>
-            </span>
+          <div className="flex flex-col items-center pb-4">
+            <QrBlock item={b} size={112} />
+            <span className="mt-1.5 text-[12px] font-bold text-[#5B667A]">Scan at desk</span>
           </div>
         ) : (
-          <PassNote item={b} />
+          <div className="px-4 pb-4">
+            <PassNote item={b} />
+          </div>
         )}
-        <div className="mt-4">
-          <InfoRow label="Date & time" value={[b.date, b.time].filter(Boolean).join(", ")} />
-          <InfoRow label="Location" value={b.where} />
+
+        <TearLine />
+
+        <div className="flex items-center gap-6 px-4 pt-2.5 pb-3">
+          <span>
+            <span className="block text-[11px] font-extrabold tracking-[0.08em] text-[#5B667A]">TOKEN</span>
+            <span className="block text-[28px] font-extrabold leading-tight tracking-[-0.02em] text-[#2A4DD0]">{showToken ? b.token : "—"}</span>
+          </span>
+          {b.reportBy ? (
+            <span>
+              <span className="block text-[11px] font-extrabold tracking-[0.08em] text-[#5B667A]">REPORT BY</span>
+              <span className="block mt-1 text-[15px] font-extrabold">{b.reportBy}</span>
+            </span>
+          ) : b.kind === "lab" && b.state === "ok" ? (
+            <span>
+              <span className="block text-[11px] font-extrabold tracking-[0.08em] text-[#5B667A]">VISIT ON</span>
+              <span className="block mt-1 text-[15px] font-extrabold">{b.date}</span>
+            </span>
+          ) : null}
+          {b.state === "ok" && (
+            <span aria-hidden className="ml-auto -rotate-[9deg] px-2.5 py-1 rounded-md border-2 border-[#2A4DD0] text-[#2A4DD0] text-center leading-[1.05] font-extrabold">
+              <span className="block text-[8.5px] tracking-[0.12em]">★ CYD ★</span>
+              <span className="block text-[11px] tracking-[0.04em]">BOOKING</span>
+              <span className="block text-[11px] tracking-[0.04em]">CONFIRMED</span>
+            </span>
+          )}
+        </div>
+
+        <div className="mx-4 border-t-[1.5px] border-dashed border-[#D6DDE8]" />
+        <div className="px-4 pt-1.5 pb-1">
           <InfoRow label="Patient" value={patient.name} />
-          <InfoRow label="Booking ID" value={b.bookingId} />
           <InfoRow label="Booking fee" value={b.fee ? `${b.fee} · ${b.state === "unpaid" ? "Due" : "Paid"}` : "—"} valueClass={b.state === "unpaid" ? "text-[#B42318]" : ""} />
         </div>
-        <div className="grid grid-cols-2 gap-2 mt-4">
-          <Link href={b.passHref} className={btnOutline}>
-            <Download className="w-[15px] h-[15px]" /> Booking slip
-          </Link>
+
+        <div className="grid grid-cols-2 gap-2 px-4 pb-4 pt-1">
+          {b.slipHref ? (
+            <a href={b.slipHref} target="_blank" rel="noopener noreferrer" className={btnOutline}>
+              <Download className="w-[15px] h-[15px]" /> Download
+            </a>
+          ) : (
+            <Link href={b.passHref} className={btnOutline}>
+              Booking slip
+            </Link>
+          )}
           {b.state === "unpaid" && b.payHref ? (
             <Link href={b.payHref} className={btnDanger}>
               Pay now
@@ -423,7 +510,25 @@ function Pass({ item: b, patient }: { item: BookingItem; patient: { name: string
           )}
         </div>
       </div>
+
+      <p className="mt-4 px-2 text-[12.5px] leading-[1.5] text-[#5B667A]">
+        {b.state === "unpaid"
+          ? "Your token and QR code appear once the booking fee is paid."
+          : `Show the QR code or token at the ${b.kind === "lab" ? "lab's front desk" : "front desk"} when you arrive.`}
+      </p>
     </div>
+  );
+}
+
+/** The hospital's or lab's photo on the pass, or its icon when it has none. */
+function PlaceThumb({ item: b }: { item: BookingItem }) {
+  if (b.placeImage) {
+    return <RemoteImage src={b.placeImage} alt="" width={68} height={84} className="shrink-0 w-[68px] h-[84px] rounded-xl object-cover bg-[#EEF1F5]" />;
+  }
+  return (
+    <span className="shrink-0 w-[68px] h-[84px] rounded-xl bg-[#EEF3FF] text-[#2A4DD0] flex items-center justify-center">
+      {b.kind === "lab" ? <FlaskConical className="w-6 h-6" /> : <Building2 className="w-6 h-6" />}
+    </span>
   );
 }
 
@@ -437,7 +542,7 @@ function PassNote({ item: b }: { item: BookingItem }) {
     );
   }
   return (
-    <div className="p-3.5 rounded-[14px] bg-[#F6F8FC] text-[12.5px] leading-[1.45] text-[#4A5878]">
+    <div className="p-3.5 rounded-[14px] bg-white shadow-[inset_0_0_0_1px_#E6EBF3] text-[12.5px] leading-[1.45] text-[#4A5878]">
       {b.state === "cancelled" ? "This booking was cancelled." : b.state === "past" ? "The date of this booking has passed." : "The pass is kept on the booking slip."}
     </div>
   );

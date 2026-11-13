@@ -119,12 +119,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.9,
   }));
 
-  const specialityUrls: MetadataRoute.Sitemap = SPECIALITIES.map((s) => ({
+  const specialityUrls: MetadataRoute.Sitemap = [
+    { url: `${baseUrl}/specialities`, lastModified: new Date(), changeFrequency: 'weekly' as const, priority: 0.8 },
+  ].concat(SPECIALITIES.map((s) => ({
     url: `${baseUrl}/specialities/${s.slug}`,
     lastModified: new Date(),
-    changeFrequency: 'weekly',
+    changeFrequency: 'weekly' as const,
     priority: 0.8,
-  }));
+  })));
 
   return [
     ...staticUrls,

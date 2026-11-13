@@ -193,20 +193,9 @@ export async function Footer() {
         </div>
       </div>
 
-      {/* Providers note and copyright */}
-      <div className="mt-6 md:mt-2 pt-5 md:pt-6 border-t border-white/10 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 lg:gap-10 text-[12px] md:text-[12.5px] leading-relaxed text-white/70">
-        <p className="max-w-3xl">
-          Consult your Doctor is a healthcare technology platform. Your care is provided by the independent doctors, hospitals and diagnostic centres you book; we
-          provide booking, payments and your digital records. In an emergency, call 108.{" "}
-          <Link href="/terms-of-use" className="font-semibold text-white underline underline-offset-2 hover:text-white/90">
-            How we work with providers
-          </Link>
-          {" · "}
-          <Link href="/legal" className="font-semibold text-white underline underline-offset-2 hover:text-white/90">
-            All legal documents
-          </Link>
-        </p>
-        <p className="shrink-0">&copy; {new Date().getFullYear()} Zebrold International Holdings Pvt Ltd. All rights reserved.</p>
+      {/* Copyright */}
+      <div className="mt-6 md:mt-2 pt-5 md:pt-6 border-t border-white/10 flex lg:justify-end text-[12px] md:text-[12.5px] leading-relaxed text-white/70">
+        <p>&copy; {new Date().getFullYear()} Consult Your Doctor. All rights reserved.</p>
       </div>
     </footer>
   );

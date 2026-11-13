@@ -32,9 +32,9 @@ function supabaseKeyRole(key: string | undefined): string | null {
 // sites, no browser features the site doesn't use, and a popup policy Google Sign-In works with.
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
-  // Forms may only post to this site and to PayU's checkout. (Scripts are not restricted here yet: Next.js needs a
+  // Forms may only post to this site and to Razorpay (Checkout posts card and bank steps to api.razorpay.com). (Scripts are not restricted here yet: Next.js needs a
   // per-request nonce for that, which is a separate change.)
-  { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self' https://secure.payu.in https://test.payu.in" },
+  { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self' https://api.razorpay.com https://checkout.razorpay.com" },
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

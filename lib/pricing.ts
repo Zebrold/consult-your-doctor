@@ -62,9 +62,6 @@ export const payAtVenueNote = (isConsultation: boolean) =>
     ? 'The consultation fee is set by the hospital and paid at the hospital counter.'
     : 'The test charges are paid to the lab, not online.'
 
-/** An amount as it is posted to PayU and signed in the hash: rupees with two decimals, e.g. "38.50". */
-export const payuAmount = (amount: number) => amount.toFixed(2)
-
 type PriceList = Record<string, number | string> | null | undefined
 
 export type BookedTest = { name: string; price: number }

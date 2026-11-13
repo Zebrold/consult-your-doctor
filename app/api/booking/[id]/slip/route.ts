@@ -6,6 +6,7 @@ import { doctorName, formatLongDate, formatTime } from '@/components/patient/for
 import { labBookingFee, matchBookedTests } from '@/lib/pricing'
 import { appointmentBookingFee } from '@/lib/wallet'
 import { getBookingFees } from '@/lib/booking-fees'
+import { isOnlineGateway } from '@/lib/payment-gateways'
 
 type Joined<T> = T | T[] | null
 const one = <T,>(v: Joined<T> | undefined) => (Array.isArray(v) ? v[0] : v) ?? null
@@ -82,9 +83,9 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
-      // A PayU payment is the booking fee and the convenience fee on it. A desk payment (cash or UPI) is what the counter
+      // An online payment is the booking fee and the convenience fee on it. A desk payment (cash or UPI) is what the counter
       // took, which the slip doesn't show.
-      const online = !paymentRow || paymentRow.gateway === 'payu'
+      const online = !paymentRow || isOnlineGateway(paymentRow.gateway)
       const fee = appointmentBookingFee(apt, await getBookingFees())
       const bookingFee = paymentRow ? Number(paymentRow.amount) || 0 : fee
       const convenienceFee = online && paymentRow ? Math.max(0, Math.round((bookingFee - fee) * 100) / 100) : 0
@@ -155,7 +156,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
-      const online = !paymentRow || paymentRow.gateway === 'payu'
+      const online = !paymentRow || isOnlineGateway(paymentRow.gateway)
       const tests = matchBookedTests(diag.test_name || '', center?.test_prices)
       const fee = tests ? labBookingFee(tests, (await getBookingFees()).diagnosticPercent) : null
       const bookingFee = paymentRow ? Number(paymentRow.amount) || 0 : fee ?? 0

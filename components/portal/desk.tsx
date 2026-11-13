@@ -107,7 +107,7 @@ const METHODS: { key: Method; label: string; detail: string; icon: LucideIcon }[
 
 /**
  * Takes payment for one booking at the counter: the scanner shows a UPI QR code for the exact amount, and cash is
- * recorded straight away. PayU isn't offered here: online it only ever collects a patient's booking fee, never the
+ * recorded straight away. Online payment (Razorpay) isn't offered here: online it only ever collects a patient's booking fee, never the
  * consultation fee or test charges a desk takes.
  */
 export function PaymentPanel({

@@ -8,11 +8,11 @@ import { VerifiedBadge } from "@/components/home/ui";
 import { HeroButtons } from "@/components/patient/HospitalBooking";
 import { Dots, btnPrimary, card } from "@/components/patient/app-ui";
 import { createDiagnosticBooking } from "@/app/actions/booking";
-import { startPayuPayment } from "@/lib/payu-client";
+import { startOnlinePayment, WINDOW_CLOSED } from "@/lib/razorpay-client";
 import { DEFAULT_DOORSTEP_FEE, formatPercent, labBookingFee, labTestBookingFee, onlinePayable, type BookedTest } from "@/lib/pricing";
 import { PayableTable } from "@/components/patient/PayableTable";
 import {
-  appendPatientDetails, DayStrip, FormError, LabChargesAtVenue, PayuNote, patientDetailsError, RefundNote, SummaryRow, type PatientDetails,
+  appendPatientDetails, DayStrip, FormError, LabChargesAtVenue, OnlinePayNote, patientDetailsError, RefundNote, SummaryRow, type PatientDetails,
 } from "@/components/patient/booking-ui";
 import { directionsHref, formatINR, formatLongDate, upcomingDays } from "@/components/patient/format";
 import { RemoteImage } from "@/components/RemoteImage";
@@ -33,16 +33,15 @@ interface DiagnosticBookingClientProps {
   tests: BookedTest[];
   patient: PatientDetails | null;
   now: number;
-  payuKey: string;
-  /** The booking fee, as a per cent of each test's price, that /api/payu/hash will charge (lib/booking-fees.ts). */
+  /** The booking fee, as a per cent of each test's price, that the Razorpay order will charge (lib/booking-fees.ts). */
   bookingFeePercent: number;
-  /** The payment convenience fee, as a per cent of the booking fee, that /api/payu/hash adds (lib/booking-fees.ts). */
+  /** The payment convenience fee, as a per cent of the booking fee, that the Razorpay order adds (lib/booking-fees.ts). */
   conveniencePercent: number;
 }
 
 const COLLAPSED = 8;
 
-export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, bookingFeePercent, conveniencePercent }: DiagnosticBookingClientProps) {
+export function DiagnosticBookingClient({ center, tests, patient, now, bookingFeePercent, conveniencePercent }: DiagnosticBookingClientProps) {
   const days = useMemo(() => upcomingDays(now, 6), [now]);
   const today = days[0].key;
   const doorstepEnabled = center.doorstepEnabled !== false;
@@ -65,7 +64,7 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, 
 
   const selectedTests = tests.filter((t) => chosen.includes(t.name));
   // The whole online payment: the booking fee on each test. The tests and home collection are paid to the lab.
-  // What PayU collects: the booking fee on the tests and the payment convenience fee on it (lib/pricing.ts).
+  // What is collected online: the booking fee on the tests and the payment convenience fee on it (lib/pricing.ts).
   const payable = onlinePayable(labBookingFee(selectedTests, bookingFeePercent), conveniencePercent);
   const total = payable.total;
   const feeOf = (t: BookedTest) => labTestBookingFee(t.price, bookingFeePercent);
@@ -108,17 +107,16 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, 
       return;
     }
 
-    const payError = await startPayuPayment({
-      txnid: bookingId,
-      productinfo: "Diagnostic",
-      firstname: activeDetails.name || "Patient",
-      email: (activeDetails.email || "").trim() || "patient@example.com",
-      phone: activeDetails.phone || "9999999999",
-      payuKey,
+    const payError = await startOnlinePayment({
+      bookingId,
+      product: "Diagnostic",
+      name: activeDetails.name || "Patient",
+      email: (activeDetails.email || "").trim() || null,
+      phone: activeDetails.phone || null,
     });
     if (payError) {
       setPendingId(bookingId);
-      setError(`Your booking is saved, but the payment couldn't start: ${payError}`);
+      setError(payError === WINDOW_CLOSED ? `Your booking is saved. ${payError}` : `Your booking is saved, but the payment couldn't start: ${payError}`);
       setSubmitting(false);
     }
   };
@@ -359,7 +357,7 @@ export function DiagnosticBookingClient({ center, tests, patient, now, payuKey, 
               )}
               <div className="mt-4 flex flex-col gap-3.5">
                 <LabChargesAtVenue tests={selectedTests} doorstepFee={currentDoorstepFee} />
-                <PayuNote />
+                <OnlinePayNote />
                 {error && (
                   <FormError>
                     {error}

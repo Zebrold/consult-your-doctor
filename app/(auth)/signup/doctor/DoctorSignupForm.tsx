@@ -1,457 +1,227 @@
 'use client'
 
-import { startTransition, useActionState, useRef, useState } from 'react'
-import Link from 'next/link'
-import {
-  ArrowRight,
-  BadgeCheck,
-  Building2,
-  Check,
-  ChevronDown,
-  CircleCheck,
-  IdCard,
-  Info,
-  Loader2,
-  Mail,
-  ShieldCheck,
-  UserRound,
-} from 'lucide-react'
+import { useActionState } from 'react'
+import { Stethoscope } from 'lucide-react'
 import { submitDoctorSignup } from '@/app/actions/doctorAuth'
-import { COUNTRY_CODES } from '@/lib/countryCodes'
+import { APPLICATION_DOCS } from '@/lib/application-documents'
+import { DOCTOR_LANGUAGES, DOCTOR_SPECIALTIES, DOCTOR_TITLES, GENDERS, MEDICAL_COUNCILS, PRACTICE_TYPES, SLOT_MINUTES } from '@/lib/doctor-applications'
+import { WEEKDAYS } from '@/lib/partner-applications'
+import {
+  AlreadyCard,
+  CheckGroup,
+  Declarations,
+  Field,
+  FileField,
+  FormError,
+  HowJoiningCard,
+  JoinColumns,
+  JoinHero,
+  JoinSection,
+  JoinSent,
+  KeepReadyCard,
+  PhoneInput,
+  PrefixInput,
+  SelectBox,
+  SendRow,
+  StepStrip,
+  inputCls,
+  textareaCls,
+  useJoinForm,
+} from '../join-ui'
 
-const countryCodes = [...COUNTRY_CODES].sort((a, b) => a.code.localeCompare(b.code))
+// "Join as a doctor", after the user's design. Applications go to the executive portal (Doctors → Applications),
+// where approving one creates the doctor's account at their hospital.
 
-const councils = [
-  'National Medical Commission (NMC India)',
-  'State Medical Council (India)',
-  'General Medical Council (GMC UK)',
-  'US State Medical Board (NPI)',
-  'Irish Medical Council (IMC)',
-  'AHPRA Medical Board of Australia',
-  'Dubai Health Authority (DHA / MOHAP)',
-  'German State Medical Chamber (Ärztekammer)',
-  'Other',
-]
+const SECTIONS = ['identity', 'licence', 'practice', 'profile', 'proof']
+const STEPS = ['Identity & contact', 'Medical licence', 'Practice & timings', 'Patient profile', 'ID proof & declarations']
+const docs = Object.fromEntries(APPLICATION_DOCS.doctor.map((d) => [d.key, d]))
 
-// Values are stored as the doctor's specialty and department name, so they must stay in sync with existing data.
-const specialties = [
-  'Cardiology',
-  'Neurology',
-  'Orthopedics',
-  'Pediatrics',
-  'Oncology',
-  'Dermatology',
-  'General Practice',
-  'Psychiatry',
-  'Internal Medicine',
-]
-
-const steps = [
-  { section: 'identity', title: 'Identity & Contact' },
-  { section: 'license', title: 'License & Medical Board' },
-  { section: 'practice', title: 'Practice & Declarations' },
-]
-
-const inputClass =
-  'w-full bg-surface-container-lowest text-indigo-gray-900 rounded-lg border border-outline-variant/60 p-2.5 text-sm outline-none focus:border-vibrant-blue focus:ring-2 focus:ring-vibrant-blue/20 placeholder:text-indigo-gray-600/50 transition-all'
-const selectClass = `${inputClass} appearance-none pr-9 cursor-pointer`
-
-function Field({
-  label,
-  htmlFor,
-  hint,
-  className = '',
-  children,
-}: {
-  label: string
-  htmlFor: string
-  hint?: string
-  className?: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className={`flex flex-col gap-1.5 ${className}`}>
-      <label className="font-label-sm text-label-sm text-indigo-gray-600" htmlFor={htmlFor}>{label}</label>
-      {children}
-      {hint && <span className="text-[11px] text-indigo-gray-600">{hint}</span>}
-    </div>
-  )
+const thisYear = new Date().getFullYear()
+const today = () => new Date().toISOString().slice(0, 10)
+/** The latest birth date of someone at least 21. */
+const latestBirthDate = () => {
+  const d = new Date()
+  d.setFullYear(d.getFullYear() - 21)
+  return d.toISOString().slice(0, 10)
 }
 
-function SelectWrap({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="relative">
-      {children}
-      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-gray-600 pointer-events-none" />
-    </div>
+export function DoctorSignupForm({ hospitals, uploads }: { hospitals: { id: string; name: string }[]; uploads: boolean }) {
+  const [state, formAction, pending] = useActionState(submitDoctorSignup, null)
+  const { formRef, errorRef, onSubmit, updateProgress, done, step, submitted, error, busy } = useJoinForm({ kind: 'doctor', sections: SECTIONS, state, action: formAction, pending })
+
+  const form = submitted ? (
+    <JoinSent
+      title="Application sent"
+      text="Thank you. Your application is now with our credentialing team, and we have emailed you to confirm it arrived. Once your registration is verified, we share your staff ID and password so you can sign in to the doctor portal."
+      primary={{ href: '/login/doctor', label: 'Doctor login' }}
+    />
+  ) : (
+    <form ref={formRef} onSubmit={onSubmit} onInput={updateProgress} onChange={updateProgress} className="rounded-[20px] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.06),0_8px_24px_-16px_rgba(11,27,63,0.16)] p-5 sm:p-7 md:p-9">
+      <FormError error={error} errorRef={errorRef} />
+
+      {/* 1. Identity and contact */}
+      <JoinSection n={1} section="identity" title="Identity and contact" sub="How we reach you and set up your account.">
+        <Field label="Title" htmlFor="doc-title" required>
+          <SelectBox id="doc-title" name="title" required options={DOCTOR_TITLES} />
+        </Field>
+        <Field label="First name" htmlFor="first-name" required>
+          <input id="first-name" name="firstName" required minLength={1} maxLength={60} autoComplete="given-name" className={inputCls} />
+        </Field>
+        <Field label="Surname" htmlFor="last-name" required>
+          <input id="last-name" name="lastName" required minLength={1} maxLength={60} autoComplete="family-name" className={inputCls} />
+        </Field>
+        <Field label="Middle name" htmlFor="middle-name" optional>
+          <input id="middle-name" name="middleName" maxLength={60} autoComplete="additional-name" className={inputCls} />
+        </Field>
+        <Field label="Gender" htmlFor="gender" required>
+          <SelectBox id="gender" name="gender" required options={GENDERS} />
+        </Field>
+        <Field label="Date of birth" htmlFor="dob" required>
+          <input id="dob" name="dateOfBirth" type="date" required min="1930-01-01" max={latestBirthDate()} autoComplete="bday" className={inputCls} />
+        </Field>
+        <Field label="Email address" htmlFor="work-email" required span={2} hint="Your doctor account is created with this email.">
+          <input id="work-email" name="email" type="email" required maxLength={200} autoComplete="email" className={inputCls} />
+        </Field>
+        <Field label="Mobile number" htmlFor="mobile-phone" required hint="Saved to your doctor profile.">
+          <PhoneInput id="mobile-phone" name="phone" codeName="countryCode" required label="Mobile number" />
+        </Field>
+        <CheckGroup label="Languages you consult in" name="languages" options={DOCTOR_LANGUAGES} required />
+        <FileField doc={docs.photo} uploads={uploads} />
+      </JoinSection>
+
+      {/* 2. Medical licence */}
+      <JoinSection n={2} section="licence" title="Medical licence" sub="We check these with your medical council." badge>
+        <Field label="Medical council" htmlFor="council" required span={2}>
+          <SelectBox id="council" name="council" required options={MEDICAL_COUNCILS} />
+        </Field>
+        <Field label="Registration number" htmlFor="registration-number" required hint="As printed on your certificate.">
+          <input id="registration-number" name="registrationNumber" required minLength={2} maxLength={80} className={inputCls} />
+        </Field>
+        <Field label="Year of registration" htmlFor="registration-year" required>
+          <input id="registration-year" name="registrationYear" type="number" inputMode="numeric" required min={1950} max={thisYear} className={inputCls} />
+        </Field>
+        <Field label="Valid until" htmlFor="registration-valid" optional>
+          <input id="registration-valid" name="registrationValidUntil" type="date" min={today()} className={inputCls} />
+        </Field>
+        <Field label="Years of experience" htmlFor="experience" required>
+          <input id="experience" name="experience_years" type="number" inputMode="numeric" required min={0} max={70} className={inputCls} />
+        </Field>
+        <Field label="Highest qualification" htmlFor="qualifications" required hint="For example MBBS, MD or MS.">
+          <input id="qualifications" name="qualifications" required minLength={2} maxLength={120} className={inputCls} />
+        </Field>
+        <Field label="College or university" htmlFor="college" required>
+          <input id="college" name="college" required minLength={2} maxLength={160} className={inputCls} />
+        </Field>
+        <Field label="Year of passing" htmlFor="passing-year" required>
+          <input id="passing-year" name="passingYear" type="number" inputMode="numeric" required min={1950} max={thisYear} className={inputCls} />
+        </Field>
+        <Field label="Speciality" htmlFor="specialty" required>
+          <SelectBox id="specialty" name="specialty" required options={DOCTOR_SPECIALTIES} />
+        </Field>
+        <Field label="Sub-speciality" htmlFor="sub-specialty" optional>
+          <input id="sub-specialty" name="subSpecialty" maxLength={120} className={inputCls} />
+        </Field>
+        <Field label="Other qualifications or fellowships" htmlFor="other-qualifications" optional>
+          <input id="other-qualifications" name="otherQualifications" maxLength={300} className={inputCls} />
+        </Field>
+        <FileField doc={docs.registrationCertificate} uploads={uploads} />
+        <FileField doc={docs.degreeCertificate} uploads={uploads} />
+      </JoinSection>
+
+      {/* 3. Practice and timings */}
+      <JoinSection n={3} section="practice" title="Practice and timings" sub="Where and when you see patients.">
+        <Field label="How you practise" htmlFor="practice-type" required>
+          <SelectBox id="practice-type" name="practiceType" required options={PRACTICE_TYPES} />
+        </Field>
+        <Field
+          label="Primary hospital"
+          htmlFor="hospital"
+          required
+          span={2}
+          hint={hospitals.length === 0 ? 'No partner hospitals are listed yet. Please contact us first.' : 'The partner hospital where you consult.'}
+        >
+          <SelectBox id="hospital" name="hospitalId" required options={hospitals.map((h) => ({ value: h.id, label: h.name }))} />
+        </Field>
+        <Field label="Clinic name and address" htmlFor="clinic" optional span={3} hint="Only if you also see patients at your own clinic.">
+          <input id="clinic" name="clinic" maxLength={300} className={inputCls} />
+        </Field>
+        <Field label="Consultation fee" htmlFor="fee" required hint="Patients pay this at the hospital.">
+          <PrefixInput prefix="₹" id="fee" name="consultation_fee" type="number" inputMode="numeric" required min={0} max={100000} />
+        </Field>
+        <CheckGroup label="Days you consult" name="consultDays" options={WEEKDAYS} required hint="Your hospital publishes your slots from these." />
+        <Field label="From" htmlFor="consult-from" required>
+          <input id="consult-from" name="consultFrom" type="time" required className={inputCls} />
+        </Field>
+        <Field label="To" htmlFor="consult-to" required>
+          <input id="consult-to" name="consultTo" type="time" required className={inputCls} />
+        </Field>
+        <Field label="Time per patient" htmlFor="slot-minutes" required>
+          <SelectBox id="slot-minutes" name="slotMinutes" required options={SLOT_MINUTES.map((m) => ({ value: String(m), label: `${m} minutes` }))} />
+        </Field>
+      </JoinSection>
+
+      {/* 4. Profile for patients */}
+      <JoinSection n={4} section="profile" title="Your profile for patients" sub="What patients read before they book you.">
+        <Field label="About you" htmlFor="bio" optional span={3}>
+          <textarea id="bio" name="bio" maxLength={1500} rows={3} className={textareaCls} />
+        </Field>
+        <Field label="Conditions and treatments you handle" htmlFor="conditions" optional span={3} hint="For example knee replacement, sports injuries, back pain.">
+          <input id="conditions" name="conditions" maxLength={400} className={inputCls} />
+        </Field>
+        <Field label="Awards and memberships" htmlFor="awards" optional span={3}>
+          <input id="awards" name="awards" maxLength={400} className={inputCls} />
+        </Field>
+      </JoinSection>
+
+      {/* 5. Proof of identity */}
+      <JoinSection n={5} section="proof" title="Proof of identity" sub="We match these with your medical registration." badge>
+        <Field label="PAN number" htmlFor="pan" required>
+          <input id="pan" name="pan" required maxLength={10} pattern="[A-Za-z]{5}[0-9]{4}[A-Za-z]" title="10 characters, like ABCDE1234F." className={`${inputCls} uppercase`} />
+        </Field>
+        <FileField doc={docs.panCard} uploads={uploads} span={2} />
+        <FileField doc={docs.photoId} uploads={uploads} />
+      </JoinSection>
+
+      <Declarations
+        section="proof"
+        items={[
+          { name: 'confirmRegistration', text: 'I hold a full, active registration with the medical council named above, and the details I have given are accurate.' },
+          { name: 'noDisciplinary', text: 'No disciplinary action or investigation is pending against me with any medical council.' },
+          { name: 'consentVerification', text: 'I agree to Consult your Doctor checking my registration with the medical council and using my details to review this application.' },
+        ]}
+      />
+      <SendRow busy={busy} />
+    </form>
   )
-}
-
-export function DoctorSignupForm({ hospitals }: { hospitals: { id: string; name: string }[] }) {
-  const [state, formAction, isPending] = useActionState(submitDoctorSignup, null)
-  const formRef = useRef<HTMLFormElement>(null)
-  const [sectionsDone, setSectionsDone] = useState<boolean[]>(steps.map(() => false))
-
-  const submitted = Boolean(state?.success)
-
-  // A section counts as complete once every required field inside it passes native validation.
-  const updateProgress = () => {
-    const form = formRef.current
-    if (!form) return
-    setSectionsDone(
-      steps.map(({ section }) =>
-        Array.from(form.querySelectorAll<HTMLFieldSetElement>(`fieldset[data-section="${section}"]`)).every((fieldset) =>
-          Array.from(fieldset.elements).every((el) => !(el instanceof HTMLInputElement || el instanceof HTMLSelectElement) || el.checkValidity())
-        )
-      )
-    )
-  }
-
-  const currentStep = submitted ? steps.length : sectionsDone.findIndex((done) => !done)
 
   return (
-    <div className="w-full max-w-container-max mx-auto flex flex-col gap-6">
-      {/* Header card */}
-      <div className="relative w-full rounded-2xl bg-surface-container-lowest p-6 md:p-8 shadow-sm overflow-hidden">
-        <div className="relative z-10 max-w-2xl">
-          <h1 className="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-indigo-gray-900 tracking-tight mb-2">
-            Create Your Doctor Account &amp; License Verification
-          </h1>
-          <p className="font-body-md text-body-md text-indigo-gray-600">
-            Join our verified clinical network. Submit your medical registration details and our credentialing team will verify them before your account goes live for bookings.
-          </p>
-        </div>
-
-        {/* Progress */}
-        <ol className="relative z-10 mt-8 bg-surface-container-low/50 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...steps.map((s) => s.title), 'Credential Review'].map((title, i) => {
-            const isReview = i === steps.length
-            const done = isReview ? false : submitted || sectionsDone[i]
-            const current = i === currentStep
-            const status = isReview
-              ? submitted ? 'Under Review' : 'After Submission'
-              : done ? 'Complete' : current ? 'In Focus' : 'Next'
-
-            return (
-              <li
-                key={title}
-                aria-current={current ? 'step' : undefined}
-                className={`flex items-center gap-3 p-3 rounded-lg ${
-                  current ? 'bg-vibrant-blue/5 shadow-sm' : done ? 'bg-surface-container-lowest shadow-sm' : 'bg-surface-container-lowest/60'
-                }`}
-              >
-                <span
-                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
-                    done ? 'bg-fresh-teal text-white' : current ? 'bg-vibrant-blue text-on-primary' : 'bg-surface-container text-indigo-gray-600'
-                  }`}
-                >
-                  {done ? <Check className="w-4 h-4" strokeWidth={3} /> : String(i + 1).padStart(2, '0')}
-                </span>
-                <div className="min-w-0">
-                  <div className={`text-[11px] font-label-sm uppercase ${done ? 'text-fresh-teal' : current ? 'text-vibrant-blue font-bold' : 'text-indigo-gray-600'}`}>
-                    Step {String(i + 1).padStart(2, '0')} • {status}
-                  </div>
-                  <div className={`font-title-md text-sm truncate ${done || current ? 'font-bold text-indigo-gray-900' : 'font-semibold text-indigo-gray-600'}`}>
-                    {title}
-                  </div>
-                </div>
-              </li>
-            )
-          })}
-        </ol>
+    <>
+      <JoinHero
+        crumb="Doctors"
+        icon={Stethoscope}
+        title="Join as a doctor"
+        intro="Create your doctor account on Consult your Doctor. Share your medical registration details and our credentialing team verifies them before your profile goes live for bookings."
+      />
+      <div className="px-4 md:px-[max(24px,10%)]">
+        <StepStrip steps={STEPS.map((title) => ({ title }))} after="Credential review" current={step} done={done} submitted={submitted} />
+        <JoinColumns
+          form={form}
+          aside={
+            <>
+              <HowJoiningCard
+                steps={[
+                  { title: 'Send this application', text: 'It goes straight to our credentialing team, and we email you to confirm it arrived.' },
+                  { title: 'Registration check', text: 'We confirm your medical council registration, degree and your hospital.' },
+                  { title: 'Account activation', text: 'You receive a staff ID and password for the doctor portal, and your profile goes live.' },
+                ]}
+                perks={['Your schedule and waiting room, live', 'Digital prescriptions for every patient', 'Patient history before each consult', 'Your profile, fee and patient reviews']}
+              />
+              <KeepReadyCard items={['Medical registration certificate', 'Degree certificate', 'PAN card', 'Government photo ID', 'A recent profile photo']} />
+              <AlreadyCard title="Already verified?" href="/login/doctor" label="Sign in to the doctor portal" />
+            </>
+          }
+        />
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
-        {/* Main form */}
-        <div className="lg:col-span-8">
-          {submitted ? (
-            <div className="bg-surface-container-lowest rounded-2xl p-8 md:p-12 shadow-sm flex flex-col items-center text-center gap-4">
-              <span className="w-16 h-16 rounded-full bg-fresh-teal/10 text-fresh-teal flex items-center justify-center">
-                <CircleCheck className="w-9 h-9" />
-              </span>
-              <h2 className="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-indigo-gray-900">Application submitted</h2>
-              <p className="font-body-md text-body-md text-indigo-gray-600 max-w-lg">
-                Thank you. Your application is now with our credentialing team. Once your registration is verified, our team will share your Staff ID and password so you can log in to the Clinician Portal.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 pt-2 w-full sm:w-auto">
-                <Link href="/" className="px-6 py-3 rounded-full bg-surface-container text-indigo-gray-900 font-semibold text-sm hover:bg-surface-container-high transition-colors text-center">
-                  Back to home
-                </Link>
-                <Link href="/login/doctor" className="px-6 py-3 rounded-full bg-vibrant-blue text-on-primary font-bold text-sm hover:bg-primary transition-colors text-center">
-                  Clinician login
-                </Link>
-              </div>
-            </div>
-          ) : (
-            <form
-              ref={formRef}
-              onSubmit={(e) => {
-                // Submit manually: a form `action` would reset every field when the server returns an error.
-                e.preventDefault()
-                const formData = new FormData(e.currentTarget)
-                startTransition(() => formAction(formData))
-              }}
-              onInput={updateProgress}
-              onChange={updateProgress}
-              className="bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm flex flex-col gap-8"
-            >
-              {state?.error && (
-                <div role="alert" className="p-4 bg-error-container/60 text-on-error-container text-sm rounded-xl font-semibold">
-                  {state.error}
-                </div>
-              )}
-
-              {/* 1. Identity & contact */}
-              <fieldset data-section="identity" className="flex flex-col gap-4 min-w-0">
-                <legend className="sr-only">Practitioner identity and contact</legend>
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-2">
-                  <span className="flex items-center gap-2">
-                    <UserRound className="w-5 h-5 text-vibrant-blue" />
-                    <span className="font-title-md text-title-md text-indigo-gray-900 font-bold">1. Practitioner Identity &amp; Contact</span>
-                  </span>
-                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-fresh-teal/10 text-secondary font-label-sm">Primary Verification Point</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
-                  <Field label="Title" htmlFor="doc-title" className="sm:col-span-3">
-                    <SelectWrap>
-                      <select id="doc-title" name="title" className={selectClass} defaultValue="Dr.">
-                        <option value="Dr.">Dr.</option>
-                        <option value="Prof.">Prof.</option>
-                        <option value="Assoc. Prof.">Assoc. Prof.</option>
-                        <option value="Mr.">Mr. (Consultant Surgeon)</option>
-                        <option value="Ms.">Ms. (Consultant Surgeon)</option>
-                      </select>
-                    </SelectWrap>
-                  </Field>
-                  <Field label="Legal First Name" htmlFor="first-name" className="sm:col-span-4">
-                    <input id="first-name" name="firstName" type="text" required autoComplete="given-name" placeholder="e.g. Ananya" className={inputClass} />
-                  </Field>
-                  <Field label="Legal Surname" htmlFor="last-name" className="sm:col-span-5">
-                    <input id="last-name" name="lastName" type="text" required autoComplete="family-name" placeholder="e.g. Mehta" className={inputClass} />
-                  </Field>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Field label="Clinical Email" htmlFor="work-email" hint="Your clinician account will be created with this email.">
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-gray-600/60 pointer-events-none" />
-                      <input id="work-email" name="email" type="email" required autoComplete="email" placeholder="doctor.name@hospital.org" className={`${inputClass} pl-9`} />
-                    </div>
-                  </Field>
-                  <Field label="Mobile Phone" htmlFor="mobile-phone" hint="Saved to your clinician profile.">
-                    <div className="flex gap-2">
-                      <div className="relative w-28 shrink-0">
-                        <select name="countryCode" aria-label="Country code" defaultValue="+91" className={selectClass}>
-                          {countryCodes.map((c) => (
-                            <option key={c.code} value={c.dialCode}>{c.code} {c.dialCode}</option>
-                          ))}
-                        </select>
-                        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-gray-600 pointer-events-none" />
-                      </div>
-                      <input id="mobile-phone" name="phone" type="tel" inputMode="numeric" required autoComplete="tel-national" pattern="[0-9 ]{6,15}" placeholder="98765 43210" className={`${inputClass} min-w-0`} />
-                    </div>
-                  </Field>
-                </div>
-              </fieldset>
-
-              {/* 2. Licensing */}
-              <fieldset data-section="license" className="flex flex-col gap-4 bg-surface-container-low/40 rounded-xl p-4 min-w-0">
-                <legend className="sr-only">Medical licensing</legend>
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
-                  <span className="flex items-center gap-2">
-                    <BadgeCheck className="w-5 h-5 text-vibrant-blue" />
-                    <span className="font-title-md text-title-md text-indigo-gray-900 font-bold">2. Medical Licensing &amp; Statutory Registry</span>
-                  </span>
-                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-vibrant-blue/10 text-vibrant-blue font-label-sm font-semibold">Required for Verification</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Field label="Regulatory Medical Board" htmlFor="council">
-                    <SelectWrap>
-                      <select id="council" name="council" required defaultValue="" className={selectClass}>
-                        <option value="" disabled>Select your medical council</option>
-                        {councils.map((c) => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </SelectWrap>
-                  </Field>
-                  <Field label="Registration / License Number" htmlFor="registration-number">
-                    <div className="relative">
-                      <IdCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-gray-600/60 pointer-events-none" />
-                      <input id="registration-number" name="registrationNumber" type="text" required placeholder="As on your certificate" className={`${inputClass} pl-9 font-mono placeholder:font-sans`} />
-                    </div>
-                  </Field>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <Field label="Primary Medical Qualification" htmlFor="qualifications" className="sm:col-span-2">
-                    <input id="qualifications" name="qualifications" type="text" required placeholder="e.g. MBBS, MD (General Medicine)" className={inputClass} />
-                  </Field>
-                  <Field label="Years of Experience" htmlFor="experience">
-                    <input id="experience" name="experience_years" type="number" required min={0} max={80} placeholder="e.g. 8" className={inputClass} />
-                  </Field>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Field label="Primary Clinical Speciality" htmlFor="specialty">
-                    <SelectWrap>
-                      <select id="specialty" name="specialty" required defaultValue="" className={selectClass}>
-                        <option value="" disabled>Select speciality</option>
-                        {specialties.map((s) => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    </SelectWrap>
-                  </Field>
-                  <Field label="Sub-speciality & Clinical Focus (optional)" htmlFor="sub-specialty">
-                    <input id="sub-specialty" name="subSpecialty" type="text" placeholder="e.g. Interventional Cardiology" className={inputClass} />
-                  </Field>
-                </div>
-              </fieldset>
-
-              {/* 3. Practice base */}
-              <fieldset data-section="practice" className="flex flex-col gap-4 min-w-0">
-                <legend className="sr-only">Practice base and consultation fee</legend>
-                <div className="flex items-center gap-2 pb-2">
-                  <Building2 className="w-5 h-5 text-vibrant-blue" />
-                  <span className="font-title-md text-title-md text-indigo-gray-900 font-bold">3. Practice Base &amp; Consultation Fee</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <Field
-                    label="Primary Hospital"
-                    htmlFor="hospital"
-                    className="sm:col-span-2"
-                    hint={hospitals.length === 0 ? 'No partner hospitals are listed yet. Please contact us to register your hospital first.' : 'Select the partner hospital where you practise.'}
-                  >
-                    <SelectWrap>
-                      <select id="hospital" name="hospitalId" required defaultValue="" className={selectClass}>
-                        <option value="" disabled>Select a hospital</option>
-                        {hospitals.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
-                      </select>
-                    </SelectWrap>
-                  </Field>
-                  <Field label="Consultation Fee (₹)" htmlFor="fee">
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-indigo-gray-600/70 pointer-events-none">₹</span>
-                      <input id="fee" name="consultation_fee" type="number" required min={0} placeholder="e.g. 500" className={`${inputClass} pl-7`} />
-                    </div>
-                  </Field>
-                </div>
-              </fieldset>
-
-              {/* Declarations */}
-              <fieldset data-section="practice" className="flex flex-col gap-3 bg-surface-container-low/40 rounded-xl p-4 min-w-0">
-                <legend className="sr-only">Declarations</legend>
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input name="confirmRegistration" type="checkbox" required className="mt-0.5 w-4 h-4 rounded accent-vibrant-blue cursor-pointer shrink-0" />
-                  <span className="text-xs sm:text-sm text-indigo-gray-900 leading-snug">
-                    I certify that I hold full, active registration with a licence to practise from the medical council named above, and that the information I have provided is accurate.
-                  </span>
-                </label>
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input name="consentVerification" type="checkbox" required className="mt-0.5 w-4 h-4 rounded accent-vibrant-blue cursor-pointer shrink-0" />
-                  <span className="text-xs sm:text-sm text-indigo-gray-900 leading-snug">
-                    I consent to Consult Your Doctor checking my registration with the relevant medical council and processing my details for credentialing purposes.
-                  </span>
-                </label>
-              </fieldset>
-
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-                <div className="flex flex-col gap-1.5">
-                  <p className="flex items-center gap-2 text-indigo-gray-600 text-xs">
-                    <ShieldCheck className="w-[18px] h-[18px] text-fresh-teal shrink-0" />
-                    Every application is reviewed by our credentialing team before activation.
-                  </p>
-                  <p className="text-indigo-gray-600 text-xs">
-                    By submitting, you agree to our{' '}
-                    <Link className="text-primary hover:underline font-medium" href="/terms-of-use">
-                      Terms &amp; Conditions
-                    </Link>{' '}
-                    (including the section for doctors and partners) and{' '}
-                    <Link className="text-primary hover:underline font-medium" href="/privacy-policy">
-                      Privacy Policy
-                    </Link>
-                    .
-                  </p>
-                </div>
-                <button
-                  type="submit"
-                  disabled={isPending}
-                  className="w-full sm:w-auto shrink-0 px-8 py-3.5 rounded-full bg-vibrant-blue text-on-primary font-title-md text-sm font-bold shadow-md hover:bg-primary active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:hover:scale-100"
-                >
-                  {isPending ? (
-                    <>
-                      <Loader2 className="w-[18px] h-[18px] animate-spin" /> Submitting...
-                    </>
-                  ) : (
-                    <>
-                      Submit Application for Verification <ArrowRight className="w-[18px] h-[18px]" />
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-
-        {/* Sidebar */}
-        <aside className="lg:col-span-4 flex flex-col gap-6">
-          <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm flex flex-col gap-4">
-            <div className="p-4 rounded-xl bg-surface-container-low flex flex-col gap-4">
-              <div className="flex items-center gap-3">
-                <span className="w-10 h-10 rounded-full bg-vibrant-blue text-on-primary flex items-center justify-center shrink-0">
-                  <ShieldCheck className="w-5 h-5" />
-                </span>
-                <div>
-                  <h2 className="font-title-md text-sm font-bold text-indigo-gray-900">How verification works</h2>
-                  <p className="text-xs text-indigo-gray-600">Reviewed by our credentialing team</p>
-                </div>
-              </div>
-              <ol className="flex flex-col gap-3">
-                {[
-                  { title: 'Submit this application', desc: 'Your details go straight to our credentialing team.' },
-                  { title: 'Registration check', desc: 'We confirm your medical council registration and hospital affiliation.' },
-                  { title: 'Account activation', desc: 'You receive a Staff ID and password for the Clinician Portal.' },
-                ].map((item, i) => (
-                  <li key={item.title} className="flex items-start gap-3">
-                    <span className="w-6 h-6 rounded-full bg-surface-container-lowest text-vibrant-blue text-xs font-bold flex items-center justify-center shrink-0 shadow-sm">{i + 1}</span>
-                    <div>
-                      <p className="text-sm font-semibold text-indigo-gray-900">{item.title}</p>
-                      <p className="text-xs text-indigo-gray-600 leading-relaxed">{item.desc}</p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </div>
-            <ul className="flex flex-col gap-2 pt-1">
-              {['Digital prescriptions for your patients', 'Appointment schedules you control', 'Patient records in one secure place'].map((perk) => (
-                <li key={perk} className="flex items-center gap-2.5 text-xs text-indigo-gray-900">
-                  <BadgeCheck className="w-[18px] h-[18px] text-fresh-teal shrink-0" />
-                  {perk}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm flex flex-col gap-4">
-            <div>
-              <h2 className="font-title-md text-sm font-bold text-indigo-gray-900">Already verified?</h2>
-              <p className="text-xs text-indigo-gray-600 mt-1">Log in with the Staff ID and password shared by our team.</p>
-            </div>
-            <Link
-              href="/login/doctor"
-              className="w-full py-2.5 rounded-full bg-surface-container text-primary font-semibold text-sm text-center hover:bg-surface-container-high transition-colors"
-            >
-              Log in to Clinician Portal
-            </Link>
-            <div className="bg-vibrant-blue/5 rounded-xl p-3.5 flex items-start gap-2.5">
-              <Info className="w-[18px] h-[18px] text-vibrant-blue shrink-0 mt-0.5" />
-              <p className="text-[11px] text-indigo-gray-600 leading-relaxed">
-                Questions about your application?{' '}
-                <Link href="/contact" className="text-vibrant-blue underline font-semibold">Contact our team</Link>.
-              </p>
-            </div>
-          </div>
-        </aside>
-      </div>
-    </div>
+    </>
   )
 }

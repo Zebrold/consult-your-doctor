@@ -39,7 +39,7 @@ export async function updateBookingFeesAction(input: BookingFees): Promise<{ suc
     const fees: BookingFees = { consultation, fastTrack, diagnosticPercent, conveniencePercent }
     await saveBookingFees(fees)
 
-    // Every page that shows a fee, and the PayU hash and callback, read it through this tag.
+    // Every page that shows a fee, and the Razorpay order and callback, read it through this tag.
     updateTag(BOOKING_FEES_TAG)
     revalidatePath('/', 'layout')
     return { success: true, fees }

@@ -7,7 +7,7 @@ import { PatientNavHeader } from '@/components/PatientNavHeader'
 import { PatientDock } from '@/components/PatientDock'
 import { RemoteImage } from '@/components/RemoteImage'
 import { formatINR } from '@/components/patient/format'
-import { startPayuPayment } from '@/lib/payu-client'
+import { startOnlinePayment } from '@/lib/razorpay-client'
 import { cardStamp } from '@/lib/booking-card-format'
 import type { BookingCard } from '@/lib/booking-card'
 
@@ -55,7 +55,7 @@ export function ConfirmationClient({
   qr: string | null
   failureReason: string | null
   /** Present when the viewer is the patient and can pay from here. */
-  pay: { payuKey: string; email: string | null; phone: string | null } | null
+  pay: { email: string | null; phone: string | null } | null
   now: number
 }) {
   const [paying, setPaying] = useState(false)
@@ -84,15 +84,14 @@ export function ConfirmationClient({
     if (!pay) return
     setPaying(true)
     setPayError(null)
-    const error = await startPayuPayment({
-      txnid: card.id,
-      productinfo: isLab ? 'Diagnostic' : 'Consultation',
-      firstname: card.patient.name || 'Patient',
-      email: (pay.email || '').trim() || 'patient@example.com',
-      phone: pay.phone || '9999999999',
-      payuKey: pay.payuKey,
+    const error = await startOnlinePayment({
+      bookingId: card.id,
+      product: isLab ? 'Diagnostic' : 'Consultation',
+      name: card.patient.name || 'Patient',
+      email: (pay.email || '').trim() || null,
+      phone: pay.phone || null,
     })
-    // On success the page navigates to PayU; an error means it never left.
+    // After paying, Razorpay sends the patient to the callback; a message means the payment didn't go ahead.
     if (error) {
       setPayError(error)
       setPaying(false)

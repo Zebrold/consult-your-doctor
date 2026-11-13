@@ -104,7 +104,7 @@ function parseRecent(raw: string | null): PatientLocation[] {
 /** The neighbourhood (label) and city for a point, from OpenStreetMap; "Current location" and "" when it can't say. */
 async function placeOf(lat: number, lng: number): Promise<{ label: string; city: string }> {
   try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&zoom=14&addressdetails=1&lat=${lat}&lon=${lng}`, { headers: { Accept: "application/json" } });
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&zoom=14&addressdetails=1&accept-language=en&lat=${lat}&lon=${lng}`, { headers: { Accept: "application/json" } });
     const a = ((await res.json()) as { address?: Record<string, string> }).address ?? {};
     return {
       label: a.suburb || a.neighbourhood || a.city_district || a.town || a.city || a.village || a.county || "Current location",

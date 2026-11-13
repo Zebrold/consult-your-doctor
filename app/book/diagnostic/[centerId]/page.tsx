@@ -68,7 +68,6 @@ export default async function DiagnosticBookingPage({ params }: DiagnosticBookin
       now={currentTime()}
       bookingFeePercent={fees.diagnosticPercent}
       conveniencePercent={fees.conveniencePercent}
-      payuKey={process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY || ""}
     />
   );
 }

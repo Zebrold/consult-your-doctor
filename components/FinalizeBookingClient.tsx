@@ -9,8 +9,8 @@ import { PatientNavHeader } from "@/components/PatientNavHeader";
 import { VerifiedBadge } from "@/components/home/ui";
 import { InfoRow, btnPrimary, card } from "@/components/patient/app-ui";
 import { finalizeConsultationAppointment } from "@/app/actions/booking";
-import { startPayuPayment } from "@/lib/payu-client";
-import { appendPatientDetails, DayStrip, FormError, PayuNote, patientDetailsError, RefundNote, type PatientDetails } from "@/components/patient/booking-ui";
+import { startOnlinePayment, WINDOW_CLOSED } from "@/lib/razorpay-client";
+import { appendPatientDetails, DayStrip, FormError, OnlinePayNote, patientDetailsError, RefundNote, type PatientDetails } from "@/components/patient/booking-ui";
 import { directionsHref, doctorName, formatINR, formatLongDate, formatSlot, formatTime, initials, isMorning, istDateKey, upcomingDays } from "@/components/patient/format";
 import { RemoteImage } from "@/components/RemoteImage";
 import { AppointmentTypePicker, PaySummary, ServicePicker, bookingPath } from "@/components/patient/BookingChoices";
@@ -38,8 +38,7 @@ interface FinalizeBookingClientProps {
   /** The signed-in patient's saved details, or null for a signed-out visitor. */
   patient: PatientDetails | null;
   now: number;
-  payuKey: string;
-  /** The booking fees (lib/booking-fees.ts). /api/payu/hash charges the general or fast-track one: the whole online payment. */
+  /** The booking fees (lib/booking-fees.ts). The Razorpay order charges the general or fast-track one: the whole online payment. */
   fees: BookingFees;
   /** Fast track and services can be stored on a booking (lib/booking-options.ts). */
   choices: boolean;
@@ -57,7 +56,6 @@ export function FinalizeBookingClient({
   slots,
   patient,
   now,
-  payuKey,
   fees,
   choices,
   services,
@@ -93,7 +91,7 @@ export function FinalizeBookingClient({
   const daySlots = slotsByDay.get(date) ?? [];
   const selected = slots.find((s) => s.id === slotId) ?? null;
   const bookingFee = choices && fastTrack ? fees.fastTrack : fees.consultation;
-  // What PayU collects: the booking fee and the payment convenience fee on it (lib/pricing.ts).
+  // What is collected online: the booking fee and the payment convenience fee on it (lib/pricing.ts).
   const payable = onlinePayable(bookingFee, fees.conveniencePercent);
   const pickedServices = choices ? services.filter((s) => picked.includes(s.name)) : [];
   const nextOpenAfter = slots.find((s) => !s.booked && istDateKey(s.start) > date) ?? null;
@@ -139,17 +137,16 @@ export function FinalizeBookingClient({
       return;
     }
 
-    const payError = await startPayuPayment({
-      txnid: appointmentId,
-      productinfo: "Consultation",
-      firstname: activeDetails.name || "Patient",
-      email: (activeDetails.email || "").trim() || "patient@example.com",
-      phone: activeDetails.phone || "9999999999",
-      payuKey,
+    const payError = await startOnlinePayment({
+      bookingId: appointmentId,
+      product: "Consultation",
+      name: activeDetails.name || "Patient",
+      email: (activeDetails.email || "").trim() || null,
+      phone: activeDetails.phone || null,
     });
     if (payError) {
       setPendingId(appointmentId);
-      setError(`Your slot is reserved, but the payment couldn't start: ${payError}`);
+      setError(payError === WINDOW_CLOSED ? `Your slot is reserved. ${payError}` : `Your slot is reserved, but the payment couldn't start: ${payError}`);
       setSubmitting(false);
     }
   };
@@ -359,7 +356,7 @@ export function FinalizeBookingClient({
               </div>
               <PaySummary payable={payable} fastTrack={choices && fastTrack} services={pickedServices} />
               <div className="mt-4 flex flex-col gap-3.5">
-                <PayuNote />
+                <OnlinePayNote />
                 {error && (
                   <FormError>
                     {error}

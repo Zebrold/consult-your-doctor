@@ -85,7 +85,7 @@ export function DetailRow({ icon: Icon, label, value, sub }: { icon: LucideIcon;
  * fee at the hospital counter, or the lab's test charges): shown below, never part of the total.
  */
 /**
- * The checkout's money card: any detail lines (each lab test's fee), then the checkout table of what PayU collects (the
+ * The checkout's money card: any detail lines (each lab test's fee), then the checkout table of what is collected online (the
  * booking fee, the payment convenience fee and the total payable), what is paid at the venue, and the Pay button.
  */
 export function PaymentSummary({ lines = [], payable, item, atVenue, isConsultation, children }: {

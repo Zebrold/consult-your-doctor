@@ -25,7 +25,7 @@ export function bookingEmailSubject(card: BookingCard, failed: boolean) {
   return `Complete your payment to confirm ${what}`
 }
 
-/** The booking email's HTML. `failureReason` is set when PayU reported a failed or cancelled payment. */
+/** The booking email's HTML. `failureReason` is set when an online payment failed or was cancelled. */
 export function buildBookingEmailHtml(card: BookingCard, opts: { failureReason?: string | null } = {}): string {
   const confirmed = card.state === 'confirmed'
   const isLab = card.kind === 'lab'

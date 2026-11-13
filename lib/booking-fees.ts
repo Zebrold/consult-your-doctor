@@ -5,7 +5,7 @@ import { DEFAULT_BOOKING_FEES, bookedTestsFor, labBookingFee, onlinePayable, typ
 import { appointmentBookingFee } from '@/lib/wallet'
 
 // The booking fees executives set on Payments, kept in platform_settings (supabase/migrations/20261018_booking_fees.sql).
-// Every page, the PayU hash and the PayU callback read them from here, so the fee a patient is shown is the fee PayU
+// Every page, the Razorpay order and the payment callback read them from here, so the fee a patient is shown is the fee Razorpay
 // collects and the fee the callback checks.
 
 export const BOOKING_FEES_TAG = 'booking-fees'
@@ -81,7 +81,7 @@ type Joined<T> = T | T[] | null
 const one = <T,>(v: Joined<T> | undefined) => (Array.isArray(v) ? v[0] : v) ?? null
 
 export type OnlineCharge =
-  /** `amount` is what PayU collects: the booking fee and the payment convenience fee on it. */
+  /** `amount` is what is collected online: the booking fee and the payment convenience fee on it. */
   | { amount: number; bookingFee: number; convenience: number; patientId: string; status: string }
   | { error: string; status: number }
 
@@ -91,7 +91,7 @@ const charged = (bookingFee: number, fees: BookingFees) => {
 }
 
 /**
- * What PayU collects for a booking: the doctor booking fee (general or fast track), or the lab booking fee on the tests
+ * What is collected online (through Razorpay) for a booking: the doctor booking fee (general or fast track), or the lab booking fee on the tests
  * booked, plus the payment convenience fee on it. It is worked out from the booking itself, never taken from the
  * browser. The consultation fee, hospital services, the test prices and any home-collection fee are paid at the hospital
  * or lab and are never added.

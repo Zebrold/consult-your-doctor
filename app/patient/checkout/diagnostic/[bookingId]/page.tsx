@@ -2,8 +2,7 @@ import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { Building2, CalendarDays, CircleCheck, CircleX, FlaskConical, Home, SearchX } from 'lucide-react'
-import { PayUCheckoutForm } from '@/components/PayUCheckoutForm'
-import { newPayuTxnid } from '@/lib/payu-txn'
+import { OnlinePayButton } from '@/components/OnlinePayButton'
 import { CheckoutCard, CheckoutGrid, CheckoutHeading, CheckoutMessage, CheckoutShell, DetailRow, PaymentSummary } from '@/components/patient/CheckoutShell'
 import { LabChargesAtVenue } from '@/components/patient/booking-ui'
 import { formatINR, formatLongDate } from '@/components/patient/format'
@@ -64,7 +63,7 @@ export default async function DiagnosticCheckoutPage({ params }: { params: Promi
   const isDoorstep = booking.booking_type === 'doorstep'
   // The home-collection fee is the lab's listed one, paid to the lab with the tests.
   const doorstepFee = isDoorstep ? labDoorstepFee(center) : 0
-  // The same amount /api/payu/hash charges: the booking fee on each test and the payment convenience fee on it, and
+  // The same amount the Razorpay order charges (app/api/razorpay/order): the booking fee on each test and the payment convenience fee on it, and
   // nothing the lab charges itself.
   const percent = fees.diagnosticPercent
   const payable = onlinePayable(bookedTests ? labBookingFee(bookedTests, percent) : 0, fees.conveniencePercent)
@@ -103,15 +102,7 @@ export default async function DiagnosticCheckoutPage({ params }: { params: Promi
             atVenue={<LabChargesAtVenue tests={bookedTests ?? []} doorstepFee={doorstepFee} />}
           >
             {bookedTests && total > 0 ? (
-              <PayUCheckoutForm
-                txnid={newPayuTxnid(bookingId)}
-                amount={total}
-                productinfo="Diagnostic"
-                firstname={(name || 'Patient').replace(/[|]/g, ' ')}
-                email={email || 'patient@example.com'}
-                phone={profile?.phone_number || user.phone || '9999999999'}
-                payuKey={process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY || ''}
-              />
+              <OnlinePayButton bookingId={bookingId} product="Diagnostic" name={name || 'Patient'} email={email || null} phone={profile?.phone_number || user.phone || null} />
             ) : (
               <p className="rounded-xl bg-error-container/60 text-on-error-container text-sm p-3">
                 We couldn&apos;t price this booking from the lab&apos;s current price list, so it can&apos;t be paid online. Please contact support.

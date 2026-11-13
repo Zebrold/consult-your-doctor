@@ -175,7 +175,7 @@ export function notifyBookingConfirmed(bookingId: string) {
 }
 
 /**
- * A payment for an unpaid booking failed or was cancelled at PayU: emails the patient the booking, still waiting for
+ * A payment for an unpaid booking failed or was cancelled at Razorpay: emails the patient the booking, still waiting for
  * payment, with the reason and a button to pay again. The booking keeps its slot until its hold ends.
  */
 export function notifyPaymentPending(bookingId: string, reason: string | null) {

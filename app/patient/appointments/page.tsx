@@ -16,6 +16,7 @@ import { BookingsClient, type BookingItem, type BookingTab } from '@/components/
 import type { ExistingReview } from '@/components/patient/ReviewButton'
 import { currentTime, one } from '@/components/patient/data'
 import { directionsHref, doctorName, formatDayLabel, formatINR, formatTime, istDateKey, visitToken } from '@/components/patient/format'
+import { isOnlineGateway } from '@/lib/payment-gateways'
 
 export const metadata: Metadata = { title: 'My bookings' }
 
@@ -100,7 +101,7 @@ export default async function PatientAppointments() {
     signReportLinks(admin, labs.filter((b) => b.status === 'report_sent' && one(b.diagnostic_centers)).map((b) => ({ id: b.id, centerId: one(b.diagnostic_centers)!.id }))),
   ])
   const payments = [...((visitPayments.data ?? []) as PaymentRow[]), ...((labPayments.data ?? []) as PaymentRow[])]
-  const paidOnline = (id: string) => payments.find((p) => (p.appointment_id ?? p.diagnostic_booking_id) === id && p.gateway === 'payu')
+  const paidOnline = (id: string) => payments.find((p) => (p.appointment_id ?? p.diagnostic_booking_id) === id && isOnlineGateway(p.gateway))
 
   const reviews: Record<string, ExistingReview> = Object.fromEntries(
     ((myReviews ?? []) as { appointment_id: string; rating: number; comment: string | null }[]).map((r) => [r.appointment_id, { rating: r.rating, comment: r.comment }]),

@@ -253,7 +253,6 @@ export default async function HospitalProfilePage(props: {
               services={tests}
               now={now}
               patient={patient}
-              payuKey={process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY || ''}
               initialSpeciality={startOn}
               initialDoctor={pickedDoctor}
               initialSlot={pickedSlot}

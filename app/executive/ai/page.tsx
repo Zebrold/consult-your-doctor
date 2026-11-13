@@ -3,7 +3,7 @@ import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { AssistantPage } from '@/components/assistant/AssistantPage'
 
 export const metadata: Metadata = {
-  title: 'Zebrold AI',
+  title: 'Help & support',
 }
 
 // The section layout checks who is signed in; the assistant's API checks the session again on every message.

@@ -15,7 +15,7 @@ export default async function ExecutiveDoctorsPage() {
 
   const [doctors, applications, appointments, slotsResult, { data: hospitalRows }] = await Promise.all([
     loadDoctors(admin),
-    loadApplications(admin),
+    loadApplications(admin, { withDocuments: true }),
     loadAppointments(admin),
     admin.from('schedules').select('doctor_id').eq('is_booked', false).gte('start_time', nowIso),
     admin.from('hospitals').select('id, name, city').order('name'),

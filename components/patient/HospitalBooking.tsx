@@ -12,11 +12,11 @@ import { RemoteImage } from "@/components/RemoteImage";
 import { onlinePayable, sumPrices, type BookedTest, type BookingFees } from "@/lib/pricing";
 import { distanceKm, formatDistance, type LatLng } from "@/lib/geo";
 import { finalizeConsultationAppointment } from "@/app/actions/booking";
-import { startPayuPayment } from "@/lib/payu-client";
+import { startOnlinePayment, WINDOW_CLOSED } from "@/lib/razorpay-client";
 import { doctorBookingHref } from "@/lib/booking-links";
 import { AppointmentTypePicker, PaySummary, ServicePicker, bookingFeeItem } from "./BookingChoices";
 import { PayableTable } from "./PayableTable";
-import { appendPatientDetails, FormError, PayuNote, patientDetailsError, RefundNote, type PatientDetails } from "./booking-ui";
+import { appendPatientDetails, FormError, OnlinePayNote, patientDetailsError, RefundNote, type PatientDetails } from "./booking-ui";
 import { usePatientLocation } from "./location";
 
 export type HospitalDoctor = {
@@ -66,7 +66,6 @@ export function HospitalBooking({
   services,
   now,
   patient,
-  payuKey,
   initialSpeciality = null,
   initialDoctor = null,
   initialSlot = null,
@@ -86,7 +85,6 @@ export function HospitalBooking({
   now: number;
   /** The signed-in patient's saved details, or null for a signed-out visitor. */
   patient: PatientDetails | null;
-  payuKey: string;
   /** The speciality tab to open on, e.g. when the patient came from that speciality's hospitals. */
   initialSpeciality?: string | null;
   /** What to open with picked: from Book on a doctor elsewhere, or coming back after logging in. */
@@ -132,7 +130,7 @@ export function HospitalBooking({
   // A general booking with a doctor seen in the last 12 days is a free follow-up; the server decides it again on booking.
   const followUp = !!doctor && !(choices && fastTrack) && freeFollowUp.includes(doctor.id);
   const bookingFee = followUp ? 0 : choices && fastTrack ? fees.fastTrack : fees.consultation;
-  // What PayU collects: the booking fee and the payment convenience fee on it (lib/pricing.ts).
+  // What is collected online: the booking fee and the payment convenience fee on it (lib/pricing.ts).
   const payable = onlinePayable(bookingFee, fees.conveniencePercent);
   const pickedServices = choices ? services.filter((s) => picked.includes(s.name)) : [];
   const servicesTotal = sumPrices(pickedServices);
@@ -205,17 +203,16 @@ export function HospitalBooking({
       router.push(`/book/confirmation/${appointmentId}`);
       return;
     }
-    const payError = await startPayuPayment({
-      txnid: appointmentId,
-      productinfo: "Consultation",
-      firstname: patient.name || "Patient",
-      email: (patient.email || "").trim() || "patient@example.com",
-      phone: patient.phone || "9999999999",
-      payuKey,
+    const payError = await startOnlinePayment({
+      bookingId: appointmentId,
+      product: "Consultation",
+      name: patient.name || "Patient",
+      email: (patient.email || "").trim() || null,
+      phone: patient.phone || null,
     });
     if (payError) {
       setPendingId(appointmentId);
-      setError(`Your slot is reserved, but the payment couldn't start: ${payError}`);
+      setError(payError === WINDOW_CLOSED ? `Your slot is reserved. ${payError}` : `Your slot is reserved, but the payment couldn't start: ${payError}`);
       setSubmitting(false);
     }
   };
@@ -440,7 +437,7 @@ export function HospitalBooking({
               )}
               <div className="lg:hidden mt-3 pt-3 border-t border-[#EEF2F7] flex flex-col gap-2.5">
                 {patient && slot && <PayableTable payable={payable} item={bookingFeeItem(choices && fastTrack, followUp)} />}
-                <PayuNote />
+                <OnlinePayNote />
                 <RefundNote isConsultation />
               </div>
               {error && <div className="lg:hidden mt-3">{errorNote}</div>}
@@ -460,7 +457,7 @@ export function HospitalBooking({
           </div>
           <PaySummary payable={payable} fastTrack={choices && fastTrack} followUp={followUp} services={pickedServices} />
           <div className="mt-4 flex flex-col gap-3.5">
-            <PayuNote />
+            <OnlinePayNote />
             {errorNote}
             {ready && !patient ? (
               <Link href={loginHref} className="w-full h-[50px] rounded-[11px] flex items-center justify-center gap-2 bg-[#2A4DD0] hover:bg-[#2443B8] text-[15px] font-extrabold text-white transition-colors">

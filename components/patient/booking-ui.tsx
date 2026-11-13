@@ -171,7 +171,7 @@ export function SummaryRow({ label, sub, value, tone }: { label: string; sub?: s
   );
 }
 
-export function PayuNote() {
+export function OnlinePayNote() {
   return (
     <div className="flex items-center gap-3 p-3 rounded-xl bg-surface-container-low">
       <span className="w-9 h-9 rounded-lg bg-surface-container-lowest text-primary flex items-center justify-center shrink-0 shadow-sm">

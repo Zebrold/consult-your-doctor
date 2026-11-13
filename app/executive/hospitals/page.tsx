@@ -24,7 +24,7 @@ export default async function ExecutiveHospitalsPage() {
     admin.from('hospitals').select('id, name, city, address, status, hospital_code, created_at').order('name'),
     admin.from('doctors').select('hospital_id'),
     admin.from('profiles').select('hospital_id, staff_id').eq('role', 'hospital_admin'),
-    loadPartnerApplications(admin, 'hospital'),
+    loadPartnerApplications(admin, 'hospital', { withDocuments: true }),
   ])
   const now = currentTime()
   // Oldest first, so the longest wait is reviewed first.

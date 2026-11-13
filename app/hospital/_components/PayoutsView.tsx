@@ -5,6 +5,7 @@ import { entryLabel, maskAccount, MIN_PAYOUT, type HospitalWallet, type PayoutAc
 import { shiftDay } from '../_lib/hospital'
 import { DeskHead, EmptyLine, HosBackHeader, HosBody, Panel, btnOutline, card } from './hos-ui'
 import { PayoutAccounts, WithdrawCard, type PayoutDest } from './WalletActions'
+import { isOnlineGateway } from '@/lib/payment-gateways'
 
 // Payouts (the hospital's wallet, lib/wallet.ts), after the user's HosPayouts / DeskHosPayouts designs. Everything is
 // worked out from the wallet's own lines: what was added from UPI taken at the desk, the booking fees on cash payments
@@ -43,8 +44,8 @@ export function PayoutsView({ wallet, now }: { wallet: HospitalWallet; now: numb
   const monthEntries = wallet.entries.filter((e) => e.kind !== 'payout' && inMonth(e.createdAt))
   const of = (test: (e: WalletEntry) => boolean) => monthEntries.filter(test)
   const groups = [
-    { title: 'UPI at your desk', detail: 'Consultation fees and services', counts: 'Added', list: of((e) => e.kind === 'collection' && e.gateway !== 'payu'), always: true },
-    { title: 'Paid online', detail: 'Your part of online payments', counts: 'Added', list: of((e) => e.kind === 'collection' && e.gateway === 'payu'), always: false },
+    { title: 'UPI at your desk', detail: 'Consultation fees and services', counts: 'Added', list: of((e) => e.kind === 'collection' && !isOnlineGateway(e.gateway)), always: true },
+    { title: 'Paid online', detail: 'Your part of online payments', counts: 'Added', list: of((e) => e.kind === 'collection' && isOnlineGateway(e.gateway)), always: false },
     { title: 'Booking fees on cash payments', detail: 'Consult your Doctor’s fee in cash you kept', counts: 'Taken off', list: of((e) => e.kind === 'cash_booking_fee'), always: true },
     { title: 'Adjustments', detail: 'Recorded by the Consult your Doctor team', counts: 'Either way', list: of((e) => e.kind === 'adjustment'), always: false },
   ]

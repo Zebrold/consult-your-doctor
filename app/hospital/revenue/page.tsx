@@ -6,12 +6,13 @@ import { dayOf, hospitalShare, isPaidVisit, loadHospitalDoctors, loadHospitalVis
 import { ExportLedgerButton, FinanceLedger, type LedgerRow } from '../_components/FinanceLedger'
 import { METHOD_LABEL, type LedgerMethod } from '../_lib/ledger'
 import { BarChart, DeskHead, EmptyLine, HosBackHeader, HosBody, Initials, Meter, MoreLink, Panel, PanelHead, PhoneStats, StatCard, btnOutline, delta, plural } from '../_components/hos-ui'
+import { gatewayKey } from '@/lib/payment-gateways'
 
 export const metadata: Metadata = { title: 'Finance | Hospital Portal' }
 export const dynamic = 'force-dynamic'
 
 const DAY = 86_400_000
-const METHOD: Record<string, LedgerMethod> = { payu: 'online', upi_qr: 'upi', cash: 'cash' }
+const METHOD: Record<string, LedgerMethod> = { razorpay: 'online', upi_qr: 'upi', cash: 'cash' }
 const monthName = (key: string, month: 'long' | 'short' = 'long') => new Date(`${key}-15T12:00:00+05:30`).toLocaleDateString('en-GB', { timeZone: IST, month })
 
 export default async function HospitalFinancePage() {
@@ -45,7 +46,7 @@ export default async function HospitalFinancePage() {
         department: doc?.department ?? 'Other',
         paid: share,
         share,
-        method: v.payment ? (METHOD[v.payment.gateway ?? ''] ?? 'other') : null,
+        method: v.payment ? (METHOD[gatewayKey(v.payment.gateway)] ?? 'other') : null,
       } satisfies LedgerRow
     })
     .sort((a, b) => b.date.localeCompare(a.date))

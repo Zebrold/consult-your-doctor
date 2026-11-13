@@ -11,6 +11,7 @@ import {
   type PaymentStatus, type PaymentAuditRow
 } from '@/app/actions/payments'
 import { formatTime, timeAgo } from '@/components/patient/format'
+import { isOnlineGateway } from '@/lib/payment-gateways'
 
 interface Props {
   initialTransactions: TransactionRow[]
@@ -46,7 +47,7 @@ export function ExecutivePaymentsClient({ initialTransactions, stats }: Props) {
   const now = Date.now()
   const filtered = transactions.filter((t) => {
     if (statusFilter !== 'all' && t.status !== statusFilter) return false
-    if (gatewayFilter !== 'all' && t.gateway !== gatewayFilter) return false
+    if (gatewayFilter !== 'all' && (gatewayFilter === 'online' ? !isOnlineGateway(t.gateway) : t.gateway !== gatewayFilter)) return false
 
     if (dateRange !== 'all') {
       const created = new Date(t.createdAt).getTime()
@@ -225,7 +226,7 @@ export function ExecutivePaymentsClient({ initialTransactions, stats }: Props) {
             className="px-3 py-2 text-sm bg-surface-container-low rounded-lg border border-outline-variant/30 text-on-surface font-medium focus:outline-none"
           >
             <option value="all">All Gateways</option>
-            <option value="payu">Online Payment</option>
+            <option value="online">Online Payment</option>
             <option value="upi_qr">UPI QR Scanner</option>
             <option value="cash">Cash Desk</option>
           </select>
@@ -298,7 +299,7 @@ export function ExecutivePaymentsClient({ initialTransactions, stats }: Props) {
                       </td>
                       <td className="py-3.5 px-4">
                         <span className="inline-flex items-center gap-1.5 text-xs text-indigo-gray-700 capitalize font-medium">
-                          {t.gateway === 'payu' ? <CreditCard className="w-3.5 h-3.5 text-vibrant-blue" /> : <QrCode className="w-3.5 h-3.5 text-emerald-600" />}
+                          {isOnlineGateway(t.gateway) ? <CreditCard className="w-3.5 h-3.5 text-vibrant-blue" /> : <QrCode className="w-3.5 h-3.5 text-emerald-600" />}
                           {t.gateway.replace('_', ' ')}
                         </span>
                       </td>

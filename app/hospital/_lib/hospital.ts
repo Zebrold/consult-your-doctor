@@ -6,6 +6,7 @@ import { one } from '@/components/patient/data'
 import { formatINR, istDateKey } from '@/components/patient/format'
 import type { Tone } from '@/components/portal/ui'
 import { bookedServices, isFastTrack, testList, type BookedTest } from '@/lib/pricing'
+import { isOnlineGateway } from '@/lib/payment-gateways'
 
 type Admin = ReturnType<typeof createAdminClient>
 type Joined<T> = T | T[] | null
@@ -236,7 +237,7 @@ export async function loadHospitalVisits(admin: Admin, hospitalId: string, docto
         executiveId: r.executive_id,
         patient: patient ? { id: patient.id, name: patient.full_name || 'Patient', phone: patient.phone_number, email: realEmail(patient.email) } : null,
         payment,
-        counterDue: payment?.gateway === 'payu' && COUNTER_DUE_STATUSES.includes(r.status),
+        counterDue: isOnlineGateway(payment?.gateway) && COUNTER_DUE_STATUSES.includes(r.status),
         fastTrack: isFastTrack(r.booking_type),
         services: bookedServices(r.services),
       }
@@ -259,27 +260,27 @@ async function loadPayments(admin: Admin, ids: string[]): Promise<Map<string, Pa
       const payment = { amount: Number(p.amount) || 0, gateway: p.gateway, createdAt: p.created_at, hospitalShare: p.hospital_share == null ? null : Number(p.hospital_share) || 0 }
       // The desk's payment is what the counter took, so it wins over the online booking fee recorded for the same visit.
       const current = map.get(p.appointment_id)
-      if (!current || (current.gateway === 'payu' && payment.gateway !== 'payu')) map.set(p.appointment_id, payment)
+      if (!current || (isOnlineGateway(current.gateway) && !isOnlineGateway(payment.gateway))) map.set(p.appointment_id, payment)
     }
   }
   return map
 }
 
 /**
- * What the hospital takes for a visit: what its own counter collected. An online (PayU) payment is only the patient's
+ * What the hospital takes for a visit: what its own counter collected. An online (Razorpay) payment is only the patient's
  * booking fee, which goes to Consult Your Doctor; the consultation fee is counted once the counter has taken it. Null
  * when the counter hasn't collected anything yet.
  */
-export const hospitalShare = (p: Payment): number | null => (p.gateway === 'payu' ? null : (p.hospitalShare ?? p.amount))
+export const hospitalShare = (p: Payment): number | null => (isOnlineGateway(p.gateway) ? null : (p.hospitalShare ?? p.amount))
 
-export const PAYMENT_METHOD: Record<string, string> = { payu: 'Booked online, fee at counter', upi_qr: 'UPI scanner', cash: 'Cash at desk' }
+export const PAYMENT_METHOD: Record<string, string> = { razorpay: 'Booked online, fee at counter', upi_qr: 'UPI scanner', cash: 'Cash at desk' }
 
 /** A visit's payment column: unpaid, booked online (the consultation fee is still due at the counter) or paid at the desk. */
 export function paymentLook(v: { status: string; payment: Payment | null }, share: number | null): { label: string; color: string } {
   if (v.status === 'pending_payment') return { label: 'Not paid', color: '#B54708' }
   if (!v.payment) return { label: 'Not recorded', color: '#5B667A' }
   // An online payment is the booking fee; the consultation fee is taken at the counter.
-  if (v.payment.gateway === 'payu') return { label: 'Booking paid · fee due at counter', color: '#B54708' }
+  if (isOnlineGateway(v.payment.gateway)) return { label: 'Booking paid · fee due at counter', color: '#B54708' }
   return { label: `Paid · ${formatINR(share ?? v.payment.amount)}`, color: '#067647' }
 }
 

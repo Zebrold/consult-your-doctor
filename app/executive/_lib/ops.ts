@@ -3,6 +3,9 @@ import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { matchBookedTests, sumPrices } from '@/lib/pricing'
 import type { PartnerApplication, PartnerKind } from '@/lib/partner-applications'
+import { doctorDetails, parseApplication, type DoctorDetails } from '@/lib/doctor-applications'
+import { signDocuments, type DocumentLink } from '@/lib/application-uploads'
+import { gatewayKey } from '@/lib/payment-gateways'
 
 type Admin = ReturnType<typeof createAdminClient>
 
@@ -71,19 +74,8 @@ export function initials(name: string | null | undefined) {
     .join('')
 }
 
-/** Splits the packed `qualifications` string written by submitDoctorSignup (see app/actions/doctorAuth.ts). */
-export function parseApplication(qualifications: string | null) {
-  const parts = (qualifications || '').split(' | ')
-  const get = (prefix: string) => parts.find((p) => p.startsWith(`${prefix}:`))?.slice(prefix.length + 1) ?? null
-  return {
-    qualification: parts[0] || null,
-    experience: get('EXP'),
-    fee: get('FEE'),
-    council: get('COUNCIL'),
-    registration: get('REG'),
-    subSpecialty: get('SUB'),
-  }
-}
+/** Splits the packed `qualifications` string written by submitDoctorSignup (lib/doctor-applications.ts). */
+export { parseApplication }
 
 // ---------- Status groups ----------
 
@@ -139,6 +131,8 @@ type RawApplication = {
   phone_number: string | null
   specialty: string | null
   qualifications: string | null
+  /** Missing until supabase/migrations/20261113_partner_documents.sql runs. */
+  details?: unknown
   status: string
   created_at: string
   hospital: Joined<{ name: string }>
@@ -273,7 +267,7 @@ export async function loadPayments(admin: Admin): Promise<Map<string, Payment>> 
   return map
 }
 
-export const PAYMENT_METHOD_LABELS: Record<string, string> = { payu: 'Online (Paid)', cash: 'Cash (walk-in)' }
+export const PAYMENT_METHOD_LABELS: Record<string, string> = { razorpay: 'Online (Paid)', cash: 'Cash (walk-in)' }
 
 export type Application = {
   id: string
@@ -285,15 +279,18 @@ export type Application = {
   createdAt: string
   hospitalName: string | null
   details: ReturnType<typeof parseApplication>
+  /** The rest of the form's answers (gender, languages, timings, profile text, PAN, ...). */
+  extra: DoctorDetails
+  /** Short-lived links to the uploaded documents, when asked for. */
+  documentLinks: DocumentLink[]
 }
 
-export async function loadApplications(admin: Admin): Promise<Application[]> {
-  const { data } = await admin
-    .from('doctor_signup_requests')
-    .select('id, full_name, email, phone_number, specialty, qualifications, status, created_at, hospital:hospitals ( name )')
-    .order('created_at', { ascending: false })
+/** Doctor applications, newest first. `withDocuments` signs links to pending applications' documents. */
+export async function loadApplications(admin: Admin, { withDocuments = false } = {}): Promise<Application[]> {
+  // `*`: the details column only exists once its migration has run.
+  const { data } = await admin.from('doctor_signup_requests').select('*, hospital:hospitals ( name )').order('created_at', { ascending: false })
 
-  return ((data ?? []) as RawApplication[]).map((row) => ({
+  const rows = ((data ?? []) as RawApplication[]).map((row) => ({
     id: row.id,
     name: row.full_name,
     email: row.email,
@@ -303,7 +300,17 @@ export async function loadApplications(admin: Admin): Promise<Application[]> {
     createdAt: row.created_at,
     hospitalName: one(row.hospital)?.name ?? null,
     details: parseApplication(row.qualifications),
+    extra: doctorDetails(row.details, row.qualifications),
+    documentLinks: [] as DocumentLink[],
   }))
+  if (withDocuments) {
+    await Promise.all(
+      rows.filter((r) => r.status === 'pending' && r.extra.documents).map(async (r) => {
+        r.documentLinks = await signDocuments(admin, 'doctor', r.extra.documents)
+      }),
+    )
+  }
+  return rows
 }
 
 type RawPartnerApplication = {
@@ -323,7 +330,7 @@ type RawPartnerApplication = {
 }
 
 /** Hospital or diagnostic centre applications, newest first. Empty until the partner_applications migration runs. */
-export async function loadPartnerApplications(admin: Admin, kind: PartnerKind): Promise<PartnerApplication[]> {
+export async function loadPartnerApplications(admin: Admin, kind: PartnerKind, { withDocuments = false } = {}): Promise<PartnerApplication[]> {
   const { data, error } = await admin
     .from('partner_applications')
     .select('id, kind, organization_name, city, address, contact_name, contact_role, email, phone, registration_number, details, status, created_at')
@@ -334,7 +341,7 @@ export async function loadPartnerApplications(admin: Admin, kind: PartnerKind): 
     console.error('loadPartnerApplications:', error.message)
     return []
   }
-  return ((data ?? []) as RawPartnerApplication[]).map((row) => ({
+  const rows: PartnerApplication[] = ((data ?? []) as RawPartnerApplication[]).map((row) => ({
     id: row.id,
     kind: row.kind,
     organizationName: row.organization_name,
@@ -349,6 +356,14 @@ export async function loadPartnerApplications(admin: Admin, kind: PartnerKind): 
     status: row.status,
     createdAt: row.created_at,
   }))
+  if (withDocuments) {
+    await Promise.all(
+      rows.filter((r) => r.status === 'pending' && r.details.documents).map(async (r) => {
+        r.documentLinks = await signDocuments(admin, kind, r.details.documents)
+      }),
+    )
+  }
+  return rows
 }
 
 export type Doctor = {
@@ -623,7 +638,7 @@ export function buildLedger(appointments: Appointment[], labBookings: LabBooking
       service: `${apt.doctor?.specialty ?? 'Consultation'} consultation`,
       provider: [apt.doctor ? `Dr. ${apt.doctor.name}` : null, apt.hospital?.name].filter(Boolean).join(' · '),
       status: APPOINTMENT_STATUS_LABELS[apt.status] ?? apt.status,
-      method: payment?.gateway ? PAYMENT_METHOD_LABELS[payment.gateway] ?? payment.gateway : 'Not recorded',
+      method: payment?.gateway ? PAYMENT_METHOD_LABELS[gatewayKey(payment.gateway)] ?? payment.gateway : 'Not recorded',
       amount: payment?.amount ?? apt.doctor?.fee ?? 0,
       createdAt: apt.createdAt,
     })
@@ -638,7 +653,7 @@ export function buildLedger(appointments: Appointment[], labBookings: LabBooking
       service: booking.testName,
       provider: booking.center?.name ?? 'Diagnostic lab',
       status: LAB_STATUS_LABELS[booking.status] ?? booking.status,
-      method: payment?.gateway ? PAYMENT_METHOD_LABELS[payment.gateway] ?? payment.gateway : 'Not recorded',
+      method: payment?.gateway ? PAYMENT_METHOD_LABELS[gatewayKey(payment.gateway)] ?? payment.gateway : 'Not recorded',
       amount: payment?.amount ?? booking.price ?? 0,
       createdAt: booking.createdAt,
     })

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type RefObject } from "react";
-import { Check, Globe2, LoaderCircle, MapPin, Navigation } from "lucide-react";
+import { Check, Globe2, LoaderCircle, Navigation } from "lucide-react";
 import { placeLabel, type usePatientLocation } from "@/components/patient/location";
 import { formatCityName } from "@/lib/geo";
 
@@ -87,7 +87,6 @@ export function LocationMenu({
                     }}
                     className={`${row} py-3 text-[16px] ${on ? "font-bold text-[#1D4ED8]" : "text-[#3D4250]"}`}
                   >
-                    {l.kind === "gps" ? <Navigation className="w-[18px] h-[18px] shrink-0 text-[#27324A] fill-current" strokeWidth={2} /> : <MapPin className="w-[18px] h-[18px] shrink-0 text-[#27324A]" strokeWidth={2.2} />}
                     <span className="flex-1 min-w-0 truncate">{label}</span>
                     {on && <Check className="w-[18px] h-[18px] shrink-0" strokeWidth={2.6} />}
                   </button>
@@ -116,7 +115,6 @@ export function LocationMenu({
                   }}
                   className={`${row} py-3 text-[16px] ${isCurrent(city) ? "font-bold text-[#1D4ED8]" : "text-[#3D4250]"}`}
                 >
-                  <MapPin className={`w-[18px] h-[18px] shrink-0 ${isCurrent(city) ? "" : "text-[#8A94A6]"}`} strokeWidth={2.2} />
                   <span className="truncate">{city}</span>
                 </button>
               </li>

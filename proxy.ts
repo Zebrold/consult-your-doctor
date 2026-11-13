@@ -125,8 +125,8 @@ export async function proxy(request: NextRequest) {
     if (AUTH_PAGES.includes(path)) {
       target = dashboardPath
     // STRICT CONFINEMENT: If they are not a patient, they can ONLY visit their allowedPrefix. API routes are left to
-    // check the session themselves: portals call them (the chat assistant, and /api/payu/hash when a hospital or lab
-    // desk takes a PayU payment), and redirecting those calls to a dashboard page broke them. The Terms & Conditions
+    // check the session themselves: portals call them (the chat assistant, and the payment routes under
+    // /api/razorpay), and redirecting those calls to a dashboard page broke them. The Terms & Conditions
     // and Privacy Policy, and the documents under /legal, stay open to everyone.
     } else if (
       role !== 'patient' &&

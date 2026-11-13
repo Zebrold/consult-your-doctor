@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { LucideIcon } from 'lucide-react'
-import { ArrowUp, FileDown, FileText, Languages, LoaderCircle, Square } from 'lucide-react'
+import { ArrowUp, Check, ChevronDown, FileDown, FileText, Languages, LoaderCircle, Square } from 'lucide-react'
 import type { PdfDoc } from '@/lib/assistant/pdf-doc'
 
 // The chat both Zebrold AI surfaces share: the Support button on every page (Support.tsx) and each section's
@@ -447,6 +447,98 @@ export function LanguagePicker({
         ))}
       </select>
     </label>
+  )
+}
+
+/**
+ * The Care Assistant page's language choice, as a dropdown: the current language on a bordered button, and a white
+ * list (like the header's Corporate menu) of every language the assistant answers in.
+ */
+export function LanguageMenu({ value, onChange }: { value: string; onChange: (code: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLUListElement>(null)
+  const current = LANGUAGES.find((l) => l.code === value) ?? LANGUAGES[0]
+  const label = (l: (typeof LANGUAGES)[number]) => (l.code === 'auto' ? 'Same as my message' : l.label)
+
+  useEffect(() => {
+    if (!open) return
+    // Start on the chosen language, so arrow keys move from there.
+    listRef.current?.querySelector<HTMLButtonElement>('[aria-selected="true"]')?.focus()
+    const close = (e: PointerEvent | globalThis.KeyboardEvent) => {
+      if (e instanceof globalThis.KeyboardEvent ? e.key === 'Escape' : !ref.current?.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('pointerdown', close)
+    document.addEventListener('keydown', close)
+    return () => {
+      document.removeEventListener('pointerdown', close)
+      document.removeEventListener('keydown', close)
+    }
+  }, [open])
+
+  const move = (e: KeyboardEvent<HTMLUListElement>) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+    e.preventDefault()
+    const items = Array.from(listRef.current?.querySelectorAll<HTMLButtonElement>('button') ?? [])
+    const at = items.indexOf(document.activeElement as HTMLButtonElement)
+    items[Math.min(items.length - 1, Math.max(0, at + (e.key === 'ArrowDown' ? 1 : -1)))]?.focus()
+  }
+
+  return (
+    <div ref={ref} className="relative shrink-0" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setOpen(false)}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={`Reply language: ${current.english}`}
+        className={`h-10 pl-3 pr-2.5 rounded-[10px] border bg-white flex items-center gap-2 text-[14px] font-semibold text-[#1A1F2B] transition-colors ${
+          open ? 'border-[#2A4DD0] ring-4 ring-[#2A4DD0]/10' : 'border-[#D5DCE6] hover:border-[#9DB4F5]'
+        }`}
+      >
+        <Languages className="w-4 h-4 text-[#2A4DD0] shrink-0" aria-hidden />
+        <span className="max-w-[92px] sm:max-w-none truncate">{current.code === 'auto' ? 'Auto' : current.label}</span>
+        <ChevronDown className={`w-4 h-4 text-[#5B667A] shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} strokeWidth={2.4} aria-hidden />
+      </button>
+
+      <div className={`absolute right-0 top-full pt-2 z-30 transition-all duration-150 ${open ? 'visible opacity-100 translate-y-0' : 'invisible opacity-0 -translate-y-1'}`}>
+        <ul
+          ref={listRef}
+          role="listbox"
+          aria-label="Reply language"
+          onKeyDown={move}
+          className="w-[248px] max-h-[min(340px,60dvh)] overflow-y-auto overscroll-contain py-2 rounded-lg bg-white border border-[#E4E7EC] shadow-[0_12px_28px_-8px_rgba(11,27,63,0.22)]"
+        >
+          {LANGUAGES.map((l) => {
+            const on = l.code === value
+            return (
+              <li key={l.code} role="presentation">
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={on}
+                  tabIndex={open ? 0 : -1}
+                  onClick={() => {
+                    onChange(l.code)
+                    setOpen(false)
+                  }}
+                  className={`w-full flex items-center gap-3 px-5 py-2.5 text-left text-[15px] transition-colors hover:bg-[#F4F6FB] focus-visible:bg-[#F4F6FB] focus-visible:outline-none ${
+                    on ? 'font-bold text-[#2A4DD0]' : 'font-medium text-[#3D4250] hover:text-[#2A4DD0]'
+                  }`}
+                >
+                  <span className="flex-1 min-w-0">
+                    <span dir="auto" className="block truncate">{label(l)}</span>
+                    {l.code !== 'auto' && l.label !== l.english && <span className="block text-[12px] font-medium text-[#7A8599]">{l.english}</span>}
+                    {l.code === 'auto' && <span className="block text-[12px] font-medium text-[#7A8599]">Auto detect</span>}
+                  </span>
+                  {on && <Check className="w-4 h-4 shrink-0" strokeWidth={2.8} aria-hidden />}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
+    </div>
   )
 }
 

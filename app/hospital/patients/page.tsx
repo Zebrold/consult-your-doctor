@@ -10,6 +10,7 @@ import { dayOf, hospitalShare, isPaidVisit, loadHospitalDoctors, loadHospitalVis
 import { PatientsBoard, type BoardRow, type BoardView } from '../_components/PatientsBoard'
 import { AddPatientButton } from '../_components/PatientDesk'
 import { DeskHead, HosBody, HosHeader, PhoneStats, StatCard, btnPrimary, delta, plural } from '../_components/hos-ui'
+import { gatewayKey } from '@/lib/payment-gateways'
 
 export const metadata: Metadata = { title: 'Patients | Hospital Portal' }
 export const dynamic = 'force-dynamic'
@@ -44,7 +45,7 @@ export default async function HospitalPatientsPage(props: { searchParams?: Promi
       ageSex: v.patient ? ageSex(facts[v.patient.id], now) : null,
       doctor: doc ? doctorName(doc.name) : 'Doctor',
       department: doc?.department ?? 'Other',
-      payment: v.payment ? { label: PAYMENT_METHOD[v.payment.gateway ?? ''] ?? 'Paid', amount: share ?? 0 } : null,
+      payment: v.payment ? { label: PAYMENT_METHOD[gatewayKey(v.payment.gateway)] ?? 'Paid', amount: share ?? 0 } : null,
       pay: paymentLook(v, share),
       counterDue: v.counterDue,
       fastTrack: v.fastTrack,

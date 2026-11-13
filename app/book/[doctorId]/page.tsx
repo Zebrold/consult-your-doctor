@@ -106,7 +106,6 @@ export default async function BookDoctorPage({ params, searchParams }: BookDocto
       services={services}
       initialSlotId={typeof picked === 'string' ? picked : null}
       initialFastTrack={choices && isFastTrack(query.type)}
-      payuKey={process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY || ""}
     />
   );
 }

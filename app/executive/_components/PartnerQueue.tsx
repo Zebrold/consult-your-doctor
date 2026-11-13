@@ -6,6 +6,7 @@ import { Building2, FlaskConical, IdCard, Loader2, Mail, Phone, UserRound, X } f
 import { rejectPartnerApplication } from '@/app/actions/partnerSignup'
 import { PARTNER_NOUN, partnerDetailRows, type PartnerApplication } from '@/lib/partner-applications'
 import { AddDiagnosticCenterButton, AddHospitalButton } from './NetworkForms'
+import { DocumentLinks } from './DocumentLinks'
 import { Chip, EmptyState } from './ui'
 
 // Hospitals and diagnostic centres that applied from /signup/hospital or /signup/diagnostic-centre. Approving opens
@@ -75,6 +76,8 @@ export function PartnerQueue({ applications, submittedLabels }: { applications: 
                 </div>
               ))}
             </dl>
+
+            <DocumentLinks links={app.documentLinks} />
 
             <div className="flex flex-wrap items-center gap-2">
               <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface-container-lowest font-label-sm text-label-sm text-on-surface">

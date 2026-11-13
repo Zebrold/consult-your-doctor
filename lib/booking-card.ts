@@ -6,6 +6,7 @@ import { bookedServices, bookedTestsFor, isFastTrack, labBookingFee, onlinePayab
 import { appointmentBookingFee } from '@/lib/wallet'
 import { FOLLOW_UP_DAYS } from '@/lib/follow-up'
 import { siteUrl } from '@/lib/site-url'
+import { gatewayName, isOnlineGateway } from '@/lib/payment-gateways'
 
 type Admin = ReturnType<typeof createAdminClient>
 type Joined<T> = T | T[] | null
@@ -75,21 +76,23 @@ export type BookingCard = {
   links: { confirmation: string; appointment: string; checkout: string; directions: string | null; support: string; bookAgain: string | null }
 }
 
+// Payment methods, upper-cased: Razorpay's (card, netbanking...) and the short codes older payments carry.
 const MODE_LABEL: Record<string, string> = {
-  UPI: 'UPI', CC: 'Credit card', DC: 'Debit card', NB: 'Net banking', WALLET: 'Wallet', EMI: 'EMI', CASH: 'Cash', PAYLATER: 'Pay later',
+  UPI: 'UPI', CC: 'Credit card', DC: 'Debit card', CARD: 'Card', NB: 'Net banking', NETBANKING: 'Net banking', WALLET: 'Wallet', EMI: 'EMI', CASH: 'Cash', PAYLATER: 'Pay later',
 }
 
 type PaymentRow = { amount: number | string; gateway: string | null; method?: string | null; transaction_id: string | null; platform_share?: number | string | null; created_at: string }
 
 function paymentFacts(payments: PaymentRow[], deskName: string) {
-  const online = payments.find((p) => p.gateway === 'payu') ?? null
+  const online = payments.find((p) => isOnlineGateway(p.gateway)) ?? null
   const counter = payments.find((p) => p.gateway === 'cash' || p.gateway === 'upi_qr') ?? null
   const shown = online ?? counter
   if (!shown) return { online, counter, paymentType: null, transactionId: null }
-  if (shown.gateway === 'payu') {
+  if (isOnlineGateway(shown.gateway)) {
     const mode = MODE_LABEL[String(shown.method ?? '').toUpperCase()] ?? 'Online'
     const ref = String(shown.transaction_id ?? '')
-    return { online, counter, paymentType: `${mode} · PayU`, transactionId: ref ? `PAYU ${ref.replace(/(\d{4})(?=\d)/g, '$1 ')}` : null }
+    const provider = gatewayName(shown.gateway) ?? 'Online'
+    return { online, counter, paymentType: `${mode} · ${provider}`, transactionId: ref || null }
   }
   return {
     online,
@@ -107,7 +110,7 @@ function ageSexOf(details: { date_of_birth?: string | null; gender?: string | nu
 
 /**
  * The convenience fee and the amount for the order summary. Unpaid: the convenience fee on today's terms and the total
- * payable. Paid: what was paid, and the convenience fee as the part of the PayU payment above the booking fee (counter
+ * payable. Paid: what was paid, and the convenience fee as the part of the online payment above the booking fee (counter
  * payments carry none). A paid booking with no payment on record (from before payments were recorded) shows its fee.
  */
 function amounts(state: BookingCard['state'], bookingFee: number, payments: PaymentRow[], fees: BookingFees) {
@@ -116,7 +119,7 @@ function amounts(state: BookingCard['state'], bookingFee: number, payments: Paym
     return { convenienceFee: payable.convenience, amount: payable.total }
   }
   const sum = (rows: PaymentRow[]) => rows.reduce((total, p) => total + (Number(p.amount) || 0), 0)
-  const online = sum(payments.filter((p) => p.gateway === 'payu'))
+  const online = sum(payments.filter((p) => isOnlineGateway(p.gateway)))
   return {
     convenienceFee: online > bookingFee ? Math.round((online - bookingFee) * 100) / 100 : 0,
     amount: payments.length ? sum(payments) : bookingFee,

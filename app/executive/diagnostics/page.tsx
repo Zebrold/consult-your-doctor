@@ -22,7 +22,7 @@ export default async function ExecutiveDiagnosticsPage() {
     loadLabs(admin),
     loadLabBookings(admin),
     admin.from('profiles').select('diagnostic_center_id').eq('role', 'diagnostic_admin'),
-    loadPartnerApplications(admin, 'diagnostic_center'),
+    loadPartnerApplications(admin, 'diagnostic_center', { withDocuments: true }),
   ])
   const hasLogin = new Set(((labLogins ?? []) as { diagnostic_center_id: string | null }[]).map((p) => p.diagnostic_center_id))
   const labsWithoutLogin = labs.filter((l) => !hasLogin.has(l.id))

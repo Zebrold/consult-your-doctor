@@ -4,7 +4,9 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { BadgeCheck, Check, Copy, IdCard, Loader2, Mail, Phone, UserCheck, X } from 'lucide-react'
 import { approveDoctor, rejectDoctor } from '@/app/actions/doctorAuth'
+import { doctorDetailRows } from '@/lib/doctor-applications'
 import type { Application } from '../_lib/ops'
+import { DocumentLinks } from './DocumentLinks'
 import { Chip, EmptyState } from './ui'
 
 type Credentials = { name: string; staffId: string; email: string; password: string; activationLink?: string | null }
@@ -58,6 +60,7 @@ export function CredentialQueue({ applications, submittedLabels }: { application
       <div className="flex flex-col gap-4">
         {applications.map((app) => {
           const d = app.details
+          const rows = doctorDetailRows(app.extra)
           return (
             <article key={app.id} className="p-5 md:p-6 rounded-xl bg-surface-container-low/60 flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
@@ -108,6 +111,19 @@ export function CredentialQueue({ applications, submittedLabels }: { application
                   </a>
                 )}
               </div>
+
+              {rows.length > 0 && (
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5 p-4 rounded-lg bg-surface-container-lowest text-sm">
+                  {rows.map(([label, value]) => (
+                    <div key={label} className="min-w-0">
+                      <dt className="font-label-sm text-[11px] uppercase tracking-wider text-indigo-gray-600">{label}</dt>
+                      <dd className="text-indigo-gray-900 break-words whitespace-pre-line">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+
+              <DocumentLinks links={app.documentLinks} />
 
               {error?.id === app.id && (
                 <p role="alert" className="p-3 rounded-lg bg-error-container/60 text-on-error-container text-sm font-semibold">{error.message}</p>

@@ -22,6 +22,7 @@ import { signRecordFiles } from '@/lib/records'
 import { parseVitals, vitalsList, withoutVitals } from '@/lib/vitals'
 import { loadPatientAdmissions, stayDays } from '@/lib/beds'
 import { LiveRefresh } from '@/components/portal/LiveRefresh'
+import { isOnlineGateway } from '@/lib/payment-gateways'
 
 export const metadata: Metadata = { title: 'My Profile | Consult Your Doctor' }
 
@@ -180,7 +181,7 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
   ]
   // Online payments are booking fees. A desk payment is what the hospital or lab counter took (the consultation fee or test
   // charges), which booking screens never show, so it is listed without its amount and left out of the total.
-  const totalPaid = payments.filter((p) => p.gateway === 'payu').reduce((s, p) => s + (Number(p.amount) || 0), 0)
+  const totalPaid = payments.filter((p) => isOnlineGateway(p.gateway)).reduce((s, p) => s + (Number(p.amount) || 0), 0)
   const describePayment = (id: string) => {
     const visit = visits.find((v) => v.id === id)
     if (visit) return `Consultation · ${visit.doctor ? doctorName(visit.doctor.name) : 'Doctor'}`
@@ -503,10 +504,10 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
                       <span className="min-w-0">
                         <span className="block text-[#27324A] truncate capitalize">{describePayment(p.booking_id)}</span>
                         <span className="block text-[12px] text-[#5B667A]">
-                          {[p.created_at ? formatShortDate(p.created_at) : null, p.gateway === 'payu' ? 'Paid online' : p.gateway ? 'Booked at the desk' : null].filter(Boolean).join(' · ')}
+                          {[p.created_at ? formatShortDate(p.created_at) : null, isOnlineGateway(p.gateway) ? 'Paid online' : p.gateway ? 'Booked at the desk' : null].filter(Boolean).join(' · ')}
                         </span>
                       </span>
-                      {p.gateway === 'payu' ? (
+                      {isOnlineGateway(p.gateway) ? (
                         <span className="shrink-0 font-extrabold">{formatINR(Number(p.amount) || 0)}</span>
                       ) : (
                         <span className="shrink-0 text-[12px] text-[#5B667A]">Paid at the counter</span>

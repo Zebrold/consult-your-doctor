@@ -4,15 +4,15 @@ import { requireHospital } from '../_lib/hospital'
 import { HosBody } from '../_components/hos-ui'
 
 export const metadata: Metadata = {
-  title: 'Zebrold AI',
+  title: 'Help & support',
 }
 
 // The section layout checks who is signed in; the assistant's API checks the session again on every message.
 export default async function HospitalAiPage() {
-  const { user } = await requireHospital()
+  const { user, staff } = await requireHospital()
   return (
     <HosBody>
-      <AssistantPage role="hospital_admin" viewer={user.id} />
+      <AssistantPage role="hospital_admin" viewer={user.id} name={staff.name} />
     </HosBody>
   )
 }

@@ -4,8 +4,7 @@ import { insertPaymentRow } from '@/lib/wallet'
 
 type Admin = ReturnType<typeof createAdminClient>
 
-// Payments a hospital or diagnostic centre desk collects for a booking it made: PayU (the patient pays online on the
-// desk's screen; the PayU callback records it), the UPI scanner (the patient scans a QR code for the exact amount and
+// Payments a hospital or diagnostic centre desk collects for a booking it made: the UPI scanner (the patient scans a QR code for the exact amount and
 // the desk enters the UPI reference once it arrives), or cash. Configure the scanner with UPI_VPA (the UPI ID that
 // receives the money, e.g. zebrold@icici) and optionally UPI_PAYEE_NAME.
 //

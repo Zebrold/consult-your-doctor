@@ -1,5 +1,6 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
 import { doctorBookingFee, type BookingFees } from '@/lib/pricing'
+import { isOnlineGateway } from '@/lib/payment-gateways'
 
 type Admin = ReturnType<typeof createAdminClient>
 
@@ -7,7 +8,7 @@ type Admin = ReturnType<typeof createAdminClient>
 //
 // Every hospital visit has two parts: the booking fee, which is Consult your Doctor's, and the hospital's charges (the
 // consultation fee and any services). Whoever takes the money holds both parts until they are settled:
-//   * PayU (online) and the desk's UPI scanner pay Consult your Doctor's account. The hospital's part of that payment is
+//   * Online payments (Razorpay) and the desk's UPI scanner pay Consult your Doctor's account. The hospital's part of that payment is
 //     credited to the hospital's wallet.
 //   * Cash stays with the hospital. Consult your Doctor's part of it (the booking fee) is debited from the wallet, which
 //     can go below zero: the hospital then owes that amount.
@@ -15,7 +16,7 @@ type Admin = ReturnType<typeof createAdminClient>
 // worked out from the payments themselves, so a refunded payment drops out of it.
 
 /** Payment gateways whose money lands in Consult your Doctor's account. Everything else (cash) stays with the hospital. */
-export const PLATFORM_HELD = ['payu', 'upi_qr']
+export const PLATFORM_HELD = ['razorpay', 'upi_qr']
 
 /** Below this a withdrawal isn't worth a bank transfer. */
 export const MIN_PAYOUT = 100
@@ -173,7 +174,7 @@ export async function loadWalletBalances(admin: Admin): Promise<Map<string, { ba
 
 /** What a wallet line is, in a few words. */
 export function entryLabel(e: Pick<WalletEntry, 'kind' | 'gateway' | 'status'>): string {
-  if (e.kind === 'collection') return e.gateway === 'payu' ? 'Paid online' : 'UPI at your desk'
+  if (e.kind === 'collection') return isOnlineGateway(e.gateway) ? 'Paid online' : 'UPI at your desk'
   if (e.kind === 'cash_booking_fee') return 'Booking fee on a cash payment'
   if (e.kind === 'payout') return e.status === 'paid' ? 'Withdrawn to your bank' : 'Withdrawal requested'
   return 'Adjustment'

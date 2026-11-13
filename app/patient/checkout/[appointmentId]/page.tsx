@@ -2,8 +2,7 @@ import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { Building2, CalendarDays, CircleCheck, CircleX, Clock, SearchX, UserRound } from 'lucide-react'
-import { PayUCheckoutForm } from '@/components/PayUCheckoutForm'
-import { newPayuTxnid } from '@/lib/payu-txn'
+import { OnlinePayButton } from '@/components/OnlinePayButton'
 import { CheckoutCard, CheckoutGrid, CheckoutHeading, CheckoutMessage, CheckoutShell, DetailRow, PaymentSummary } from '@/components/patient/CheckoutShell'
 import { PayAtVenue } from '@/components/patient/booking-ui'
 import { doctorName, formatINR, formatLongDate, formatTime } from '@/components/patient/format'
@@ -69,11 +68,10 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
   const doctor = one(appointment.doctors as Joined<Doctor>)
   const hospital = one(appointment.hospitals as Joined<Hospital>)
   const startTime = one(appointment.schedules as Joined<{ start_time: string }>)?.start_time ?? null
-  // The same amount /api/payu/hash charges: the booking fee and the payment convenience fee on it. The consultation fee
+  // The same amount the Razorpay order charges (app/api/razorpay/order): the booking fee and the payment convenience fee on it. The consultation fee
   // and any services are paid at the hospital counter.
   const fastTrack = isFastTrack(appointment.booking_type)
   const payable = onlinePayable(appointmentBookingFee(appointment, fees), fees.conveniencePercent)
-  const total = payable.total
   const services = bookedServices(appointment.services)
 
   return (
@@ -108,15 +106,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
               </PayAtVenue>
             }
           >
-            <PayUCheckoutForm
-              txnid={newPayuTxnid(appointmentId)}
-              amount={total}
-              productinfo="Consultation"
-              firstname={(name || 'Patient').replace(/[|]/g, ' ')}
-              email={email || 'patient@example.com'}
-              phone={profile?.phone_number || user.phone || '9999999999'}
-              payuKey={process.env.PAYU_MERCHANT_KEY || process.env.NEXT_PUBLIC_PAYU_KEY || ''}
-            />
+            <OnlinePayButton bookingId={appointmentId} product="Consultation" name={name || 'Patient'} email={email || null} phone={profile?.phone_number || user.phone || null} />
           </PaymentSummary>
         }
       />

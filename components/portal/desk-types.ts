@@ -12,7 +12,7 @@ export type DeskPayment = {
   /** "Consultation with Dr. …", "CBC, Lipid Profile", … */
   what: string
   patient: { name: string; phone: string | null; email: string | null }
-  /** What the desk collects by scanner or cash. Desks don't take PayU: online it only collects patients' booking fees. */
+  /** What the desk collects by scanner or cash. Desks don't take online payments: those only collect patients' booking fees. */
   amounts: { desk: number }
   /** What the desk amount is made of: each test with its amount, or the consultation fee. */
   items: { label: string; amount: number }[]

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { documentsReady } from '@/lib/application-uploads'
 import { PartnerSignupForm } from '../PartnerSignupForm'
 
 export const metadata: Metadata = {
@@ -7,6 +8,6 @@ export const metadata: Metadata = {
   alternates: { canonical: '/signup/diagnostic-centre' },
 }
 
-export default function DiagnosticCentreSignupPage() {
-  return <PartnerSignupForm kind="diagnostic_center" />
+export default async function DiagnosticCentreSignupPage() {
+  return <PartnerSignupForm kind="diagnostic_center" uploads={await documentsReady()} />
 }

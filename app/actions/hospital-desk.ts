@@ -15,6 +15,7 @@ import { bookedServices, sumPrices } from '@/lib/pricing'
 import { appointmentBookingFee, shareColumns, type Shares } from '@/lib/wallet'
 import { followUpBase } from '@/lib/follow-up'
 import { bookingOptionsReady } from '@/lib/booking-options'
+import { ONLINE_GATEWAYS } from '@/lib/payment-gateways'
 
 // The hospital desk: register a patient with a one-time code, book them with one of the hospital's doctors, take
 // the payment (the UPI scanner or cash) and record their health details for the doctor.
@@ -346,7 +347,7 @@ type Visit = NonNullable<Awaited<ReturnType<typeof visitAt>>>
 async function deskCharge(admin: Admin, visit: Visit): Promise<{ items: { label: string; amount: number }[]; total: number; shares: Shares }> {
   const [fees, { data: online }] = await Promise.all([
     getBookingFees(),
-    admin.from('payments').select('id').eq('appointment_id', visit.row.id).eq('gateway', 'payu').eq('status', 'success').limit(1),
+    admin.from('payments').select('id').eq('appointment_id', visit.row.id).in('gateway', [...ONLINE_GATEWAYS]).eq('status', 'success').limit(1),
   ])
   const bookingFee = online?.length ? 0 : appointmentBookingFee(visit.row, fees)
   const services = bookedServices(visit.row.services)

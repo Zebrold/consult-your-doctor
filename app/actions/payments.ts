@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { ONLINE_GATEWAY } from '@/lib/payment-gateways'
 
 export type PaymentStatus = 'success' | 'failed' | 'pending' | 'refunded'
 
@@ -185,7 +186,7 @@ export async function getExecutivePayments(): Promise<{
       diagnosticCenterCode: diagCode || (diagId ? `CYD-DIAG-${diagId.slice(0, 4).toUpperCase()}` : null),
       bookingReference: bookingRef,
       bookingKind,
-      gateway: p.gateway || 'payu',
+      gateway: p.gateway || ONLINE_GATEWAY,
       amount: Number(p.amount) || 0,
       status: normStatus,
       refundAmount: p.refund_amount ? Number(p.refund_amount) : null,
@@ -255,7 +256,7 @@ async function cancelRefundedBooking(admin: ReturnType<typeof createAdminClient>
 
 /**
  * Records a traceable refund for a payment. The money itself goes back to the patient outside this app: online payments
- * are refunded from the PayU dashboard, and cash or UPI from the desk. A full refund then cancels the booking and frees
+ * are refunded from the Razorpay dashboard, and cash or UPI from the desk. A full refund then cancels the booking and frees
  * its slot; a partial refund only records the amount.
  */
 export async function processPaymentRefund(

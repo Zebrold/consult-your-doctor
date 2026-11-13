@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-// The fees are the ones checkout and PayU charge (lib/booking-fees.ts), so this page can't drift from them.
+// The fees are the ones checkout and Razorpay charge (lib/booking-fees.ts), so this page can't drift from them.
 const plans = (fees: BookingFees) => [
   {
     icon: Stethoscope,

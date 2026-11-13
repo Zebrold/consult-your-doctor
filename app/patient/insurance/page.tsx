@@ -7,6 +7,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { AccountCard, AccountPage } from '@/components/patient/AccountPage'
 import { one } from '@/components/patient/data'
 import { doctorName, formatINR, formatShortDate } from '@/components/patient/format'
+import { isOnlineGateway } from '@/lib/payment-gateways'
 
 export const metadata: Metadata = { title: 'Payments & billing | Consult Your Doctor' }
 
@@ -36,7 +37,7 @@ export default async function BillingPage() {
     labRows.length ? admin.from('payments').select('appointment_id, diagnostic_booking_id, amount, gateway, created_at').in('diagnostic_booking_id', labRows.map((l) => l.id)).eq('status', 'success') : Promise.resolve({ data: [] }),
   ])
   const payments = [...((a.data ?? []) as PaymentRow[]), ...((b.data ?? []) as PaymentRow[])].sort((x, y) => (y.created_at ?? '').localeCompare(x.created_at ?? ''))
-  const online = payments.filter((p) => p.gateway === 'payu')
+  const online = payments.filter((p) => isOnlineGateway(p.gateway))
   const total = online.reduce((s, p) => s + (Number(p.amount) || 0), 0)
   const unpaid = [
     ...visitRows.filter((v) => v.status === 'pending_payment').map((v) => ({ id: v.id, label: `Consultation · ${doctorName(one(one(v.doctors)?.profiles)?.full_name)}`, href: `/patient/checkout/${v.id}` })),
@@ -89,10 +90,10 @@ export default async function BillingPage() {
               <span className="min-w-0">
                 <span className="block font-bold truncate capitalize">{describe(p)}</span>
                 <span className="block text-[12px] text-[#5B667A]">
-                  {[p.created_at ? formatShortDate(p.created_at) : null, p.gateway === 'payu' ? 'Booking fee, paid online' : 'Paid at the desk'].filter(Boolean).join(' · ')}
+                  {[p.created_at ? formatShortDate(p.created_at) : null, isOnlineGateway(p.gateway) ? 'Booking fee, paid online' : 'Paid at the desk'].filter(Boolean).join(' · ')}
                 </span>
               </span>
-              {p.gateway === 'payu' ? <span className="shrink-0 font-extrabold">{formatINR(Number(p.amount) || 0)}</span> : <span className="shrink-0 text-[12px] text-[#5B667A]">At the counter</span>}
+              {isOnlineGateway(p.gateway) ? <span className="shrink-0 font-extrabold">{formatINR(Number(p.amount) || 0)}</span> : <span className="shrink-0 text-[12px] text-[#5B667A]">At the counter</span>}
             </div>
           ))
         )}

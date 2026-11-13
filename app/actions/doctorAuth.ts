@@ -7,6 +7,9 @@ import { randomInt } from 'node:crypto'
 import { sendDoctorRegistrationReceivedEmail, sendDoctorActivationEmail } from '@/lib/notify/email'
 import { clientIp } from '@/lib/otp-guard'
 import { overLimit } from '@/lib/rate-limit'
+import { collectDocuments, documentsReady, missingDocuments } from '@/lib/application-uploads'
+import { DOCTOR_LANGUAGES, DOCTOR_SPECIALTIES, GENDERS, MEDICAL_COUNCILS, PRACTICE_TYPES, SLOT_MINUTES, doctorDetails, parseApplication, type DoctorDetails } from '@/lib/doctor-applications'
+import { WEEKDAYS } from '@/lib/partner-applications'
 
 export async function getHospitals() {
   const supabase = await createClient()
@@ -18,15 +21,20 @@ export async function getHospitals() {
   return data || []
 }
 
-export async function submitDoctorSignup(prevState: any, formData: FormData) {
+export async function submitDoctorSignup(_prevState: unknown, formData: FormData) {
   // Applicants aren't signed in, and database policies rightly hide profiles and other applications from the
   // public, so the duplicate checks and the insert run server-side with the admin client.
   const supabase = createAdminClient()
 
   // " | " separates the packed fields below, so strip pipes from free-text input.
   const field = (name: string) => ((formData.get(name) as string | null) ?? '').replace(/\|/g, '/').trim()
+  const list = (name: string, allowed: string[]) => formData.getAll(name).map(String).filter((v) => allowed.includes(v))
+  const year = (name: string) => (/^\d{4}$/.test(field(name)) ? Number(field(name)) : null)
+  const isDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v)
+  const isTime = (v: string) => /^\d{2}:\d{2}$/.test(v)
+  const fail = (error: string) => ({ error, success: false })
 
-  const fullName = [field('title'), field('firstName'), field('lastName')].filter(Boolean).join(' ')
+  const fullName = [field('title'), field('firstName'), field('middleName'), field('lastName')].filter(Boolean).join(' ')
   const email = field('email').toLowerCase()
   const phoneDigits = field('phone').replace(/\D/g, '')
   const phone = phoneDigits ? `${field('countryCode')}${phoneDigits}` : ''
@@ -40,28 +48,78 @@ export async function submitDoctorSignup(prevState: any, formData: FormData) {
   const subSpecialty = field('subSpecialty')
 
   if (!field('firstName') || !field('lastName') || !email || !phone || !hospitalId) {
-    return { error: 'Name, email, mobile number, and hospital selection are required.', success: false }
+    return fail('Name, email, mobile number, and hospital selection are required.')
   }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200 || fullName.length > 160) {
-    return { error: 'Please check your name and email address.', success: false }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200 || fullName.length > 200) {
+    return fail('Please check your name and email address.')
   }
+  if (!council || !registrationNumber || !specialty || !qualificationsRaw) {
+    return fail('Medical council, registration number, qualification, and specialty are required for verification.')
+  }
+  if (!DOCTOR_SPECIALTIES.includes(specialty) || !MEDICAL_COUNCILS.includes(council)) return fail('Choose your speciality and medical council from the lists.')
+  if (!/^\d{1,2}$/.test(experienceYears) || !/^\d{1,6}$/.test(consultationFee)) return fail('Check your years of experience and consultation fee.')
+
+  const details: DoctorDetails = {
+    middleName: field('middleName') || undefined,
+    gender: GENDERS.includes(field('gender')) ? field('gender') : undefined,
+    dateOfBirth: isDate(field('dateOfBirth')) ? field('dateOfBirth') : undefined,
+    languages: list('languages', DOCTOR_LANGUAGES),
+    registrationYear: year('registrationYear'),
+    registrationValidUntil: isDate(field('registrationValidUntil')) ? field('registrationValidUntil') : undefined,
+    college: field('college').slice(0, 160) || undefined,
+    passingYear: year('passingYear'),
+    otherQualifications: field('otherQualifications').slice(0, 300) || undefined,
+    practiceType: PRACTICE_TYPES.includes(field('practiceType')) ? field('practiceType') : undefined,
+    clinic: field('clinic').slice(0, 300) || undefined,
+    consultDays: list('consultDays', WEEKDAYS),
+    consultFrom: isTime(field('consultFrom')) ? field('consultFrom') : undefined,
+    consultTo: isTime(field('consultTo')) ? field('consultTo') : undefined,
+    slotMinutes: SLOT_MINUTES.includes(Number(field('slotMinutes'))) ? Number(field('slotMinutes')) : null,
+    bio: field('bio').slice(0, 1500) || undefined,
+    conditions: field('conditions').slice(0, 400) || undefined,
+    awards: field('awards').slice(0, 400) || undefined,
+    pan: field('pan').toUpperCase() || undefined,
+  }
+  if (!details.gender || !details.dateOfBirth) return fail('Enter your gender and date of birth.')
+  if (!details.languages?.length) return fail('Choose the languages you consult in.')
+  if (!details.registrationYear || !details.college || !details.passingYear) return fail('Enter your year of registration, college and year of passing.')
+  if (!details.practiceType || !details.consultDays?.length || !details.consultFrom || !details.consultTo || !details.slotMinutes) {
+    return fail('Enter how you practise, the days and hours you consult and the time per patient.')
+  }
+  if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(details.pan ?? '')) return fail('Check your PAN: 10 characters, like ABCDE1234F.')
+
+  if (formData.get('confirmRegistration') !== 'on' || formData.get('noDisciplinary') !== 'on' || formData.get('consentVerification') !== 'on') {
+    return fail('Please confirm all three declarations before sending.')
+  }
+
   // Each application emails the address given, so limit how many one network can send.
   if (await overLimit(`doctor-signup:${(await clientIp()) ?? 'unknown'}`, 5, 60 * 60_000)) {
-    return { error: 'Several applications have been sent from this network. Please try again in an hour.', success: false }
+    return fail('Several applications have been sent from this network. Please try again in an hour.')
   }
 
-  if (!council || !registrationNumber || !specialty || !qualificationsRaw) {
-    return { error: 'Medical council, registration number, qualification, and specialty are required for verification.', success: false }
+  // Check if email already exists in users or requests
+  // Admin client: a visitor's session may not search every profile's email (that would show which addresses are registered).
+  const { data: existingUser } = await supabase.from('profiles').select('id').eq('email', email).maybeSingle()
+  if (existingUser) {
+    return fail('This email is already registered in the system.')
   }
 
-  if (formData.get('confirmRegistration') !== 'on' || formData.get('consentVerification') !== 'on') {
-    return { error: 'Please confirm both declarations before submitting.', success: false }
+  const { data: existingReq } = await supabase.from('doctor_signup_requests').select('id').eq('email', email).eq('status', 'pending').limit(1).maybeSingle()
+  if (existingReq) {
+    return fail('A registration request for this email is already pending.')
   }
 
-  // Pack the extra fields into qualifications to avoid needing a DB migration right now.
-  // approveDoctor() reads the first part as the qualification and the EXP:/FEE: parts by prefix;
-  // COUNCIL:/REG:/SUB: are shown to the reviewing admin as-is.
-  const qualifications = [
+  // The documents uploaded under this form's upload id. Before the documents bucket exists, they come by email.
+  const uploads = await documentsReady(supabase)
+  const documents = uploads ? await collectDocuments(supabase, 'doctor', field('uploadId') || null) : {}
+  const missing = uploads ? missingDocuments('doctor', documents) : []
+  if (missing.length > 0) return fail(`Please add your ${missing.join(', ').toLowerCase()}.`)
+  if (Object.keys(documents).length > 0) details.documents = documents
+  if (!uploads) details.documentsByEmail = true
+
+  // The fields approveDoctor() reads are packed into qualifications: the first part is the qualification, then the
+  // EXP:/FEE: parts by prefix; COUNCIL:/REG:/SUB: are shown to the reviewer as they are.
+  const packed = [
     qualificationsRaw,
     `EXP:${experienceYears}`,
     `FEE:${consultationFee}`,
@@ -70,34 +128,19 @@ export async function submitDoctorSignup(prevState: any, formData: FormData) {
     ...(subSpecialty ? [`SUB:${subSpecialty}`] : []),
   ].join(' | ')
 
-  // Check if email already exists in users or requests
-  // Admin client: a visitor's session may not search every profile's email (that would show which addresses are registered).
-  const { data: existingUser } = await createAdminClient().from('profiles').select('id').eq('email', email).maybeSingle()
-  if (existingUser) {
-    return { error: 'This email is already registered in the system.', success: false }
+  const row = { full_name: fullName, email, phone_number: phone, specialty, hospital_id: hospitalId, status: 'pending' }
+  let { error } = await supabase.from('doctor_signup_requests').insert({ ...row, qualifications: packed, details })
+  // Before supabase/migrations/20261113_partner_documents.sql runs there is no details column: pack the answers too.
+  if (error && (error.code === 'PGRST204' || /details/.test(error.message ?? ''))) {
+    ;({ error } = await supabase.from('doctor_signup_requests').insert({ ...row, qualifications: `${packed} | DETAILS:${JSON.stringify(details)}` }))
   }
-
-  const { data: existingReq } = await supabase.from('doctor_signup_requests').select('id').eq('email', email).eq('status', 'pending').limit(1).maybeSingle()
-  if (existingReq) {
-    return { error: 'A registration request for this email is already pending.', success: false }
-  }
-
-  const { error } = await supabase.from('doctor_signup_requests').insert({
-    full_name: fullName,
-    email,
-    phone_number: phone,
-    specialty,
-    qualifications,
-    hospital_id: hospitalId,
-    status: 'pending'
-  })
 
   if (error) {
     if (error.message.includes('unique constraint') || error.code === '23505') {
-      return { error: 'An application with this email already exists.', success: false }
+      return fail('An application with this email already exists.')
     }
     console.error('submitDoctorSignup:', error)
-    return { error: 'An error occurred while submitting your application. Please try again.', success: false }
+    return fail('An error occurred while submitting your application. Please try again.')
   }
 
   // Trigger confirmation email notification
@@ -218,6 +261,8 @@ export async function approveDoctor(requestId: string) {
   const feePart = parts.find((p: string) => p.startsWith('FEE:'))
   const experience_years = expPart ? parseInt(expPart.replace('EXP:', ''), 10) : 5
   const consultation_fee = feePart ? parseInt(feePart.replace('FEE:', ''), 10) : 500
+  const packed = parseApplication(qualString)
+  const extra = doctorDetails((request as { details?: unknown }).details, qualString)
 
   // Create doctor record
   const { error: doctorError } = await adminClient.from('doctors').insert({
@@ -227,7 +272,10 @@ export async function approveDoctor(requestId: string) {
     specialty: request.specialty,
     qualifications: cleanQuals,
     experience_years,
-    consultation_fee
+    consultation_fee,
+    ...(packed.registration ? { registration_number: packed.registration } : {}),
+    ...(packed.council ? { registration_council: packed.council } : {}),
+    ...(extra.bio ? { bio: extra.bio } : {}),
   })
 
   if (doctorError) {

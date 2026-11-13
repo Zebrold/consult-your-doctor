@@ -13,7 +13,7 @@ import { LocationMenu } from "@/components/patient/LocationMenu";
 import { PATIENT_ACCOUNT_LINKS } from "@/components/patient/PhoneHeader";
 import { AccountMenu } from "@/components/portal/TopBar";
 import { CorporateMenu } from "@/components/site/CorporateMenu";
-import { LoginMenu } from "@/components/site/LoginMenu";
+import { PartnerMenu } from "@/components/site/PartnerMenu";
 import type { HomeAccount } from "./types";
 
 type Place = ReturnType<typeof usePatientLocation>;
@@ -163,7 +163,9 @@ export function HomeHero({ account, place, cities, visitLine, onLocation, onMenu
             <div className="hidden lg:block">
               <CorporateMenu className="text-white text-base font-semibold hover:text-[#DCE7FF] transition-colors" />
             </div>
-            <Link href="/corporate#join" className="hidden lg:block text-white text-base font-semibold hover:text-[#DCE7FF] transition-colors">Partner with us</Link>
+            <div className="hidden lg:block">
+              <PartnerMenu className="text-white text-base font-semibold hover:text-[#DCE7FF] transition-colors" />
+            </div>
             <GetTheApp variant="hero" />
             <DesktopAccount account={account} hasVisit={!!visitLine} />
           </nav>
@@ -255,11 +257,13 @@ export function PhoneAccountButton({ account, onMenu }: { account: HomeAccount; 
   );
 }
 
-export function DesktopAccount({ account, hasVisit, partnersOnly = false }: { account: HomeAccount; hasVisit: boolean; /** The Login menu lists only the partner portals. */ partnersOnly?: boolean }) {
+export function DesktopAccount({ account, hasVisit }: { account: HomeAccount; hasVisit: boolean }) {
   const pill = "flex items-center gap-1.5 min-h-[38px] px-[22px] rounded-[10px] bg-[#0B1B3F] text-white text-sm font-bold hover:bg-[#13285A] transition-colors";
   if (account.kind === "guest") {
     return (
-      <LoginMenu partnersOnly={partnersOnly} className={pill} />
+      <Link href="/login/patient" className={pill}>
+        Login
+      </Link>
     );
   }
   if (account.kind === "staff") {

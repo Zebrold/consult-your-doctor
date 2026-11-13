@@ -9,6 +9,7 @@ import { DesktopAccount, PhoneAccountButton } from "@/components/home/HomeHero";
 import type { HomeAccount } from "@/components/home/types";
 import { MenuSheet } from "@/components/patient/PhoneSheet";
 import { CorporateMenu } from "@/components/site/CorporateMenu";
+import { PartnerMenu } from "@/components/site/PartnerMenu";
 
 const NAV = [{ href: "/corporate#join", label: "Partner with Us" }];
 
@@ -41,18 +42,13 @@ export function SiteHeader({ account }: { account: HomeAccount }) {
               className={`text-[15px] font-semibold transition-colors ${pathname.startsWith("/corporate") || pathname.startsWith("/signup/") ? "text-white" : "text-white/90 hover:text-white"}`}
             />
           </div>
-          {NAV.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              aria-current={active(l.href) ? "page" : undefined}
-              className={`hidden lg:block text-[15px] font-semibold transition-colors ${active(l.href) ? "text-white underline decoration-2 underline-offset-[10px] decoration-[#A9CBFF]" : "text-white/90 hover:text-white"}`}
-            >
-              {l.label}
-            </Link>
-          ))}
+          <div className="hidden lg:block">
+            <PartnerMenu
+              className={`text-[15px] font-semibold transition-colors ${pathname.startsWith("/corporate") || pathname.startsWith("/signup/") ? "text-white" : "text-white/90 hover:text-white"}`}
+            />
+          </div>
           <GetTheApp variant="hero" />
-          <DesktopAccount account={account} hasVisit={false} partnersOnly={partnerPage} />
+          <DesktopAccount account={account} hasVisit={false} />
         </nav>
 
         <div className="md:hidden shrink-0">

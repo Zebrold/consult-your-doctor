@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { ensurePatientProfile, indianMobile, sendPatientOtp, verifyPatientOtp } from '@/lib/patient-onboarding'
 import { getBookingFees } from '@/lib/booking-fees'
 import { insertPaymentRow, shareColumns } from '@/lib/wallet'
+import { slotHospitalId } from '@/lib/practices'
 
 // The statuses the executive's status menu offers. A paid booking is cancelled by refunding it from Payments, which also
 // frees its slot; it can't be cancelled from this menu.
@@ -162,6 +163,9 @@ export async function createWalkInAppointment(formData: FormData) {
     // the hospital, so the booking fee is taken from its wallet (lib/wallet.ts).
     const bookingFee = (await getBookingFees()).consultation
     if (!fee) return { error: 'Set this doctor’s consultation fee before booking walk-ins.' }
+
+    // Never a slot another hospital published for this doctor as a visiting consultant (lib/practices.ts).
+    if ((await slotHospitalId(admin, scheduleId, hospitalId)) !== hospitalId) return { error: 'That slot is at another hospital.' }
 
     // Claim the slot only while it is still free, so two bookings can't take the same time.
     const { data: claimed } = await admin

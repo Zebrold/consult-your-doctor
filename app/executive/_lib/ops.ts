@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { redirect } from 'next/navigation'
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -6,6 +7,7 @@ import type { PartnerApplication, PartnerKind } from '@/lib/partner-applications
 import { doctorDetails, parseApplication, type DoctorDetails } from '@/lib/doctor-applications'
 import { signDocuments, type DocumentLink } from '@/lib/application-uploads'
 import { gatewayKey } from '@/lib/payment-gateways'
+import { canOpen, isPageKey, isTeam, type Access, type PageKey } from './access'
 
 type Admin = ReturnType<typeof createAdminClient>
 
@@ -14,8 +16,9 @@ function one<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null
 }
 
-// Executives now operate platform-wide, so reads go through the service-role client after this role check.
-export async function requireExecutive() {
+// Executives now operate platform-wide, so reads go through the service-role client after this role check. Cached per
+// request, so the layout and the page share one profile lookup.
+export const requireExecutive = cache(async function requireExecutive() {
   const supabase = await createClient()
   const user = await getCurrentUser()
   if (!user) redirect('/login/executive')
@@ -28,16 +31,41 @@ export async function requireExecutive() {
 
   if (profile?.role !== 'executive') redirect('/auth/signout?next=/login/executive')
 
+  const admin = createAdminClient()
   return {
     user,
+    access: await loadAccess(admin, profile.id as string),
     profile: {
       id: profile.id as string,
       fullName: (profile.full_name as string | null) ?? 'Executive',
       hospitalId: (profile.hospital_id as string | null) ?? null,
       hospitalName: one(profile.hospital as { name: string } | { name: string }[] | null)?.name ?? null,
     },
-    admin: createAdminClient(),
+    admin,
   }
+})
+
+/**
+ * The executive's team and the pages it may open. Before the 20261115 migration (no team column or access table), and
+ * for executives who have no team yet, that is Management: every page.
+ */
+async function loadAccess(admin: Admin, profileId: string): Promise<Access> {
+  const [{ data: me, error }, rows] = await Promise.all([
+    admin.from('profiles').select('executive_team').eq('id', profileId).maybeSingle(),
+    admin.from('executive_page_access').select('team, page').limit(500),
+  ])
+  if (error || rows.error) return { ready: false, team: 'management', pages: [] }
+  const raw = (me as { executive_team?: string | null } | null)?.executive_team
+  const team = isTeam(raw) ? raw : 'management'
+  const pages = ((rows.data ?? []) as { team: string; page: string }[]).filter((r) => r.team === team && isPageKey(r.page)).map((r) => r.page as PageKey)
+  return { ready: true, team, pages }
+}
+
+/** requireExecutive for a page a team may be kept out of: anyone whose team can't open it goes back to Command. */
+export async function requireExecutivePage(page: PageKey | 'staff') {
+  const ctx = await requireExecutive()
+  if (!canOpen(ctx.access, page)) redirect(`/executive/dashboard?denied=${page}`)
+  return ctx
 }
 
 // ---------- Formatting helpers ----------

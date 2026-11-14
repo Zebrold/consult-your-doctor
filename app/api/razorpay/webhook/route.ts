@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { settleOnlinePayment } from '@/lib/online-payments'
-import { fetchOrder, orderNotes, validWebhookSignature, type RazorpayPayment } from '@/lib/razorpay'
+import { settlePurchase } from '@/lib/purchases'
+import { fetchOrder, orderNotes, purchaseNotes, validWebhookSignature, type RazorpayPayment } from '@/lib/razorpay'
 
 // Razorpay's webhook: confirms a booking from Razorpay's servers even when the patient's browser never came back to
 // app/api/razorpay/callback (closed tab, lost signal). Set it up in the Razorpay dashboard (Account & Settings →
@@ -31,9 +32,15 @@ export async function POST(request: Request) {
   }
 
   try {
-    const notes = orderNotes(await fetchOrder(payment.order_id))
-    // An order this site didn't make for a booking (a payment link, say): not ours to handle.
-    if (!notes) return NextResponse.json({ ok: true, ignored: true })
+    const order = await fetchOrder(payment.order_id)
+    const notes = orderNotes(order)
+    if (!notes) {
+      // A partner purchase (verified badge or equipment order), or an order this site didn't make (a payment link, say).
+      const purchase = purchaseNotes(order)
+      if (!purchase) return NextResponse.json({ ok: true, ignored: true })
+      const done = await settlePurchase(purchase, payment)
+      return NextResponse.json({ ok: true, settled: done.ok })
+    }
     const settled = await settleOnlinePayment(notes.kind, notes.booking_id, payment)
     return NextResponse.json({ ok: true, settled: settled.ok })
   } catch (err) {

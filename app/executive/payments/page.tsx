@@ -1,32 +1,23 @@
 import type { Metadata } from 'next'
-import { PageHeader } from '../_components/ui'
-import { requireExecutive } from '../_lib/ops'
+import { requireExecutivePage } from '../_lib/ops'
 import { getExecutivePayments } from '@/app/actions/payments'
 import { getBookingFees } from '@/lib/booking-fees'
 import { BookingFeeManager } from '../_components/BookingFeeManager'
+import { ExePage } from '../_components/ui'
 import { ExecutivePaymentsClient } from './ExecutivePaymentsClient'
 
-export const metadata: Metadata = { title: 'Payment Management' }
+export const metadata: Metadata = { title: 'Payments' }
 
-export default async function ExecutivePaymentsPage() {
-  await requireExecutive()
-  const [{ transactions, stats }, fees] = await Promise.all([
-    getExecutivePayments(),
-    getBookingFees(),
-  ])
+/** Payments after DeskExePayments: the online booking fees, then every payment with refunds and corrections. */
+export default async function ExecutivePaymentsPage(props: { searchParams?: Promise<{ q?: string }> }) {
+  const { profile } = await requireExecutivePage('payments')
+  const params = (await props.searchParams) ?? {}
+  const [{ transactions, stats }, fees] = await Promise.all([getExecutivePayments(), getBookingFees()])
 
   return (
-    <>
-      <PageHeader
-        eyebrow="Financial Operations"
-        title="Executive Panel — Payment Management"
-        description="Comprehensive ledger of online payments, UPI QR, and desk collections. Reconcile transactions, issue traceable refunds, and set the online booking fees."
-      />
-
+    <ExePage name={profile.fullName} title="Payments" subtitle="Online payments, UPI QR and desk collections. Reconcile, refund and set booking fees">
       <BookingFeeManager initialFees={fees} />
-
-      <ExecutivePaymentsClient initialTransactions={transactions} stats={stats} />
-    </>
+      <ExecutivePaymentsClient initialTransactions={transactions} stats={stats} initialQuery={(params.q ?? '').slice(0, 100)} />
+    </ExePage>
   )
 }
-

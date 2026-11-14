@@ -565,7 +565,7 @@ function DoctorResult({ doctor: d, km, now, fee, load }: { doctor: FindDoctor; k
             <div className="flex justify-between gap-2">
               <h3 className="flex items-center gap-[5px] min-w-0 text-[15px] lg:text-[16.5px] font-extrabold">
                 <Link href={`/doctors/${d.id}`} className="truncate hover:text-[#2A4DD0] transition-colors">{name}</Link>
-                <VerifiedBadge className="w-[15px] h-[15px] lg:w-4 lg:h-4" />
+                <VerifiedBadge doctorId={d.id} className="w-[15px] h-[15px] lg:w-4 lg:h-4" />
               </h3>
               {d.rating != null && <RatingPill rating={d.rating} className="lg:hidden" />}
             </div>
@@ -638,7 +638,7 @@ function HospitalResult({ hospital: h, km, fee, load }: { hospital: HomeHospital
           <span className="flex justify-between gap-1.5">
             <span className="flex items-center gap-[5px] min-w-0 text-[14.5px] lg:text-[16.5px] font-extrabold">
               <span className="truncate group-hover:text-[#2A4DD0] transition-colors">{h.name}</span>
-              <VerifiedBadge className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+              <VerifiedBadge hospitalId={h.id} className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
             </span>
             {h.rating != null && <RatingPill rating={h.rating} className="lg:hidden" />}
           </span>
@@ -677,7 +677,7 @@ function LabResult({ lab: l, km, percent, load }: { lab: FindLab; km: number | n
         <span className="flex-1 min-w-0 flex flex-col gap-[3px] lg:gap-0">
           <span className="flex items-center gap-[5px] min-w-0 text-[14.5px] lg:text-[16.5px] font-extrabold">
             <span className="truncate group-hover:text-[#2A4DD0] transition-colors">{l.name}</span>
-            <VerifiedBadge className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+            <VerifiedBadge sample className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
           </span>
           <span className="text-[12px] lg:text-[13.5px] lg:mt-0.5 text-[#5B667A] truncate">
             {l.tests ? `${count(l.tests, ["test", "tests"])} with prices` : "Diagnostic centre"}

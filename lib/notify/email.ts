@@ -322,7 +322,11 @@ export async function sendPartnerApplicationReceivedEmail(args: {
   })
 }
 
-/** Sent when an executive approves a hospital or diagnostic centre application. The password is shared separately. */
+/**
+ * Sent when an executive approves a hospital or diagnostic centre application. With `setPasswordLink` (the login was
+ * created with a temporary password and this email address), the admin sets their own password from the link; we
+ * never send passwords by email.
+ */
 export async function sendPartnerApprovedEmail(args: {
   to: string
   contactName: string
@@ -330,6 +334,7 @@ export async function sendPartnerApprovedEmail(args: {
   kind: 'hospital' | 'diagnostic_center'
   staffId: string
   signInUrl: string
+  setPasswordLink?: string | null
 }) {
   const noun = partnerNoun(args.kind)
   return sendEmail({
@@ -338,8 +343,25 @@ export async function sendPartnerApprovedEmail(args: {
     paragraphs: [
       `Dear ${args.contactName},`,
       `${args.organizationName} is now a partner ${noun} on Consult Your Doctor.`,
-      `Your team logs in with the staff ID ${args.staffId}. Our operations team will give you the password separately; we never send passwords by email.`,
+      args.setPasswordLink
+        ? `Your login is ready. Your staff ID is ${args.staffId}. Set your own password with the button below, then log in with your staff ID or this email address. The link is personal and works for a limited time; we never send passwords by email.`
+        : `Your team logs in with the staff ID ${args.staffId}. Our operations team will give you the password separately; we never send passwords by email.`,
+      ...(args.setPasswordLink ? [`Staff login: ${args.signInUrl}`] : []),
     ],
-    button: { text: 'Go to the staff login', url: args.signInUrl },
+    button: args.setPasswordLink ? { text: 'Set your password', url: args.setPasswordLink } : { text: 'Go to the staff login', url: args.signInUrl },
+  })
+}
+
+/** A new executive login (Staff & access): the employee ID and a link to set their own password. */
+export async function sendExecutiveLoginEmail(args: { to: string; name: string; staffId: string; team: string; setPasswordLink: string; signInUrl: string }) {
+  return sendEmail({
+    to: args.to,
+    subject: 'Your Consult Your Doctor executive login',
+    paragraphs: [
+      `Dear ${args.name},`,
+      `Welcome to the ${args.team} team at Consult Your Doctor.`,
+      `Your employee ID is ${args.staffId}. Set your own password with the button below, then log in at ${args.signInUrl} with your employee ID or this email address. The link is personal and works for a limited time; we never send passwords by email.`,
+    ],
+    button: { text: 'Set your password', url: args.setPasswordLink },
   })
 }

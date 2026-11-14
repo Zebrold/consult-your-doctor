@@ -1,11 +1,42 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
-/** The blue scalloped tick next to partner hospitals and doctors (both are checked before they are listed). */
-export function VerifiedBadge({ className = "w-4 h-4" }: { className?: string }) {
+type LiveBadges = { doctors: Set<string>; hospitals: Set<string> };
+let live: Promise<LiveBadges> | null = null;
+
+/** The ids with a live verified badge (app/api/verified), fetched once per page load. */
+function liveBadges(): Promise<LiveBadges> {
+  live ??= fetch("/api/verified")
+    .then((r) => (r.ok ? r.json() : { doctors: [], hospitals: [] }))
+    .then((d: { doctors?: string[]; hospitals?: string[] }) => ({ doctors: new Set(d.doctors ?? []), hospitals: new Set(d.hospitals ?? []) }))
+    .catch(() => {
+      live = null;
+      return { doctors: new Set<string>(), hospitals: new Set<string>() };
+    });
+  return live;
+}
+
+/**
+ * The blue scalloped tick: shown beside a doctor or hospital only while their verified badge is live (paid, and
+ * checked by the Consult your Doctor team: lib/badges.ts). `sample` draws it unconditionally, for illustrations and for
+ * diagnostic centres, which aren't part of the badge programme.
+ */
+export function VerifiedBadge({ className = "w-4 h-4", doctorId, hospitalId, sample = false }: { className?: string; doctorId?: string | null; hospitalId?: string | null; sample?: boolean }) {
+  const [on, setOn] = useState(sample);
+  useEffect(() => {
+    if (sample || (!doctorId && !hospitalId)) return;
+    let alive = true;
+    liveBadges().then((b) => alive && setOn(doctorId ? b.doctors.has(doctorId) : b.hospitals.has(hospitalId!)));
+    return () => {
+      alive = false;
+    };
+  }, [sample, doctorId, hospitalId]);
+  if (!on) return null;
   return (
-    <svg role="img" aria-label="Verified" viewBox="0 0 24 24" className={`shrink-0 ${className}`}>
+    <svg role="img" aria-label="Verified by Consult your Doctor" viewBox="0 0 24 24" className={`shrink-0 ${className}`}>
+      <title>{sample ? "Verified" : "Verified by Consult your Doctor: registration and photo ID checked by our team"}</title>
       <path
         d="M12.00 2.40Q15.26 -0.17 16.80 3.69Q20.91 3.09 20.31 7.20Q24.17 8.74 21.60 12.00Q24.17 15.26 20.31 16.80Q20.91 20.91 16.80 20.31Q15.26 24.17 12.00 21.60Q8.74 24.17 7.20 20.31Q3.09 20.91 3.69 16.80Q-0.17 15.26 2.40 12.00Q-0.17 8.74 3.69 7.20Q3.09 3.09 7.20 3.69Q8.74 -0.17 12.00 2.40Z"
         fill="#1D9BF0"

@@ -203,3 +203,42 @@ export function timeAgo(iso: string, now = Date.now()) {
   const years = Math.round(days / 365)
   return years === 1 ? '1 year ago' : `${years} years ago`
 }
+
+const DOCTOR_REVIEW_SELECT =
+  'id, rating, comment, created_at, patient:profiles!doctor_reviews_patient_id_fkey ( full_name ), doctors ( id, specialty, profiles!doctors_profile_id_fkey ( full_name ) )'
+const HOSPITAL_REVIEW_SELECT = 'id, rating, comment, created_at, patient:profiles!hospital_reviews_patient_id_fkey ( full_name ), hospitals ( id, name, city )'
+
+async function doctorReviewsOf(admin: Admin, doctorIds: string[]): Promise<Review[]> {
+  if (!doctorIds.length) return []
+  const { data, error } = await admin
+    .from('doctor_reviews')
+    .select(DOCTOR_REVIEW_SELECT)
+    .in('doctor_id', doctorIds)
+    .eq('is_published', true)
+    .order('created_at', { ascending: false })
+    .limit(5000)
+  if (error) console.error('doctor reviews:', error.message)
+  return ((data ?? []) as unknown as ReviewRow[]).map(toReview)
+}
+
+async function hospitalReviewsOf(admin: Admin, hospitalId: string): Promise<Review[]> {
+  const { data, error } = await admin
+    .from('hospital_reviews')
+    .select(HOSPITAL_REVIEW_SELECT)
+    .eq('hospital_id', hospitalId)
+    .eq('is_published', true)
+    .order('created_at', { ascending: false })
+    .limit(5000)
+  // Empty until the hospital_reviews table exists.
+  if (error) return []
+  return ((data ?? []) as unknown as HospitalReviewRow[]).map(toHospitalReview)
+}
+
+/**
+ * Every published review of these doctors, and of the hospital when one is given, newest first: the staff Reviews and
+ * Reports pages. Ratings without a written comment are included.
+ */
+export async function loadReviewsFor(admin: Admin, { doctorIds, hospitalId }: { doctorIds: string[]; hospitalId?: string }): Promise<Review[]> {
+  const [doctors, hospital] = await Promise.all([doctorReviewsOf(admin, doctorIds), hospitalId ? hospitalReviewsOf(admin, hospitalId) : Promise.resolve([])])
+  return [...doctors, ...hospital].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+}

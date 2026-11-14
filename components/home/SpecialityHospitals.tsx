@@ -172,7 +172,7 @@ function HospitalTile({ hospital: h, km, far, slug }: { hospital: SpecialityHosp
       </span>
       <span className="flex items-center gap-[5px] min-w-0 text-[15.5px] md:text-[17px] font-extrabold tracking-[-0.01em] leading-[1.25] group-hover:text-[#2A4DD0] transition-colors">
         <span className="truncate">{h.name}</span>
-        <VerifiedBadge className="w-[15px] h-[15px]" />
+        <VerifiedBadge hospitalId={h.id} className="w-[15px] h-[15px]" />
       </span>
       <span className="flex items-center gap-[5px] text-[13.5px] font-extrabold min-w-0">
         {rated && (

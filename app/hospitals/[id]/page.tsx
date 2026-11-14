@@ -19,6 +19,7 @@ import { toLatLng } from '@/lib/geo'
 import { Dots, btnOutline, card } from '@/components/patient/app-ui'
 import { currentTime, loadPatientDefaults, one } from '@/components/patient/data'
 import { freeFollowUpDoctors } from '@/lib/follow-up'
+import { visitingDoctorIds } from '@/lib/practices'
 import { directionsHref, formatINR } from '@/components/patient/format'
 import { RemoteImage } from '@/components/RemoteImage'
 
@@ -88,28 +89,38 @@ export default async function HospitalProfilePage(props: {
   // The priced services the hospital shows patients (Services & charges on its portal); hidden ones are left off.
   const tests = patientServices(hospital)
 
-  const { data: doctorRows } = await supabase
-    .from('doctors')
-    .select('id, specialty, qualifications, experience_years, image_url, consultation_fee, profiles!doctors_profile_id_fkey ( full_name )')
-    .eq('hospital_id', id)
+  const DOCTOR_FIELDS = 'id, specialty, qualifications, experience_years, image_url, consultation_fee, profiles!doctors_profile_id_fkey ( full_name )'
+  const { data: doctorRows } = await supabase.from('doctors').select(DOCTOR_FIELDS).eq('hospital_id', id)
   type Row = { id: string; specialty: string | null; qualifications: string | null; experience_years: number | null; image_url: string | null; consultation_fee: number | null; profiles: { full_name: string | null } | { full_name: string | null }[] | null }
-  const rows = (doctorRows ?? []) as Row[]
+  const ownRows = (doctorRows ?? []) as Row[]
+  // Doctors from other hospitals confirmed to consult here too (lib/practices.ts); booked here on the slots this
+  // hospital published for them.
+  const visitingIds = await visitingDoctorIds(createAdminClient(), id)
+  const { data: visitingRows } = visitingIds.length ? await supabase.from('doctors').select(DOCTOR_FIELDS).in('id', visitingIds) : { data: [] }
+  const visitingSet = new Set(visitingIds)
+  const rows = [...ownRows, ...((visitingRows ?? []) as Row[]).filter((r) => !ownRows.some((o) => o.id === r.id))]
 
   // Each doctor's open times over the next 30 days (patients pick the day and time here), and the hospital's published
   // rating (when the table exists).
   const admin = createAdminClient()
-  const [{ data: slotRows }, ratingResult, { data: pickedRow }] = await Promise.all([
-    rows.length
-      ? supabase
+  // Open times with the hospital each was published for; before 20261115_executive_workspace.sql slots have no
+  // hospital_id, so every slot is at the doctor's own hospital.
+  const openSlotsHere = async (doctorIds: string[]) => {
+    const query = (columns: string) =>
+      supabase
         .from('schedules')
-        .select('id, doctor_id, start_time')
-        .in('doctor_id', rows.map((d) => d.id))
+        .select(columns)
+        .in('doctor_id', doctorIds)
         .eq('is_booked', false)
         .gt('start_time', new Date(now).toISOString())
         .lt('start_time', new Date(now + 30 * 86_400_000).toISOString())
         .order('start_time', { ascending: true })
         .limit(2000)
-      : Promise.resolve({ data: [] }),
+    const first = await query('id, doctor_id, start_time, hospital_id')
+    return first.error ? query('id, doctor_id, start_time') : first
+  }
+  const [{ data: slotRows }, ratingResult, { data: pickedRow }] = await Promise.all([
+    rows.length ? openSlotsHere(rows.map((d) => d.id)) : Promise.resolve({ data: [] }),
     admin.from('hospital_reviews').select('rating').eq('hospital_id', id).eq('is_published', true),
     // The time picked on the doctor's profile can be later than the ones listed here.
     pickedSlot && rows.some((d) => d.id === pickedDoctor)
@@ -124,12 +135,15 @@ export default async function HospitalProfilePage(props: {
       : Promise.resolve({ data: null }),
   ])
   const slotsBy = new Map<string, { id: string; start: string }[]>()
-  for (const s of (slotRows ?? []) as { id: string; doctor_id: string; start_time: string }[]) {
+  for (const s of (slotRows ?? []) as unknown as { id: string; doctor_id: string; start_time: string; hospital_id?: string | null }[]) {
+    // Own doctors' slots here (no hospital_id, or this one); visiting doctors' only the ones published here.
+    if (s.hospital_id ? s.hospital_id !== id : visitingSet.has(s.doctor_id)) continue
     const mine = slotsBy.get(s.doctor_id) ?? []
     if (mine.length < SLOTS_PER_DOCTOR) mine.push({ id: s.id, start: s.start_time })
     slotsBy.set(s.doctor_id, mine)
   }
-  const picked = pickedRow as { id: string; doctor_id: string; start_time: string } | null
+  const pickedAny = pickedRow as { id: string; doctor_id: string; start_time: string; hospital_id?: string | null } | null
+  const picked = pickedAny && (pickedAny.hospital_id ? pickedAny.hospital_id === id : !visitingSet.has(pickedAny.doctor_id)) ? pickedAny : null
   if (picked && !slotsBy.get(picked.doctor_id)?.some((s) => s.id === picked.id)) {
     slotsBy.set(picked.doctor_id, [...(slotsBy.get(picked.doctor_id) ?? []), { id: picked.id, start: picked.start_time }].sort((a, b) => a.start.localeCompare(b.start)))
   }
@@ -206,7 +220,7 @@ export default async function HospitalProfilePage(props: {
         <div className="flex items-start justify-between gap-2.5">
           <h1 className="flex items-center gap-1.5 text-[20px] font-extrabold tracking-[-0.02em] leading-[1.2] min-w-0">
             <span className="min-w-0">{hospital.name}</span>
-            <VerifiedBadge className="w-[18px] h-[18px]" />
+            <VerifiedBadge hospitalId={hospital.id} className="w-[18px] h-[18px]" />
           </h1>
           {rating != null && <GreenRating rating={rating} />}
         </div>
@@ -236,7 +250,7 @@ export default async function HospitalProfilePage(props: {
               <span className="min-w-0">
                 <span className="flex items-center gap-2 text-[30px] font-extrabold tracking-[-0.02em]">
                   <h1 className="truncate">{hospital.name}</h1>
-                  <VerifiedBadge className="w-6 h-6" />
+                  <VerifiedBadge hospitalId={hospital.id} className="w-6 h-6" />
                 </span>
                 <span className="block text-[14px] text-[#E3EAFF] truncate">{[tags, address].filter(Boolean).join(' · ')}</span>
               </span>

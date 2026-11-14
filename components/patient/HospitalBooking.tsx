@@ -345,7 +345,7 @@ export function HospitalBooking({
                           <span className="flex-1 min-w-0">
                             <span className="flex items-center gap-[5px] text-[14px] lg:text-[14.5px] font-extrabold min-w-0">
                               <span className="truncate">{doctorName(d.name)}</span>
-                              <VerifiedBadge className="w-3.5 h-3.5" />
+                              <VerifiedBadge doctorId={d.id} className="w-3.5 h-3.5" />
                             </span>
                             <span className="block text-[12px] lg:text-[12.5px] text-[#5B667A] truncate">{d.quals}</span>
                             <span className="block text-[12px] lg:text-[12.5px] font-bold text-[#2A4DD0] truncate">

@@ -106,6 +106,8 @@ export type Visit = {
   fastTrack: boolean
   /** Hospital services the patient picked, paid at the counter. */
   services: BookedTest[]
+  /** The earlier visit this is the free follow-up of. */
+  followUpOf: string | null
 }
 
 /** Every appointment booked with this doctor, oldest slot first. */
@@ -122,7 +124,7 @@ export async function loadVisits(admin: Admin, doctorId: string): Promise<Visit[
     .eq('doctor_id', doctorId)
 
   type Row = {
-    id: string; status: string; created_at: string; schedule_id: string | null; booking_type?: string | null; services?: unknown
+    id: string; status: string; created_at: string; schedule_id: string | null; booking_type?: string | null; services?: unknown; follow_up_of?: string | null
     patient: Joined<{ id: string; full_name: string | null; phone_number: string | null; email: string | null }>
     schedules: Joined<{ start_time: string; end_time: string | null }>
     medical_records: { id: string; notes: string | null; document_type: string | null; file_url: string | null }[] | null
@@ -147,6 +149,7 @@ export async function loadVisits(admin: Admin, doctorId: string): Promise<Visit[
           .map((m) => ({ id: m.id, type: m.document_type, notes: m.notes, fileUrl: (m.file_url && links[m.file_url]) || null, createdAt: null })),
         fastTrack: isFastTrack(r.booking_type),
         services: bookedServices(r.services),
+        followUpOf: r.follow_up_of ?? null,
       }
     })
     .sort((a, b) => (a.start ?? a.createdAt).localeCompare(b.start ?? b.createdAt))

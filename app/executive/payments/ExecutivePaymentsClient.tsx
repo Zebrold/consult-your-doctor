@@ -1,33 +1,40 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import {
-  AlertCircle, ArrowDownRight, ArrowUpRight, CheckCircle2, ChevronLeft, ChevronRight,
-  Clock, CreditCard, Download, Filter, HelpCircle, History, IndianRupee, QrCode, RefreshCcw,
-  Search, ShieldCheck, Tag, User, X, Loader2
-} from 'lucide-react'
+import { CheckCircle2, ChevronLeft, ChevronRight, Download, Loader2, RefreshCcw, Search, ShieldCheck, X } from 'lucide-react'
 import {
   processPaymentRefund, adjustPaymentStatus, type TransactionRow, type PaymentStats,
-  type PaymentStatus, type PaymentAuditRow
+  type PaymentStatus
 } from '@/app/actions/payments'
-import { formatTime, timeAgo } from '@/components/patient/format'
-import { isOnlineGateway } from '@/lib/payment-gateways'
+import { formatINR } from '@/components/patient/format'
+import { gatewayName, isOnlineGateway } from '@/lib/payment-gateways'
+import { Card, Stat, Stats, Status, Table, btnOutline, btnPrimary, btnSmall, segGroup, segTab, td, th } from '../_components/ui'
 
 interface Props {
   initialTransactions: TransactionRow[]
   stats: PaymentStats
+  /** From the top bar's search. */
+  initialQuery?: string
 }
 
-const STATUS_BADGES: Record<PaymentStatus, { label: string; badge: string; dot: string }> = {
-  success: { label: 'Successful', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
-  pending: { label: 'Pending', badge: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500' },
-  failed: { label: 'Failed', badge: 'bg-red-50 text-red-700 border-red-200', dot: 'bg-red-500' },
-  refunded: { label: 'Refunded', badge: 'bg-purple-50 text-purple-700 border-purple-200', dot: 'bg-purple-500' },
+const STATUS_BADGES: Record<PaymentStatus, { label: string; color: string }> = {
+  success: { label: 'Successful', color: '#2A4DD0' },
+  pending: { label: 'Pending', color: '#B54708' },
+  failed: { label: 'Failed', color: '#B42318' },
+  refunded: { label: 'Refunded', color: '#7A5AF8' },
 }
 
-export function ExecutivePaymentsClient({ initialTransactions, stats }: Props) {
+/** "Online · Razorpay", "UPI QR at desk", "Cash at desk" */
+function methodLabel(gateway: string) {
+  if (isOnlineGateway(gateway)) return ['Online', gatewayName(gateway)].filter(Boolean).join(' · ')
+  if (gateway === 'upi_qr') return 'UPI QR at desk'
+  if (gateway === 'cash') return 'Cash at desk'
+  return gateway.replace(/_/g, ' ')
+}
+
+export function ExecutivePaymentsClient({ initialTransactions, stats, initialQuery = '' }: Props) {
   const [transactions, setTransactions] = useState<TransactionRow[]>(initialTransactions)
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(initialQuery)
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [gatewayFilter, setGatewayFilter] = useState<string>('all')
   const [dateRange, setDateRange] = useState<string>('all')
@@ -44,7 +51,7 @@ export function ExecutivePaymentsClient({ initialTransactions, stats }: Props) {
   const [isProcessing, startProcessing] = useTransition()
 
   // Date filtering
-  const now = Date.now()
+  const [now] = useState(() => Date.now())
   const filtered = transactions.filter((t) => {
     if (statusFilter !== 'all' && t.status !== statusFilter) return false
     if (gatewayFilter !== 'all' && (gatewayFilter === 'online' ? !isOnlineGateway(t.gateway) : t.gateway !== gatewayFilter)) return false
@@ -124,337 +131,273 @@ export function ExecutivePaymentsClient({ initialTransactions, stats }: Props) {
     })
   }
 
+  const exportCsv = () => {
+    const cell = (v: string | number | null) => {
+      const t = v == null ? '' : String(v)
+      const safe = typeof v === 'string' && /^[=+\-@\t\r]/.test(t) ? `'${t}` : t
+      return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
+    }
+    const rows = [
+      ['Transaction', 'Patient', 'Patient ID', 'Hospital or lab', 'Hospital or lab ID', 'Booking', 'Kind', 'Method', 'Amount', 'Status', 'Date'],
+      ...filtered.map((t) => [
+        t.transactionId,
+        t.patientName,
+        t.patientCode,
+        t.hospitalName || t.diagnosticCenterName,
+        t.hospitalCode || t.diagnosticCenterCode,
+        t.bookingReference,
+        t.bookingKind === 'consultation' ? 'Consultation' : 'Lab test',
+        methodLabel(t.gateway),
+        t.amount,
+        STATUS_BADGES[t.status]?.label ?? t.status,
+        new Date(t.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+      ]),
+    ]
+    // The byte-order mark makes Excel read the file as UTF-8 (₹, names in Indian scripts).
+    const url = URL.createObjectURL(new Blob(['﻿' + rows.map((r) => r.map(cell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `payments-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+
+  const select = 'h-[38px] px-3 rounded-[10px] border border-[#D6DDE8] bg-white text-[13px] font-bold text-[#27324A] outline-none focus:border-[#2A4DD0]'
+
   return (
-    <div className="flex flex-col gap-6">
-      {/* Payment Summary KPI Cards */}
-      <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-sm flex flex-col justify-between">
-          <span className="text-xs font-semibold text-indigo-gray-600">Total Collections</span>
-          <div className="text-xl md:text-2xl font-bold text-on-surface mt-2 text-primary">
-            ₹{stats.totalCollections.toLocaleString('en-IN')}
-          </div>
-          <span className="text-[11px] text-outline mt-1">{stats.successfulCount} settled payments</span>
-        </div>
+    <div className="flex flex-col gap-3.5 lg:gap-5">
+      <Stats cols={5}>
+        <Stat label="Total collections" value={formatINR(stats.totalCollections)} note={`${stats.successfulCount.toLocaleString('en-IN')} settled payments`} />
+        <Stat label="Successful" value={formatINR(stats.successfulAmount)} note={`${stats.successfulCount.toLocaleString('en-IN')} transactions`} tone="blue" />
+        <Stat label="Pending" value={formatINR(stats.pendingAmount)} note={`${stats.pendingCount} awaiting gateway`} tone={stats.pendingCount ? 'warn' : undefined} />
+        <Stat label="Failed" value={formatINR(stats.failedAmount)} note={`${stats.failedCount} cancelled or failed`} tone={stats.failedCount ? 'high' : undefined} />
+        <Stat label="Refunds" value={formatINR(stats.refundAmount)} note={`${stats.refundCount} refunded`} />
+      </Stats>
 
-        <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-sm flex flex-col justify-between">
-          <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" /> Successful
-          </span>
-          <div className="text-xl md:text-2xl font-bold text-emerald-800 mt-2">
-            ₹{stats.successfulAmount.toLocaleString('en-IN')}
-          </div>
-          <span className="text-[11px] text-emerald-600 mt-1">{stats.successfulCount} transactions</span>
-        </div>
-
-        <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-sm flex flex-col justify-between">
-          <span className="text-xs font-semibold text-amber-700 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-amber-500" /> Pending
-          </span>
-          <div className="text-xl md:text-2xl font-bold text-amber-800 mt-2">
-            ₹{stats.pendingAmount.toLocaleString('en-IN')}
-          </div>
-          <span className="text-[11px] text-amber-600 mt-1">{stats.pendingCount} awaiting gateway</span>
-        </div>
-
-        <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-sm flex flex-col justify-between">
-          <span className="text-xs font-semibold text-red-700 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-red-500" /> Failed
-          </span>
-          <div className="text-xl md:text-2xl font-bold text-red-800 mt-2">
-            ₹{stats.failedAmount.toLocaleString('en-IN')}
-          </div>
-          <span className="text-[11px] text-red-600 mt-1">{stats.failedCount} cancelled or failed</span>
-        </div>
-
-        <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-sm flex flex-col justify-between">
-          <span className="text-xs font-semibold text-purple-700 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-purple-500" /> Refunds
-          </span>
-          <div className="text-xl md:text-2xl font-bold text-purple-800 mt-2">
-            ₹{stats.refundAmount.toLocaleString('en-IN')}
-          </div>
-          <span className="text-[11px] text-purple-600 mt-1">{stats.refundCount} refunded payments</span>
-        </div>
-
-        <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-sm flex flex-col justify-between">
-          <span className="text-xs font-semibold text-indigo-gray-600">Total Volume</span>
-          <div className="text-xl md:text-2xl font-bold text-on-surface mt-2">
-            {stats.totalTransactions}
-          </div>
-          <span className="text-[11px] text-outline mt-1">Platform transactions</span>
-        </div>
-      </section>
-
-      {/* Filters and Search Bar */}
-      <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/30 flex flex-col md:flex-row items-center justify-between gap-3 shadow-sm">
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-outline" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value)
-              setCurrentPage(1)
-            }}
-            placeholder="Search by Transaction ID, Patient ID, Hospital ID, Booking Reference..."
-            className="w-full pl-10 pr-4 py-2 text-sm bg-surface-container-low rounded-lg border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-vibrant-blue/30 text-on-surface"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 w-full md:w-auto flex-wrap">
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value)
-              setCurrentPage(1)
-            }}
-            className="px-3 py-2 text-sm bg-surface-container-low rounded-lg border border-outline-variant/30 text-on-surface font-medium focus:outline-none"
-          >
-            <option value="all">All Statuses</option>
-            <option value="success">Successful</option>
-            <option value="pending">Pending</option>
-            <option value="failed">Failed</option>
-            <option value="refunded">Refunded</option>
-          </select>
-
-          <select
-            value={gatewayFilter}
-            onChange={(e) => {
-              setGatewayFilter(e.target.value)
-              setCurrentPage(1)
-            }}
-            className="px-3 py-2 text-sm bg-surface-container-low rounded-lg border border-outline-variant/30 text-on-surface font-medium focus:outline-none"
-          >
-            <option value="all">All Gateways</option>
-            <option value="online">Online Payment</option>
-            <option value="upi_qr">UPI QR Scanner</option>
-            <option value="cash">Cash Desk</option>
-          </select>
-
-          <select
-            value={dateRange}
-            onChange={(e) => {
-              setDateRange(e.target.value)
-              setCurrentPage(1)
-            }}
-            className="px-3 py-2 text-sm bg-surface-container-low rounded-lg border border-outline-variant/30 text-on-surface font-medium focus:outline-none"
-          >
-            <option value="all">All Time</option>
-            <option value="today">Today</option>
-            <option value="7d">Last 7 Days</option>
-            <option value="30d">Last 30 Days</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Main Transactions Table */}
-      <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 shadow-sm overflow-hidden flex flex-col">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-outline-variant/20 bg-surface-container-low/40 text-[12px] font-bold text-indigo-gray-700 uppercase tracking-wider">
-                <th className="py-3.5 px-4">Transaction ID</th>
-                <th className="py-3.5 px-4">Patient ID &amp; Name</th>
-                <th className="py-3.5 px-4">Hospital / Diagnostic ID</th>
-                <th className="py-3.5 px-4">Booking Ref</th>
-                <th className="py-3.5 px-4">Payment Method</th>
-                <th className="py-3.5 px-4">Amount</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4">Transaction Date</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-outline-variant/15 text-sm">
-              {paginated.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="py-12 text-center text-on-surface-variant text-sm">
-                    No transactions match your search or filters.
-                  </td>
-                </tr>
-              ) : (
-                paginated.map((t) => {
-                  const statusCfg = STATUS_BADGES[t.status] || STATUS_BADGES.success
-                  const orgCode = t.hospitalCode || t.diagnosticCenterCode || '—'
-                  const orgName = t.hospitalName || t.diagnosticCenterName || 'Platform Service'
-                  const isConsult = t.bookingKind === 'consultation'
-
-                  return (
-                    <tr key={t.id} className="hover:bg-surface-container-low/30 transition-colors">
-                      <td className="py-3.5 px-4 font-mono font-bold text-xs text-primary">
-                        {t.transactionId}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <div className="font-semibold text-on-surface text-xs">{t.patientName || 'Patient'}</div>
-                        <div className="font-mono text-[11px] text-outline">{t.patientCode || 'PAT-0000'}</div>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <div className="font-mono text-xs font-bold text-indigo-gray-900">{orgCode}</div>
-                        <div className="text-[11px] text-on-surface-variant truncate max-w-[150px]">{orgName}</div>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-surface-container text-on-surface">
-                          #{t.bookingReference}
-                        </span>
-                        <span className="block text-[10px] text-outline uppercase">{t.bookingKind}</span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="inline-flex items-center gap-1.5 text-xs text-indigo-gray-700 capitalize font-medium">
-                          {isOnlineGateway(t.gateway) ? <CreditCard className="w-3.5 h-3.5 text-vibrant-blue" /> : <QrCode className="w-3.5 h-3.5 text-emerald-600" />}
-                          {t.gateway.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 font-bold text-on-surface text-sm">
-                        ₹{t.amount.toLocaleString('en-IN')}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5 ${statusCfg.badge}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
-                          {statusCfg.label}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-xs text-on-surface-variant whitespace-nowrap">
-                        {new Date(t.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })},{' '}
-                        {new Date(t.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedTxn(t)
-                            setActionType(null)
-                          }}
-                          className="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-variant text-primary text-xs font-bold transition-all shadow-sm"
-                        >
-                          View Details
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination Bar */}
-        <div className="p-4 border-t border-outline-variant/20 flex items-center justify-between text-xs text-on-surface-variant bg-surface-container-lowest">
-          <div>
-            Showing {filtered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} to{' '}
-            {Math.min(currentPage * pageSize, filtered.length)} of {filtered.length} transactions
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={currentPage <= 1}
-              onClick={() => setCurrentPage((p) => p - 1)}
-              className="p-1.5 rounded-lg bg-surface-container hover:bg-surface-variant disabled:opacity-40"
-              aria-label="Previous Page"
+      <Card
+        title="Transactions"
+        sub={`${stats.totalTransactions.toLocaleString('en-IN')} on record`}
+        right={
+          <button type="button" onClick={exportCsv} disabled={filtered.length === 0} className={btnOutline}>
+            <Download className="w-4 h-4" /> Export (CSV)
+          </button>
+        }
+      >
+        <div className="flex flex-col xl:flex-row xl:items-center gap-2.5 mb-3.5">
+          <label className="flex-1 min-w-0 flex items-center gap-2.5 h-[42px] px-3.5 rounded-xl bg-[#F4F6FA] shadow-[inset_0_0_0_1px_#E6EAF0] focus-within:shadow-[inset_0_0_0_1.5px_#2A4DD0]">
+            <Search className="w-[17px] h-[17px] text-[#5B667A] shrink-0" />
+            <span className="sr-only">Search payments</span>
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value)
+                setCurrentPage(1)
+              }}
+              placeholder="Search by transaction, patient, hospital or booking ID"
+              className="flex-1 min-w-0 bg-transparent border-0 outline-none text-[14px] placeholder:text-[#7A8599]"
+            />
+          </label>
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
+            <div className="overflow-x-auto no-scrollbar max-w-full">
+              <div role="tablist" aria-label="Status" className={segGroup}>
+                {(['all', 'success', 'pending', 'failed', 'refunded'] as const).map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    role="tab"
+                    aria-selected={statusFilter === k}
+                    onClick={() => {
+                      setStatusFilter(k)
+                      setCurrentPage(1)
+                    }}
+                    className={segTab(statusFilter === k)}
+                  >
+                    {k === 'all' ? 'All' : k === 'refunded' ? 'Refunds' : STATUS_BADGES[k].label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <select
+              aria-label="Payment method"
+              value={gatewayFilter}
+              onChange={(e) => {
+                setGatewayFilter(e.target.value)
+                setCurrentPage(1)
+              }}
+              className={select}
             >
+              <option value="all">Every method</option>
+              <option value="online">Online</option>
+              <option value="upi_qr">UPI QR at desk</option>
+              <option value="cash">Cash at desk</option>
+            </select>
+            <select
+              aria-label="When"
+              value={dateRange}
+              onChange={(e) => {
+                setDateRange(e.target.value)
+                setCurrentPage(1)
+              }}
+              className={select}
+            >
+              <option value="all">All time</option>
+              <option value="today">Today</option>
+              <option value="7d">Last 7 days</option>
+              <option value="30d">Last 30 days</option>
+            </select>
+          </div>
+        </div>
+
+        <Table min={980}>
+          <thead>
+            <tr>
+              <th className={th}>Transaction</th>
+              <th className={th}>Patient</th>
+              <th className={th}>Hospital or lab</th>
+              <th className={th}>Booking</th>
+              <th className={th}>Method</th>
+              <th className={th}>Amount</th>
+              <th className={th}>Status</th>
+              <th className={th}>Date</th>
+              <th className={th}>
+                <span className="sr-only">Open</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginated.length === 0 ? (
+              <tr>
+                <td colSpan={9} className={`${td} py-10 text-center text-[#5B667A]`}>
+                  No transactions match your search or filters.
+                </td>
+              </tr>
+            ) : (
+              paginated.map((t) => {
+                const statusCfg = STATUS_BADGES[t.status] || STATUS_BADGES.success
+                return (
+                  <tr key={t.id} className="hover:bg-[#F9FAFC]">
+                    <td className={`${td} font-mono text-[12.5px] font-bold text-[#2A4DD0] whitespace-nowrap`}>{t.transactionId}</td>
+                    <td className={td}>
+                      <span className="block font-extrabold">{t.patientName || 'Patient'}</span>
+                      <span className="block font-mono text-[11.5px] text-[#5B667A]">{t.patientCode || '—'}</span>
+                    </td>
+                    <td className={td}>
+                      <span className="block font-extrabold truncate max-w-[200px]">{t.hospitalName || t.diagnosticCenterName || '—'}</span>
+                      <span className="block font-mono text-[11.5px] text-[#5B667A]">{t.hospitalCode || t.diagnosticCenterCode || '—'}</span>
+                    </td>
+                    <td className={td}>
+                      <span className="block font-bold">{t.bookingKind === 'consultation' ? 'Consultation' : 'Lab test'}</span>
+                      <span className="block font-mono text-[11.5px] text-[#5B667A]">#{t.bookingReference}</span>
+                    </td>
+                    <td className={`${td} whitespace-nowrap`}>{methodLabel(t.gateway)}</td>
+                    <td className={`${td} font-extrabold tabular-nums whitespace-nowrap`}>{formatINR(t.amount)}</td>
+                    <td className={td}>
+                      <Status label={statusCfg.label} color={statusCfg.color} />
+                    </td>
+                    <td className={`${td} text-[12.5px] text-[#5B667A] whitespace-nowrap`}>
+                      {new Date(t.createdAt).toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
+                    </td>
+                    <td className={`${td} text-right`}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedTxn(t)
+                          setActionType(null)
+                        }}
+                        className={btnSmall}
+                      >
+                        Open
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })
+            )}
+          </tbody>
+        </Table>
+
+        <div className="flex items-center justify-between gap-3 pt-3.5 text-[12.5px] text-[#5B667A]">
+          <span>
+            {filtered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filtered.length)} of {filtered.length.toLocaleString('en-IN')}
+          </span>
+          <span className="flex items-center gap-2">
+            <button type="button" disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => p - 1)} className={`${btnSmall} !px-2 disabled:opacity-40`} aria-label="Previous page">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="font-semibold px-2">
+            <span className="font-bold">
               Page {currentPage} of {totalPages}
             </span>
-            <button
-              type="button"
-              disabled={currentPage >= totalPages}
-              onClick={() => setCurrentPage((p) => p + 1)}
-              className="p-1.5 rounded-lg bg-surface-container hover:bg-surface-variant disabled:opacity-40"
-              aria-label="Next Page"
-            >
+            <button type="button" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((p) => p + 1)} className={`${btnSmall} !px-2 disabled:opacity-40`} aria-label="Next page">
               <ChevronRight className="w-4 h-4" />
             </button>
-          </div>
+          </span>
         </div>
-      </div>
+      </Card>
 
-      {/* Detailed Transaction Modal & Traceable Correction Drawer */}
+      {/* One transaction, with the traceable refund and status correction. */}
       {selectedTxn && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-indigo-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-surface-container-lowest max-w-xl w-full rounded-2xl p-6 shadow-2xl flex flex-col gap-5 border border-outline-variant/30 max-h-[90dvh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="flex items-start justify-between border-b border-outline-variant/20 pb-4">
-              <div>
-                <span className="font-mono text-xs font-bold text-primary px-2 py-0.5 rounded bg-primary-fixed/50">
-                  {selectedTxn.transactionId}
-                </span>
-                <h3 className="font-title-md text-title-md font-bold text-on-surface mt-1.5">
-                  Transaction Details • ₹{selectedTxn.amount.toLocaleString('en-IN')}
+        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm:p-4 bg-[#0B1B3F]/55 backdrop-blur-[2px]">
+          <div role="dialog" aria-modal="true" aria-labelledby="txn-title" className="bg-white w-full sm:max-w-xl rounded-t-[22px] sm:rounded-2xl p-5 lg:p-6 shadow-2xl flex flex-col gap-4 max-h-[92dvh] overflow-y-auto overscroll-contain">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <span className="font-mono text-[12px] font-bold text-[#2A4DD0]">{selectedTxn.transactionId}</span>
+                <h3 id="txn-title" className="mt-1 text-[18px] font-extrabold tracking-[-0.01em]">
+                  {formatINR(selectedTxn.amount)} · {selectedTxn.bookingKind === 'consultation' ? 'Consultation' : 'Lab test'}
                 </h3>
-                <p className="text-xs text-on-surface-variant">
-                  {STATUS_BADGES[selectedTxn.status].label} via {selectedTxn.gateway.toUpperCase()} on{' '}
-                  {new Date(selectedTxn.createdAt).toLocaleString('en-IN')}
+                <p className="mt-0.5 text-[13px] text-[#5B667A]">
+                  <Status label={STATUS_BADGES[selectedTxn.status].label} color={STATUS_BADGES[selectedTxn.status].color} /> · {methodLabel(selectedTxn.gateway)} ·{' '}
+                  {new Date(selectedTxn.createdAt).toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
                 </p>
               </div>
-
               <button
                 type="button"
+                aria-label="Close"
                 onClick={() => {
                   setSelectedTxn(null)
                   setActionType(null)
                 }}
-                className="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-variant flex items-center justify-center text-outline hover:text-on-surface"
+                className="shrink-0 w-9 h-9 rounded-full bg-[#F4F6FA] hover:bg-[#EEF2F8] flex items-center justify-center text-[#5B667A]"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Information Grid */}
-            <div className="grid grid-cols-2 gap-3 text-xs bg-surface-container-low/50 p-4 rounded-xl border border-outline-variant/20">
-              <div>
-                <span className="text-outline block text-[11px]">Patient Details:</span>
-                <strong className="text-on-surface font-semibold text-sm">{selectedTxn.patientName || 'Patient'}</strong>
-                <span className="block font-mono text-outline">{selectedTxn.patientCode || 'PAT-0000'}</span>
-              </div>
-
-              <div>
-                <span className="text-outline block text-[11px]">Provider Organization:</span>
-                <strong className="text-on-surface font-semibold text-sm">
-                  {selectedTxn.hospitalName || selectedTxn.diagnosticCenterName || 'Platform Clinic'}
-                </strong>
-                <span className="block font-mono text-primary font-bold">
-                  {selectedTxn.hospitalCode || selectedTxn.diagnosticCenterCode || 'CYD-ORG-0000'}
-                </span>
-              </div>
-
-              <div className="pt-2 border-t border-outline-variant/20">
-                <span className="text-outline block text-[11px]">Booking Reference:</span>
-                <span className="font-mono font-bold text-vibrant-blue text-sm">#{selectedTxn.bookingReference}</span>
-                <span className="block capitalize text-outline">{selectedTxn.bookingKind}</span>
-              </div>
-
-              <div className="pt-2 border-t border-outline-variant/20">
-                <span className="text-outline block text-[11px]">Payment Method:</span>
-                <span className="font-semibold text-on-surface capitalize">{selectedTxn.gateway.replace('_', ' ')}</span>
-                <span className="block text-outline">State: {selectedTxn.status.toUpperCase()}</span>
-              </div>
-
-              {selectedTxn.status === 'refunded' && (
-                <div className="col-span-2 pt-2 border-t border-outline-variant/20 bg-purple-50/50 p-2.5 rounded-lg">
-                  <span className="text-purple-800 font-bold block">Refund Processed:</span>
-                  <span className="text-purple-700">Amount: ₹{(selectedTxn.refundAmount ?? selectedTxn.amount).toLocaleString('en-IN')}</span>
-                  {selectedTxn.refundReason && <span className="block text-purple-600 mt-0.5">Reason: {selectedTxn.refundReason}</span>}
-                  {selectedTxn.refundedAt && (
-                    <span className="block text-[11px] text-purple-500 mt-0.5">
-                      Date: {new Date(selectedTxn.refundedAt).toLocaleString('en-IN')}
-                    </span>
-                  )}
+            <dl className="grid grid-cols-2 gap-x-4 rounded-xl shadow-[inset_0_0_0_1px_#E6EAF0] px-4 py-1">
+              {(
+                [
+                  ['Patient', selectedTxn.patientName || 'Patient', selectedTxn.patientCode],
+                  ['Hospital or lab', selectedTxn.hospitalName || selectedTxn.diagnosticCenterName || '—', selectedTxn.hospitalCode || selectedTxn.diagnosticCenterCode],
+                  ['Booking', `#${selectedTxn.bookingReference}`, selectedTxn.bookingKind === 'consultation' ? 'Consultation' : 'Lab test'],
+                  ['Method', methodLabel(selectedTxn.gateway), STATUS_BADGES[selectedTxn.status].label],
+                ] as const
+              ).map(([label, value, sub], i) => (
+                <div key={label} className={`min-w-0 py-3 ${i > 1 ? 'border-t border-[#EEF2F7]' : ''}`}>
+                  <dt className="text-[11.5px] font-extrabold uppercase tracking-[0.06em] text-[#5B667A]">{label}</dt>
+                  <dd className="mt-0.5 text-[13.5px] font-extrabold truncate">{value}</dd>
+                  {sub && <dd className="font-mono text-[11.5px] text-[#5B667A] truncate">{sub}</dd>}
                 </div>
-              )}
-            </div>
+              ))}
+            </dl>
 
-            {/* Role-based Traceable Actions */}
-            <div className="flex flex-col gap-3 pt-2 border-t border-outline-variant/20">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-fresh-teal" /> Financial Corrections &amp; Auditing
-                </span>
-                <span className="text-[11px] text-outline">Non-silent • Fully Traceable</span>
+            {selectedTxn.status === 'refunded' && (
+              <div className="rounded-xl bg-[#F4F3FF] px-4 py-3 text-[13px] text-[#5925DC]">
+                <strong className="block">Refunded {formatINR(selectedTxn.refundAmount ?? selectedTxn.amount)}</strong>
+                {selectedTxn.refundReason && <span className="block mt-0.5">Reason: {selectedTxn.refundReason}</span>}
+                {selectedTxn.refundedAt && <span className="block mt-0.5 text-[12px]">{new Date(selectedTxn.refundedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</span>}
               </div>
+            )}
+
+            <div className="flex flex-col gap-3 pt-3 border-t border-[#EEF2F7]">
+              <span className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5 text-[12px] font-extrabold uppercase tracking-[0.06em] text-[#5B667A]">
+                  <ShieldCheck className="w-4 h-4 text-[#067647]" /> Corrections
+                </span>
+                <span className="text-[12px] text-[#5B667A]">Every change is logged with its reason</span>
+              </span>
 
               {actionType === null ? (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap gap-2">
                   {selectedTxn.status !== 'refunded' && (
                     <button
                       type="button"
@@ -462,9 +405,9 @@ export function ExecutivePaymentsClient({ initialTransactions, stats }: Props) {
                         setActionType('refund')
                         setRefundAmount(String(selectedTxn.amount))
                       }}
-                      className="flex-1 py-2.5 px-4 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-800 font-bold text-xs border border-purple-200 transition-all flex items-center justify-center gap-1.5"
+                      className={`${btnOutline} flex-1`}
                     >
-                      <RefreshCcw className="w-3.5 h-3.5" /> Process Refund
+                      <RefreshCcw className="w-4 h-4" /> Refund
                     </button>
                   )}
                   <button
@@ -473,23 +416,22 @@ export function ExecutivePaymentsClient({ initialTransactions, stats }: Props) {
                       setActionType('adjust')
                       setAdjustStatus(selectedTxn.status)
                     }}
-                    className="flex-1 py-2.5 px-4 rounded-xl bg-surface-container hover:bg-surface-variant text-on-surface font-bold text-xs transition-all flex items-center justify-center gap-1.5"
+                    className={`${btnOutline} flex-1`}
                   >
-                    Adjust Status &amp; Reconcile
+                    Correct the status
                   </button>
                 </div>
-              ) : actionType === 'refund' ? (
-                <form onSubmit={handleRefundSubmit} className="flex flex-col gap-3 bg-purple-50/40 p-4 rounded-xl border border-purple-200">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-purple-900">Initiate Traceable Refund</span>
-                    <button type="button" onClick={() => setActionType(null)} className="text-xs text-outline hover:text-on-surface">
+              ) : (
+                <form onSubmit={actionType === 'refund' ? handleRefundSubmit : handleAdjustSubmit} className="flex flex-col gap-3 p-4 rounded-xl bg-[#F7F9FC] shadow-[inset_0_0_0_1px_#E6EAF0]">
+                  <span className="flex items-center justify-between">
+                    <strong className="text-[14px]">{actionType === 'refund' ? 'Refund this payment' : 'Correct the status'}</strong>
+                    <button type="button" onClick={() => setActionType(null)} className="text-[13px] font-bold text-[#5B667A] hover:text-[#0B1B3F]">
                       Cancel
                     </button>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <label className="flex-1">
-                      <span className="text-[11px] text-purple-800 font-semibold block mb-1">Refund Amount (₹)</span>
+                  </span>
+                  {actionType === 'refund' ? (
+                    <label className="block">
+                      <span className="block mb-1 text-[12px] font-extrabold text-[#27324A]">Amount (₹)</span>
                       <input
                         type="number"
                         min={1}
@@ -497,84 +439,40 @@ export function ExecutivePaymentsClient({ initialTransactions, stats }: Props) {
                         value={refundAmount}
                         onChange={(e) => setRefundAmount(e.target.value)}
                         required
-                        className="w-full text-xs p-2.5 rounded-lg bg-surface-container-lowest border border-purple-300 font-bold"
+                        className="w-full h-[42px] px-3 rounded-[10px] border border-[#D6DDE8] bg-white text-[14px] font-extrabold outline-none focus:border-[#2A4DD0]"
                       />
                     </label>
-                  </div>
-
-                  <label>
-                    <span className="text-[11px] text-purple-800 font-semibold block mb-1">
-                      Reason for Refund (Audit Justification) *
-                    </span>
+                  ) : (
+                    <label className="block">
+                      <span className="block mb-1 text-[12px] font-extrabold text-[#27324A]">New status</span>
+                      <select
+                        value={adjustStatus}
+                        onChange={(e) => setAdjustStatus(e.target.value as PaymentStatus)}
+                        className="w-full h-[42px] px-3 rounded-[10px] border border-[#D6DDE8] bg-white text-[14px] font-bold outline-none focus:border-[#2A4DD0]"
+                      >
+                        <option value="success">Successful</option>
+                        <option value="pending">Pending</option>
+                        <option value="failed">Failed</option>
+                        <option value="refunded">Refunded</option>
+                      </select>
+                    </label>
+                  )}
+                  <label className="block">
+                    <span className="block mb-1 text-[12px] font-extrabold text-[#27324A]">Reason (kept in the audit log)</span>
                     <textarea
                       rows={2}
                       value={refundReason}
                       onChange={(e) => setRefundReason(e.target.value)}
-                      placeholder="Doctor unavailable / appointment cancelled / patient requested cancellation..."
+                      placeholder={actionType === 'refund' ? 'Doctor unavailable, appointment cancelled, patient asked to cancel…' : 'Matched with the bank statement, settlement dispute resolved…'}
                       required
                       minLength={5}
-                      className="w-full text-xs p-2.5 rounded-lg bg-surface-container-lowest border border-purple-300 resize-none"
+                      className="w-full px-3 py-2.5 rounded-[10px] border border-[#D6DDE8] bg-white text-[13.5px] resize-none outline-none focus:border-[#2A4DD0]"
                     />
                   </label>
-
-                  {actionError && <p className="text-xs text-red-600 font-semibold">{actionError}</p>}
-
-                  <button
-                    type="submit"
-                    disabled={isProcessing}
-                    className="py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm"
-                  >
+                  {actionError && <p className="text-[13px] font-bold text-[#B42318]">{actionError}</p>}
+                  <button type="submit" disabled={isProcessing} className={btnPrimary}>
                     {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                    Confirm Traceable Refund
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleAdjustSubmit} className="flex flex-col gap-3 bg-surface-container-low p-4 rounded-xl border border-outline-variant/30">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-on-surface">Reconcile Status</span>
-                    <button type="button" onClick={() => setActionType(null)} className="text-xs text-outline hover:text-on-surface">
-                      Cancel
-                    </button>
-                  </div>
-
-                  <label>
-                    <span className="text-[11px] text-indigo-gray-700 font-semibold block mb-1">Select New Status</span>
-                    <select
-                      value={adjustStatus}
-                      onChange={(e) => setAdjustStatus(e.target.value as PaymentStatus)}
-                      className="w-full text-xs p-2.5 rounded-lg bg-surface-container-lowest border border-outline-variant/30 font-medium"
-                    >
-                      <option value="success">Successful</option>
-                      <option value="pending">Pending</option>
-                      <option value="failed">Failed</option>
-                      <option value="refunded">Refunded</option>
-                    </select>
-                  </label>
-
-                  <label>
-                    <span className="text-[11px] text-indigo-gray-700 font-semibold block mb-1">
-                      Reason for Correction (Stored in Audit Log) *
-                    </span>
-                    <textarea
-                      rows={2}
-                      value={refundReason}
-                      onChange={(e) => setRefundReason(e.target.value)}
-                      placeholder="Bank statement reconciliation / settlement dispute resolution..."
-                      required
-                      minLength={5}
-                      className="w-full text-xs p-2.5 rounded-lg bg-surface-container-lowest border border-outline-variant/30 resize-none"
-                    />
-                  </label>
-
-                  {actionError && <p className="text-xs text-red-600 font-semibold">{actionError}</p>}
-
-                  <button
-                    type="submit"
-                    disabled={isProcessing}
-                    className="py-2.5 rounded-xl bg-vibrant-blue hover:bg-primary text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm"
-                  >
-                    {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                    Confirm Status Adjustment
+                    {actionType === 'refund' ? 'Confirm refund' : 'Save the status'}
                   </button>
                 </form>
               )}

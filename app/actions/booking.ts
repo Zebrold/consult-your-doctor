@@ -6,6 +6,7 @@ import { doctorBookingFee, isFastTrack, labDoorstepFee, matchBookedTests, priced
 import { patientServices } from '@/lib/hospital-services'
 import { loadBookingFees } from '@/lib/booking-fees'
 import { followUpBase } from '@/lib/follow-up'
+import { slotHospitalId } from '@/lib/practices'
 import { notifyBookingConfirmed } from '@/lib/notify/patient'
 import { redirect } from 'next/navigation'
 
@@ -378,11 +379,14 @@ async function claimSlotAndCreateAppointment(
       return { error: "This doctor's consultation fee hasn't been set yet, so they can't be booked online." }
     }
 
+    // The booking belongs to the slot's hospital: the doctor's own, or one they visit (lib/practices.ts).
+    const hospitalId = await slotHospitalId(admin, scheduleId, doctor.hospital_id ?? null)
+
     // Services are stored with the hospital's own prices at booking time, never prices from the browser.
     let services: BookedTest[] = []
     if (options.services.length > 0) {
-      const { data: hospital } = doctor.hospital_id
-        ? await admin.from('hospitals').select('*').eq('id', doctor.hospital_id).maybeSingle()
+      const { data: hospital } = hospitalId
+        ? await admin.from('hospitals').select('*').eq('id', hospitalId).maybeSingle()
         : { data: null }
       // Only services the hospital shows patients can be booked (`*`: service_details arrives with 20261103_hospital_services.sql).
       const offered = new Map(patientServices(hospital).map((t) => [t.name, t]))
@@ -411,7 +415,7 @@ async function claimSlotAndCreateAppointment(
     }
 
     // The booking keeps the fee it was made at, so a later change to the fees can't change what this patient pays.
-    const row = { patient_id: patientId, doctor_id: doctorId, hospital_id: doctor.hospital_id ?? null, schedule_id: scheduleId, ...choices }
+    const row = { patient_id: patientId, doctor_id: doctorId, hospital_id: hospitalId, schedule_id: scheduleId, ...choices }
     const paid = { ...row, status: 'pending_payment', booking_fee: doctorBookingFee(fees, options.fastTrack ? 'fast_track' : 'general') }
     const insert = (values: Record<string, unknown>) => admin.from('appointments').insert(values).select('id').single()
 

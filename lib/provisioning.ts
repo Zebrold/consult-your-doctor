@@ -5,7 +5,7 @@ import { sendDoctorActivationEmail } from '@/lib/notify/email'
 
 type Admin = ReturnType<typeof createAdminClient>
 
-export type StaffRole = 'doctor' | 'hospital_admin' | 'diagnostic_admin'
+export type StaffRole = 'doctor' | 'hospital_admin' | 'diagnostic_admin' | 'executive'
 
 /** Staff sign in with an ID like "CYDPS4821"; their auth email is that ID at cyd.internal unless they have a real one. */
 export async function newStaffId(admin: Admin, fullName: string): Promise<string> {

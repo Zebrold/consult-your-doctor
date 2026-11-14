@@ -1,155 +1,134 @@
 import type { Metadata } from 'next'
-import { BadgeCheck, BarChart3, ClipboardList, History, IndianRupee, Stethoscope, Users } from 'lucide-react'
-import { currentTime, formatDate, loadApplications, loadAppointments, loadDoctors, requireExecutive, timeAgo } from '../_lib/ops'
-import { BarList, Chip, MetricCard, PageHeader, Panel } from '../_components/ui'
+import { doctorName, formatShortDate, istDateKey } from '@/components/patient/format'
+import { liveBadgeIds } from '@/lib/badges'
+import { currentTime, loadApplications, loadAppointments, loadDoctors, requireExecutivePage, timeAgo } from '../_lib/ops'
+import { BarList, Card, ExePage, Initials, MoreLink, Note, Stat, Stats, Status, plural } from '../_components/ui'
 import { CredentialQueue } from '../_components/CredentialQueue'
 import { DoctorRoster, type RosterRow } from '../_components/DoctorRoster'
 import { AddDoctorButton, type HospitalOption } from '../_components/NetworkForms'
 
-export const metadata: Metadata = { title: 'Doctor Network & Credentialing' }
+export const metadata: Metadata = { title: 'Doctors' }
 
+type Joined<T> = T | T[] | null
+const one = <T,>(v: Joined<T> | undefined) => (Array.isArray(v) ? v[0] : v) ?? null
+
+/** Doctors after DeskExeDoctors: doctor applications to approve, who joined lately, and the roster with today's bookings. */
 export default async function ExecutiveDoctorsPage() {
-  const { admin } = await requireExecutive()
+  const { admin, profile } = await requireExecutivePage('doctors')
   const now = currentTime()
   const nowIso = new Date(now).toISOString()
 
-  const [doctors, applications, appointments, slotsResult, { data: hospitalRows }] = await Promise.all([
+  const [doctors, applications, appointments, slotsResult, { data: hospitalRows }, badges, recentRes, weekRes] = await Promise.all([
     loadDoctors(admin),
     loadApplications(admin, { withDocuments: true }),
     loadAppointments(admin),
-    admin.from('schedules').select('doctor_id').eq('is_booked', false).gte('start_time', nowIso),
+    admin.from('schedules').select('doctor_id, start_time').eq('is_booked', false).gte('start_time', nowIso),
     admin.from('hospitals').select('id, name, city').order('name'),
+    liveBadgeIds(admin),
+    admin.from('doctors').select('id, specialty, created_at, profiles!doctors_profile_id_fkey ( full_name ), hospitals ( name )').order('created_at', { ascending: false }).limit(5),
+    admin.from('doctors').select('id', { count: 'exact', head: true }).gte('created_at', new Date(now - 7 * 86_400_000).toISOString()),
   ])
   const hospitals = (hospitalRows ?? []) as HospitalOption[]
-
-  const today = new Date(now)
-  today.setHours(0, 0, 0, 0)
-  const tomorrow = today.getTime() + 86_400_000
+  const todayKey = istDateKey(now)
   const monthAgo = now - 30 * 86_400_000
 
   const openSlots = new Map<string, number>()
-  for (const s of (slotsResult.data ?? []) as { doctor_id: string }[]) {
+  const openToday = new Set<string>()
+  for (const s of (slotsResult.data ?? []) as { doctor_id: string; start_time: string }[]) {
     openSlots.set(s.doctor_id, (openSlots.get(s.doctor_id) ?? 0) + 1)
+    if (istDateKey(s.start_time) === todayKey) openToday.add(s.doctor_id)
   }
 
   const todayByDoctor = new Map<string, number>()
   const demand = new Map<string, number>()
   for (const apt of appointments) {
     if (!apt.doctor || apt.status === 'cancelled') continue
-    const start = apt.startTime ? new Date(apt.startTime).getTime() : null
-    if (start && start >= today.getTime() && start < tomorrow) {
-      todayByDoctor.set(apt.doctor.id, (todayByDoctor.get(apt.doctor.id) ?? 0) + 1)
-    }
-    if (new Date(apt.createdAt).getTime() >= monthAgo) {
-      demand.set(apt.doctor.specialty, (demand.get(apt.doctor.specialty) ?? 0) + 1)
-    }
+    if (apt.startTime && istDateKey(apt.startTime) === todayKey) todayByDoctor.set(apt.doctor.id, (todayByDoctor.get(apt.doctor.id) ?? 0) + 1)
+    if (Date.parse(apt.createdAt) >= monthAgo) demand.set(apt.doctor.specialty, (demand.get(apt.doctor.specialty) ?? 0) + 1)
   }
 
+  const verified = new Set(badges.doctors)
   const roster: RosterRow[] = doctors
-    .map((d) => ({ ...d, todayCount: todayByDoctor.get(d.id) ?? 0, openSlots: openSlots.get(d.id) ?? 0 }))
+    .map((d) => ({ ...d, todayCount: todayByDoctor.get(d.id) ?? 0, openSlots: openSlots.get(d.id) ?? 0, verified: verified.has(d.id) }))
     .sort((a, b) => b.todayCount - a.todayCount || a.name.localeCompare(b.name))
 
   const specialties = Array.from(new Set(doctors.map((d) => d.specialty))).sort()
-  const pending = applications.filter((a) => a.status === 'pending').sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-  const decided = applications.filter((a) => a.status !== 'pending').slice(0, 6)
-  const oldestPending = pending[0]
-  const withSlots = roster.filter((d) => d.openSlots > 0).length
-  const avgFee = doctors.length ? doctors.reduce((s, d) => s + d.fee, 0) / doctors.length : 0
+  const pending = applications.filter((a) => a.status === 'pending').sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
+  const decided = applications.filter((a) => a.status !== 'pending').slice(0, 5)
+  const withHospital = doctors.filter((d) => d.hospital).length
   const demandRows = Array.from(demand.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6)
-    .map(([label, value]) => ({ label, value, display: `${value} booking${value === 1 ? '' : 's'}` }))
-
+    .map(([label, value]) => ({ label, value, display: plural(value, 'booking') }))
   const submittedLabels = Object.fromEntries(pending.map((a) => [a.id, timeAgo(a.createdAt, now)]))
 
+  type RecentRow = { id: string; specialty: string | null; created_at: string | null; profiles: Joined<{ full_name: string | null }>; hospitals: Joined<{ name: string | null }> }
+  const recent = ((recentRes.data ?? []) as unknown as RecentRow[]).filter((r) => r.created_at)
+
   return (
-    <>
-      <PageHeader
-        eyebrow="Credentialing"
-        title="Doctor Network & Credentialing"
-        description="Add doctors at any partner hospital, review new doctor applications, and see who is available across the network."
-        actions={<AddDoctorButton hospitals={hospitals} />}
-      />
+    <ExePage name={profile.fullName} title="Doctors" subtitle="Every doctor on the network, and the ones who signed up on their own waiting for approval" actions={<AddDoctorButton hospitals={hospitals} />}>
+      <Stats>
+        <Stat label="Doctors on network" value={doctors.length.toLocaleString('en-IN')} note={`${withHospital} at a hospital · ${plural(specialties.length, 'specialty', 'specialties')}`} />
+        <Stat label="Doctor applications" value={pending.length} note={pending.length ? `Oldest waiting ${timeAgo(pending[0].createdAt, now)}` : 'Queue is clear'} tone={pending.length ? 'warn' : undefined} />
+        <Stat label="Joined this week" value={weekRes.count ?? 0} note="New doctor accounts, last 7 days" />
+        <Stat label="Bookable today" value={openToday.size} note="With open slots today" tone="blue" />
+      </Stats>
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
-        <MetricCard
-          label="Doctors on network"
-          value={doctors.length.toLocaleString('en-IN')}
-          icon={Stethoscope}
-          tone="blue"
-          footer={<span>Across {specialties.length} specialties</span>}
-        />
-        <MetricCard
-          label="Pending verification"
-          value={pending.length}
-          icon={ClipboardList}
-          tone="coral"
-          badge={pending.length > 0 ? <Chip tone="coral">Needs review</Chip> : undefined}
-          footer={<span>{oldestPending ? `Oldest waiting ${timeAgo(oldestPending.createdAt, now)}` : 'Queue is clear'}</span>}
-        />
-        <MetricCard
-          label="Bookable doctors"
-          value={withSlots}
-          icon={Users}
-          tone="teal"
-          progress={doctors.length ? (withSlots / doctors.length) * 100 : 0}
-          footer={<span>Doctors with open future slots</span>}
-        />
-        <MetricCard
-          label="Average consultation fee"
-          value={`₹${Math.round(avgFee).toLocaleString('en-IN')}`}
-          icon={IndianRupee}
-          tone="primary"
-          footer={<span>Listed doctor fees</span>}
-        />
-      </section>
+      <Note>Doctors a hospital adds from its own workspace go live straight away; the hospital creates their login. Doctors who sign up on their own come to this queue.</Note>
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-stack-md items-start">
-        <Panel
-          id="applications"
-          className="xl:col-span-7"
-          title="Credential Verification Queue"
-          icon={BadgeCheck}
-          description="Approving creates the doctor's account and issues a Staff ID and one-time password."
-          aside={<Chip tone={pending.length ? 'coral' : 'teal'} dot>{pending.length} pending</Chip>}
-        >
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3.5 lg:gap-5 items-start">
+        <Card id="applications" title="Doctor applications" sub="Check the registration with the medical council before approving" right={pending.length ? <Status label={`${pending.length} to review`} color="#B54708" /> : undefined}>
           <CredentialQueue applications={pending} submittedLabels={submittedLabels} />
-        </Panel>
+        </Card>
 
-        <div className="xl:col-span-5 flex flex-col gap-stack-md">
-          <Panel title="Recent Decisions" icon={History} description="Applications that have already been approved or rejected.">
-            {decided.length === 0 ? (
-              <p className="text-sm text-indigo-gray-600">No decisions yet.</p>
+        <div className="flex flex-col gap-3.5 lg:gap-5 min-w-0">
+          <Card title="Recently joined" sub="The newest doctor accounts">
+            {recent.length === 0 ? (
+              <p className="text-[13px] text-[#5B667A]">No doctors yet.</p>
             ) : (
-              <ul className="divide-y divide-surface-container">
+              <ul>
+                {recent.map((r) => {
+                  const name = one(r.profiles)?.full_name ?? 'Doctor'
+                  return (
+                    <li key={r.id} className="flex items-center gap-3 py-2.5 border-t border-[#EEF2F7] first:border-t-0 first:pt-0">
+                      <Initials name={name} />
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-[13.5px] font-extrabold truncate">{doctorName(name)}</span>
+                        <span className="block text-[12px] text-[#5B667A] truncate">{[r.specialty, one(r.hospitals)?.name].filter(Boolean).join(' · ') || '—'}</span>
+                      </span>
+                      <span className="shrink-0 text-[12px] text-[#5B667A]">{formatShortDate(r.created_at!)}</span>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </Card>
+
+          {decided.length > 0 && (
+            <Card title="Recent decisions">
+              <ul>
                 {decided.map((a) => (
-                  <li key={a.id} className="py-3 flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-label-sm text-label-sm text-on-surface font-semibold truncate">{a.name}</p>
-                      <p className="font-label-sm text-[11px] text-indigo-gray-600 truncate">
-                        {[a.specialty, a.hospitalName].filter(Boolean).join(' · ')} · applied {formatDate(a.createdAt)}
-                      </p>
-                    </div>
-                    <Chip tone={a.status === 'approved' ? 'teal' : 'coral'}>{a.status === 'approved' ? 'Approved' : 'Rejected'}</Chip>
+                  <li key={a.id} className="flex items-center justify-between gap-3 py-2.5 border-t border-[#EEF2F7] first:border-t-0 first:pt-0">
+                    <span className="min-w-0">
+                      <span className="block text-[13.5px] font-extrabold truncate">{a.name}</span>
+                      <span className="block text-[12px] text-[#5B667A] truncate">{[a.specialty, a.hospitalName, `applied ${formatShortDate(a.createdAt)}`].filter(Boolean).join(' · ')}</span>
+                    </span>
+                    <Status label={a.status === 'approved' ? 'Approved' : 'Rejected'} color={a.status === 'approved' ? '#2A4DD0' : '#B42318'} />
                   </li>
                 ))}
               </ul>
-            )}
-          </Panel>
+            </Card>
+          )}
 
-          <Panel title="Demand by Specialty" icon={BarChart3} description="Consultations booked in the last 30 days.">
-            {demandRows.length === 0 ? <p className="text-sm text-indigo-gray-600">No bookings in the last 30 days.</p> : <BarList rows={demandRows} />}
-          </Panel>
+          <Card title="Demand by specialty" sub="Consultations booked in the last 30 days">
+            {demandRows.length === 0 ? <p className="text-[13px] text-[#5B667A]">No bookings in the last 30 days.</p> : <BarList rows={demandRows} />}
+          </Card>
         </div>
       </div>
 
-      <Panel
-        title="Doctor Roster & Availability"
-        icon={Users}
-        description="Every doctor on the network with today's bookings and open future slots."
-      >
+      <Card title="Doctor roster and availability" sub="Today’s bookings and open future slots" right={<MoreLink href="/executive/leave">Doctor leave</MoreLink>}>
         <DoctorRoster doctors={roster} specialties={specialties} />
-      </Panel>
-    </>
+      </Card>
+    </ExePage>
   )
 }

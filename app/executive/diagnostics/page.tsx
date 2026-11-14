@@ -1,23 +1,16 @@
 import type { Metadata } from 'next'
-import { AlertTriangle, Building2, CircleCheck, ClipboardList, FileCheck, FlaskConical, GitBranch, KeyRound, Microscope, Phone, Receipt, Wallet } from 'lucide-react'
-import {
-  LAB_STATUS_LABELS,
-  buildAttentionItems,
-  currentTime,
-  loadLabBookings,
-  loadLabs,
-  loadPartnerApplications,
-  requireExecutive,
-  timeAgo,
-} from '../_lib/ops'
-import { BarList, Chip, EmptyState, MetricCard, PageHeader, Panel } from '../_components/ui'
+import { CircleCheck, FlaskConical, Receipt } from 'lucide-react'
+import { istDateKey } from '@/components/patient/format'
+import { LAB_STATUS_LABELS, buildAttentionItems, currentTime, loadLabBookings, loadLabs, loadPartnerApplications, requireExecutivePage, timeAgo } from '../_lib/ops'
+import { Card, CallLink, EmptyState, ExePage, Line, Stat, Stats, Status, Table, count, plural, td, th } from '../_components/ui'
 import { AddDiagnosticCenterButton, AddLoginButton } from '../_components/NetworkForms'
 import { PartnerQueue } from '../_components/PartnerQueue'
 
-export const metadata: Metadata = { title: 'Diagnostic Centers & Lab Operations' }
+export const metadata: Metadata = { title: 'Diagnostics' }
 
+/** Diagnostics after DeskExeDiagnostics: partner labs, today's visits, bookings to follow up and test prices compared. */
 export default async function ExecutiveDiagnosticsPage() {
-  const { admin } = await requireExecutive()
+  const { admin, profile } = await requireExecutivePage('diagnostics')
   const [labs, bookings, { data: labLogins }, applications] = await Promise.all([
     loadLabs(admin),
     loadLabBookings(admin),
@@ -30,14 +23,11 @@ export default async function ExecutiveDiagnosticsPage() {
   // Oldest first, so the longest wait is reviewed first.
   const pendingApplications = applications.filter((a) => a.status === 'pending').reverse()
   const appliedLabels = Object.fromEntries(pendingApplications.map((a) => [a.id, timeAgo(a.createdAt, now)]))
-
-  const today = new Date(now)
-  today.setHours(0, 0, 0, 0)
-  const todayKey = today.toDateString()
+  const todayKey = istDateKey(now)
 
   const activeLabs = labs.filter((l) => l.status === 'active')
   const cities = new Set(activeLabs.map((l) => l.city).filter(Boolean))
-  const visitsToday = bookings.filter((b) => b.preferredDate && new Date(b.preferredDate).toDateString() === todayKey && b.status !== 'cancelled')
+  const visitsToday = bookings.filter((b) => b.preferredDate && istDateKey(b.preferredDate) === todayKey && b.status !== 'cancelled')
   const awaitingPayment = bookings.filter((b) => b.status === 'pending_payment')
   const collected = bookings.filter((b) => b.status === 'visited' || b.status === 'report_sent')
   const reportsSent = bookings.filter((b) => b.status === 'report_sent')
@@ -78,200 +68,154 @@ export default async function ExecutiveDiagnosticsPage() {
       const min = sorted[0]
       const max = sorted[sorted.length - 1]
       const median = sorted[Math.floor(sorted.length / 2)]
-      return { test, labs: prices.length, min, max, median, spread: max - min, spreadPct: min ? ((max - min) / min) * 100 : 0, booked: bookingsByTest.get(test) ?? 0 }
+      return { test, labs: prices.length, min, max, median, spreadPct: min ? ((max - min) / min) * 100 : 0, booked: bookingsByTest.get(test) ?? 0 }
     })
     .sort((a, b) => b.booked - a.booked || b.labs - a.labs || a.test.localeCompare(b.test))
     .slice(0, 20)
+  const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`
 
   return (
-    <>
-      <PageHeader
-        eyebrow="Lab Operations"
-        title="Diagnostic Centers & Lab Operations"
-        description="Partner labs, today's lab visits, bookings that need follow-up, and how test prices compare across labs."
-        actions={
-          <>
-            <Chip tone="teal" dot>{activeLabs.length} active labs in {cities.size} cities</Chip>
-            <AddDiagnosticCenterButton />
-          </>
-        }
-      />
+    <ExePage name={profile.fullName} title="Diagnostics" subtitle="Partner labs, today’s lab visits, bookings that need follow-up and test prices" actions={<AddDiagnosticCenterButton />}>
+      <Stats>
+        <Stat label="Partner labs" value={activeLabs.length} note={`In ${plural(cities.size, 'city', 'cities')}`} />
+        <Stat label="Lab visits today" value={visitsToday.length} note={`${count(bookings.length)} bookings all time`} />
+        <Stat label="Awaiting payment" value={awaitingPayment.length} note={`${attention.filter((a) => a.status === 'Awaiting payment').length} unpaid for over a day`} tone={awaitingPayment.length ? 'warn' : undefined} />
+        <Stat label="Reports sent" value={count(reportsSent.length)} note={`Of ${count(collected.length)} samples collected`} />
+      </Stats>
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
-        <MetricCard label="Partner labs" value={activeLabs.length} icon={Building2} tone="primary" footer={<span>{labs.length - activeLabs.length} inactive or pending</span>} />
-        <MetricCard label="Lab visits today" value={visitsToday.length} icon={Microscope} tone="blue" footer={<span>{bookings.length} bookings all time</span>} />
-        <MetricCard
-          label="Awaiting payment"
-          value={awaitingPayment.length}
-          icon={Wallet}
-          tone="coral"
-          footer={<span>{attention.filter((a) => a.status === 'Awaiting payment').length} unpaid for over a day</span>}
-        />
-        <MetricCard
-          label="Reports sent"
-          value={reportsSent.length}
-          icon={FileCheck}
-          tone="teal"
-          progress={collected.length ? (reportsSent.length / collected.length) * 100 : 0}
-          footer={<span>Of {collected.length} samples collected</span>}
-        />
-      </section>
-
-      <Panel
-        id="applications"
-        title="Diagnostic Centre Applications"
-        icon={ClipboardList}
-        description="Centres that applied to join at /signup/diagnostic-centre. Approving adds the centre and its staff login, and emails the applicant their staff ID."
-        aside={<Chip tone={pendingApplications.length ? 'coral' : 'teal'} dot>{pendingApplications.length} pending</Chip>}
-      >
-        <PartnerQueue applications={pendingApplications} submittedLabels={appliedLabels} />
-      </Panel>
+      {pendingApplications.length > 0 && (
+        <Card id="applications" title="Diagnostic centre applications" sub="Approving adds the centre and its staff login, and emails the applicant their staff ID">
+          <PartnerQueue applications={pendingApplications} submittedLabels={appliedLabels} />
+        </Card>
+      )}
 
       {labsWithoutLogin.length > 0 && (
-        <Panel title="Centres Without a Staff Login" icon={KeyRound} description="These centres can't manage their tests, bookings or reports until their staff have a login.">
-          <ul className="flex flex-col divide-y divide-surface-container rounded-xl ring-1 ring-surface-container">
+        <Card title="Centres without a staff login" sub="They can’t manage their tests, bookings or reports until their staff have a login">
+          <ul>
             {labsWithoutLogin.map((lab) => (
-              <li key={lab.id} className="flex items-center justify-between gap-3 p-4">
-                <div className="min-w-0">
-                  <p className="font-semibold text-indigo-gray-900 truncate">{lab.name}</p>
-                  {lab.city && <p className="text-sm text-indigo-gray-600">{lab.city}</p>}
-                </div>
-                <AddLoginButton kind="lab" id={lab.id} name={lab.name} />
+              <li key={lab.id}>
+                <Line label={lab.name} sub={lab.city ?? undefined} right={<AddLoginButton kind="lab" id={lab.id} name={lab.name} />} />
               </li>
             ))}
           </ul>
-        </Panel>
+        </Card>
       )}
 
-      <Panel
-        title="Bookings Needing Follow-up"
-        icon={AlertTriangle}
-        description="Unpaid for over a day, visit date passed, or report not sent two days after collection."
-        aside={<Chip tone={attention.length ? 'coral' : 'teal'} dot>{attention.length} open</Chip>}
+      <Card
+        title="Bookings needing follow-up"
+        sub="Unpaid for over a day, visit date passed, or report not sent two days after collection"
+        right={<Status label={`${attention.length} open`} color={attention.length ? '#B42318' : '#067647'} />}
       >
         {attention.length === 0 ? (
           <EmptyState icon={CircleCheck}>All lab bookings are on track.</EmptyState>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left">
-              <thead>
-                <tr className="text-indigo-gray-600 font-label-sm text-label-sm bg-surface-container-low">
-                  <th className="py-3 px-4 rounded-l-lg font-semibold">Patient</th>
-                  <th className="py-3 px-4 font-semibold">Test &amp; Lab</th>
-                  <th className="py-3 px-4 font-semibold">Issue</th>
-                  <th className="py-3 px-4 font-semibold">Since</th>
-                  <th className="py-3 px-4 text-right rounded-r-lg font-semibold">Contact</th>
+          <Table min={720}>
+            <thead>
+              <tr>
+                <th className={th}>Patient</th>
+                <th className={th}>Test and lab</th>
+                <th className={th}>Issue</th>
+                <th className={th}>Since</th>
+                <th className={th}>
+                  <span className="sr-only">Contact</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {attention.slice(0, 15).map((item) => (
+                <tr key={item.id}>
+                  <td className={`${td} font-extrabold`}>{item.who}</td>
+                  <td className={`${td} text-[#27324A]`}>{item.detail}</td>
+                  <td className={td}>
+                    <Status label={item.status} color={item.severity === 'high' ? '#B42318' : '#B54708'} />
+                  </td>
+                  <td className={`${td} text-[12.5px] text-[#5B667A] whitespace-nowrap`}>{item.sinceLabel}</td>
+                  <td className={`${td} text-right`}>{item.phone ? <CallLink phone={item.phone} /> : <span className="text-[12px] text-[#5B667A]">No phone</span>}</td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-container">
-                {attention.slice(0, 15).map((item) => (
-                  <tr key={item.id} className="hover:bg-surface-container-low/60 transition-colors">
-                    <td className="py-3.5 px-4 font-semibold text-on-surface text-sm">{item.who}</td>
-                    <td className="py-3.5 px-4 text-sm text-indigo-gray-600">{item.detail}</td>
-                    <td className="py-3.5 px-4"><Chip tone={item.severity === 'high' ? 'coral' : 'primary'}>{item.status}</Chip></td>
-                    <td className="py-3.5 px-4 font-mono text-sm text-soft-coral">{item.sinceLabel}</td>
-                    <td className="py-3.5 px-4 text-right">
-                      {item.phone ? (
-                        <a href={`tel:${item.phone}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-vibrant-blue text-on-primary hover:bg-primary font-label-sm text-label-sm shadow-sm">
-                          <Phone className="w-3.5 h-3.5" /> Call patient
-                        </a>
-                      ) : (
-                        <span className="text-xs text-indigo-gray-600">No phone on file</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Panel>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start">
-        <Panel className="lg:col-span-7" title="Partner Lab Network" icon={FlaskConical} description="Tests offered and booking volume per lab.">
-          {labStats.length === 0 ? (
-            <EmptyState icon={Building2}>No diagnostic centers are registered yet.</EmptyState>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {labStats.slice(0, 8).map((lab) => (
-                <div key={lab.id} className="p-4 rounded-xl bg-surface-container-low/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <span className="w-11 h-11 rounded-xl bg-surface-container-lowest flex items-center justify-center text-primary shrink-0">
-                      <Microscope className="w-5 h-5" />
-                    </span>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-title-md text-base font-bold text-on-surface">{lab.name}</span>
-                        <Chip tone={lab.status === 'active' ? 'teal' : 'neutral'}>{lab.status === 'active' ? 'Active' : lab.status ?? 'Unknown'}</Chip>
-                      </div>
-                      <div className="font-label-sm text-label-sm text-indigo-gray-600 mt-0.5">
-                        {lab.city ?? 'City not set'} • {lab.tests.length} tests offered
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex sm:flex-col items-center sm:items-end gap-2 shrink-0">
-                    <Chip tone="primary">{lab.total} bookings</Chip>
-                    <span className="font-label-sm text-[11px] text-indigo-gray-600">
-                      {lab.pending} in progress • {lab.reports} reports sent
-                    </span>
-                  </div>
-                </div>
               ))}
-            </div>
-          )}
-        </Panel>
+            </tbody>
+          </Table>
+        )}
+      </Card>
 
-        <Panel className="lg:col-span-5" title="Booking Pipeline" icon={GitBranch} description="Where every diagnostic booking currently stands.">
-          {pipeline.length === 0 ? <p className="text-sm text-indigo-gray-600">No bookings yet.</p> : <BarList rows={pipeline} tone="teal" />}
-        </Panel>
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3.5 lg:gap-5 items-start">
+        <Card title="Partner lab network" sub="Tests offered and bookings per lab">
+          {labStats.length === 0 ? (
+            <EmptyState icon={FlaskConical}>No diagnostic centres are registered yet.</EmptyState>
+          ) : (
+            <ul>
+              {labStats.slice(0, 8).map((lab) => (
+                <li key={lab.id} className="flex items-center justify-between gap-3 py-3 border-t border-[#EEF2F7] first:border-t-0 first:pt-0">
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-2 text-[14px] font-extrabold">
+                      <span className="truncate">{lab.name}</span>
+                      {lab.status !== 'active' && <Status label="Not listed" color="#5B667A" />}
+                    </span>
+                    <span className="block text-[12.5px] text-[#5B667A]">
+                      {lab.city ?? 'City not set'} · {plural(lab.tests.length, 'test')}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-right">
+                    <span className="block text-[14px] font-extrabold">{plural(lab.total, 'booking')}</span>
+                    <span className="block text-[12px] text-[#5B667A]">
+                      {lab.pending} in progress · {lab.reports} reports sent
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card title="Booking pipeline" sub="Where every diagnostic booking stands">
+          {pipeline.length === 0 ? (
+            <p className="text-[13px] text-[#5B667A]">No bookings yet.</p>
+          ) : (
+            <ul>
+              {pipeline.map((row) => (
+                <li key={row.label}>
+                  <Line label={<span className="font-bold">{row.label}</span>} right={<span className="font-extrabold tabular-nums">{count(row.value)}</span>} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
       </div>
 
-      <Panel
-        title="Test Catalog & Tariff Comparison"
-        icon={Receipt}
-        description="Listed prices for the same test across active partner labs (₹). A wide spread means the same test costs patients very different amounts depending on the lab."
-      >
+      <Card title="Test catalogue and price comparison" sub="Listed prices for the same test across active labs">
         {tariffs.length === 0 ? (
           <EmptyState icon={Receipt}>No lab has published test prices yet.</EmptyState>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left">
-              <thead>
-                <tr className="text-indigo-gray-600 font-label-sm text-label-sm bg-surface-container-low">
-                  <th className="py-3 px-4 rounded-l-lg font-semibold">Test</th>
-                  <th className="py-3 px-4 font-semibold">Labs offering</th>
-                  <th className="py-3 px-4 font-semibold">Lowest</th>
-                  <th className="py-3 px-4 font-semibold">Median</th>
-                  <th className="py-3 px-4 font-semibold">Highest</th>
-                  <th className="py-3 px-4 font-semibold">Price spread</th>
-                  <th className="py-3 px-4 rounded-r-lg font-semibold">Bookings</th>
+          <Table min={760}>
+            <thead>
+              <tr>
+                <th className={th}>Test</th>
+                <th className={th}>Labs</th>
+                <th className={th}>Lowest</th>
+                <th className={th}>Median</th>
+                <th className={th}>Highest</th>
+                <th className={th}>Price spread</th>
+                <th className={th}>Bookings</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tariffs.map((t) => (
+                <tr key={t.test}>
+                  <td className={`${td} font-extrabold`}>{t.test}</td>
+                  <td className={`${td} tabular-nums`}>{t.labs}</td>
+                  <td className={`${td} tabular-nums`}>{inr(t.min)}</td>
+                  <td className={`${td} tabular-nums`}>{inr(t.median)}</td>
+                  <td className={`${td} tabular-nums`}>{inr(t.max)}</td>
+                  <td className={td}>
+                    {t.labs < 2 ? <Status label="Single lab" color="#5B667A" /> : t.spreadPct > 25 ? <Status label={`Wide (${Math.round(t.spreadPct)}%)`} color="#B54708" /> : <Status label="Normal" color="#2A4DD0" />}
+                  </td>
+                  <td className={`${td} tabular-nums`}>{count(t.booked)}</td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-container text-sm">
-                {tariffs.map((t) => (
-                  <tr key={t.test} className="hover:bg-surface-container-low/60 transition-colors">
-                    <td className="py-3 px-4 font-semibold text-on-surface">{t.test}</td>
-                    <td className="py-3 px-4 text-indigo-gray-600">{t.labs}</td>
-                    <td className="py-3 px-4 font-mono">₹{t.min.toLocaleString('en-IN')}</td>
-                    <td className="py-3 px-4 font-mono">₹{t.median.toLocaleString('en-IN')}</td>
-                    <td className="py-3 px-4 font-mono">₹{t.max.toLocaleString('en-IN')}</td>
-                    <td className="py-3 px-4">
-                      {t.labs < 2 ? (
-                        <Chip>Single lab</Chip>
-                      ) : t.spreadPct > 25 ? (
-                        <Chip tone="coral">+₹{t.spread.toLocaleString('en-IN')} ({Math.round(t.spreadPct)}%)</Chip>
-                      ) : (
-                        <Chip tone="teal">Consistent</Chip>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 font-mono text-indigo-gray-600">{t.booked}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </Table>
         )}
-      </Panel>
-    </>
+      </Card>
+    </ExePage>
   )
 }

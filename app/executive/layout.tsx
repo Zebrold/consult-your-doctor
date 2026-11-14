@@ -1,33 +1,21 @@
-import { Metadata } from 'next'
-import { FileText, MapPin } from 'lucide-react'
-import { TopBar } from '@/components/portal/TopBar'
-import { TopBarChip } from '@/components/portal/TopBarChip'
+import type { Metadata } from 'next'
 import { requireExecutive } from './_lib/ops'
 import { ExecutiveDock } from './_components/ExecutiveDock'
+import { TEAM_LABEL } from './_lib/access'
 
 export const metadata: Metadata = {
-  title: 'Executive Operations',
+  title: 'Executive workspace',
 }
 
 export default async function ExecutiveLayout({ children }: { children: React.ReactNode }) {
-  const { profile } = await requireExecutive()
+  const { profile, access } = await requireExecutive()
 
+  // The executive workspace after the DeskExe* exports: the blue sidebar and white top bar on desktops, the tab bar on
+  // phones (ExecutiveDock), and the pale desk background behind every page.
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 font-body-md text-on-surface">
-      <TopBar
-        homeHref="/executive/dashboard"
-        section="Executive Operations"
-        person={{ name: profile.fullName, role: 'Executive' }}
-        links={[{ href: '/executive/policies', label: 'Policies & templates', icon: <FileText /> }]}
-        chips={profile.hospitalName && <TopBarChip icon={MapPin}>{profile.hospitalName}</TopBarChip>}
-        container="max-w-[1560px] px-margin-x-mobile lg:px-margin-x-desktop"
-      />
-      <ExecutiveDock />
-
-      <main className="flex-1 w-full max-w-[1560px] mx-auto px-margin-x-mobile lg:px-margin-x-desktop pt-4 md:pt-6 pb-12 md:pb-16 flex flex-col gap-6 md:gap-stack-lg">
-        {children}
-      </main>
-
+    <div className="min-h-dvh bg-[#F6F8FC] lg:bg-[#F4F6FA] text-[#0B1B3F] font-(family-name:--font-manrope) antialiased lg:pl-[260px] lg:pt-[72px]">
+      <ExecutiveDock person={{ name: profile.fullName, team: access.ready ? TEAM_LABEL[access.team] : (profile.hospitalName ?? 'Executive') }} access={access} />
+      {children}
     </div>
   )
 }

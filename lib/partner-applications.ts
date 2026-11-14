@@ -88,6 +88,12 @@ export type SecondContact = { name?: string; phone?: string; email?: string }
 
 /** The extra answers kept with an application (partner_applications.details). Older applications have fewer. */
 export type PartnerDetails = {
+  /** A new branch asked for from a hospital's Accounts & branches page: approving it gives the asker access to it. */
+  branchOf?: { hospitalId: string; hospitalName: string; requestedBy: string; requestedByName: string }
+  /** Filled in by the team during a call from a partner enquiry (/executive/support, Hospital interest). */
+  filedBy?: { name: string; enquiryId: string }
+  /** The bank account or UPI ID the hospital gave on that call, as they said it. */
+  payoutNote?: string
   state?: string
   pincode?: string
   website?: string
@@ -190,6 +196,9 @@ export function partnerDetailRows(app: PartnerApplication): [string, string][] {
   const rows: [string, string | number | null | undefined][] =
     app.kind === 'hospital'
       ? [
+          ['Branch of', d.branchOf ? `${d.branchOf.hospitalName} (asked for by ${d.branchOf.requestedByName}, who gets access once approved)` : null],
+          ['Filled in by', d.filedBy ? `${d.filedBy.name}, during a call after the hospital’s enquiry` : null],
+          ['Payout account (given on the call)', d.payoutNote ?? null],
           ['Type', joinParts(d.facilityType, d.ownership)],
           ['Established', d.yearEstablished ?? null],
           ['Registration / licence', registration],

@@ -1,122 +1,212 @@
 import type { Metadata } from 'next'
-import { Building2, CircleCheck, Hourglass, IndianRupee, PieChart, ReceiptText, Stethoscope, Wallet } from 'lucide-react'
-import { buildLedger, currentTime, formatINR, loadAppointments, loadLabBookings, loadPayments, requireExecutive } from '../_lib/ops'
-import { BarList, MetricCard, PageHeader, Panel } from '../_components/ui'
+import { istDateKey } from '@/components/patient/format'
+import { gatewayKey } from '@/lib/payment-gateways'
+import { PLATFORM_HELD } from '@/lib/wallet'
+import { countDelta, monthName, monthSoFar, monthsEnding, prevMonth } from '@/lib/report-stats'
+import { buildLedger, currentTime, formatINR, loadAppointments, loadLabBookings, loadPayments, requireExecutivePage } from '../_lib/ops'
+import { Card, ExePage, Stat, Stats, Table, count, plural, td, th, type Delta } from '../_components/ui'
 import { RevenueLedger } from '../_components/RevenueLedger'
 
-export const metadata: Metadata = { title: 'Revenue & Billing' }
+export const metadata: Metadata = { title: 'Revenue' }
 
+function Change({ d }: { d?: Delta }) {
+  if (!d) return <span className="text-[#98A2B3]">—</span>
+  return <span className={`font-extrabold ${d.dir === 'flat' ? 'text-[#5B667A]' : d.good ? 'text-[#067647]' : 'text-[#B42318]'}`}>{d.text}</span>
+}
+
+/**
+ * Revenue after DeskExeRevenue: what's collected, by month, by source and by partner, and the full ledger. Bookings are
+ * valued at the recorded payment or, where none was recorded, the listed fee (buildLedger), as before.
+ */
 export default async function ExecutiveRevenuePage() {
-  const { admin } = await requireExecutive()
-  const [appointments, labBookings, payments] = await Promise.all([loadAppointments(admin), loadLabBookings(admin), loadPayments(admin)])
+  const { admin, profile } = await requireExecutivePage('revenue')
   const now = currentTime()
+  const today = istDateKey(now)
+  const span = monthSoFar(today)
+  const monthStart = new Date(`${span.month}-01T00:00:00+05:30`).toISOString()
 
-  const today = new Date(now)
-  today.setHours(0, 0, 0, 0)
-  const tomorrow = today.getTime() + 86_400_000
-  const monthAgo = now - 30 * 86_400_000
-  const inToday = (iso: string | null) => Boolean(iso) && new Date(iso!).getTime() >= today.getTime() && new Date(iso!).getTime() < tomorrow
+  const [appointments, labBookings, payments, badgesRes, ordersRes, payoutsRes, { data: hospitals }, sharesRes, costRes] = await Promise.all([
+    loadAppointments(admin),
+    loadLabBookings(admin),
+    loadPayments(admin),
+    admin.from('verified_badges').select('subject, amount, status, created_at').in('status', ['in_review', 'active']).gte('created_at', monthStart).limit(5000),
+    admin.from('equipment_orders').select('total, status, paid_at').not('paid_at', 'is', null).gte('paid_at', monthStart).limit(5000),
+    admin.from('hospital_payouts').select('hospital_id, amount, processed_at').eq('status', 'paid').gte('processed_at', monthStart).limit(5000),
+    admin.from('hospitals').select('id, name'),
+    // Whose money each payment is (20261102_hospital_wallets.sql): the booking fee is Consult your Doctor's part.
+    admin.from('payments').select('gateway, status, platform_share, hospital_share, hospital_id').eq('status', 'success').gte('created_at', monthStart).limit(20000),
+    // What paid orders cost from suppliers (20261115_executive_workspace.sql), for the commission.
+    admin.from('equipment_orders').select('subtotal, cost_total, status').not('paid_at', 'is', null).gte('paid_at', monthStart).limit(5000),
+  ])
 
   const ledger = buildLedger(appointments, labBookings, payments)
-  const paidToday = ledger.filter((r) => inToday(r.createdAt))
-  const revenueToday = paidToday.reduce((s, r) => s + r.amount, 0)
+  const monthOf = (iso: string) => istDateKey(iso).slice(0, 7)
+  const thisMonth = ledger.filter((r) => span.inThis(istDateKey(r.createdAt)))
+  const lastSoFar = ledger.filter((r) => span.inLastSoFar(istDateKey(r.createdAt)))
+  const sum = (rows: typeof ledger) => rows.reduce((s, r) => s + r.amount, 0)
+  const revenueMonth = sum(thisMonth)
+  const paidToday = ledger.filter((r) => istDateKey(r.createdAt) === today)
 
-  const consultsToday = appointments.filter((a) => inToday(a.startTime) && a.status !== 'cancelled')
-  const completedToday = consultsToday.filter((a) => a.status === 'visited' || a.status === 'completed').length
+  // Hospitals' part of what Consult your Doctor collected (online and UPI at the desk; cash stays at the hospital), and
+  // the platform's part of every payment.
+  type Share = { gateway: string | null; platform_share: number | string | null; hospital_share: number | string | null; hospital_id: string | null }
+  const shares = (sharesRes.error ? null : (sharesRes.data ?? [])) as Share[] | null
+  const held = (g: string | null) => !!g && PLATFORM_HELD.includes(gatewayKey(g))
+  const hospitalShare = shares ? shares.filter((p) => held(p.gateway)).reduce((s, p) => s + (Number(p.hospital_share) || 0), 0) : null
+  const platformShare = shares ? shares.reduce((s, p) => s + (Number(p.platform_share) || 0), 0) : null
+  const shareByHospital = new Map<string, number>()
+  for (const p of shares ?? []) if (held(p.gateway) && p.hospital_id) shareByHospital.set(p.hospital_id, (shareByHospital.get(p.hospital_id) ?? 0) + (Number(p.hospital_share) || 0))
 
-  const unpaidConsults = appointments.filter((a) => a.status === 'pending_payment')
-  const unpaidLabs = labBookings.filter((b) => b.status === 'pending_payment')
-  const unpaidValue = unpaidConsults.reduce((s, a) => s + (a.doctor?.fee ?? 0), 0) + unpaidLabs.reduce((s, b) => s + (b.price ?? 0), 0)
+  // The commission on equipment: the price over what the team pays the supplier, for orders with cost prices.
+  const costed = ((costRes.error ? [] : costRes.data) as { subtotal: number | string; cost_total: number | string | null; status: string }[] | null ?? []).filter((o) => o.status !== 'cancelled')
+  const withCost = costed.filter((o) => o.cost_total != null)
+  const commission = withCost.reduce((s, o) => s + (Number(o.subtotal) - Number(o.cost_total)), 0)
 
-  const last30 = ledger.filter((r) => new Date(r.createdAt).getTime() >= monthAgo)
-  const consultRevenue = last30.filter((r) => r.kind === 'consultation').reduce((s, r) => s + r.amount, 0)
-  const labRevenue = last30.filter((r) => r.kind === 'diagnostic').reduce((s, r) => s + r.amount, 0)
-  const total30 = consultRevenue + labRevenue
-  const consultShare = total30 ? (consultRevenue / total30) * 100 : 0
 
-  const byProvider = new Map<string, number>()
-  for (const r of last30) {
-    const name = r.kind === 'consultation' ? r.provider.split(' · ').pop() || 'Unknown hospital' : r.provider
-    byProvider.set(name, (byProvider.get(name) ?? 0) + r.amount)
+  // The last six months, this one so far compared with the same days of the last.
+  const byMonth = new Map<string, { revenue: number; bookings: number }>()
+  for (const r of ledger) {
+    const k = monthOf(r.createdAt)
+    const m = byMonth.get(k) ?? { revenue: 0, bookings: 0 }
+    m.revenue += r.amount
+    m.bookings++
+    byMonth.set(k, m)
   }
-  const topProviders = Array.from(byProvider.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 6)
-    .map(([label, value]) => ({ label, value, display: formatINR(value) }))
+  const months = monthsEnding(span.month, 6)
+    .reverse()
+    .map((k) => {
+      const m = byMonth.get(k) ?? { revenue: 0, bookings: 0 }
+      const before = k === span.month ? sum(lastSoFar) : byMonth.get(prevMonth(k))?.revenue ?? 0
+      return { key: k, ...m, change: countDelta(m.revenue, before) }
+    })
+
+  type BadgeRow = { subject: string; amount: number | string }
+  const badges = (badgesRes.error ? [] : (badgesRes.data ?? [])) as BadgeRow[]
+  const badgeTotal = badges.reduce((s, b) => s + (Number(b.amount) || 0), 0)
+  const orders = (ordersRes.error ? [] : (ordersRes.data ?? [])) as { total: number | string; status: string }[]
+  const paidOrders = orders.filter((o) => o.status !== 'cancelled')
+  const consults = thisMonth.filter((r) => r.kind === 'consultation')
+  const labs = thisMonth.filter((r) => r.kind === 'diagnostic')
+  const sources = [
+    { label: 'Doctor bookings', value: sum(consults), sub: plural(consults.length, 'paid consultation') },
+    { label: 'Lab test bookings', value: sum(labs), sub: plural(labs.length, 'paid lab test') },
+    ...(badgesRes.error ? [] : [{ label: 'Verified badges', value: badgeTotal, sub: `${plural(badges.filter((b) => b.subject === 'doctor').length, 'doctor')}, ${plural(badges.filter((b) => b.subject === 'hospital').length, 'hospital')}` }]),
+    ...(ordersRes.error ? [] : [{ label: 'Equipment orders', value: paidOrders.reduce((s, o) => s + (Number(o.total) || 0), 0), sub: `Order value of ${plural(paidOrders.length, 'paid order')}` }]),
+    ...(costRes.error ? [] : [{ label: 'Equipment commission', value: commission, sub: withCost.length === costed.length ? 'Price over supplier cost' : `On ${withCost.length} of ${plural(costed.length, 'order')} with cost prices` }]),
+  ]
+  const netPlatform = platformShare == null ? null : platformShare + badgeTotal + (costRes.error ? 0 : commission)
+
+  // By partner: hospitals (consultations) and labs this month, with what each hospital withdrew.
+  const nameOf = new Map(((hospitals ?? []) as { id: string; name: string | null }[]).map((h) => [h.id, h.name ?? 'Hospital']))
+  const paidOut = new Map<string, number>()
+  for (const p of (payoutsRes.error ? [] : (payoutsRes.data ?? [])) as { hospital_id: string; amount: number | string }[]) {
+    paidOut.set(nameOf.get(p.hospital_id) ?? 'Hospital', (paidOut.get(nameOf.get(p.hospital_id) ?? 'Hospital') ?? 0) + (Number(p.amount) || 0))
+  }
+  const shareByName = new Map<string, number>()
+  for (const [id, v] of shareByHospital) shareByName.set(nameOf.get(id) ?? 'Hospital', (shareByName.get(nameOf.get(id) ?? 'Hospital') ?? 0) + v)
+  const partners = new Map<string, { kind: 'Hospital' | 'Lab'; revenue: number; bookings: number }>()
+  for (const r of thisMonth) {
+    const name = r.kind === 'consultation' ? r.provider.split(' · ').pop() || 'Unknown hospital' : r.provider
+    const p = partners.get(name) ?? { kind: r.kind === 'consultation' ? 'Hospital' : 'Lab', revenue: 0, bookings: 0 }
+    p.revenue += r.amount
+    p.bookings++
+    partners.set(name, p)
+  }
+  const partnerRows = Array.from(partners.entries())
+    .sort((a, b) => b[1].revenue - a[1].revenue)
+    .slice(0, 10)
 
   return (
-    <>
-      <PageHeader
-        eyebrow="Revenue"
-        title="Revenue & Patient Billing"
-        description="Collected revenue from paid consultations and lab tests, valued at the recorded payment or the listed fee, with bookings still awaiting payment."
-      />
-
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-gutter">
-        <MetricCard label="Consultations today" value={consultsToday.length} icon={Stethoscope} tone="blue" footer={<span>Scheduled for today</span>} />
-        <MetricCard
-          label="Seen today"
-          value={completedToday}
-          icon={CircleCheck}
-          tone="teal"
-          progress={consultsToday.length ? (completedToday / consultsToday.length) * 100 : 0}
-          footer={<span>Checked in or completed</span>}
+    <ExePage name={profile.fullName} title="Revenue" subtitle="What Consult your Doctor collects, by month, by source and by partner">
+      <Stats>
+        <Stat label="Revenue this month" value={formatINR(revenueMonth)} change={<Change d={countDelta(revenueMonth, sum(lastSoFar))} />} note={`vs ${span.lastSpan}`} />
+        <Stat label="Revenue today" value={formatINR(sum(paidToday))} note={plural(paidToday.length, 'paid booking')} tone="blue" />
+        <Stat label="Paid to hospitals" value={hospitalShare == null ? '—' : formatINR(hospitalShare)} note={hospitalShare == null ? 'Shares start with the wallet migration' : 'Their share of bookings, this month'} />
+        <Stat
+          label="Net platform revenue"
+          value={netPlatform == null ? '—' : formatINR(netPlatform)}
+          note={netPlatform == null ? 'Shares start with the wallet migration' : 'Fees, badges and commission'}
+          tone="blue"
         />
-        <MetricCard label="Paid bookings today" value={paidToday.length} icon={ReceiptText} tone="neutral" footer={<span>Consultations &amp; lab tests</span>} />
-        <MetricCard label="Revenue today" value={formatINR(revenueToday)} icon={IndianRupee} tone="primary" footer={<span>{formatINR(total30)} in the last 30 days</span>} />
-        <MetricCard
-          label="Awaiting payment"
-          value={formatINR(unpaidValue)}
-          icon={Hourglass}
-          tone="coral"
-          footer={<span>{unpaidConsults.length + unpaidLabs.length} unpaid bookings</span>}
-        />
-      </section>
+      </Stats>
 
-      <Panel
-        title="Revenue Ledger"
-        icon={Wallet}
-        description="Every paid consultation and lab test, newest first. The payment method comes from the recorded payment where one exists."
-      >
-        <RevenueLedger rows={ledger} />
-      </Panel>
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-3.5 lg:gap-5 items-start">
+        <Card title="Revenue by month" sub="Consultations and lab tests">
+          <Table min={460}>
+            <thead>
+              <tr>
+                <th className={th}>Month</th>
+                <th className={`${th} text-right`}>Revenue</th>
+                <th className={`${th} text-right`}>Bookings</th>
+                <th className={`${th} text-right`}>Change</th>
+              </tr>
+            </thead>
+            <tbody>
+              {months.map((m) => (
+                <tr key={m.key}>
+                  <td className={`${td} font-extrabold whitespace-nowrap`}>
+                    {monthName(m.key, 'year')}
+                    {m.key === span.month ? <span className="font-bold text-[#5B667A]"> (so far)</span> : ''}
+                  </td>
+                  <td className={`${td} text-right tabular-nums font-bold`}>{formatINR(m.revenue)}</td>
+                  <td className={`${td} text-right tabular-nums`}>{count(m.bookings)}</td>
+                  <td className={`${td} text-right`}>
+                    <Change d={m.change} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-stack-md">
-        <Panel title="Revenue by Channel" icon={PieChart} description={`Last 30 days: ${formatINR(total30)} collected.`}>
-          <div className="flex flex-col gap-2">
-            <div className="h-6 w-full rounded-full bg-surface-container-low flex overflow-hidden p-0.5">
-              <div className="bg-vibrant-blue h-full rounded-l-full" style={{ width: `${consultShare}%` }} title="Consultations" />
-              <div className="bg-fresh-teal h-full rounded-r-full" style={{ width: `${total30 ? 100 - consultShare : 0}%` }} title="Diagnostics" />
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-2 font-label-sm text-[12px] px-1">
-              <span className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-sm bg-vibrant-blue" />
-                <span className="text-indigo-gray-600">Consultations ({Math.round(consultShare)}%):</span>
-                <strong className="text-indigo-gray-900">{formatINR(consultRevenue)}</strong>
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-sm bg-fresh-teal" />
-                <span className="text-indigo-gray-600">Diagnostics ({total30 ? Math.round(100 - consultShare) : 0}%):</span>
-                <strong className="text-indigo-gray-900">{formatINR(labRevenue)}</strong>
-              </span>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="p-3 rounded-lg bg-surface-container-low">
-              <span className="font-label-sm text-[10px] uppercase font-bold text-indigo-gray-600">Paid consultations</span>
-              <p className="font-title-md text-base font-bold text-indigo-gray-900 mt-1">{last30.filter((r) => r.kind === 'consultation').length}</p>
-            </div>
-            <div className="p-3 rounded-lg bg-surface-container-low">
-              <span className="font-label-sm text-[10px] uppercase font-bold text-indigo-gray-600">Paid lab tests</span>
-              <p className="font-title-md text-base font-bold text-indigo-gray-900 mt-1">{last30.filter((r) => r.kind === 'diagnostic').length}</p>
-            </div>
-          </div>
-        </Panel>
-
-        <Panel title="Top Hospitals & Labs" icon={Building2} description="Highest collected revenue in the last 30 days.">
-          {topProviders.length === 0 ? <p className="text-sm text-indigo-gray-600">No paid bookings in the last 30 days.</p> : <BarList rows={topProviders} />}
-        </Panel>
+        <Card title="Where it comes from" sub={`${monthName(span.month)} so far`}>
+          <ul>
+            {sources.map((s) => (
+              <li key={s.label} className="flex items-center justify-between gap-3 py-3 border-t border-[#EEF2F7] first:border-t-0 first:pt-0">
+                <span className="min-w-0">
+                  <span className="block text-[13.5px] font-extrabold">{s.label}</span>
+                  <span className="block text-[12px] text-[#5B667A]">{s.sub}</span>
+                </span>
+                <span className="shrink-0 text-[14px] font-extrabold tabular-nums">{formatINR(s.value)}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
       </div>
-    </>
+
+      <Card title="By partner" sub={`${monthName(span.month)} so far`}>
+        {partnerRows.length === 0 ? (
+          <p className="text-[13px] text-[#5B667A]">No paid bookings this month yet.</p>
+        ) : (
+          <Table min={620}>
+            <thead>
+              <tr>
+                <th className={th}>Partner</th>
+                <th className={`${th} text-right`}>Revenue</th>
+                <th className={`${th} text-right`}>Bookings</th>
+                <th className={`${th} text-right`}>Hospital share</th>
+                <th className={`${th} text-right`}>Withdrawals paid</th>
+              </tr>
+            </thead>
+            <tbody>
+              {partnerRows.map(([name, p]) => (
+                <tr key={name}>
+                  <td className={td}>
+                    <span className="block font-extrabold">{name}</span>
+                    <span className="block text-[12px] text-[#5B667A]">{p.kind}</span>
+                  </td>
+                  <td className={`${td} text-right tabular-nums font-bold`}>{formatINR(p.revenue)}</td>
+                  <td className={`${td} text-right tabular-nums`}>{count(p.bookings)}</td>
+                  <td className={`${td} text-right tabular-nums`}>{p.kind === 'Hospital' && shareByName.get(name) ? formatINR(shareByName.get(name)!) : <span className="text-[#98A2B3]">—</span>}</td>
+                  <td className={`${td} text-right tabular-nums`}>{p.kind === 'Hospital' && paidOut.get(name) ? formatINR(paidOut.get(name)!) : <span className="text-[#98A2B3]">—</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
+      </Card>
+
+      <RevenueLedger rows={ledger} />
+    </ExePage>
   )
 }

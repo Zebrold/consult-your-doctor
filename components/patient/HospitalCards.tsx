@@ -41,7 +41,7 @@ export function HospitalListCard({ hospital: h, km }: { hospital: HomeHospital; 
         <span className="absolute left-3 right-3 bottom-2.5 flex items-center justify-between gap-2">
           <span className="flex items-center gap-1.5 min-w-0 text-white text-[16px] font-extrabold">
             <span className="truncate">{h.name}</span>
-            <VerifiedBadge className="w-[15px] h-[15px]" />
+            <VerifiedBadge hospitalId={h.id} className="w-[15px] h-[15px]" />
           </span>
           {h.rating != null && (
             <span className="shrink-0 px-2 py-[3px] rounded-full border border-white/70 bg-[rgba(8,20,51,0.45)] text-white text-[11.5px] font-extrabold">
@@ -85,7 +85,7 @@ export function HospitalGridCard({ hospital: h, km }: { hospital: HomeHospital; 
       <span className="block px-4 pt-3.5 pb-4">
         <span className="flex items-center gap-1.5 text-[15px] font-extrabold min-w-0">
           <span className="truncate group-hover:text-[#2A4DD0] transition-colors">{h.name}</span>
-          <VerifiedBadge className="w-[15px] h-[15px]" />
+          <VerifiedBadge hospitalId={h.id} className="w-[15px] h-[15px]" />
         </span>
         <span className="block mt-0.5 text-[13px] text-[#5B667A] truncate">
           {[h.specialties.length >= 3 ? "Multi-speciality" : h.specialties[0]?.name, placeOf(h), km != null ? formatDistance(km) : null].filter(Boolean).join(" · ")}

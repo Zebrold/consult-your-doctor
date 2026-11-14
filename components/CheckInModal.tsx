@@ -23,7 +23,7 @@ export function CheckInModal({ appointmentId, currentStatus, patientName, doctor
     return (
       <button 
         disabled
-        className="px-3 py-1.5 text-xs font-bold text-gray-400 bg-gray-100 rounded-lg cursor-not-allowed uppercase tracking-wider"
+        className="inline-flex items-center h-[34px] px-3 rounded-[10px] text-[12.5px] font-extrabold text-[#98A2B3] bg-[#F4F6FA] cursor-not-allowed capitalize"
       >
         {currentStatus}
       </button>
@@ -61,9 +61,9 @@ export function CheckInModal({ appointmentId, currentStatus, patientName, doctor
     <>
       <button 
         onClick={() => setIsOpen(true)}
-        className="px-4 py-2 text-sm font-bold text-white bg-[#E31E24] hover:bg-red-700 rounded-lg shadow-sm transition-colors"
+        className="inline-flex items-center justify-center h-[34px] px-3 rounded-[10px] text-[12.5px] font-extrabold whitespace-nowrap border-[1.5px] border-[#2A4DD0] bg-white text-[#2A4DD0] hover:bg-[#EEF3FF] transition-colors"
       >
-        Verify & Check-In
+        Check in
       </button>
 
       {isOpen && (
@@ -74,7 +74,7 @@ export function CheckInModal({ appointmentId, currentStatus, patientName, doctor
                 {isGuidedPhase ? (
                   <Navigation className="w-5 h-5 text-emerald-600" />
                 ) : (
-                  <ShieldAlert className="w-5 h-5 text-[#E31E24]" />
+                  <ShieldAlert className="w-5 h-5 text-[#2A4DD0]" />
                 )}
                 <h2 className="text-lg font-black">{isGuidedPhase ? 'Guidance Required' : 'Verify Patient'}</h2>
               </div>
@@ -93,7 +93,7 @@ export function CheckInModal({ appointmentId, currentStatus, patientName, doctor
                     <CheckCircle2 className="w-8 h-8 text-emerald-600" />
                   </div>
                   <h3 className="text-xl font-black text-gray-900 mb-1">Check-In Successful!</h3>
-                  <p className="text-sm text-gray-500">The patient's identity has been verified.</p>
+                  <p className="text-sm text-gray-500">The patient&apos;s identity has been verified.</p>
                 </div>
 
                 <div className="bg-gray-50 rounded-xl p-5 border border-gray-100 mb-6">
@@ -149,7 +149,7 @@ export function CheckInModal({ appointmentId, currentStatus, patientName, doctor
                     onChange={(e) => setBookingId(e.target.value.toUpperCase())}
                     placeholder="e.g. DA8AF0A5"
                     maxLength={8}
-                    className="w-full px-4 py-3 text-lg font-black tracking-widest text-center border border-gray-200 rounded-xl outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200 uppercase transition-all"
+                    className="w-full px-4 py-3 text-lg font-black tracking-widest text-center border border-gray-200 rounded-xl outline-none focus:border-[#2A4DD0] focus:ring-2 focus:ring-[#2A4DD0]/20 uppercase transition-all"
                     autoFocus
                   />
                 </div>
@@ -165,7 +165,7 @@ export function CheckInModal({ appointmentId, currentStatus, patientName, doctor
                   <button
                     type="submit"
                     disabled={isLoading || bookingId.length !== 8}
-                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-xl transition-colors disabled:opacity-50"
+                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-[#2A4DD0] hover:bg-[#2443B8] rounded-xl transition-colors disabled:opacity-50"
                   >
                     {isLoading ? 'Verifying...' : (
                       <>

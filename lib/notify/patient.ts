@@ -3,8 +3,8 @@ import { siteUrl } from '@/lib/site-url'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { RECORD_BUCKET } from '@/lib/records'
 import { sendEmail } from './email'
-import { sendWhatsApp } from './whatsapp'
-import { sendBookingConfirmationSms, sendReportReadySms, sendAccountCreatedSms } from './sms'
+import { sendWhatsApp, sendWhatsAppText } from './whatsapp'
+import { sendBookingConfirmationSms, sendReportReadySms, sendAccountCreatedSms, sendSms } from './sms'
 
 // What patients hear about, on WhatsApp and (when they gave an email address) by email. Everything runs after the
 // staff member's request has been answered, so a slow or failing provider never holds up the desk.
@@ -201,6 +201,29 @@ export function notifyHealthUpdate(args: { patientId: string; hospital: string }
           `${args.hospital} added your health details from today's visit to your Consult Your Doctor account. Your doctor can see them too.`,
           `View them at ${SITE_URL}/patient/profile`,
         ],
+      })
+    }
+  })
+}
+
+/**
+ * The doctor a patient is booked with is on leave that day (their hospital approved it): the hospital will move the
+ * visit, at no extra charge. Sent by SMS, WhatsApp and email.
+ */
+export function notifyDoctorLeave(args: { patientId: string; bookingCode: string; doctor: string; hospital: string; when: string; plan: string }) {
+  later('leave', async (admin) => {
+    const contact = await patientContact(admin, args.patientId)
+    if (!contact) return
+    const line = `${args.doctor} is on leave on ${args.when}. ${args.hospital} will contact you to move your visit (booking ${args.bookingCode}) ${args.plan}, at no extra charge.`
+    if (contact.phone) {
+      await sendSms({ phone: contact.phone, message: `Consult Your Doctor: ${line}` }).catch(() => null)
+      await sendWhatsAppText(contact.phone, `Hello ${firstName(contact.name)}, ${line}`).catch(() => null)
+    }
+    if (contact.email) {
+      await sendEmail({
+        to: contact.email,
+        subject: `${args.doctor} is on leave on ${args.when}`,
+        paragraphs: [`Hello ${firstName(contact.name)},`, line, `See your bookings at ${SITE_URL}/patient/appointments`],
       })
     }
   })

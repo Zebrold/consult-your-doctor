@@ -12,6 +12,7 @@ import { loadHospitalReviews } from '@/lib/reviews'
 import { dayOf, isPaidVisit, loadHospitalDoctors, loadHospitalVisits, requireHospital } from '../_lib/hospital'
 import { HospitalProfileEditor } from '../_components/HospitalProfileEditor'
 import { BarChart, EmptyLine, HosBackHeader, HosBody, Meter, MoreLink, Panel, PanelHead, PhoneStats, Row, Verified, btnOutline, btnPrimary, card, plural, telHref } from '../_components/hos-ui'
+import { hasLiveBadge } from '@/lib/badges'
 
 export const metadata: Metadata = { title: 'Hospital Profile | Hospital Portal' }
 export const dynamic = 'force-dynamic'
@@ -40,6 +41,8 @@ export default async function HospitalProfilePage() {
   for (const d of doctors) departments.set(d.department, [...(departments.get(d.department) ?? []), d])
   const priced = hospital.tests.filter((t) => t.price)
   const live = hospital.status === 'active'
+  // The blue tick is the verified badge (lib/badges.ts), not just being listed.
+  const ticked = await hasLiveBadge(admin, 'hospital', hospital.id)
   const place = [hospital.address, hospital.city].filter(Boolean).join(', ')
   const hospitalId = hospital.id.slice(0, 8).toUpperCase()
 
@@ -275,7 +278,7 @@ export default async function HospitalProfilePage() {
             <span className="block text-[12px] font-bold text-[#CFDCFF]">Hospital ID {hospitalId}</span>
             <span className="flex items-center gap-1.5 text-[22px] font-extrabold leading-tight">
               <span className="truncate">{hospital.name}</span>
-              {live && <Verified />}
+              {ticked && <Verified />}
             </span>
             <span className="block text-[13px] text-[#DCE6FF] truncate">{place || 'Add your address so patients can find you'}</span>
           </span>
@@ -307,7 +310,7 @@ export default async function HospitalProfilePage() {
             <span className="flex-1 min-w-0 pb-1">
               <span className="flex items-center gap-2 text-[24px] font-extrabold">
                 <span className="truncate">{hospital.name}</span>
-                {live && <Verified />}
+                {ticked && <Verified />}
               </span>
               <span className="block text-[14px] text-[#5B667A] truncate">
                 {[bedSummary.total ? plural(bedSummary.total, 'bed') : null, place || null, `Hospital ID ${hospitalId}`, live ? 'Live for booking' : 'Not listed yet'].filter(Boolean).join(' · ')}

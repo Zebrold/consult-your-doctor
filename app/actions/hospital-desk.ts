@@ -14,6 +14,7 @@ import { getBookingFees } from '@/lib/booking-fees'
 import { bookedServices, sumPrices } from '@/lib/pricing'
 import { appointmentBookingFee, shareColumns, type Shares } from '@/lib/wallet'
 import { followUpBase } from '@/lib/follow-up'
+import { slotHospitalId } from '@/lib/practices'
 import { bookingOptionsReady } from '@/lib/booking-options'
 import { ONLINE_GATEWAYS } from '@/lib/payment-gateways'
 
@@ -82,16 +83,24 @@ export async function hospitalOpenSlots(doctorId: string): Promise<DeskResult<{ 
   if (!ctx) return fail(NOT_SIGNED_IN)
   const { data: doctor } = await ctx.admin.from('doctors').select('hospital_id').eq('id', doctorId).maybeSingle()
   if (doctor?.hospital_id !== ctx.hospital.id) return fail('Doctor not found in your hospital.')
-  const { data } = await ctx.admin
-    .from('schedules')
-    .select('id, start_time, end_time, is_booked')
-    .eq('doctor_id', doctorId)
-    .gte('start_time', new Date().toISOString())
-    .lt('start_time', new Date(Date.now() + 7 * 86_400_000).toISOString())
-    .order('start_time', { ascending: true })
-    .limit(96)
-  type Slot = { id: string; start_time: string; end_time: string | null; is_booked: boolean | null }
-  return { ok: true, slots: ((data ?? []) as Slot[]).map((s) => ({ id: s.id, start: s.start_time, end: s.end_time, taken: !!s.is_booked })) }
+  const query = (columns: string) =>
+    ctx.admin
+      .from('schedules')
+      .select(columns)
+      .eq('doctor_id', doctorId)
+      .gte('start_time', new Date().toISOString())
+      .lt('start_time', new Date(Date.now() + 7 * 86_400_000).toISOString())
+      .order('start_time', { ascending: true })
+      .limit(96)
+  // Only this hospital's slots: a doctor's slots at a hospital they also visit (lib/practices.ts) carry that hospital's
+  // id. Before 20261115_executive_workspace.sql there is no hospital_id and every slot is here.
+  const first = await query('id, start_time, end_time, is_booked, hospital_id')
+  const data = (first.error ? (await query('id, start_time, end_time, is_booked')).data : first.data) as unknown
+  type Slot = { id: string; start_time: string; end_time: string | null; is_booked: boolean | null; hospital_id?: string | null }
+  return {
+    ok: true,
+    slots: ((data ?? []) as Slot[]).filter((s) => !s.hospital_id || s.hospital_id === ctx.hospital.id).map((s) => ({ id: s.id, start: s.start_time, end: s.end_time, taken: !!s.is_booked })),
+  }
 }
 
 /**
@@ -139,6 +148,9 @@ export async function createHospitalVisit(input: { token: string; doctorId: stri
     if (error || !slot) return fail('Could not add the walk-in slot. Please try again.')
     scheduleId = slot.id
   } else {
+    // Never a slot another hospital published for this doctor as a visiting consultant.
+    const at = await slotHospitalId(ctx.admin, scheduleId, ctx.hospital.id)
+    if (at !== ctx.hospital.id) return fail('That slot is at another hospital. Choose another time.')
     // Claim the slot only while it is still free, so two desks can't book the same time.
     const { data: claimed } = await ctx.admin.from('schedules').update({ is_booked: true }).eq('id', scheduleId).eq('doctor_id', doctor.id).eq('is_booked', false).select('id')
     if (!claimed?.length) return fail('That slot was just taken. Choose another time.')

@@ -132,17 +132,37 @@ type DoctorRow = {
   departments: Joined<{ name: string | null }>
 }
 
-export async function loadHospitalDoctors(admin: Admin, hospitalId: string): Promise<HospitalDoctor[]> {
-  const { data } = await admin
-    .from('doctors')
-    .select(`
+const DOCTOR_COLUMNS = `
       id, specialty, experience_years, consultation_fee, image_url, qualifications, bio, address,
       profiles!doctors_profile_id_fkey ( id, full_name, phone_number, email, staff_id, created_at ),
       departments ( name )
-    `)
-    .eq('hospital_id', hospitalId)
+    `
 
-  return ((data ?? []) as DoctorRow[])
+/**
+ * Doctors from other hospitals confirmed to consult here too (lib/practices.ts), with the hospital they belong to.
+ * Empty before 20261115_executive_workspace.sql.
+ */
+export async function loadVisitingDoctors(admin: Admin, hospitalId: string): Promise<(HospitalDoctor & { practiceId: string; homeHospital: string | null })[]> {
+  const { data: links, error } = await admin.from('doctor_practices').select('id, doctor_id').eq('hospital_id', hospitalId).eq('status', 'confirmed').limit(500)
+  if (error || !links?.length) return []
+  const byDoctor = new Map((links as { id: string; doctor_id: string }[]).map((l) => [l.doctor_id, l.id]))
+  const { data } = await admin.from('doctors').select(`${DOCTOR_COLUMNS}, hospitals ( name )`).in('id', [...byDoctor.keys()])
+  return toDoctors((data ?? []) as DoctorRow[]).map((d) => {
+    const row = ((data ?? []) as (DoctorRow & { hospitals?: Joined<{ name: string | null }> })[]).find((r) => r.id === d.id)
+    return { ...d, practiceId: byDoctor.get(d.id)!, homeHospital: one(row?.hospitals ?? null)?.name ?? null }
+  })
+}
+
+export async function loadHospitalDoctors(admin: Admin, hospitalId: string): Promise<HospitalDoctor[]> {
+  const { data } = await admin
+    .from('doctors')
+    .select(DOCTOR_COLUMNS)
+    .eq('hospital_id', hospitalId)
+  return toDoctors((data ?? []) as DoctorRow[])
+}
+
+function toDoctors(rows: DoctorRow[]): HospitalDoctor[] {
+  return rows
     .map((d) => {
       const p = one(d.profiles)
       return {
@@ -188,6 +208,10 @@ export type HospitalVisit = {
   fastTrack: boolean
   /** Hospital services the patient picked when booking, to collect at the counter. */
   services: BookedTest[]
+  /** The patient paid the booking fee online (in the app), whatever the counter took later. */
+  bookedOnline: boolean
+  /** The earlier visit this is the free follow-up of. */
+  followUpOf: string | null
 }
 
 type VisitRow = {
@@ -199,13 +223,17 @@ type VisitRow = {
   /** Missing until 20261028_fast_track_services.sql runs. */
   booking_type?: string | null
   services?: unknown
+  /** Missing until 20261102_hospital_wallets.sql runs. */
+  follow_up_of?: string | null
   schedules: Joined<{ start_time: string; end_time: string | null }>
   patient: Joined<{ id: string; full_name: string | null; phone_number: string | null; email: string | null }>
 }
 
 /** Every consultation at this hospital (booked with one of its doctors), with the payment that settled it, if any. */
 export async function loadHospitalVisits(admin: Admin, hospitalId: string, doctorIds: string[]): Promise<HospitalVisit[]> {
-  const scope = doctorIds.length ? `hospital_id.eq.${hospitalId},doctor_id.in.(${doctorIds.join(',')})` : `hospital_id.eq.${hospitalId}`
+  // Bookings at this hospital, and older ones with no hospital on them for its own doctors. A doctor's bookings at a
+  // hospital they visit (lib/practices.ts) carry that hospital's id, so they show there, not here.
+  const scope = doctorIds.length ? `hospital_id.eq.${hospitalId},and(doctor_id.in.(${doctorIds.join(',')}),hospital_id.is.null)` : `hospital_id.eq.${hospitalId}`
   const { data } = await admin
     .from('appointments')
     // `*` so booking_type and services come back once 20261028_fast_track_services.sql has run.
@@ -220,7 +248,7 @@ export async function loadHospitalVisits(admin: Admin, hospitalId: string, docto
     .limit(5000)
 
   const rows = (data ?? []) as VisitRow[]
-  const payments = await loadPayments(admin, rows.map((r) => r.id))
+  const { payments, online } = await loadPayments(admin, rows.map((r) => r.id))
   return rows
     .map((r) => {
       const slot = one(r.schedules)
@@ -240,6 +268,8 @@ export async function loadHospitalVisits(admin: Admin, hospitalId: string, docto
         counterDue: isOnlineGateway(payment?.gateway) && COUNTER_DUE_STATUSES.includes(r.status),
         fastTrack: isFastTrack(r.booking_type),
         services: bookedServices(r.services),
+        bookedOnline: online.has(r.id),
+        followUpOf: r.follow_up_of ?? null,
       }
     })
     .sort((a, b) => (a.start ?? a.createdAt).localeCompare(b.start ?? b.createdAt))
@@ -248,8 +278,10 @@ export async function loadHospitalVisits(admin: Admin, hospitalId: string, docto
 /** Visits the consultation fee is still to be taken from at the counter when they were booked online. */
 const COUNTER_DUE_STATUSES = ['confirmed', 'visited', 'completed']
 
-async function loadPayments(admin: Admin, ids: string[]): Promise<Map<string, Payment>> {
+/** Each visit's settling payment, and which visits had their booking fee paid online. */
+async function loadPayments(admin: Admin, ids: string[]): Promise<{ payments: Map<string, Payment>; online: Set<string> }> {
   const map = new Map<string, Payment>()
+  const online = new Set<string>()
   for (let i = 0; i < ids.length; i += 150) {
     const { data } = await admin
       .from('payments')
@@ -258,12 +290,13 @@ async function loadPayments(admin: Admin, ids: string[]): Promise<Map<string, Pa
       .eq('status', 'success')
     for (const p of (data ?? []) as { appointment_id: string; amount: number | string; gateway: string | null; created_at: string | null; hospital_share?: number | string | null }[]) {
       const payment = { amount: Number(p.amount) || 0, gateway: p.gateway, createdAt: p.created_at, hospitalShare: p.hospital_share == null ? null : Number(p.hospital_share) || 0 }
+      if (isOnlineGateway(p.gateway)) online.add(p.appointment_id)
       // The desk's payment is what the counter took, so it wins over the online booking fee recorded for the same visit.
       const current = map.get(p.appointment_id)
       if (!current || (isOnlineGateway(current.gateway) && !isOnlineGateway(payment.gateway))) map.set(p.appointment_id, payment)
     }
   }
-  return map
+  return { payments: map, online }
 }
 
 /**
@@ -286,16 +319,28 @@ export function paymentLook(v: { status: string; payment: Payment | null }, shar
 
 export type Slot = { id: string; doctorId: string; start: string; end: string | null; booked: boolean }
 
-export async function loadHospitalSlots(admin: Admin, doctorIds: string[], fromIso: string, toIso: string): Promise<Slot[]> {
+/**
+ * Slots for some doctors between two times. With `hospitalId`, only the ones at that hospital: its own doctors' slots
+ * (no hospital_id, or this one) and the slots it published for visiting doctors (lib/practices.ts).
+ */
+export async function loadHospitalSlots(admin: Admin, doctorIds: string[], fromIso: string, toIso: string, hospitalId?: string): Promise<Slot[]> {
   if (doctorIds.length === 0) return []
-  const { data } = await admin
-    .from('schedules')
-    .select('id, doctor_id, start_time, end_time, is_booked')
-    .in('doctor_id', doctorIds)
-    .gte('start_time', fromIso)
-    .lt('start_time', toIso)
-    .order('start_time', { ascending: true })
-    .limit(10000)
+  const run = (withHospital: boolean) => {
+    let q = admin
+      .from('schedules')
+      .select(withHospital ? 'id, doctor_id, start_time, end_time, is_booked, hospital_id' : 'id, doctor_id, start_time, end_time, is_booked')
+      .in('doctor_id', doctorIds)
+      .gte('start_time', fromIso)
+      .lt('start_time', toIso)
+      .order('start_time', { ascending: true })
+      .limit(10000)
+    if (withHospital && hospitalId) q = q.or(`hospital_id.is.null,hospital_id.eq.${hospitalId}`)
+    return q
+  }
+  let res = await run(true)
+  // Before 20261115_executive_workspace.sql slots have no hospital_id: every slot is at the doctor's own hospital.
+  if (res.error) res = await run(false)
+  const data = res.data as unknown
   return ((data ?? []) as { id: string; doctor_id: string; start_time: string; end_time: string | null; is_booked: boolean }[]).map((s) => ({
     id: s.id,
     doctorId: s.doctor_id,

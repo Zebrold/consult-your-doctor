@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { currentTime } from '@/components/patient/data'
 import { doctorName, formatINR, formatLongDate, formatTime, istDateKey } from '@/components/patient/format'
-import { dayStartIso, loadHospitalDoctors, loadHospitalSlots, requireHospital } from '../../../_lib/hospital'
+import { dayStartIso, loadHospitalDoctors, loadHospitalSlots, loadVisitingDoctors, requireHospital } from '../../../_lib/hospital'
 import { EmptyLine, HosBackHeader, HosBody, Initials, Panel, PanelHead } from '../../../_components/hos-ui'
 import { SlotGeneratorForm } from './SlotGeneratorForm'
 import { DeleteSlotButton } from './DeleteSlotButton'
@@ -21,12 +21,13 @@ export default async function DoctorSchedulePage(props: { params: Promise<{ id: 
   const { admin, hospital } = await requireHospital()
   const now = currentTime()
 
-  const doctor = (await loadHospitalDoctors(admin, hospital.id)).find((d) => d.id === id)
+  // The hospital's own doctor, or a visiting one it publishes slots for (lib/practices.ts).
+  const doctor = (await loadHospitalDoctors(admin, hospital.id)).find((d) => d.id === id) ?? (await loadVisitingDoctors(admin, hospital.id)).find((d) => d.id === id)
   if (!doctor) redirect('/hospital/doctors')
 
   const selected = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : istDateKey(now)
   const start = dayStartIso(selected)
-  const slots = await loadHospitalSlots(admin, [doctor.id], start, new Date(Date.parse(start) + DAY).toISOString())
+  const slots = await loadHospitalSlots(admin, [doctor.id], start, new Date(Date.parse(start) + DAY).toISOString(), hospital.id)
   const booked = slots.filter((s) => s.booked).length
   const name = doctorName(doctor.name)
   const facts = [doctor.department, doctor.fee != null ? `${formatINR(doctor.fee)} per consultation` : null].filter(Boolean).join(' · ')

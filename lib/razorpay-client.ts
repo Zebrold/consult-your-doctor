@@ -17,7 +17,7 @@ const CHECKOUT_JS = 'https://checkout.razorpay.com/v1/checkout.js'
 let loading: Promise<boolean> | null = null
 
 /** Loads Checkout once per page. */
-function loadCheckout(): Promise<boolean> {
+export function loadCheckout(): Promise<boolean> {
   if (window.Razorpay) return Promise.resolve(true)
   loading ??= new Promise<boolean>((resolve) => {
     const script = document.createElement('script')

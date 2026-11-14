@@ -67,9 +67,9 @@ export function Initials({ name, image, className = 'w-9 h-9 text-[12px]' }: { n
   )
 }
 
-/** The blue tick next to a doctor's name, for doctors with a registration number on file. */
+/** The blue tick next to a doctor's or hospital's name while their verified badge is live (lib/badges.ts). */
 export function Verified({ size = 20 }: { size?: number }) {
-  return <BadgeCheck role="img" aria-label="Registration on file" width={size} height={size} className="shrink-0 fill-[#1D9BF0] text-white" strokeWidth={2.2} />
+  return <BadgeCheck role="img" aria-label="Verified by Consult your Doctor" width={size} height={size} className="shrink-0 fill-[#1D9BF0] text-white" strokeWidth={2.2} />
 }
 
 /** Which workspace a phone header belongs to: where the logo goes, its name, and the account circle on the right. */

@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { sendDoctorActivationEmail } from '@/lib/notify/email'
 import { createAdminClient as createServiceClient } from '@/lib/supabase/admin'
 import { provisionDoctor } from '@/lib/provisioning'
+import { isVisiting } from '@/lib/practices'
 
 export async function generateDoctorSlots(formData: FormData) {
   const supabase = await createClient()
@@ -39,9 +40,12 @@ export async function generateDoctorSlots(formData: FormData) {
   const durationMins = parseInt(durationStr, 10)
   if (isNaN(durationMins) || durationMins <= 0) return { error: 'Invalid duration' }
 
-  // Verify the doctor actually belongs to this admin's hospital
+  // Verify the doctor belongs to this admin's hospital, or visits it (a confirmed practice link, lib/practices.ts).
+  // A visiting doctor's slots carry this hospital's id, so bookings on them belong here.
   const { data: doctor } = await supabase.from('doctors').select('hospital_id').eq('id', doctorId).single()
-  if (doctor?.hospital_id !== profile.hospital_id) return { error: 'Doctor not found in your hospital' }
+  const service = createServiceClient()
+  const visiting = doctor?.hospital_id !== profile.hospital_id && (await isVisiting(service, doctorId, profile.hospital_id))
+  if (doctor?.hospital_id !== profile.hospital_id && !visiting) return { error: 'Doctor not found in your hospital' }
 
   // Use Z to parse strictly as UTC midnight to safely iterate over days
   const startDate = new Date(`${startDateStr}T00:00:00Z`)
@@ -56,6 +60,7 @@ export async function generateDoctorSlots(formData: FormData) {
     start_time: string
     end_time: string
     is_booked: boolean
+    hospital_id?: string
   }
   const newSlots: GeneratedSlot[] = []
   
@@ -92,7 +97,8 @@ export async function generateDoctorSlots(formData: FormData) {
           doctor_id: doctorId,
           start_time: currentSlotStart.toISOString(),
           end_time: currentSlotEnd.toISOString(),
-          is_booked: false
+          is_booked: false,
+          ...(visiting ? { hospital_id: profile.hospital_id as string } : {}),
         })
 
         currentSlotStart = currentSlotEnd
@@ -108,8 +114,9 @@ export async function generateDoctorSlots(formData: FormData) {
     return { error: 'No slots could be generated with the given parameters.' }
   }
 
-  // Skip times the doctor already has a slot for, so running the generator twice doesn't double-book the calendar
-  const { data: existing } = await supabase
+  // Skip times the doctor already has a slot for (at any hospital), so running the generator twice doesn't double-book
+  // the calendar. A visiting doctor's other slots aren't visible to this hospital's own login, so look with the service.
+  const { data: existing } = await (visiting ? service : supabase)
     .from('schedules')
     .select('start_time, end_time')
     .eq('doctor_id', doctorId)
@@ -131,7 +138,7 @@ export async function generateDoctorSlots(formData: FormData) {
   }
 
   // Insert all slots
-  const { error: insertError } = await supabase.from('schedules').insert(freshSlots)
+  const { error: insertError } = await (visiting ? service : supabase).from('schedules').insert(freshSlots)
 
   if (insertError) {
     console.error('Failed to generate slots:', insertError)
@@ -158,9 +165,24 @@ export async function deleteDoctorSlot(formData: FormData) {
 
   if (!scheduleId || !doctorId) return { error: 'Missing required fields' }
 
-  // Verify slot belongs to a doctor in this hospital
+  // Verify slot belongs to a doctor in this hospital, or is one this hospital published for a visiting doctor.
   const { data: doctor } = await supabase.from('doctors').select('hospital_id').eq('id', doctorId).single()
-  if (doctor?.hospital_id !== profile.hospital_id) return { error: 'Unauthorized access to this doctor' }
+  if (doctor?.hospital_id !== profile.hospital_id) {
+    const service = createServiceClient()
+    if (!(await isVisiting(service, doctorId, profile.hospital_id))) return { error: 'Unauthorized access to this doctor' }
+    const { data: removed, error: removeError } = await service
+      .from('schedules')
+      .delete()
+      .eq('id', scheduleId)
+      .eq('doctor_id', doctorId)
+      .eq('hospital_id', profile.hospital_id)
+      .eq('is_booked', false)
+      .select('id')
+    if (removeError || !removed?.length) return { error: 'Slot not found, or it is booked.' }
+    revalidatePath(`/hospital/doctors/${doctorId}/schedule`)
+    revalidatePath('/hospital/doctors')
+    return { success: true }
+  }
 
   // Ensure the slot is this doctor's (not just any slot id) and not booked
   const { data: schedule } = await supabase.from('schedules').select('is_booked').eq('id', scheduleId).eq('doctor_id', doctorId).maybeSingle()

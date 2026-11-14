@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getOrAssignDiagnosticCenterCode, getOrAssignHospitalCode } from '@/lib/organization-ids'
-import { createStaffLogin, passwordProblem, provisionDoctor } from '@/lib/provisioning'
+import { createStaffLogin, passwordProblem, provisionDoctor, randomPassword } from '@/lib/provisioning'
 import { siteUrl } from '@/lib/site-url'
 import { sendPartnerApprovedEmail } from '@/lib/notify/email'
 import type { PartnerKind } from '@/lib/partner-applications'
@@ -56,7 +56,40 @@ function readOrg(form: FormData) {
 // The contact column is required; organisations without a public address get a placeholder on the internal domain.
 const placeholderEmail = (name: string) => `info@${name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 40) || 'partner'}.internal`
 
-export type CreatedOrg = { success: true; id: string; code: string; staffId: string }
+export type CreatedOrg = {
+  success: true
+  id: string
+  code: string
+  staffId: string
+  /** Made here when no password was typed; shown once. The admin sets their own from the emailed link. */
+  temporaryPassword?: string
+  /** Where the set-password link went, when one was sent. */
+  linkSentTo?: string | null
+}
+
+/**
+ * The staff login's password: the one typed, or (left blank) a temporary one made here, with the contact email as the
+ * login's email so a set-your-password link can go to it. We never email passwords.
+ */
+function chooseLogin(org: { password: string; contactEmail: string }): { password: string; email: string | null; generated: boolean } | { error: string } {
+  if (!org.password) {
+    if (!org.contactEmail) return { error: 'Add a contact email so we can send the set-password link, or type a password.' }
+    return { password: randomPassword(), email: org.contactEmail, generated: true }
+  }
+  const weak = passwordProblem(org.password)
+  return weak ? { error: weak } : { password: org.password, email: null, generated: false }
+}
+
+/** A link to set their own password, for a login made with a temporary one. */
+async function setPasswordLink(admin: ReturnType<typeof createAdminClient>, email: string) {
+  try {
+    const { data } = await admin.auth.admin.generateLink({ type: 'recovery', email, options: { redirectTo: `${siteUrl()}/update-password` } })
+    return data?.properties?.action_link ?? null
+  } catch (err) {
+    console.error('setPasswordLink:', err)
+    return null
+  }
+}
 
 /**
  * When the hospital or centre was added from a partner application (/signup/hospital, /signup/diagnostic-centre),
@@ -68,27 +101,54 @@ async function completeApplication(
   kind: PartnerKind,
   organizationId: string,
   staffId: string,
-) {
+  link: { url: string | null; email: string; name: string; contact: string } | null = null,
+): Promise<string | null> {
+  const signInUrl = `${siteUrl()}/login/${kind === 'hospital' ? 'hospital' : 'diagnostic'}`
   const applicationId = field(form, 'applicationId')
-  if (!z.string().uuid().safeParse(applicationId).success) return
+  if (!z.string().uuid().safeParse(applicationId).success) {
+    // Added straight from Add hospital / Add diagnostic centre: send the set-password link when there is one.
+    if (!link?.url) return null
+    const sent = await sendPartnerApprovedEmail({ to: link.email, contactName: link.contact, organizationName: link.name, kind, staffId, signInUrl, setPasswordLink: link.url }).catch(() => false)
+    return sent ? link.email : null
+  }
   const { data: app, error } = await caller.admin
     .from('partner_applications')
     .update({ status: 'approved', organization_id: organizationId, reviewed_by: caller.user.id, reviewed_at: new Date().toISOString() })
     .eq('id', applicationId)
     .eq('kind', kind)
     .eq('status', 'pending')
-    .select('email, contact_name, organization_name')
+    .select('email, contact_name, organization_name, details')
     .maybeSingle()
-  if (error) return console.error('completeApplication:', error)
-  if (!app) return
-  await sendPartnerApprovedEmail({
-    to: app.email,
+  if (error) {
+    console.error('completeApplication:', error)
+    return null
+  }
+  if (!app) return null
+  // A branch asked for from Accounts & branches: the admin who asked can switch to it with their own login.
+  const branchOf = (app.details as { branchOf?: { requestedBy?: string } } | null)?.branchOf
+  if (kind === 'hospital' && branchOf?.requestedBy && z.string().uuid().safeParse(branchOf.requestedBy).success) {
+    const { error: accessError } = await caller.admin
+      .from('hospital_admin_access')
+      .upsert({ profile_id: branchOf.requestedBy, hospital_id: organizationId, granted_by: caller.user.id }, { onConflict: 'profile_id,hospital_id' })
+    if (accessError) console.error('completeApplication branch access:', accessError)
+  }
+  // The set-password link goes to the login's own email (the contact email on the form), which is the applicant's
+  // unless the executive changed it; then the applicant still hears their staff ID.
+  const toApplicant = !link?.url || link.email.toLowerCase() === String(app.email).toLowerCase()
+  const sent = await sendPartnerApprovedEmail({
+    to: toApplicant || !link ? app.email : link.email,
     contactName: app.contact_name,
     organizationName: app.organization_name,
     kind,
     staffId,
-    signInUrl: `${siteUrl()}/login/${kind === 'hospital' ? 'hospital' : 'diagnostic'}`,
-  }).catch((err) => console.error('Failed to send partner approval email:', err))
+    signInUrl,
+    setPasswordLink: link?.url ?? null,
+  }).catch((err) => {
+    console.error('Failed to send partner approval email:', err)
+    return false
+  })
+  if (!toApplicant) await sendPartnerApprovedEmail({ to: app.email, contactName: app.contact_name, organizationName: app.organization_name, kind, staffId, signInUrl }).catch(() => false)
+  return sent && link?.url ? (toApplicant ? app.email : link.email) : null
 }
 
 export async function createHospital(form: FormData): Promise<CreatedOrg | Fail> {
@@ -97,8 +157,8 @@ export async function createHospital(form: FormData): Promise<CreatedOrg | Fail>
   const parsed = readOrg(form)
   if (!parsed.success) return fail(parsed.error.issues[0].message)
   const org = parsed.data
-  const weak = passwordProblem(org.password)
-  if (weak) return fail(weak)
+  const pick = chooseLogin(org)
+  if ('error' in pick) return fail(pick.error)
   const { admin } = caller
 
   const { data: hospital, error } = await admin
@@ -114,7 +174,8 @@ export async function createHospital(form: FormData): Promise<CreatedOrg | Fail>
   const login = await createStaffLogin(admin, {
     role: 'hospital_admin',
     fullName: org.adminName || `${org.name} Admin`,
-    password: org.password,
+    password: pick.password,
+    email: pick.email,
     hospitalId: hospital.id,
     staffId: org.staffId || undefined,
   })
@@ -129,9 +190,10 @@ export async function createHospital(form: FormData): Promise<CreatedOrg | Fail>
     ['General Medicine', 'Cardiology', 'Neurology', 'Orthopaedics', 'Pediatrics'].map((name) => ({ hospital_id: hospital.id, name })),
   )
   const code = await getOrAssignHospitalCode(admin, hospital.id)
-  await completeApplication(caller, form, 'hospital', hospital.id, login.staffId)
+  const link = pick.generated && pick.email ? { url: await setPasswordLink(admin, pick.email), email: pick.email, name: org.name, contact: org.adminName || `${org.name} Admin` } : null
+  const linkSentTo = await completeApplication(caller, form, 'hospital', hospital.id, login.staffId, link)
   for (const path of ['/executive/hospitals', '/executive/doctors', '/hospitals']) revalidatePath(path)
-  return { success: true, id: hospital.id, code, staffId: login.staffId }
+  return { success: true, id: hospital.id, code, staffId: login.staffId, temporaryPassword: pick.generated ? pick.password : undefined, linkSentTo }
 }
 
 const priceListSchema = z
@@ -144,8 +206,8 @@ export async function createDiagnosticCenter(form: FormData): Promise<CreatedOrg
   const parsed = readOrg(form)
   if (!parsed.success) return fail(parsed.error.issues[0].message)
   const org = parsed.data
-  const weak = passwordProblem(org.password)
-  if (weak) return fail(weak)
+  const pick = chooseLogin(org)
+  if ('error' in pick) return fail(pick.error)
 
   let tests: z.infer<typeof priceListSchema> = []
   try {
@@ -179,7 +241,8 @@ export async function createDiagnosticCenter(form: FormData): Promise<CreatedOrg
   const login = await createStaffLogin(admin, {
     role: 'diagnostic_admin',
     fullName: org.adminName || `${org.name} Admin`,
-    password: org.password,
+    password: pick.password,
+    email: pick.email,
     centerId: center.id,
     staffId: org.staffId || undefined,
   })
@@ -189,9 +252,10 @@ export async function createDiagnosticCenter(form: FormData): Promise<CreatedOrg
   }
 
   const code = await getOrAssignDiagnosticCenterCode(admin, center.id)
-  await completeApplication(caller, form, 'diagnostic_center', center.id, login.staffId)
+  const link = pick.generated && pick.email ? { url: await setPasswordLink(admin, pick.email), email: pick.email, name: org.name, contact: org.adminName || `${org.name} Admin` } : null
+  const linkSentTo = await completeApplication(caller, form, 'diagnostic_center', center.id, login.staffId, link)
   for (const path of ['/executive/diagnostics', '/diagnostics']) revalidatePath(path)
-  return { success: true, id: center.id, code, staffId: login.staffId }
+  return { success: true, id: center.id, code, staffId: login.staffId, temporaryPassword: pick.generated ? pick.password : undefined, linkSentTo }
 }
 
 /** A sign-in for a hospital or centre that doesn't have one yet (added before logins were created with them). */

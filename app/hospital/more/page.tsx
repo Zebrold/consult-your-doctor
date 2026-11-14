@@ -16,6 +16,15 @@ const MANAGE = [
   { href: '/hospital/settings/services', title: 'Services & charges', sub: 'Tests, scans and procedures patients can add, with prices' },
 ]
 
+const GROW = [
+  { href: '/hospital/branches', title: 'Accounts & branches', sub: 'Your branches under one login, and switching between them' },
+  { href: '/hospital/badges', title: 'Verified badges', sub: 'Blue ticks for your hospital and doctors' },
+  { href: '/hospital/equipment', title: 'Order equipment', sub: 'Devices, supplies and furniture, delivered' },
+  { href: '/hospital/doctors/leave', title: 'Leave requests', sub: 'Approve doctors’ leave and move booked patients' },
+  { href: '/hospital/reviews', title: 'Reviews', sub: 'What patients say about the hospital and your doctors' },
+  { href: '/hospital/reports', title: 'Reports', sub: 'Bookings, new patients, no-shows and downloads' },
+]
+
 const ACCOUNT = [
   { href: '/hospital/profile#account', title: 'Login details', sub: 'Your name, mobile number and password' },
   { href: '/legal', title: 'Legal documents', sub: 'Terms, privacy and our policies' },
@@ -61,6 +70,8 @@ export default async function HospitalMorePage() {
         <h1 className="hidden lg:block mb-4 text-[26px] font-extrabold tracking-[-0.02em]">Account &amp; settings</h1>
         <p className="mt-1.5 mb-3.5 mx-1 text-[12px] font-extrabold tracking-[0.04em] text-[#5B667A]">MANAGE</p>
         <Menu items={MANAGE} />
+        <p className="mt-5 mb-3.5 mx-1 text-[12px] font-extrabold tracking-[0.04em] text-[#5B667A]">GROW &amp; MANAGE</p>
+        <Menu items={GROW} />
         <p className="mt-5 mb-3.5 mx-1 text-[12px] font-extrabold tracking-[0.04em] text-[#5B667A]">ACCOUNT</p>
         <Menu items={ACCOUNT} />
         <form action="/auth/signout" method="post" className={`${card} mt-3.5`}>

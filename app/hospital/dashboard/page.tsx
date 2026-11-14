@@ -10,6 +10,7 @@ import {
   type HospitalVisit,
 } from '../_lib/hospital'
 import { AddDoctorButton } from '../_components/DoctorDialogs'
+import { hasLiveBadge } from '@/lib/badges'
 import {
   BarChart, DeskHead, Donut, EmptyLine, HosBody, HosHeader, Initials, Meter, MoreLink, Panel, PanelHead, PhoneStats, Row, StatCard, Status, Verified, btnOutline,
   btnPrimary, delta, plural,
@@ -32,7 +33,7 @@ export default async function HospitalDashboardPage() {
   const ids = doctors.map((d) => d.id)
   const [visits, slots, beds] = await Promise.all([
     loadHospitalVisits(admin, hospital.id, ids),
-    loadHospitalSlots(admin, ids, dayStartIso(lastWeek), dayStartIso(shiftDay(today, 8))),
+    loadHospitalSlots(admin, ids, dayStartIso(lastWeek), dayStartIso(shiftDay(today, 8)), hospital.id),
     loadHospitalBeds(admin, hospital.id),
   ])
   const bedSummary = summarizeBeds(beds.data)
@@ -40,6 +41,8 @@ export default async function HospitalDashboardPage() {
   const doctorById = new Map(doctors.map((d) => [d.id, d]))
   const departments = Array.from(new Set(doctors.map((d) => d.department))).sort()
   const live = hospital.status === 'active'
+  // The blue tick is the verified badge (lib/badges.ts), not just being listed.
+  const ticked = await hasLiveBadge(admin, 'hospital', hospital.id)
 
   // Today's patients: every booking on today's slots; the paid ones are the ones coming in.
   const todays = visits.filter((v) => dayOf(v.start) === today)
@@ -155,13 +158,13 @@ export default async function HospitalDashboardPage() {
         staff={staff}
         eyebrow={`Hospital admin · ${live ? 'Live for booking' : 'Not listed yet'}`}
         title={hospital.name}
-        titleExtra={live ? <Verified /> : undefined}
+        titleExtra={ticked ? <Verified /> : undefined}
         subtitle={[...team, hospital.city].filter(Boolean).join(' · ')}
       />
       <HosBody>
         <DeskHead
           title={hospital.name}
-          titleExtra={live ? <Verified /> : undefined}
+          titleExtra={ticked ? <Verified /> : undefined}
           subtitle={
             <span className="flex flex-wrap items-center gap-x-1.5">
               <span className="font-bold">{dateLabel}</span>

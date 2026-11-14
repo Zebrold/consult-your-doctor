@@ -75,6 +75,15 @@ export function PartnerMenu({ className = "" }: { className?: string }) {
               How to partner →
             </Link>
           </li>
+          <li>
+            <Link
+              href="/corporate#talk"
+              onClick={() => setOpen(false)}
+              className="block px-6 py-2.5 text-[14px] font-bold text-[#2A4DD0] hover:bg-[#F4F6FB] focus-visible:outline-none transition-colors"
+            >
+              Talk to our team →
+            </Link>
+          </li>
         </ul>
       </div>
     </div>

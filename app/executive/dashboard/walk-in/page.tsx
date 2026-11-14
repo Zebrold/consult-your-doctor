@@ -31,7 +31,7 @@ export default async function WalkInBookingPage() {
     .eq('hospital_id', executiveProfile.hospital_id)
 
   return (
-    <div className="p-4 sm:p-8 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-8 pb-[calc(96px+env(safe-area-inset-bottom))] lg:pb-11 max-w-4xl">
       <div className="mb-8">
         <Link href="/executive/dashboard" className="inline-flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors mb-4">
           <ArrowLeft className="w-4 h-4" /> Back to Dashboard

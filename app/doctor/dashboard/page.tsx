@@ -10,6 +10,7 @@ import { isOpenVisit, latestVitals, loadPatientFacts, loadSlots, loadVisits, pat
 import { latestAllergy } from '../_lib/notes'
 import { NextStepButton, PrescriptionButton, SIZE, WritePrescriptionButton, type PickVisit, type VisitRef } from '../_components/VisitControls'
 import { Inpatients } from '../_components/Inpatients'
+import { hasLiveBadge } from '@/lib/badges'
 import {
   BarChart, DeskHead, DocBody, DocHeader, Donut, EmptyLine, Initials, MoreLink, Panel, PanelHead, Readings, Row, StatCard, Status, Verified, btnOutline,
   btnSmall, card, delta,
@@ -121,7 +122,7 @@ export default async function DoctorDashboard() {
     .map((v) => ({ ...ref(v), when: formatSlot(v.start ?? v.createdAt, now) }))
 
   const name = doctorName(doctor.name)
-  const verified = doctor.registrationNumber ? <Verified /> : null
+  const verified = (await hasLiveBadge(admin, 'doctor', doctor.id)) ? <Verified /> : null
   const where = [doctor.specialty, doctor.hospital && [doctor.hospital.name, doctor.hospital.city].filter(Boolean).join(', ')].filter(Boolean).join(' · ')
   const dateLine = (() => {
     const d = new Date(now)

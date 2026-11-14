@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, ArrowLeft, ArrowRight, Building2, CalendarDays, CircleAlert, Clock, Download, FlaskConical, MapPin, Navigation, Plus, Share2, Stethoscope, UserRound } from "lucide-react";
-import { VerifiedBadge } from "@/components/home/ui";
 import { ReviewButton, type ExistingReview } from "./ReviewButton";
 import { DeskTitle, InfoRow, StatusDot, btnDanger, btnOutline, btnPrimary, card } from "./app-ui";
 import { RemoteImage } from "@/components/RemoteImage";
@@ -247,7 +246,6 @@ function Title({ item, className = "" }: { item: BookingItem; className?: string
   return (
     <span className={`flex items-center gap-[5px] font-extrabold min-w-0 ${className}`}>
       <span className="truncate capitalize">{item.title}</span>
-      {item.kind === "visit" && <VerifiedBadge className="w-3.5 h-3.5" />}
     </span>
   );
 }
@@ -608,7 +606,6 @@ function PhonePass({ item: b, patient, onClose }: { item: BookingItem; patient: 
           </span>
           <p className="mt-3 flex items-center justify-center gap-1.5 text-[18px] font-extrabold">
             <span className="truncate capitalize">{b.title}</span>
-            {b.kind === "visit" && <VerifiedBadge className="w-4 h-4" />}
           </p>
           <p className="mt-0.5 text-[13px] text-[#5B667A]">{b.sub}</p>
         </div>

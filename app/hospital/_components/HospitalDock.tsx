@@ -4,7 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  BedDouble, Bell, Building2, CalendarDays, CircleHelp, IndianRupee, LayoutDashboard, LayoutGrid, LogOut, Search, Settings, Users, UsersRound, Wallet, type LucideIcon,
+  BedDouble, Bell, Building, Building2, CalendarDays, ChartLine, CircleHelp, IndianRupee, LayoutDashboard, LayoutGrid, LogOut, Search, Settings, ShieldCheck, ShoppingCart, Star, Users, UsersRound, Wallet, type LucideIcon,
 } from 'lucide-react'
 import { initials } from '@/components/patient/format'
 import { FloatingTabBar } from '@/components/FloatingTabBar'
@@ -30,8 +30,16 @@ const MENU: NavItem[] = [
   { href: '/hospital/profile', label: 'Hospital profile', icon: Building2 },
 ]
 
+const GROW: NavItem[] = [
+  { href: '/hospital/branches', label: 'Accounts & branches', icon: Building },
+  { href: '/hospital/badges', label: 'Verified badges', icon: ShieldCheck },
+  { href: '/hospital/equipment', label: 'Order equipment', icon: ShoppingCart },
+  { href: '/hospital/reviews', label: 'Reviews', icon: Star },
+  { href: '/hospital/reports', label: 'Reports', icon: ChartLine },
+]
+
 // Sections reached from More on phones.
-const MORE = ['/hospital/more', '/hospital/settings', '/hospital/profile', '/hospital/revenue', '/hospital/wallet', '/hospital/staff', '/hospital/ai']
+const MORE = ['/hospital/more', '/hospital/settings', '/hospital/profile', '/hospital/revenue', '/hospital/wallet', '/hospital/staff', '/hospital/branches', '/hospital/badges', '/hospital/equipment', '/hospital/reviews', '/hospital/reports', '/hospital/ai']
 
 // Account & settings (/hospital/more on desktops too) and the pages under it.
 const isSettings = (pathname: string) => isActive(pathname, '/hospital/more') || isActive(pathname, '/hospital/settings')
@@ -41,8 +49,10 @@ const isActive = (pathname: string, href: string) => pathname === href || pathna
 /** The top bar's "where am I". */
 function crumb(pathname: string): string[] {
   if (/^\/hospital\/doctors\/[^/]+\/schedule/.test(pathname)) return ['Doctors & roster', 'Slots']
+  if (pathname.startsWith('/hospital/doctors/leave')) return ['Doctors & roster', 'Leave requests']
+  if (pathname.startsWith('/hospital/branches/new')) return ['Accounts & branches', 'Add a branch']
   if (pathname.startsWith('/hospital/settings/services')) return ['Settings', 'Services & charges']
-  const item = MENU.find((m) => isActive(pathname, m.href))
+  const item = [...MENU, ...GROW].find((m) => isActive(pathname, m.href))
   if (item) return [item.label]
   if (pathname.startsWith('/hospital/ai')) return ['Help & support']
   if (isSettings(pathname)) return ['Settings']
@@ -69,21 +79,25 @@ export function HospitalDock({ hospital, staff }: { hospital: { id: string; name
         aria-label="Hospital menu"
         className="hidden lg:flex fixed z-40 inset-y-0 left-0 w-[260px] flex-col gap-1 px-4 pt-[22px] pb-[18px] overflow-y-auto no-scrollbar bg-[#2A4DD0] text-white print:hidden"
       >
-        <Link href="/hospital/dashboard" className="flex items-center gap-2.5 px-2 pb-[22px]">
+        <Link href="/hospital/dashboard" className="shrink-0 flex items-center gap-2.5 px-2 pb-[22px]">
           <Image src="/logo-icon-white.png" alt="" width={96} height={96} sizes="30px" className="w-[30px] h-[30px] object-contain shrink-0" />
           <span className="min-w-0 leading-tight">
             <span className="block font-['Helvetica_Neue',Helvetica,Arial,sans-serif] text-[18px] font-bold tracking-[-0.01em]">Consult your Doctor</span>
             <span className="block text-[11.5px] text-[#CFDCFF]">Hospital workspace</span>
           </span>
         </Link>
-        <span className="px-3.5 pb-1.5 text-[11px] font-extrabold tracking-[0.1em] text-[#AFC2FF]">MENU</span>
+        <span className="shrink-0 px-3.5 pb-1.5 text-[11px] font-extrabold tracking-[0.1em] text-[#AFC2FF]">MENU</span>
         {MENU.map((item) => (
+          <RailLink key={item.href} item={item} active={isActive(pathname, item.href)} />
+        ))}
+        <span className="shrink-0 px-3.5 pt-[18px] pb-1.5 text-[11px] font-extrabold tracking-[0.1em] text-[#AFC2FF]">GROW &amp; MANAGE</span>
+        {GROW.map((item) => (
           <RailLink key={item.href} item={item} active={isActive(pathname, item.href)} />
         ))}
         <span className="flex-1 min-h-8" />
         <RailLink item={{ href: '/hospital/more', label: 'Settings', icon: Settings }} active={isSettings(pathname)} small />
         <RailLink item={{ href: '/hospital/ai', label: 'Help & support', icon: CircleHelp }} active={pathname.startsWith('/hospital/ai')} small />
-        <div className="flex items-center gap-2.5 mt-3 p-3 rounded-[14px] border border-white/20">
+        <div className="shrink-0 flex items-center gap-2.5 mt-3 p-3 rounded-[14px] border border-white/20">
           <Link href="/hospital/profile" className="flex flex-1 min-w-0 items-center gap-2.5">
             <span className="shrink-0 w-[38px] h-[38px] rounded-full bg-white text-[#2A4DD0] flex items-center justify-center text-[13px] font-extrabold">{initials(staff.name)}</span>
             <span className="min-w-0">
@@ -134,7 +148,7 @@ function RailLink({ item: { href, label, icon: Icon }, active, small = false }: 
     <Link
       href={href}
       aria-current={active ? 'page' : undefined}
-      className={`flex items-center gap-3 px-3.5 rounded-[11px] transition-colors ${small ? 'h-[42px] text-[13.5px]' : 'h-11 text-[14px]'} ${
+      className={`shrink-0 flex items-center gap-3 px-3.5 rounded-[11px] transition-colors ${small ? 'h-[42px] text-[13.5px]' : 'h-11 text-[14px]'} ${
         active ? 'bg-white text-[#2A4DD0] font-extrabold' : 'text-[#E3EAFF] font-bold hover:bg-white/10'
       }`}
     >

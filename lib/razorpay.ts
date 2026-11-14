@@ -65,6 +65,21 @@ export function createOrder(amountRupees: number, notes: OrderNotes) {
   return call<RazorpayOrder>('/orders', { method: 'POST', body: { amount: toPaise(amountRupees), currency: 'INR', receipt: notes.booking_id, notes } })
 }
 
+/** A partner purchase (a verified badge payment or an equipment order), kept on the order like a booking's notes. */
+export type PurchaseNotes = { purchase: 'badge' | 'equipment'; purchase_id: string }
+
+export function createPurchaseOrder(amountRupees: number, notes: PurchaseNotes) {
+  return call<RazorpayOrder>('/orders', { method: 'POST', body: { amount: toPaise(amountRupees), currency: 'INR', receipt: notes.purchase_id, notes } })
+}
+
+/** The purchase an order was made for, read from Razorpay's copy of the order; null for booking orders. */
+export function purchaseNotes(order: RazorpayOrder): PurchaseNotes | null {
+  const notes = (Array.isArray(order.notes) ? {} : order.notes) as Partial<PurchaseNotes>
+  const kind = notes.purchase === 'badge' || notes.purchase === 'equipment' ? notes.purchase : null
+  const id = typeof notes.purchase_id === 'string' ? notes.purchase_id : null
+  return kind && id && /^[0-9a-f-]{36}$/i.test(id) ? { purchase: kind, purchase_id: id } : null
+}
+
 export const fetchOrder = (orderId: string) => call<RazorpayOrder>(`/orders/${encodeURIComponent(orderId)}`)
 export const fetchPayment = (paymentId: string) => call<RazorpayPayment>(`/payments/${encodeURIComponent(paymentId)}`)
 

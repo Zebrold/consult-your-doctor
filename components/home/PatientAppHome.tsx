@@ -11,7 +11,6 @@ import { AppSearch, PageBody, SectionHead, StatusDot, btnOutline, btnPrimary, ca
 import { HospitalGridCard, HospitalListCard } from "@/components/patient/HospitalCards";
 import { IST, directionsHref, doctorName, firstName, formatTime, initials } from "@/components/patient/format";
 import { SPECIALITIES, specialityIcon } from "./specialities";
-import { VerifiedBadge } from "./ui";
 import type { HomeHospital } from "./types";
 import { RemoteImage } from "@/components/RemoteImage";
 
@@ -292,7 +291,6 @@ function NextVisitStrip({ next }: { next: PatientVisit | null }) {
         </span>
         <span className="flex items-center gap-[5px] text-[14.5px] font-extrabold min-w-0">
           <span className="truncate">{doctorName(next.doctor)}</span>
-          <VerifiedBadge className="w-3.5 h-3.5" />
           {next.specialty && <span className="truncate font-extrabold">· {next.specialty}</span>}
         </span>
         <span className="block text-[12px] text-[#5B667A] truncate">{[formatTime(next.at), next.hospital].filter(Boolean).join(" · ")}</span>
@@ -332,7 +330,6 @@ function NextAppointmentCard({ next }: { next: PatientVisit | null }) {
         <span className="min-w-0">
           <span className="flex items-center gap-[5px] text-[15px] font-extrabold">
             <span className="truncate">{doctorName(next.doctor)}</span>
-            <VerifiedBadge className="w-3.5 h-3.5" />
           </span>
           <span className="block text-[12.5px] text-[#5B667A] truncate">{[next.specialty, next.hospital].filter(Boolean).join(" · ")}</span>
         </span>

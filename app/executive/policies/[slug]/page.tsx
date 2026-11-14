@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { FileLock2 } from 'lucide-react'
 import { requireExecutive } from '../../_lib/ops'
+import { WorkBody } from '../../_components/ui'
 import { PolicyDocument } from '@/components/legal/PolicyDocument'
 import { PUBLIC_BY_NUMBER, docHref } from '@/lib/legal-docs'
 import { TEMPLATE_DOCS } from '@/lib/legal-docs/templates'
@@ -28,6 +29,7 @@ export default async function ExecutiveTemplatePage({ params }: { params: Promis
   if (!doc) notFound()
 
   return (
+    <WorkBody>
     <PolicyDocument
       embedded
       doc={doc}
@@ -45,5 +47,6 @@ export default async function ExecutiveTemplatePage({ params }: { params: Promis
         </p>
       }
     />
+    </WorkBody>
   )
 }

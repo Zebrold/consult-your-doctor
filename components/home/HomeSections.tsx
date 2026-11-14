@@ -75,7 +75,7 @@ function HospitalCard({ hospital: h, km }: { hospital: HomeHospital; km: number 
         <span className="absolute left-3 right-3 bottom-2.5 md:left-4 md:right-4 flex items-center justify-between gap-2">
           <h3 className="flex items-center gap-1.5 min-w-0 text-white text-[15px] md:text-[17px] font-extrabold tracking-[-0.01em] leading-[1.15]">
             <span className="truncate">{h.name}</span>
-            <VerifiedBadge className="w-3.5 h-3.5 md:w-4 md:h-4" />
+            <VerifiedBadge hospitalId={h.id} className="w-3.5 h-3.5 md:w-4 md:h-4" />
           </h3>
           {h.rating != null && (
             <span
@@ -167,7 +167,7 @@ function DoctorCard({ doctor: d, km, now }: { doctor: HomeDoctor; km: number | n
           <div className="flex items-start justify-between gap-1.5 md:gap-2">
             <h3 className="min-w-0 flex items-center gap-1 md:gap-1.5 text-[13.5px] md:text-base font-extrabold tracking-[-0.01em] leading-[1.25]">
               <Link href={profile} className="truncate hover:text-[#2A4DD0] transition-colors">{doctorName(d.name)}</Link>
-              <VerifiedBadge className="w-[13px] h-[13px] md:w-4 md:h-4" />
+              <VerifiedBadge doctorId={d.id} className="w-[13px] h-[13px] md:w-4 md:h-4" />
             </h3>
             {rated && (
               <span

@@ -89,7 +89,7 @@ const sectionCard = `p-4 lg:p-[22px] ${card} rounded-[20px]! lg:rounded-2xl!`;
  * A doctor's public profile: who they are, where they see patients, what a visit costs, their open times and what
  * patients wrote after a visit. Picking a time continues to their hospital's page, where the booking is made, with that time chosen.
  */
-export function DoctorProfileClient({ doctor, bookingFee, now, account }: DoctorProfileClientProps) {
+export function DoctorProfileClient({ doctor, bookingFee, now, account, alsoAt = [] }: DoctorProfileClientProps & { alsoAt?: { id: string; name: string; city: string | null }[] }) {
   const name = fullName(doctor.profiles?.full_name);
   const specialty = doctor.departments?.name || doctor.specialty || "Specialist";
   // Shown only when the doctor has filled them in; never replaced with a made-up value.
@@ -162,7 +162,7 @@ export function DoctorProfileClient({ doctor, bookingFee, now, account }: Doctor
           <h1 className="flex items-center gap-1.5 mt-0.5 text-[22px] md:text-[30px] font-extrabold leading-[1.15] tracking-[-0.02em]">
             <span className="min-w-0 break-words">{name}</span>
             <span className="shrink-0 rounded-full bg-white p-px">
-              <VerifiedBadge className="w-[18px] h-[18px]" />
+              <VerifiedBadge doctorId={doctor.id} className="w-[18px] h-[18px]" />
             </span>
           </h1>
           {qualifications && <p className="mt-0.5 text-[13px] md:text-[14.5px] text-[#DCE6FF] line-clamp-2">{qualifications}</p>}
@@ -289,6 +289,27 @@ export function DoctorProfileClient({ doctor, bookingFee, now, account }: Doctor
               </a>
             )}
           </div>
+          {alsoAt.length > 0 && (
+            <div className="mt-2.5">
+              <span className="block mb-1.5 text-[12.5px] font-extrabold text-[#4A5878]">Also consults at</span>
+              {alsoAt.map((h) => (
+                <div key={h.id} className="flex items-center gap-3 p-3 mt-2 rounded-[14px] border-[1.5px] border-[#E1E7F0]">
+                  <span className="shrink-0 w-10 h-10 rounded-xl bg-[#EEF3FF] text-[#2A4DD0] flex items-center justify-center">
+                    <Building2 className="w-5 h-5" />
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <Link href={`/hospitals/${h.id}`} className="block text-[14px] font-extrabold hover:text-[#2A4DD0]">
+                      {h.name}
+                    </Link>
+                    {h.city && <span className="block text-[12.5px] text-[#5B667A]">{h.city}</span>}
+                  </span>
+                  <Link href={doctorBookingHref(doctor.id, h.id)} className="shrink-0 text-[12.5px] font-extrabold text-[#2A4DD0] hover:underline">
+                    See times there
+                  </Link>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
       )}
 
@@ -466,7 +487,7 @@ export function DoctorProfileClient({ doctor, bookingFee, now, account }: Doctor
               <p className="text-[14px] font-extrabold text-[#2A4DD0]">{specialty}</p>
               <h1 className="flex items-center gap-2 mt-0.5 text-[30px] font-extrabold tracking-[-0.02em] leading-tight">
                 <span className="truncate">{name}</span>
-                <VerifiedBadge className="w-6 h-6" />
+                <VerifiedBadge doctorId={doctor.id} className="w-6 h-6" />
               </h1>
               {qualifications && <p className="mt-0.5 text-[14.5px] text-[#4A5878] truncate">{qualifications}</p>}
               <Dots items={[experience ? `${experience} yrs experience` : null, hospital ? [hospital.name, hospital.city].filter(Boolean).join(", ") : null, registration]} className="mt-2.5" />

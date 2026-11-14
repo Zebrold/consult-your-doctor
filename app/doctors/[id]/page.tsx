@@ -101,16 +101,27 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
   // Reviews patients wrote after their visits (read on the server; only first names are shown).
   doctorData.reviews = await loadDoctorReviews(createAdminClient(), id, 6);
 
-  // Only times patients can still book: from now on and not taken. Past slots must never look bookable.
-  const { data: schedules } = await supabase
-    .from("schedules")
-    .select("id, start_time, end_time, is_booked")
-    .eq("doctor_id", id)
-    .eq("is_booked", false)
-    .gte("start_time", new Date().toISOString())
-    .order("start_time", { ascending: true });
+  // Only times patients can still book: from now on and not taken. Past slots must never look bookable. Only the
+  // doctor's own hospital's times here; hospitals they also visit list their slots on their own page (lib/practices.ts).
+  const openSlots = (columns: string) =>
+    supabase
+      .from("schedules")
+      .select(columns)
+      .eq("doctor_id", id)
+      .eq("is_booked", false)
+      .gte("start_time", new Date().toISOString())
+      .order("start_time", { ascending: true });
+  const first = await openSlots("id, start_time, end_time, is_booked, hospital_id");
+  const slotRows = (first.error ? (await openSlots("id, start_time, end_time, is_booked")).data : first.data) as unknown as
+    | { id: string; start_time: string; end_time: string; is_booked: boolean; hospital_id?: string | null }[]
+    | null;
+  const homeId = (doctor as { hospital_id?: string | null }).hospital_id ?? null;
+  doctorData.schedules = (slotRows ?? []).filter((s) => !s.hospital_id || s.hospital_id === homeId);
 
-  doctorData.schedules = schedules ?? [];
+  const { data: links } = await createAdminClient().from("doctor_practices").select("hospital_id").eq("doctor_id", id).eq("status", "confirmed").limit(20);
+  const alsoIds = ((links ?? []) as { hospital_id: string }[]).map((l) => l.hospital_id).filter((h) => h !== homeId);
+  const { data: alsoRows } = alsoIds.length ? await supabase.from("hospitals").select("id, name, city").in("id", alsoIds) : { data: [] };
+  const alsoAt = (alsoRows ?? []) as { id: string; name: string; city: string | null }[];
 
   const schema = {
     "@context": "https://schema.org",
@@ -150,6 +161,7 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
         doctor={doctorData}
         bookingFee={(await getBookingFees()).consultation}
         now={currentTime()}
+        alsoAt={alsoAt}
         account={isDoctor ? null : { isSignedIn: !!user, name, email: viewer?.email || user?.email || null }}
       />
       {!isDoctor && (

@@ -262,15 +262,19 @@ export async function getTicketMessages(ticketId: string): Promise<TicketMessage
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
   const admin = createAdminClient()
-  if (!(await supportStaff())) {
+  const staff = !!(await supportStaff())
+  if (!staff) {
     const { data: own } = await admin.from('tickets').select('id').eq('id', ticketId).eq('user_id', user.id).maybeSingle()
     if (!own) return []
   }
-  const { data: rows } = await admin
+  let query = admin
     .from('ticket_messages')
     .select('*')
     .eq('ticket_id', ticketId)
     .order('created_at', { ascending: true })
+  // Internal notes are for the support team only; the person who raised the ticket never sees them.
+  if (!staff) query = query.neq('sender_role', 'internal')
+  const { data: rows } = await query
 
   if (!rows) return []
   return rows.map((r: any) => ({
@@ -436,4 +440,37 @@ export async function getUserTickets(): Promise<SupportTicket[]> {
     createdAt: r.created_at,
     updatedAt: r.updated_at
   }))
+}
+
+/** An internal note on a ticket: only the support team sees it, and the requester isn't told. */
+export async function addInternalNote(ticketId: string, note: string): Promise<{ success: boolean; error?: string }> {
+  const staff = await supportStaff()
+  if (!staff) return { success: false, error: 'Unauthorized' }
+  const text = note.trim().slice(0, 2000)
+  if (!text) return { success: false, error: 'Write the note first.' }
+  const { error } = await staff.admin.from('ticket_messages').insert({ ticket_id: ticketId, sender_id: staff.user.id, sender_role: 'internal', sender_name: staff.name || 'Executive', message: text })
+  if (error) return { success: false, error: 'Could not save the note.' }
+  revalidatePath('/executive/support')
+  return { success: true }
+}
+
+const TEAMS = ['management', 'operations', 'finance', 'support'] as const
+const TEAM_NAMES: Record<(typeof TEAMS)[number], string> = { management: 'Management', operations: 'Operations', finance: 'Finance', support: 'Support' }
+
+/** Hands a ticket to a team (Finance for payouts, say), leaving an internal note saying so. */
+export async function setTicketTeam(ticketId: string, team: string | null): Promise<{ success: boolean; error?: string }> {
+  const staff = await supportStaff()
+  if (!staff) return { success: false, error: 'Unauthorized' }
+  if (team !== null && !(TEAMS as readonly string[]).includes(team)) return { success: false, error: 'Unknown team.' }
+  const { error } = await staff.admin.from('tickets').update({ team, updated_at: new Date().toISOString() }).eq('id', ticketId)
+  if (error) return { success: false, error: 'Teams for tickets aren’t switched on yet. Run supabase/migrations/20261115_executive_workspace.sql.' }
+  await staff.admin.from('ticket_messages').insert({
+    ticket_id: ticketId,
+    sender_id: staff.user.id,
+    sender_role: 'internal',
+    sender_name: staff.name || 'Executive',
+    message: team ? `Moved to ${TEAM_NAMES[team as (typeof TEAMS)[number]]}.` : 'Taken back from the team.',
+  })
+  revalidatePath('/executive/support')
+  return { success: true }
 }

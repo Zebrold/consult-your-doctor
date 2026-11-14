@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight, ChartLine, CreditCard, Landmark, ShieldCheck, type LucideIcon } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { SitePage } from "@/components/site/ui";
+import { PartnerEnquiry } from "./PartnerEnquiry";
 import { PartnerSignIn } from "./PartnerSignIn";
 import { PortalPreview } from "./PortalPreview";
 
@@ -202,6 +203,21 @@ export default function CorporatePage() {
             </div>
             <span className="block mt-3 text-[12px] text-[#5B667A]">Withdrawals are paid by the Consult your Doctor team.</span>
           </div>
+        </div>
+      </section>
+
+      {/* Talk to our team: an enquiry the operations team calls back (Support › Hospital interest) */}
+      <section id="talk" className={`scroll-mt-24 ${SIDES} pt-8 pb-9 lg:pt-[72px] lg:pb-20 bg-[#F6F8FC] border-t border-[#EEF2F7]`}>
+        <div className="lg:grid lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-16">
+          <div className="mb-5 lg:mb-0">
+            <h2 className="text-[24px] lg:text-[30px] font-extrabold tracking-[-0.02em] leading-[1.2]">
+              Rather talk first? <span className="text-[#1D4ED8]">We’ll call you</span>
+            </h2>
+            <p className="mt-2 text-[14.5px] lg:text-[16px] leading-[1.55] text-[#5B667A]">
+              Leave your details and our team will call, answer your questions and can fill the application in with you on the call.
+            </p>
+          </div>
+          <PartnerEnquiry />
         </div>
       </section>
 

@@ -2,15 +2,17 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Building2, FlaskConical, IdCard, Loader2, Mail, Phone, UserRound, X } from 'lucide-react'
+import { Building2, Loader2, Mail, Phone } from 'lucide-react'
 import { rejectPartnerApplication } from '@/app/actions/partnerSignup'
 import { PARTNER_NOUN, partnerDetailRows, type PartnerApplication } from '@/lib/partner-applications'
 import { AddDiagnosticCenterButton, AddHospitalButton } from './NetworkForms'
-import { DocumentLinks } from './DocumentLinks'
-import { Chip, EmptyState } from './ui'
+import { DocumentChecklist } from './DocumentLinks'
+import { EmptyState, Note, Status, btnOutline, btnSmall } from './ui'
 
-// Hospitals and diagnostic centres that applied from /signup/hospital or /signup/diagnostic-centre. Approving opens
-// the usual "add" dialog filled in from the application; the executive sets the staff sign-in there.
+// Hospitals and diagnostic centres that applied from /signup/hospital or /signup/diagnostic-centre (and branches asked
+// for from a hospital's Accounts & branches page), after DeskExeHospitals: the waiting list on the left, the one being
+// reviewed on the right. Approving opens the usual "add" dialog filled in from the application; the executive sets the
+// staff sign-in there.
 
 const CHECK_HINT = {
   hospital: 'Check the registration with the issuing authority, and any accreditation, before approving.',
@@ -20,103 +22,122 @@ const CHECK_HINT = {
 export function PartnerQueue({ applications, submittedLabels }: { applications: PartnerApplication[]; submittedLabels: Record<string, string> }) {
   const router = useRouter()
   const [pending, start] = useTransition()
-  const [busyId, setBusyId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(applications[0]?.id ?? null)
+  const [checked, setChecked] = useState<Record<string, boolean>>({})
   const [error, setError] = useState<{ id: string; message: string } | null>(null)
 
-  const reject = (app: PartnerApplication) => {
+  if (applications.length === 0) {
+    return <EmptyState icon={Building2}>No applications are waiting for review.</EmptyState>
+  }
+  const app = applications.find((a) => a.id === selectedId) ?? applications[0]
+
+  const reject = () => {
     if (!window.confirm(`Decline the application from ${app.organizationName}? This cannot be undone.`)) return
-    setBusyId(app.id)
     setError(null)
     start(async () => {
       const res = await rejectPartnerApplication(app.id)
-      setBusyId(null)
       if (res.success) router.refresh()
       else setError({ id: app.id, message: res.error })
     })
   }
 
-  if (applications.length === 0) {
-    return <EmptyState icon={Building2}>No applications are waiting for review.</EmptyState>
-  }
+  const docs = app.documentLinks ?? []
+  const allChecked = docs.every((d) => checked[`${app.id}:${d.key}`])
+  const rows = partnerDetailRows(app)
+  const prefill = { id: app.id, name: app.organizationName, city: app.city, address: app.address, email: app.email, contactName: app.contactName }
+  const via = (a: PartnerApplication) => (a.details.branchOf ? `Branch of ${a.details.branchOf.hospitalName}` : 'Applied online')
 
   return (
-    <div className="flex flex-col gap-4">
-      {applications.map((app) => {
-        const Icon = app.kind === 'hospital' ? Building2 : FlaskConical
-        const rows = partnerDetailRows(app)
-        const prefill = { id: app.id, name: app.organizationName, city: app.city, address: app.address, email: app.email, contactName: app.contactName }
-        return (
-          <article key={app.id} className="p-5 md:p-6 rounded-xl bg-surface-container-low/60 flex flex-col gap-4">
-            <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
-              <div className="flex items-start gap-4 min-w-0">
-                <span className="w-12 h-12 rounded-xl bg-surface-container-lowest text-primary flex items-center justify-center shadow-sm shrink-0">
-                  <Icon className="w-6 h-6" />
+    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.4fr)] gap-3.5 lg:gap-5 items-start">
+      <ul className="flex flex-col gap-2">
+        {applications.map((a) => {
+          const on = a.id === app.id
+          return (
+            <li key={a.id}>
+              <button
+                type="button"
+                onClick={() => setSelectedId(a.id)}
+                aria-pressed={on}
+                className={`block w-full text-left px-3.5 py-3 rounded-xl ${on ? 'border-[1.5px] border-[#2A4DD0] bg-[#F5F8FF]' : 'border border-[#E6EAF0] bg-white hover:bg-[#F9FAFC]'}`}
+              >
+                <span className="flex items-start justify-between gap-2">
+                  <span className="min-w-0">
+                    <span className="block text-[14px] font-extrabold truncate">{a.organizationName}</span>
+                    <span className="block text-[12px] text-[#5B667A] truncate">
+                      {[a.kind === 'hospital' ? 'Hospital' : 'Diagnostic centre', a.city].filter(Boolean).join(' · ')}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-[11.5px] text-[#5B667A]">{submittedLabels[a.id]}</span>
                 </span>
-                <div className="min-w-0">
-                  <h3 className="font-title-md text-title-md text-on-surface font-bold leading-snug break-words">{app.organizationName}</h3>
-                  <p className="text-sm text-indigo-gray-600 mt-0.5">
-                    {app.city}
-                    {app.details.facilityType ? ` · ${app.details.facilityType}` : ''}
-                    {app.details.accreditation && app.details.accreditation !== 'None yet' ? ` · ${app.details.accreditation}` : ''}
-                    {app.details.nablNumber ? ' · NABL accredited' : ''}
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-col items-start sm:items-end shrink-0">
-                <Chip tone="neutral">Pending review</Chip>
-                <span className="text-indigo-gray-600 font-label-sm text-[11px] mt-1">Applied {submittedLabels[app.id]}</span>
-              </div>
+                <span className="flex items-center justify-between gap-2 mt-2 text-[12px] font-extrabold">
+                  <span className="text-[#5B667A] truncate">{via(a)}</span>
+                  <Status label="To review" color="#B54708" className="!text-[12px]" />
+                </span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+
+      <article className="rounded-[14px] shadow-[inset_0_0_0_1px_#E6EAF0] p-4 lg:p-5 min-w-0">
+        <span className="block text-[12px] font-extrabold text-[#5B667A]">
+          Review application · {via(app)} · applied {submittedLabels[app.id]}
+        </span>
+        <h3 className="mt-1 text-[19px] font-extrabold tracking-[-0.01em] break-words">{app.organizationName}</h3>
+
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-[18px] gap-y-3 mt-3.5 px-4 py-3.5 rounded-xl bg-[#F7F9FC] text-[13.5px]">
+          {rows.map(([label, value]) => (
+            <div key={label} className="min-w-0">
+              <dt className="text-[11.5px] font-extrabold tracking-[0.04em] uppercase text-[#5B667A]">{label}</dt>
+              <dd className="mt-[3px] font-bold break-words whitespace-pre-line">{value}</dd>
             </div>
+          ))}
+        </dl>
 
-            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5 p-4 rounded-lg bg-surface-container-lowest text-sm">
-              {rows.map(([label, value]) => (
-                <div key={label} className="min-w-0">
-                  <dt className="font-label-sm text-[11px] uppercase tracking-wider text-indigo-gray-600">{label}</dt>
-                  <dd className="text-indigo-gray-900 break-words">{value}</dd>
-                </div>
-              ))}
-            </dl>
+        <div className="flex flex-wrap gap-2 mt-3">
+          <a href={`mailto:${app.email}`} className={btnSmall}>
+            <Mail className="w-3.5 h-3.5" /> {app.email}
+          </a>
+          <a href={`tel:${app.phone}`} className={btnSmall}>
+            <Phone className="w-3.5 h-3.5" /> {app.contactName}
+            {app.contactRole ? `, ${app.contactRole}` : ''} · {app.phone}
+          </a>
+        </div>
 
-            <DocumentLinks links={app.documentLinks} />
+        {docs.length > 0 && (
+          <DocumentChecklist
+            links={docs}
+            checked={(key) => !!checked[`${app.id}:${key}`]}
+            onToggle={(key) => setChecked((c) => ({ ...c, [`${app.id}:${key}`]: !c[`${app.id}:${key}`] }))}
+          />
+        )}
 
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface-container-lowest font-label-sm text-label-sm text-on-surface">
-                <UserRound className="w-3.5 h-3.5 text-vibrant-blue" /> {app.contactName}{app.contactRole ? `, ${app.contactRole}` : ''}
-              </span>
-              <a href={`mailto:${app.email}`} className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface-container-lowest font-label-sm text-label-sm text-on-surface hover:text-vibrant-blue">
-                <Mail className="w-3.5 h-3.5 text-vibrant-blue" /> {app.email}
-              </a>
-              <a href={`tel:${app.phone}`} className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface-container-lowest font-label-sm text-label-sm text-on-surface hover:text-vibrant-blue">
-                <Phone className="w-3.5 h-3.5 text-vibrant-blue" /> {app.phone}
-              </a>
-            </div>
+        <div className="mt-4">
+          <Note>{CHECK_HINT[app.kind]}</Note>
+        </div>
 
-            {error?.id === app.id && (
-              <p role="alert" className="p-3 rounded-lg bg-error-container/60 text-on-error-container text-sm font-semibold">{error.message}</p>
-            )}
+        {error?.id === app.id && (
+          <p role="alert" className="mt-3 text-[13px] font-bold text-[#B42318]">
+            {error.message}
+          </p>
+        )}
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="flex items-start gap-2 text-indigo-gray-600 font-label-sm text-label-sm max-w-xl">
-                <IdCard className="w-4 h-4 text-fresh-teal shrink-0 mt-0.5" />
-                {CHECK_HINT[app.kind]}
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => reject(app)}
-                  aria-label={`Decline the ${PARTNER_NOUN[app.kind]} application from ${app.organizationName}`}
-                  className="h-9 px-4 rounded-full bg-soft-coral/10 text-soft-coral hover:bg-soft-coral/20 font-label-sm text-label-sm transition-all flex items-center gap-1 disabled:opacity-60"
-                >
-                  {busyId === app.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
-                  Decline
-                </button>
-                {app.kind === 'hospital' ? <AddHospitalButton fromApplication={prefill} /> : <AddDiagnosticCenterButton fromApplication={prefill} />}
-              </div>
-            </div>
-          </article>
-        )
-      })}
+        <div className="flex flex-wrap items-center justify-end gap-2.5 mt-4">
+          <button type="button" disabled={pending} onClick={reject} aria-label={`Decline the ${PARTNER_NOUN[app.kind]} application from ${app.organizationName}`} className={`${btnOutline} !text-[#B42318]`}>
+            {pending && <Loader2 className="w-4 h-4 animate-spin" />}
+            Reject
+          </button>
+          {allChecked ? (
+            app.kind === 'hospital' ? (
+              <AddHospitalButton fromApplication={prefill} />
+            ) : (
+              <AddDiagnosticCenterButton fromApplication={prefill} />
+            )
+          ) : (
+            <span className="text-[12.5px] font-bold text-[#5B667A]">Tick every document to approve.</span>
+          )}
+        </div>
+      </article>
     </div>
   )
 }

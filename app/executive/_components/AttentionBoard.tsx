@@ -2,9 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Building2, CircleCheck, Microscope, Phone, Stethoscope, UserRound } from 'lucide-react'
+import { CircleCheck } from 'lucide-react'
 import type { AttentionItem } from '../_lib/ops'
-import { Chip, EmptyState } from './ui'
+import { CallLink, EmptyState, Severity, Status, btnSmall, segGroup, segTab } from './ui'
 
 const filters = [
   { id: 'all', label: 'All' },
@@ -15,107 +15,83 @@ const filters = [
   { id: 'diagnostics', label: 'Diagnostics' },
 ] as const
 
-const portalIcons = { doctors: Stethoscope, partners: Building2, consultations: UserRound, diagnostics: Microscope }
+type Filter = (typeof filters)[number]['id']
 
-export function AttentionBoard({ items, limit = 12 }: { items: AttentionItem[]; limit?: number }) {
-  const [filter, setFilter] = useState<(typeof filters)[number]['id']>('all')
+/** The Command page's "Needs attention" after DeskExeHome: segmented filters, then severity, who, issue and status. */
+export function AttentionBoard({ items, limit = 8 }: { items: AttentionItem[]; limit?: number }) {
+  const [filter, setFilter] = useState<Filter>('all')
   const [showAll, setShowAll] = useState(false)
 
-  const count = (id: (typeof filters)[number]['id']) =>
-    id === 'all' ? items.length : id === 'high' ? items.filter((i) => i.severity === 'high').length : items.filter((i) => i.category === id).length
-
+  const count = (id: Filter) => (id === 'all' ? items.length : id === 'high' ? items.filter((i) => i.severity === 'high').length : items.filter((i) => i.category === id).length)
   const filtered = items.filter((i) => filter === 'all' || (filter === 'high' ? i.severity === 'high' : i.category === filter))
   const visible = showAll ? filtered : filtered.slice(0, limit)
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter">
-        {filters.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            onClick={() => setFilter(f.id)}
-            aria-pressed={filter === f.id}
-            className={`px-3 py-1.5 rounded-full font-label-sm text-label-sm transition-all ${
-              filter === f.id ? 'bg-vibrant-blue text-on-primary shadow-sm' : 'bg-surface-container-low text-indigo-gray-900 hover:bg-surface-container'
-            }`}
-          >
-            {f.label} ({count(f.id)})
-          </button>
-        ))}
+    <div>
+      <div className="mb-3.5 -mx-4 px-4 lg:mx-0 lg:px-0 overflow-x-auto no-scrollbar">
+        <div role="tablist" aria-label="Filter" className={segGroup}>
+          {filters
+            .filter((f) => f.id === 'all' || count(f.id) > 0)
+            .map((f) => (
+              <button key={f.id} type="button" role="tab" aria-selected={filter === f.id} onClick={() => setFilter(f.id)} className={segTab(filter === f.id)}>
+                {f.label} ({count(f.id)})
+              </button>
+            ))}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
         <EmptyState icon={CircleCheck}>Nothing needs attention here right now.</EmptyState>
       ) : (
-        <div className="overflow-x-auto w-full">
-          <table className="w-full min-w-[860px] text-left border-collapse">
-            <thead>
-              <tr className="bg-surface-container-low text-indigo-gray-600 font-label-sm text-label-sm uppercase tracking-wider">
-                <th className="py-3.5 px-4 rounded-l-xl font-semibold">Severity</th>
-                <th className="py-3.5 px-4 font-semibold">Who / Portal</th>
-                <th className="py-3.5 px-4 font-semibold">Issue</th>
-                <th className="py-3.5 px-4 font-semibold">Status</th>
-                <th className="py-3.5 px-4 rounded-r-xl text-right font-semibold">Next step</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-surface-container">
-              {visible.map((item) => {
-                const Icon = portalIcons[item.category]
-                return (
-                  <tr key={item.id} className="hover:bg-surface-container-low/50 transition-colors">
-                    <td className="py-4 px-4 whitespace-nowrap align-top">
-                      <Chip tone={item.severity === 'high' ? 'coral' : 'neutral'} dot={item.severity === 'high'}>
-                        {item.severity === 'high' ? 'HIGH' : 'MEDIUM'}
-                      </Chip>
-                      <div className="text-indigo-gray-600 font-label-sm text-[11px] mt-1">{item.sinceLabel}</div>
-                    </td>
-                    <td className="py-4 px-4 align-top">
-                      <div className="font-medium text-indigo-gray-900 text-sm">{item.who}</div>
-                      <span className="inline-flex items-center gap-1 text-indigo-gray-600 font-label-sm text-[11px]">
-                        <Icon className="w-3 h-3" /> {item.portal}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 align-top max-w-md">
-                      <div className="font-medium text-indigo-gray-900 text-sm">{item.title}</div>
-                      <p className="text-indigo-gray-600 font-label-sm text-[12px] truncate">{item.detail || '—'}</p>
-                    </td>
-                    <td className="py-4 px-4 whitespace-nowrap align-top">
-                      <Chip tone={item.severity === 'high' ? 'coral' : 'primary'}>{item.status}</Chip>
-                    </td>
-                    <td className="py-4 px-4 whitespace-nowrap text-right align-top">
-                      {item.actionLabel === 'Contact patient' && item.phone ? (
-                        <a
-                          href={`tel:${item.phone}`}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-surface-container-low text-indigo-gray-900 hover:bg-surface-container font-label-sm text-label-sm transition-all"
-                        >
-                          <Phone className="w-3.5 h-3.5" /> Call {item.phone}
-                        </a>
-                      ) : (
-                        <Link
-                          href={item.href}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-vibrant-blue text-on-primary hover:bg-primary font-label-sm text-label-sm shadow-sm transition-all"
-                        >
-                          {item.actionLabel} <ArrowRight className="w-3.5 h-3.5" />
-                        </Link>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {filtered.length > limit && (
-        <button
-          type="button"
-          onClick={() => setShowAll((v) => !v)}
-          className="self-center px-4 py-2 rounded-full bg-surface-container-low text-indigo-gray-900 hover:bg-surface-container font-label-sm text-label-sm"
-        >
-          {showAll ? 'Show fewer' : `Show all ${filtered.length}`}
-        </button>
+        <>
+          <div className="hidden lg:grid grid-cols-[130px_minmax(0,1fr)_minmax(0,2.2fr)_160px_120px] gap-4 px-3.5 py-2.5 rounded-[10px] bg-[#F7F9FC] text-[11.5px] font-extrabold tracking-[0.04em] uppercase text-[#5B667A]">
+            <span>Severity</span>
+            <span>Who</span>
+            <span>Issue</span>
+            <span>Status</span>
+            <span />
+          </div>
+          <ul>
+            {visible.map((item) => (
+              <li
+                key={item.id}
+                className="grid grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[120px_minmax(0,1fr)_minmax(0,2.2fr)_150px_150px] gap-x-4 gap-y-1.5 items-center py-3 lg:py-[13px] lg:px-3.5 border-b border-[#EEF2F7] text-[13.5px]"
+              >
+                <span className="flex lg:block items-center gap-2 order-1">
+                  <Severity level={item.severity} />
+                  <span className="lg:block lg:mt-1 text-[12px] text-[#5B667A]">{item.sinceLabel}</span>
+                </span>
+                <span className="min-w-0 order-3 lg:order-2 col-span-2 lg:col-span-1">
+                  <span className="block font-extrabold truncate">{item.who}</span>
+                  <span className="block text-[12px] text-[#5B667A] truncate">{item.portal}</span>
+                </span>
+                <span className="min-w-0 order-4 lg:order-3 col-span-2 lg:col-span-1">
+                  <span className="block font-extrabold truncate">{item.title}</span>
+                  <span className="block text-[12px] text-[#5B667A] truncate">{item.detail || '—'}</span>
+                </span>
+                <span className="order-5 lg:order-4">
+                  <Status label={item.status} color={item.severity === 'high' ? '#B42318' : '#B54708'} />
+                </span>
+                <span className="order-2 lg:order-5 text-right">
+                  {item.actionLabel === 'Contact patient' && item.phone ? (
+                    <CallLink phone={item.phone} />
+                  ) : (
+                    <Link href={item.href} className={btnSmall}>
+                      {item.actionLabel}
+                    </Link>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {filtered.length > limit && (
+            <div className="pt-3.5 text-center">
+              <button type="button" onClick={() => setShowAll((v) => !v)} className="text-[13.5px] font-extrabold text-[#2A4DD0] hover:underline underline-offset-4">
+                {showAll ? 'Show fewer' : `Show all ${filtered.length}`}
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

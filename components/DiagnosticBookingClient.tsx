@@ -439,7 +439,7 @@ function LabHeading({ center, tests, location, doorstep, desk = false }: { cente
     <>
       <h1 className={`flex items-center gap-1.5 font-extrabold tracking-[-0.02em] leading-[1.2] ${desk ? "text-[26px]" : "text-[19px]"}`}>
         <span className="min-w-0">{center.name}</span>
-        <VerifiedBadge className={desk ? "w-[22px] h-[22px]" : "w-[18px] h-[18px]"} />
+        <VerifiedBadge sample className={desk ? "w-[22px] h-[22px]" : "w-[18px] h-[18px]"} />
       </h1>
       <p className="mt-1.5 text-[13.5px] text-[#4A5878]">{tests ? `${tests} ${tests === 1 ? "test" : "tests"} with prices · Partner lab` : "Partner lab"}</p>
       {location && (

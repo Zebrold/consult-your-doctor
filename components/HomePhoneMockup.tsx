@@ -198,7 +198,7 @@ function HospitalTile({ h }: { h: (typeof HOSPITALS)[number] }) {
       <span className="block px-[0.5em] pt-[0.4375em] pb-[0.5em] leading-tight">
         <span className="flex items-center gap-[0.25em] min-w-0">
           <span className="truncate text-[0.75em] font-extrabold">{h.name}</span>
-          <VerifiedBadge className="w-[0.75em] h-[0.75em]" />
+          <VerifiedBadge sample className="w-[0.75em] h-[0.75em]" />
         </span>
         <span className="block mt-[0.125em] truncate text-[0.625em] text-[#5B667A]">{h.kind}</span>
         <span className="mt-[0.25em] flex items-center gap-[0.25em] text-[#5B667A]">

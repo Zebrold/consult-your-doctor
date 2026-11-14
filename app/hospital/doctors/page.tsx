@@ -5,6 +5,8 @@ import { currentTime } from '@/components/patient/data'
 import { IST, doctorName, formatTime, istDateKey } from '@/components/patient/format'
 import { dayOf, dayStartIso, istHour, loadHospitalDoctors, loadHospitalSlots, requireHospital, shiftDay, type Slot } from '../_lib/hospital'
 import { AddDoctorButton } from '../_components/DoctorDialogs'
+import { VisitingDoctors, type VisitingLink } from '../_components/VisitingDoctors'
+import { loadPractices } from '@/lib/practices'
 import { DutySheetButton, RosterList, type RosterDoctor, type RosterState } from '../_components/RosterList'
 import { BarChart, DeskHead, EmptyLine, HosBody, HosHeader, Meter, Panel, PanelHead, PhoneStats, StatCard, btnOutline, btnPrimary, plural } from '../_components/hos-ui'
 
@@ -72,9 +74,25 @@ export default async function HospitalRosterPage(props: { searchParams?: Promise
 
   const doctors = await loadHospitalDoctors(admin, hospital.id)
   const ids = doctors.map((d) => d.id)
+
+  // Doctors from other hospitals invited to, or confirmed to, consult here (lib/practices.ts).
+  const { ready: practicesReady, practices } = await loadPractices(admin, { hospitalId: hospital.id })
+  const visitingIds = practices.map((p) => p.doctorId)
+  const { data: visitingRows } = visitingIds.length
+    ? await admin.from('doctors').select('id, specialty, profiles!doctors_profile_id_fkey ( full_name ), hospitals ( name )').in('id', visitingIds)
+    : { data: [] }
+  type VRow = { id: string; specialty: string | null; profiles: { full_name: string | null } | { full_name: string | null }[] | null; hospitals: { name: string | null } | { name: string | null }[] | null }
+  const firstOf = <T,>(v: T | T[] | null) => (Array.isArray(v) ? v[0] : v) ?? null
+  const vById = new Map(((visitingRows ?? []) as VRow[]).map((r) => [r.id, r]))
+  const visiting: VisitingLink[] = practices.map((p) => {
+    const r = vById.get(p.doctorId)
+    return { id: p.id, doctorId: p.doctorId, name: doctorName(firstOf(r?.profiles ?? null)?.full_name ?? 'Doctor'), specialty: r?.specialty ?? null, home: firstOf(r?.hospitals ?? null)?.name ?? null, status: p.status }
+  })
+  // Leave requests waiting for an answer (none until the 20261114 migration has run).
+  const { count: leaveWaiting } = ids.length ? await admin.from('doctor_leaves').select('id', { count: 'exact', head: true }).in('doctor_id', ids).eq('status', 'pending') : { count: 0 }
   const from = [weekStart, today].sort()[0]
   const until = Math.max(Date.parse(dayStartIso(shiftDay(week[6], 1))), Date.parse(dayStartIso(shiftDay(day, 1))), now + 7 * DAY)
-  const slots = await loadHospitalSlots(admin, ids, dayStartIso(from), new Date(until).toISOString())
+  const slots = await loadHospitalSlots(admin, ids, dayStartIso(from), new Date(until).toISOString(), hospital.id)
 
   const daySlots = slots.filter((s) => dayOf(s.start) === day)
   const nextWeek = slots.filter((s) => Date.parse(s.start) > now && Date.parse(s.start) < now + 7 * DAY)
@@ -150,6 +168,14 @@ export default async function HospitalRosterPage(props: { searchParams?: Promise
         </div>
       </HosHeader>
       <HosBody>
+        {!!leaveWaiting && (
+          <Link href="/hospital/doctors/leave" className="flex items-center justify-between gap-3 mb-3.5 lg:mb-4 px-4 py-3 rounded-[14px] bg-[#FFF6E8] text-[13.5px] font-bold text-[#7A2E0E] hover:bg-[#FFEFD6]">
+            <span>
+              {leaveWaiting} leave {leaveWaiting === 1 ? 'request is' : 'requests are'} waiting for your answer
+            </span>
+            <span className="font-extrabold text-[#B54708]">Review</span>
+          </Link>
+        )}
         <DeskHead
           title="Doctors & duty roster"
           subtitle={subtitle}
@@ -222,6 +248,8 @@ export default async function HospitalRosterPage(props: { searchParams?: Promise
             <NoSlotsList doctors={unscheduled.map((d) => ({ id: d.id, name: doctorName(d.name), department: d.department }))} />
           </Panel>
         </section>
+
+        <VisitingDoctors links={visiting} ready={practicesReady} />
       </HosBody>
     </>
   )

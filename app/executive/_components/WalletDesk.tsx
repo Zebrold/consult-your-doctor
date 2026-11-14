@@ -4,10 +4,10 @@ import { useState, useTransition, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { LoaderCircle } from 'lucide-react'
 import { markPayoutPaid, recordWalletAdjustment, rejectPayout } from '@/app/actions/wallet'
+import { btnPrimary } from '@/components/portal/workspace-ui'
 
-const input = 'h-10 rounded-xl border border-outline-variant/60 bg-surface-container-lowest px-3 text-sm focus:outline-none focus:ring-2 focus:ring-vibrant-blue/30'
-const primary = 'h-10 px-4 rounded-xl bg-vibrant-blue text-on-primary text-sm font-bold flex items-center gap-2 disabled:opacity-60'
-const quiet = 'h-10 px-4 rounded-xl bg-surface-container text-indigo-gray-900 text-sm font-bold flex items-center gap-2 disabled:opacity-60'
+const input = 'h-[38px] w-full min-w-0 px-3.5 rounded-[10px] border border-[#D6DDE8] bg-white text-[13px] outline-none focus:border-[#2A4DD0] focus:shadow-[0_0_0_3px_rgba(42,77,208,0.12)]'
+const small = `${btnPrimary} !h-9 !px-3.5 !shadow-none`
 
 /** Pay a waiting withdrawal (with the transfer's reference) or turn it down (with the reason). */
 export function PayoutReview({ payoutId }: { payoutId: string }) {
@@ -29,24 +29,34 @@ export function PayoutReview({ payoutId }: { payoutId: string }) {
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
+    <form onSubmit={submit} className="contents">
+      <span className="min-w-0">
         <input
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder={mode === 'pay' ? 'Transfer reference (UTR)' : 'Why it is not paid'}
+          placeholder={mode === 'pay' ? 'Transfer reference' : 'Why it is not paid'}
           aria-label={mode === 'pay' ? 'Transfer reference' : 'Reason'}
-          className={`${input} flex-1 min-w-[180px]`}
+          className={input}
         />
-        <button type="submit" disabled={pending || !value.trim()} className={mode === 'pay' ? primary : quiet}>
-          {pending && <LoaderCircle className="w-4 h-4 animate-spin" />}
-          {mode === 'pay' ? 'Mark paid' : 'Reject'}
-        </button>
-        <button type="button" onClick={() => setMode(mode === 'pay' ? 'reject' : 'pay')} className="text-sm font-bold text-vibrant-blue">
+        <button type="button" onClick={() => setMode(mode === 'pay' ? 'reject' : 'pay')} className="mt-1 text-[12px] font-bold text-[#5B667A] hover:text-[#2A4DD0]">
           {mode === 'pay' ? 'Reject instead' : 'Pay instead'}
         </button>
-      </div>
-      {error && <p role="alert" className="text-sm font-bold text-error">{error}</p>}
+        {error && (
+          <span role="alert" className="block text-[12px] font-bold text-[#B42318]">
+            {error}
+          </span>
+        )}
+      </span>
+      <span className="lg:text-right self-start">
+        <button
+          type="submit"
+          disabled={pending || !value.trim()}
+          className={mode === 'pay' ? small : 'inline-flex items-center gap-2 h-9 px-3.5 rounded-[11px] border border-[#FDA29B] bg-white text-[#B42318] text-[13.5px] font-extrabold disabled:opacity-60'}
+        >
+          {pending && <LoaderCircle className="w-4 h-4 animate-spin" />}
+          {mode === 'pay' ? 'Mark as paid' : 'Reject'}
+        </button>
+      </span>
     </form>
   )
 }
@@ -75,20 +85,38 @@ export function AdjustmentForm({ hospitals }: { hospitals: { id: string; name: s
     })
   }
 
+  const label = 'block mb-1 text-[12px] font-extrabold text-[#27324A]'
   return (
-    <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-[minmax(0,1.2fr)_140px_minmax(0,1.6fr)_auto] gap-2 items-start">
-      <select name="hospitalId" required className={input} aria-label="Hospital" defaultValue="">
-        <option value="" disabled>Hospital</option>
-        {hospitals.map((h) => (
-          <option key={h.id} value={h.id}>{h.name}</option>
-        ))}
-      </select>
-      <input name="amount" required inputMode="decimal" placeholder="₹ (+ in, − out)" aria-label="Amount" className={input} />
-      <input name="note" required placeholder="What it is, e.g. NEFT ref from the hospital" aria-label="Note" className={input} />
-      <button type="submit" disabled={pending} className={primary}>
+    <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-[minmax(0,1.2fr)_160px_minmax(0,1.6fr)_auto] gap-2.5 items-end">
+      <label className="min-w-0">
+        <span className={label}>Hospital</span>
+        <select name="hospitalId" required className={`${input} !h-[42px] font-bold`} defaultValue="">
+          <option value="" disabled>
+            Choose a hospital
+          </option>
+          {hospitals.map((h) => (
+            <option key={h.id} value={h.id}>
+              {h.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="min-w-0">
+        <span className={label}>Amount (+ in, − out)</span>
+        <input name="amount" required inputMode="decimal" placeholder="₹" className={`${input} !h-[42px]`} />
+      </label>
+      <label className="min-w-0">
+        <span className={label}>What it is</span>
+        <input name="note" required placeholder="e.g. NEFT reference from the hospital" className={`${input} !h-[42px]`} />
+      </label>
+      <button type="submit" disabled={pending} className={btnPrimary}>
         {pending && <LoaderCircle className="w-4 h-4 animate-spin" />} Record
       </button>
-      {note && <p role={note.ok ? 'status' : 'alert'} className={`md:col-span-4 text-sm font-bold ${note.ok ? 'text-secondary' : 'text-error'}`}>{note.text}</p>}
+      {note && (
+        <p role={note.ok ? 'status' : 'alert'} className={`md:col-span-4 text-[13px] font-bold ${note.ok ? 'text-[#067647]' : 'text-[#B42318]'}`}>
+          {note.text}
+        </p>
+      )}
     </form>
   )
 }

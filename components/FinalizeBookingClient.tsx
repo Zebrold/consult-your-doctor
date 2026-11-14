@@ -197,7 +197,7 @@ export function FinalizeBookingClient({
                   <span className="min-w-0">
                     <span className="flex items-center gap-1.5 text-[17px] lg:text-[19px] font-extrabold min-w-0">
                       <span className="truncate">{name}</span>
-                      <VerifiedBadge className="w-4 h-4" />
+                      <VerifiedBadge doctorId={doctor.id} className="w-4 h-4" />
                     </span>
                     <span className="block text-[13.5px] font-bold text-[#2A4DD0]">{doctor.specialty || "Specialist"}</span>
                     {doctor.qualifications && <span className="block text-[12.5px] text-[#5B667A] line-clamp-2">{doctor.qualifications}</span>}

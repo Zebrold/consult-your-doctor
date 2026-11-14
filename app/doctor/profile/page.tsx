@@ -12,6 +12,7 @@ import { loadSlots, loadVisits, requireDoctor } from '../_lib/doctor'
 import { ProfileEditor, type EditableProfile } from '../_components/ProfileEditor'
 import { PrescriptionTemplate } from '../_components/PrescriptionTemplate'
 import { BarChart, DocBody, DocHeader, EmptyLine, Panel, PanelHead, Row, Verified, btnOutline, btnPrimary, card } from '../_components/doc-ui'
+import { hasLiveBadge } from '@/lib/badges'
 
 export const metadata: Metadata = { title: 'Profile | Doctor Portal' }
 export const dynamic = 'force-dynamic'
@@ -103,7 +104,7 @@ export default async function DoctorProfilePage() {
   }
 
   const name = doctorName(doctor.name)
-  const verified = license.registration ? <Verified /> : null
+  const verified = (await hasLiveBadge(admin, 'doctor', doctor.id)) ? <Verified /> : null
   const experience = doctor.experience != null ? `${doctor.experience} ${doctor.experience === 1 ? 'year' : 'years'}` : null
   const rating = reviews.summary.average
   const smallLink = 'shrink-0 inline-flex items-center gap-1 text-[13px] font-extrabold text-[#2A4DD0] hover:underline underline-offset-4'
@@ -244,6 +245,11 @@ export default async function DoctorProfilePage() {
   const links = (
     <section className={`${card} overflow-hidden`}>
       {[
+        { href: '/doctor/practice', label: 'Hospitals & clinics' },
+        { href: '/doctor/badge', label: 'Verified badge' },
+        { href: '/doctor/leave', label: 'Leave & availability' },
+        { href: '/doctor/reviews', label: 'Reviews' },
+        { href: '/doctor/reports', label: 'Reports' },
         { href: `/doctors/${doctor.id}`, label: 'Public profile' },
         { href: '/doctor/ai', label: 'Help & support' },
         { href: '/terms-of-use', label: 'Terms & conditions' },

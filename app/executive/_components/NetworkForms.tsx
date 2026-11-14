@@ -9,6 +9,7 @@ import { addOrganizationLogin, createDiagnosticCenter, createDoctorAccount, crea
 // The executive portal's "add to the network" dialogs: hospitals and diagnostic centres (each with its staff
 // sign-in), doctor accounts at any hospital, and a sign-in for an older hospital or centre that has none.
 
+const AUTO_PASSWORD_HINT = 'Leave blank: a temporary password is made and the contact email gets a link to set their own. Or type one (10+ characters, letters and numbers) and share it privately.'
 const PASSWORD_HINT = 'At least 10 characters, with letters and numbers. Share it privately, never by email or chat.'
 
 /** A hospital or centre application (/signup/hospital, /signup/diagnostic-centre) to add to the network. */
@@ -20,7 +21,7 @@ function OpenButton({ children, onClick, approve = false }: { children: ReactNod
       <button
         type="button"
         onClick={onClick}
-        className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary text-[13px] font-bold shadow-sm transition-colors"
+        className="inline-flex items-center justify-center gap-2 h-[42px] px-4 rounded-[11px] text-[13.5px] font-extrabold whitespace-nowrap bg-[#2A4DD0] text-white shadow-[0_6px_14px_rgba(42,77,208,0.25)] hover:bg-[#2443B8] active:scale-[0.98] transition-all"
       >
         <UserCheck className="w-4 h-4" /> {children}
       </button>
@@ -30,7 +31,7 @@ function OpenButton({ children, onClick, approve = false }: { children: ReactNod
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-2 h-11 px-5 rounded-full bg-vibrant-blue hover:bg-primary text-on-primary text-sm font-bold shadow-sm transition-colors"
+      className="inline-flex items-center justify-center gap-2 h-[42px] px-4 rounded-[11px] text-[13.5px] font-extrabold whitespace-nowrap bg-[#2A4DD0] text-white shadow-[0_6px_14px_rgba(42,77,208,0.25)] hover:bg-[#2443B8] active:scale-[0.98] transition-all"
     >
       <Plus className="w-4 h-4" /> {children}
     </button>
@@ -38,7 +39,8 @@ function OpenButton({ children, onClick, approve = false }: { children: ReactNod
 }
 
 /** What the executive needs to hand over once an account exists. */
-function Created({ title, rows, note, onClose }: { title: string; rows: [string, string][]; note: string; onClose: () => void }) {
+function Created({ title, rows, note, onClose, secret }: { title: string; rows: [string, string][]; note: string; onClose: () => void; secret?: string }) {
+  const [shown, setShown] = useState(false)
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
@@ -54,6 +56,17 @@ function Created({ title, rows, note, onClose }: { title: string; rows: [string,
             <dd className="font-mono font-semibold text-indigo-gray-900 break-all">{value}</dd>
           </div>
         ))}
+        {secret && (
+          <div className="contents">
+            <dt className="text-indigo-gray-600">Temporary password</dt>
+            <dd className="flex items-center gap-2 font-mono font-semibold text-indigo-gray-900 break-all">
+              {shown ? secret : '••••••••••••'}
+              <button type="button" onClick={() => setShown((v) => !v)} className="font-sans text-[12.5px] font-extrabold text-[#2A4DD0] hover:underline underline-offset-4">
+                {shown ? 'Hide' : 'Show'}
+              </button>
+            </dd>
+          </div>
+        )}
       </dl>
       <p className="text-sm text-indigo-gray-600">{note}</p>
       <div className="flex justify-end">
@@ -92,8 +105,8 @@ function OrgFields({ kind, prefill }: { kind: 'hospital' | 'lab'; prefill?: Appl
           <Field label="Staff ID" hint="Optional. Leave blank to generate one.">
             <input name="staffId" maxLength={24} pattern="[A-Za-z0-9-]{4,24}" className={`${deskInput} uppercase`} autoCapitalize="characters" />
           </Field>
-          <Field label="Password" hint={PASSWORD_HINT} className="sm:col-span-2">
-            <input name="password" type="password" required minLength={10} maxLength={128} className={deskInput} autoComplete="new-password" />
+          <Field label="Password" hint={AUTO_PASSWORD_HINT} className="sm:col-span-2">
+            <input name="password" type="password" maxLength={128} className={deskInput} autoComplete="new-password" placeholder="Leave blank to create one automatically" />
           </Field>
         </div>
       </fieldset>
@@ -123,6 +136,16 @@ function useSubmit<T extends { success: true } | { success: false; error: string
 
 const APPLICANT_NOTE = ' The applicant has been emailed their staff ID; give them the password privately.'
 
+/** What to tell the executive after adding a hospital or centre, depending on how its password was set. */
+function handOver(done: { temporaryPassword?: string; linkSentTo?: string | null }, fromApplication: boolean, where: string) {
+  if (done.temporaryPassword) {
+    return done.linkSentTo
+      ? `We emailed ${done.linkSentTo} their staff ID and a link to set their own password. They log in at ${where}. Keep the temporary password only for a call if the link doesn’t arrive.`
+      : `The email with the set-password link could not be sent. Share the staff ID and temporary password privately; they log in at ${where} and can change the password in their account.`
+  }
+  return `Give their staff the staff ID and the password you set. They log in at ${where}.${fromApplication ? APPLICANT_NOTE : ''}`
+}
+
 /** Adds a hospital; with `fromApplication`, approves that application by adding it pre-filled. */
 export function AddHospitalButton({ fromApplication }: { fromApplication?: ApplicationPrefill } = {}) {
   const [open, setOpen] = useState(false)
@@ -142,7 +165,8 @@ export function AddHospitalButton({ fromApplication }: { fromApplication?: Appli
             <Created
               title="Hospital added"
               rows={[['Hospital ID', done.code], ['Staff ID', done.staffId]]}
-              note={`Give the hospital's staff their staff ID and the password you set. They log in at Login → Hospitals and can add their doctors and slots.${fromApplication ? APPLICANT_NOTE : ''}`}
+              secret={done.temporaryPassword}
+              note={`${handOver(done, !!fromApplication, 'Login → Hospitals')} They can then add their doctors and slots.`}
               onClose={close}
             />
           ) : (
@@ -184,7 +208,8 @@ export function AddDiagnosticCenterButton({ fromApplication }: { fromApplication
             <Created
               title="Diagnostic centre added"
               rows={[['Centre ID', done.code], ['Staff ID', done.staffId]]}
-              note={`Give the centre's staff their staff ID and the password you set. They log in at Login → Diagnostic centres and manage tests, bookings and reports.${fromApplication ? APPLICANT_NOTE : ''}`}
+              secret={done.temporaryPassword}
+              note={`${handOver(done, !!fromApplication, 'Login → Diagnostic centres')} They manage tests, bookings and reports there.`}
               onClose={close}
             />
           ) : (
@@ -331,7 +356,7 @@ export function AddLoginButton({ kind, id, name }: { kind: 'hospital' | 'lab'; i
   }
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full border border-outline-variant text-[13px] font-semibold text-vibrant-blue hover:bg-primary-fixed/40 transition-colors">
+      <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center justify-center gap-1.5 h-[34px] px-3 rounded-[10px] text-[12.5px] font-extrabold whitespace-nowrap border-[1.5px] border-[#2A4DD0] bg-white text-[#2A4DD0] hover:bg-[#EEF3FF] transition-all">
         <KeyRound className="w-4 h-4" /> Create login
       </button>
       {open && (

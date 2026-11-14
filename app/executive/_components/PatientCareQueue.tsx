@@ -1,63 +1,57 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
-import { ArrowRight, CircleCheck, Clock, Microscope, Phone, Search, SlidersHorizontal, UserRound } from 'lucide-react'
+import { CircleCheck, Search } from 'lucide-react'
 import type { AttentionItem } from '../_lib/ops'
-import { Chip, EmptyState } from './ui'
+import { CallLink, EmptyState, Initials, Status, card, segGroup, segTab } from './ui'
 
 const tabs = [
   { id: 'all', label: 'All' },
+  { id: 'urgent', label: 'Urgent' },
   { id: 'consultations', label: 'Consultations' },
-  { id: 'diagnostics', label: 'Diagnostics' },
+  { id: 'diagnostics', label: 'Lab tests' },
   { id: 'payment', label: 'Awaiting payment' },
 ] as const
 
 type Tab = (typeof tabs)[number]['id']
 
 const matchesTab = (item: AttentionItem, tab: Tab) =>
-  tab === 'all' || (tab === 'payment' ? item.status === 'Awaiting payment' : item.category === tab)
+  tab === 'all' || (tab === 'urgent' ? item.severity === 'high' : tab === 'payment' ? item.status === 'Awaiting payment' : item.category === tab)
 
+/** The patient care queue after DeskExePatients: patients whose bookings stalled, with a call button. */
 export function PatientCareQueue({ items }: { items: AttentionItem[] }) {
   const [tab, setTab] = useState<Tab>('all')
   const [query, setQuery] = useState('')
-  const [limit, setLimit] = useState(8)
+  const [limit, setLimit] = useState(10)
 
   const q = query.trim().toLowerCase()
-  const filtered = items.filter(
-    (i) => matchesTab(i, tab) && (!q || [i.who, i.phone, i.detail, i.title].some((v) => v?.toLowerCase().includes(q)))
-  )
+  const filtered = items.filter((i) => matchesTab(i, tab) && (!q || [i.who, i.phone, i.detail, i.title].some((v) => v?.toLowerCase().includes(q))))
 
   return (
-    <div className="flex flex-col gap-stack-md">
-      <div className="bg-surface-container-lowest p-4 rounded-2xl shadow-sm flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <SlidersHorizontal className="w-5 h-5 text-primary" />
-            <h2 className="font-title-md text-title-md text-indigo-gray-900">Patient Care Queue</h2>
-            <span className="px-2 py-0.5 rounded-full bg-vibrant-blue text-on-primary font-label-sm text-label-sm">{items.length} open</span>
-          </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-gray-600" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by patient, phone, doctor or lab..."
-              aria-label="Search the care queue"
-              className="pl-9 pr-4 py-2 bg-surface-container-low rounded-full text-label-sm text-on-surface outline-none focus:ring-2 focus:ring-vibrant-blue/30 w-64 sm:w-72"
-            />
-          </div>
+    <section className={`${card} p-4 lg:p-[22px] min-w-0`}>
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-3.5">
+        <div>
+          <h2 className="text-[16px] font-extrabold">Patient care queue</h2>
+          <p className="mt-[3px] text-[13px] text-[#5B667A]">{items.length} open</p>
         </div>
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1" role="group" aria-label="Filter">
+        <label className="flex items-center gap-2 h-10 px-3 rounded-[10px] bg-[#F4F6FA] shadow-[inset_0_0_0_1px_#E6EAF0] focus-within:shadow-[inset_0_0_0_1.5px_#2A4DD0] w-full sm:w-72">
+          <Search className="w-4 h-4 text-[#5B667A] shrink-0" />
+          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search patient, phone, doctor or lab" aria-label="Search the care queue" className="flex-1 min-w-0 bg-transparent border-0 outline-none text-[13px]" />
+        </label>
+      </div>
+      <div className="mb-3 -mx-4 px-4 lg:mx-0 lg:px-0 overflow-x-auto no-scrollbar">
+        <div role="tablist" aria-label="Filter" className={segGroup}>
           {tabs.map((t) => (
             <button
               key={t.id}
               type="button"
-              onClick={() => { setTab(t.id); setLimit(8) }}
-              aria-pressed={tab === t.id}
-              className={`px-3.5 py-1.5 rounded-full font-label-sm text-label-sm whitespace-nowrap transition-all ${
-                tab === t.id ? 'bg-vibrant-blue text-on-primary font-semibold' : 'bg-surface-container-low text-indigo-gray-600 hover:text-on-surface'
-              }`}
+              role="tab"
+              aria-selected={tab === t.id}
+              onClick={() => {
+                setTab(t.id)
+                setLimit(10)
+              }}
+              className={segTab(tab === t.id)}
             >
               {t.label} ({items.filter((i) => matchesTab(i, t.id)).length})
             </button>
@@ -66,69 +60,47 @@ export function PatientCareQueue({ items }: { items: AttentionItem[] }) {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-surface-container-lowest rounded-2xl shadow-sm">
-          <EmptyState icon={CircleCheck}>No patient bookings need follow-up here.</EmptyState>
-        </div>
+        <EmptyState icon={CircleCheck}>No patient bookings need follow-up here.</EmptyState>
       ) : (
-        filtered.slice(0, limit).map((item) => {
-          const Icon = item.category === 'diagnostics' ? Microscope : UserRound
-          const high = item.severity === 'high'
-          return (
-            <article key={item.id} className="relative overflow-hidden bg-surface-container-lowest p-5 md:p-6 rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col gap-3">
-              <span className={`absolute left-0 top-0 bottom-0 w-1.5 ${high ? 'bg-soft-coral' : 'bg-primary'}`} />
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pl-2">
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="w-11 h-11 rounded-full bg-surface-container text-primary flex items-center justify-center font-bold text-xs shrink-0">
-                    {item.who.split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase()}
+        <ul>
+          {filtered.slice(0, limit).map((item) => {
+            const high = item.severity === 'high'
+            return (
+              <li key={item.id} className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-4 py-3.5 border-t border-[#EEF2F7]">
+                <span className="flex items-center gap-3 min-w-0 flex-1">
+                  <Initials name={item.who} />
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[14px] font-extrabold">{item.who}</span>
+                      {high && <span className="inline-flex h-5 items-center px-1.5 rounded bg-[#FEF3F2] text-[#B42318] text-[10.5px] font-extrabold tracking-[0.04em]">URGENT</span>}
+                    </span>
+                    <span className="block text-[12px] text-[#5B667A] truncate">{[item.phone, item.portal].filter(Boolean).join(' · ')}</span>
                   </span>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-title-md text-lg font-bold text-indigo-gray-900">{item.who}</span>
-                      <Chip tone={high ? 'coral' : 'primary'}>{high ? 'URGENT' : 'FOLLOW UP'}</Chip>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-2 text-indigo-gray-600 font-label-sm text-label-sm">
-                      {item.phone && <span>{item.phone}</span>}
-                      {item.phone && <span>•</span>}
-                      <span className="inline-flex items-center gap-1"><Icon className="w-3.5 h-3.5" /> {item.portal}</span>
-                      <span>•</span>
-                      <span className={`inline-flex items-center gap-1 ${high ? 'text-soft-coral font-semibold' : ''}`}>
-                        <Clock className="w-3.5 h-3.5" /> {item.sinceLabel}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <Chip tone={high ? 'coral' : 'neutral'}>{item.status}</Chip>
-              </div>
-
-              <div className="ml-2 bg-surface-container-low/60 p-3 rounded-lg">
-                <div className={`font-label-sm text-label-sm font-bold uppercase tracking-wider mb-1 ${high ? 'text-soft-coral' : 'text-primary'}`}>{item.title}</div>
-                <p className="font-body-md text-[15px] text-indigo-gray-900">{item.detail || '—'}</p>
-              </div>
-
-              <div className="pl-2 flex flex-wrap items-center gap-2">
-                {item.phone ? (
-                  <a href={`tel:${item.phone}`} className="px-3 py-1.5 rounded-full bg-vibrant-blue text-on-primary hover:bg-primary font-label-sm text-label-sm font-semibold transition-all flex items-center gap-1 shadow-sm">
-                    <Phone className="w-4 h-4" /> Call patient
-                  </a>
-                ) : (
-                  <span className="px-3 py-1.5 rounded-full bg-surface-container-low text-indigo-gray-600 font-label-sm text-label-sm">No phone on file</span>
-                )}
-                {item.category === 'diagnostics' && (
-                  <Link href="/executive/diagnostics" className="px-3 py-1.5 rounded-full bg-surface-container text-indigo-gray-900 hover:bg-surface-container-high font-label-sm text-label-sm transition-all flex items-center gap-1">
-                    Lab operations <ArrowRight className="w-4 h-4" />
-                  </Link>
-                )}
-              </div>
-            </article>
-          )
-        })
+                </span>
+                <span className="min-w-0 sm:flex-[1.4] sm:pl-0 pl-12">
+                  <span className="block text-[13.5px] font-extrabold truncate">{item.title}</span>
+                  <span className="block text-[12px] text-[#5B667A] truncate">{item.detail || '—'}</span>
+                </span>
+                <span className="flex items-center justify-between sm:justify-end gap-3 pl-12 sm:pl-0 sm:w-[260px] shrink-0">
+                  <span className="text-right">
+                    <Status label={item.status} color={high ? '#B42318' : '#B54708'} />
+                    <span className="block text-[12px] text-[#5B667A]">{item.sinceLabel}</span>
+                  </span>
+                  {item.phone ? <CallLink phone={item.phone} /> : <span className="text-[12px] text-[#5B667A]">No phone</span>}
+                </span>
+              </li>
+            )
+          })}
+        </ul>
       )}
 
       {filtered.length > limit && (
-        <button type="button" onClick={() => setLimit((l) => l + 8)} className="self-center px-4 py-2 rounded-full bg-surface-container-lowest shadow-sm text-indigo-gray-900 hover:bg-surface-container font-label-sm text-label-sm">
-          Show more ({filtered.length - limit} remaining)
-        </button>
+        <div className="pt-3.5 text-center">
+          <button type="button" onClick={() => setLimit((l) => l + 10)} className="text-[13.5px] font-extrabold text-[#2A4DD0] hover:underline underline-offset-4">
+            Show all {filtered.length}
+          </button>
+        </div>
       )}
-    </div>
+    </section>
   )
 }

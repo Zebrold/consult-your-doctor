@@ -11,8 +11,8 @@ export async function patientAccount(next: string) {
   const user = await getCurrentUser()
   if (!user) redirect(`/login/patient?next=${encodeURIComponent(next)}`)
   const admin = createAdminClient()
-  const { data } = await admin.from('profiles').select('full_name, email, phone').eq('id', user.id).maybeSingle()
-  const profile = (data ?? null) as { full_name: string | null; email: string | null; phone: string | null } | null
+  const { data } = await admin.from('profiles').select('full_name, email, phone_number').eq('id', user.id).maybeSingle()
+  const profile = (data ?? null) as { full_name: string | null; email: string | null; phone_number: string | null } | null
   const name = profile?.full_name || (user.user_metadata?.full_name as string | undefined) || 'Patient'
   return { user, admin, profile, name, uhid: `CYD-${user.id.slice(0, 8).toUpperCase()}` }
 }

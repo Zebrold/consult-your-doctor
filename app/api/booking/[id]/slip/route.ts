@@ -11,6 +11,29 @@ import { isOnlineGateway } from '@/lib/payment-gateways'
 type Joined<T> = T | T[] | null
 const one = <T,>(v: Joined<T> | undefined) => (Array.isArray(v) ? v[0] : v) ?? null
 
+type PersonRow = { full_name: string | null; phone_number: string | null; email: string | null }
+type AppointmentRow = {
+  patient_id: string | null
+  status: string
+  created_at?: string | null
+  booking_fee?: number | string | null
+  booking_type?: string | null
+  patient: Joined<PersonRow>
+  doctor: Joined<{ id: string; specialty: string | null; hospital_id: string | null; profiles: Joined<{ full_name: string | null }> }>
+  hospital: Joined<{ id: string; name: string | null; city: string | null; address: string | null }>
+  schedule: Joined<{ start_time: string | null }>
+}
+type DiagnosticRow = {
+  id: string
+  status: string
+  test_name: string | null
+  preferred_date: string | null
+  created_at: string | null
+  patient_id: string | null
+  patient: Joined<PersonRow>
+  center: Joined<{ id: string; name: string | null; city: string | null; address: string | null; test_prices: Record<string, number | string> | null }>
+}
+
 // The slip is a payment receipt, so it is only issued once the booking is paid.
 const PAID = ['confirmed', 'visited', 'completed', 'report_sent']
 
@@ -57,11 +80,11 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
       .maybeSingle()
 
     if (aptData) {
-      const apt = aptData as any
-      const doc = one<any>(apt.doctor)
-      const hosp = one<any>(apt.hospital)
-      const schedule = one<any>(apt.schedule)
-      const patient = one<any>(apt.patient)
+      const apt = aptData as unknown as AppointmentRow
+      const doc = one(apt.doctor)
+      const hosp = one(apt.hospital)
+      const schedule = one(apt.schedule)
+      const patient = one(apt.patient)
       if (!canSee(viewer, apt.patient_id, { hospitalId: hosp?.id ?? doc?.hospital_id })) {
         return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
       }
@@ -69,7 +92,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
         return NextResponse.json({ error: 'The slip is available once this booking is paid.' }, { status: 409 })
       }
 
-      const docProfile = one<any>(doc?.profiles)
+      const docProfile = one(doc?.profiles)
       const docFull = docProfile?.full_name ? doctorName(docProfile.full_name) : 'Medical Specialist'
       const dateStr = schedule?.start_time
         ? `${formatLongDate(schedule.start_time)}, ${formatTime(schedule.start_time)}`
@@ -120,7 +143,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
         },
       })
 
-      return new NextResponse(pdfBytes as any, {
+      return new NextResponse(pdfBytes as unknown as BodyInit, {
         headers: { ...PDF_HEADERS, 'Content-Disposition': `inline; filename="appointment_slip_${id.slice(0, 8).toUpperCase()}.pdf"` },
       })
     }
@@ -137,9 +160,9 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
       .maybeSingle()
 
     if (diagData) {
-      const diag = diagData as any
-      const center = one<any>(diag.center)
-      const patient = one<any>(diag.patient)
+      const diag = diagData as unknown as DiagnosticRow
+      const center = one(diag.center)
+      const patient = one(diag.patient)
       if (!canSee(viewer, diag.patient_id, { centerId: center?.id })) {
         return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
       }
@@ -172,7 +195,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
           email: patient?.email || null,
         },
         provider: {
-          name: diag.test_name,
+          name: diag.test_name ?? '',
           specialty: 'Diagnostic Laboratory Testing',
           hospitalName: center?.name || 'Diagnostic Centre',
           address: center?.address || null,
@@ -192,13 +215,13 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
         },
       })
 
-      return new NextResponse(pdfBytes as any, {
+      return new NextResponse(pdfBytes as unknown as BodyInit, {
         headers: { ...PDF_HEADERS, 'Content-Disposition': `inline; filename="diagnostic_slip_${id.slice(0, 8).toUpperCase()}.pdf"` },
       })
     }
 
     return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error generating appointment slip:', err)
     return NextResponse.json({ error: 'Failed to generate appointment slip' }, { status: 500 })
   }

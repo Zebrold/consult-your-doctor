@@ -1,10 +1,8 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { siteUrl as publicSiteUrl } from '@/lib/site-url'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
-import { sendDoctorActivationEmail } from '@/lib/notify/email'
 import { createAdminClient as createServiceClient } from '@/lib/supabase/admin'
 import { provisionDoctor } from '@/lib/provisioning'
 import { isVisiting } from '@/lib/practices'
@@ -240,48 +238,6 @@ export async function createHospitalDoctor(formData: FormData) {
     activationLink: result.activationLink,
     invitationSent: result.invitationSent,
   }
-}
-
-/** Resends an invitation activation link to a hospital's doctor */
-export async function resendDoctorInvitation(doctorId: string, email: string): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Unauthorized' }
-
-  const { data: adminProfile } = await supabase.from('profiles').select('role, hospital_id').eq('id', user.id).single()
-  if (adminProfile?.role !== 'hospital_admin' || !adminProfile.hospital_id) return { success: false, error: 'Forbidden' }
-
-  const adminAuthClient = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-
-  const siteUrl = publicSiteUrl()
-  let activationLink = `${siteUrl}/login/doctor`
-
-  try {
-    const { data: linkData } = await adminAuthClient.auth.admin.generateLink({
-      type: 'recovery',
-      email,
-      options: { redirectTo: `${siteUrl}/update-password` }
-    })
-    if (linkData?.properties?.action_link) activationLink = linkData.properties.action_link
-  } catch (err: any) {
-    return { success: false, error: err?.message || 'Failed to generate invitation link' }
-  }
-
-  const { data: hospital } = await adminAuthClient.from('hospitals').select('name').eq('id', adminProfile.hospital_id).maybeSingle()
-  const { data: doc } = await adminAuthClient.from('doctors').select('profiles!doctors_profile_id_fkey(full_name)').eq('id', doctorId).maybeSingle()
-  const docName = (doc?.profiles as any)?.full_name || 'Doctor'
-
-  const sent = await sendDoctorActivationEmail({
-    to: email,
-    doctorName: docName,
-    activationLink,
-    hospitalName: hospital?.name,
-  })
-
-  return { success: true }
 }
 
 /** Edits one of this hospital's doctors (the details patients see when booking). */

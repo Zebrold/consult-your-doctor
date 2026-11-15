@@ -7,6 +7,7 @@ import { ensurePatientProfile, indianMobile, sendPatientOtp, verifyPatientOtp } 
 import { getBookingFees } from '@/lib/booking-fees'
 import { insertPaymentRow, shareColumns } from '@/lib/wallet'
 import { slotHospitalId } from '@/lib/practices'
+import { executiveFor } from '@/app/executive/_lib/ops'
 
 // The statuses the executive's status menu offers. A paid booking is cancelled by refunding it from Payments, which also
 // frees its slot; it can't be cancelled from this menu.
@@ -14,8 +15,9 @@ const EXECUTIVE_STATUSES = ['confirmed', 'visited', 'completed']
 // The status a booking may move to from each status here. A booking is confirmed by its payment, never by this menu.
 const NEXT_STATUSES: Record<string, string[]> = { confirmed: ['visited', 'completed'], visited: ['completed'] }
 
-/** The signed-in executive, or null. */
+/** The signed-in executive whose team may use Check-ins, or null. */
 async function executiveSession() {
+  if (!(await executiveFor('today'))) return null
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
@@ -216,8 +218,8 @@ export async function createWalkInAppointment(formData: FormData) {
 
     revalidatePath('/executive/dashboard')
     return { success: true }
-  } catch (err: any) {
+  } catch (err) {
     console.error('Walk-in booking error:', err)
-    return { error: err.message || 'Failed to complete walk-in booking' }
+    return { error: (err instanceof Error && err.message) || 'Failed to complete walk-in booking' }
   }
 }

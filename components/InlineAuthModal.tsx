@@ -43,11 +43,9 @@ export function InlineAuthModal({ isOpen, onClose, onSuccess }: InlineAuthModalP
   const [verifyState, verifyAction] = useActionState(verifyOTPInline, null)
 
   // Handle successful send
-  useEffect(() => {
-    if (sendState?.success && step === 'phone') {
-      setStep('otp')
-    }
-  }, [sendState?.success, step])
+  if (sendState?.success && step === 'phone') {
+    setStep('otp')
+  }
 
   // Handle successful verify
   const hasSucceeded = useRef(false)

@@ -4,8 +4,10 @@ import Link from 'next/link'
 import { ArrowLeft, UserPlus } from 'lucide-react'
 import { WalkInForm, type WalkInDoctor } from './WalkInForm'
 import { getBookingFees } from '@/lib/booking-fees'
+import { requireExecutivePage } from '../../_lib/ops'
 
 export default async function WalkInBookingPage() {
+  await requireExecutivePage('today')
   const supabase = await createClient()
 
   const user = await getCurrentUser()

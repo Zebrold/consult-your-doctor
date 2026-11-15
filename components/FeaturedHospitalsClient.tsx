@@ -5,7 +5,7 @@ import { useRef } from "react";
 import Link from "next/link";
 import { RemoteImage } from "@/components/RemoteImage";
 
-export function FeaturedHospitalsClient({ hospitals }: { hospitals: any[] }) {
+export function FeaturedHospitalsClient({ hospitals }: { hospitals: { id: string; name: string; city?: string | null; image_url?: string | null }[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scroll = (direction: "left" | "right") => {

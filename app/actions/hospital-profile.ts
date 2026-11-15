@@ -108,6 +108,54 @@ export async function updateHospitalProfile(formData: FormData): Promise<Result>
   return { success: true }
 }
 
+// ─── Cover photo (20261117_hospital_cover.sql) ────────────────────────────────────────────────────────────────────
+
+const COVER_UPDATE = 'The cover photo needs the latest database update (supabase/migrations/20261117_hospital_cover.sql). Ask your administrator to run it.'
+const missingColumn = (error: { code?: string; message?: string }) => ['42703', 'PGRST204'].includes(error.code ?? '') || /cover_url/.test(error.message ?? '')
+
+/** Uploads a new cover photo (the wide banner on the profile and the patient page). */
+export async function updateHospitalCover(formData: FormData): Promise<Result> {
+  const ctx = await hospitalContext()
+  if (!ctx) return fail(NOT_SIGNED_IN)
+
+  const image = formData.get('cover')
+  if (!(image instanceof File) || image.size === 0) return fail('Choose a photo for the cover.')
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(image.type)) return fail('The cover must be a JPG, PNG or WebP image.')
+  if (image.size > 5 * 1024 * 1024) return fail('The cover must be under 5 MB.')
+
+  const ext = image.type.split('/')[1].replace('jpeg', 'jpg')
+  const path = `hospitals/covers/${ctx.hospitalId}-${Date.now()}.${ext}`
+  const { error: uploadError } = await ctx.admin.storage.from('avatars').upload(path, image, { upsert: true, contentType: image.type, cacheControl: PHOTO_CACHE })
+  if (uploadError) {
+    console.error('updateHospitalCover upload:', uploadError)
+    return fail('Could not upload the cover. Please try again.')
+  }
+
+  const coverUrl = ctx.admin.storage.from('avatars').getPublicUrl(path).data.publicUrl
+  const { error } = await ctx.admin.from('hospitals').update({ cover_url: coverUrl }).eq('id', ctx.hospitalId)
+  if (error) {
+    console.error('updateHospitalCover:', error)
+    // The column isn't there yet: don't leave the uploaded file behind.
+    await ctx.admin.storage.from('avatars').remove([path])
+    return fail(missingColumn(error) ? COVER_UPDATE : 'Could not save the cover. Please try again.')
+  }
+  revalidateHospitalPages(ctx.hospitalId)
+  return { success: true }
+}
+
+/** Takes the cover off, back to the plain blue banner. */
+export async function removeHospitalCover(): Promise<Result> {
+  const ctx = await hospitalContext()
+  if (!ctx) return fail(NOT_SIGNED_IN)
+  const { error } = await ctx.admin.from('hospitals').update({ cover_url: null }).eq('id', ctx.hospitalId)
+  if (error) {
+    console.error('removeHospitalCover:', error)
+    return fail(missingColumn(error) ? COVER_UPDATE : 'Could not remove the cover. Please try again.')
+  }
+  revalidateHospitalPages(ctx.hospitalId)
+  return { success: true }
+}
+
 // ─── Services & charges (/hospital/settings/services) ─────────────────────────────────────────────────────────────
 // Names and prices go to available_tests / test_prices, which bookings read. The description, department, type and
 // "shown to patients" go to service_details (20261103_hospital_services.sql); until that runs, only names and prices save.

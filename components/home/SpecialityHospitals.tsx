@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Building2, ChevronDown, MapPin, Search } from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2, ChevronDown, MapPin } from "lucide-react";
 import { byNearness, usePatientLocation } from "@/components/patient/location";
 import { LocationSheet } from "@/components/patient/LocationSheet";
 import { formatDistance } from "@/lib/geo";
@@ -32,6 +32,7 @@ export function SpecialityHospitals({
   cities,
   findHref,
   doctorCount,
+  docked = false,
 }: {
   speciality: SpecialityInfo;
   hospitals: SpecialityHospital[];
@@ -39,6 +40,8 @@ export function SpecialityHospitals({
   /** The doctors list filtered to this speciality. */
   findHref: string;
   doctorCount: number;
+  /** Shown inside the patient workspace, whose desktop bar has the breadcrumb and search. */
+  docked?: boolean;
 }) {
   const place = usePatientLocation();
   const [sheet, setSheet] = useState(false);
@@ -64,23 +67,11 @@ export function SpecialityHospitals({
 
       <header className="relative overflow-hidden h-[176px] md:h-[230px] bg-[#2A4DD0]">
         <div className="relative h-full max-w-[1100px] mx-auto">
-          <svg aria-hidden width="120" height="40" viewBox="0 0 120 40" fill="none" stroke="#A9CBFF" strokeWidth={3} strokeLinecap="round" className="absolute left-[112px] md:left-[40%] top-[102px] md:top-[130px]">
-            <path d="M2 8c10-8 20 8 30 0s20 8 30 0 20 8 30 0 20 8 26 2" />
-            <path d="M2 22c10-8 20 8 30 0s20 8 30 0 20 8 30 0 20 8 26 2" />
-            <path d="M2 36c10-8 20 8 30 0s20 8 30 0 20 8 30 0" />
-          </svg>
-          <span aria-hidden className="absolute left-[196px] md:left-[55%] top-[54px] w-4 h-4 rounded-full bg-white/25" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={specialityIcon(s)} alt="" className="absolute right-[18px] md:right-6 -bottom-1.5 w-[150px] h-[150px] md:w-[200px] md:h-[200px]" />
-          <Link href="/" aria-label="Back to home" className="absolute left-3 md:left-6 top-3.5 md:top-5 w-11 h-11 rounded-full text-white flex items-center justify-center hover:bg-white/10 transition-colors">
+          {/* In the patient workspace, wider screens have the breadcrumb above the banner instead. */}
+          <Link href="/" aria-label="Back to home" className={`${docked ? "md:hidden" : ""} absolute left-3 md:left-6 top-3.5 md:top-5 w-11 h-11 rounded-full text-white flex items-center justify-center hover:bg-white/10 transition-colors`}>
             <ArrowLeft className="w-6 h-6" strokeWidth={2.4} />
-          </Link>
-          <Link
-            href={findHref}
-            aria-label={`Search ${s.name} doctors`}
-            className="absolute right-3.5 md:right-6 top-3.5 md:top-5 w-11 h-11 rounded-full border-[1.5px] border-white/45 text-white flex items-center justify-center hover:bg-white/10 transition-colors"
-          >
-            <Search className="w-5 h-5" strokeWidth={2.4} />
           </Link>
         </div>
       </header>

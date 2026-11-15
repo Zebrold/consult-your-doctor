@@ -6,11 +6,11 @@ import { toLatLng } from '@/lib/geo'
 import { currentTime } from '@/components/patient/data'
 import { IST, formatINR, formatShortDate, istDateKey } from '@/components/patient/format'
 import { RemoteImage } from '@/components/RemoteImage'
-import { StaffAccount } from '@/components/portal/StaffAccount'
 import { loadHospitalBeds, summarizeBeds } from '@/lib/beds'
 import { loadHospitalReviews } from '@/lib/reviews'
 import { dayOf, isPaidVisit, loadHospitalDoctors, loadHospitalVisits, requireHospital } from '../_lib/hospital'
 import { HospitalProfileEditor } from '../_components/HospitalProfileEditor'
+import { HospitalCoverEditor } from '../_components/HospitalCoverEditor'
 import { BarChart, EmptyLine, HosBackHeader, HosBody, Meter, MoreLink, Panel, PanelHead, PhoneStats, Row, Verified, btnOutline, btnPrimary, card, plural, telHref } from '../_components/hos-ui'
 import { hasLiveBadge } from '@/lib/badges'
 
@@ -20,17 +20,19 @@ export const dynamic = 'force-dynamic'
 const stars = (n: number) => '★'.repeat(Math.round(n))
 
 export default async function HospitalProfilePage() {
-  const { admin, user, hospital } = await requireHospital()
+  const { admin, hospital } = await requireHospital()
   const now = currentTime()
   const doctors = await loadHospitalDoctors(admin, hospital.id)
-  const [visits, beds, reviews, { data: me }, { data: pin }] = await Promise.all([
+  const [visits, beds, reviews, { data: pin }, { data: coverRow }] = await Promise.all([
     loadHospitalVisits(admin, hospital.id, doctors.map((d) => d.id)),
     loadHospitalBeds(admin, hospital.id),
     loadHospitalReviews(admin, hospital.id),
-    admin.from('profiles').select('full_name, phone_number, staff_id').eq('id', user.id).maybeSingle(),
     // The map pin (20261014_facility_locations.sql); null until that migration has run.
     admin.from('hospitals').select('latitude, longitude').eq('id', hospital.id).maybeSingle(),
+    // The cover photo (20261117_hospital_cover.sql); null until that migration has run.
+    admin.from('hospitals').select('cover_url').eq('id', hospital.id).maybeSingle(),
   ])
+  const cover = (coverRow as { cover_url?: string | null } | null)?.cover_url ?? null
   const bedSummary = summarizeBeds(beds.data)
   const paid = visits.filter(isPaidVisit)
   const patients = new Set(paid.map((v) => v.patient?.id).filter(Boolean)).size
@@ -262,16 +264,14 @@ export default async function HospitalProfilePage() {
     </Panel>
   )
 
-  const account = (
-    <section id="account" className="scroll-mt-24">
-      <h2 className="px-1 mb-2 text-[16px] font-extrabold">My login details</h2>
-      <StaffAccount name={me?.full_name ?? ''} phone={me?.phone_number ?? null} staffId={me?.staff_id ?? null} roleLabel="Hospital admin" />
-    </section>
-  )
-
   return (
     <>
       <HosBackHeader backHref="/hospital/more" backLabel="Back to more" title="Hospital profile">
+        {/* The cover photo, or a place to add one */}
+        <div className={`relative mt-3 rounded-2xl overflow-hidden ${cover ? 'h-[132px]' : 'h-[72px] border border-dashed border-white/35 bg-white/[0.06]'}`}>
+          {cover && <RemoteImage src={cover} alt={`Cover photo of ${hospital.name}`} fill sizes="(min-width: 768px) 720px, 100vw" load="eager" className="object-cover" />}
+          <HospitalCoverEditor hasCover={!!cover} className={cover ? 'absolute top-2.5 right-2.5' : 'absolute inset-0 !items-center justify-center'} />
+        </div>
         <div className="flex items-center gap-3.5 mt-3 mx-1">
           {photo(72, 'w-[72px] h-[72px] rounded-2xl shadow-[0_0_0_2px_#fff]')}
           <span className="min-w-0">
@@ -304,7 +304,10 @@ export default async function HospitalProfilePage() {
 
         {/* Desktop banner */}
         <section className={`hidden lg:block ${card} overflow-hidden mb-5`}>
-          <div className="h-[92px] bg-[#2A4DD0]" />
+          <div className={`relative ${cover ? 'h-[200px]' : 'h-[120px]'} bg-[#2A4DD0]`}>
+            {cover && <RemoteImage src={cover} alt={`Cover photo of ${hospital.name}`} fill sizes="(min-width: 1024px) 1340px, 100vw" load="eager" className="object-cover" />}
+            <HospitalCoverEditor hasCover={!!cover} className="absolute top-4 right-5" />
+          </div>
           <div className="flex items-end gap-5 px-[26px] pb-[22px] -mt-11">
             {photo(96, 'w-24 h-24 rounded-[20px] shadow-[0_0_0_4px_#fff,0_0_0_5px_#E6EAF0]')}
             <span className="flex-1 min-w-0 pb-1">
@@ -364,11 +367,8 @@ export default async function HospitalProfilePage() {
             {bookings}
           </div>
         </div>
-        {/* Forms that need the room: full width under the cards */}
-        <div className="flex flex-col gap-3.5 mt-3.5 lg:gap-5 lg:mt-5">
-          {tests}
-          {account}
-        </div>
+        {/* Services need the room: full width under the cards */}
+        <div className="mt-3.5 lg:mt-5">{tests}</div>
       </HosBody>
     </>
   )

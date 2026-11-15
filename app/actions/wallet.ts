@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { formatINR } from '@/components/patient/format'
+import { executiveFor } from '@/app/executive/_lib/ops'
 import { loadHospitalWallet, MIN_PAYOUT, type PayoutAccount } from '@/lib/wallet'
 
 // Hospital wallets (lib/wallet.ts): a hospital admin keeps the bank account or UPI ID withdrawals are paid to and asks
@@ -25,6 +26,8 @@ async function caller(role: 'hospital_admin' | 'executive') {
   const { data: profile } = await admin.from('profiles').select('role, hospital_id').eq('id', user.id).maybeSingle()
   if (profile?.role !== role) return null
   if (role === 'hospital_admin' && !profile.hospital_id) return null
+  // Executives also need their team to have the Wallets page (always true before 20261115).
+  if (role === 'executive' && !(await executiveFor('wallets'))) return null
   return { admin, userId: user.id, hospitalId: (profile.hospital_id as string | null) ?? null }
 }
 

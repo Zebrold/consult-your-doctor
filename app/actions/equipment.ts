@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/lib/supabase/server'
+import { executiveFor } from '@/app/executive/_lib/ops'
 import { CATEGORIES, deliveryFor, type OrderStatus } from '@/lib/equipment'
 
 // Order equipment. A hospital places an order from the team's catalogue: prices and delivery are worked out here from
@@ -103,11 +104,7 @@ export async function rateOrder(orderId: string, rating: number, note: string): 
 // --- The team (/executive/equipment) ------------------------------------------------------------------------------
 
 async function executive() {
-  const user = await getCurrentUser()
-  if (!user) return null
-  const admin = createAdminClient()
-  const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
-  return profile?.role === 'executive' ? { user, admin } : null
+  return executiveFor('equipment')
 }
 
 const productSchema = z.object({

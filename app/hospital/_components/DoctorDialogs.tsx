@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useTransition, type FormEvent, type ReactNode } from 'react'
+import { useState, useTransition, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
-  CalendarDays, CheckCircle2, ChevronDown, CircleCheck, GraduationCap,
+  CalendarDays, CheckCircle2, ChevronDown, GraduationCap,
   Hospital, Info, KeyRound, LoaderCircle, Lock, Mail, MapPin, Monitor,
-  Pencil, Phone, Plus, RefreshCw, Send, ShieldCheck, Stethoscope, Trash2,
-  Upload, User, X, Briefcase, FileText, Globe
+  Pencil, Phone, Plus, RefreshCw, Send, Stethoscope, Trash2,
+  Upload, User, X, Briefcase, FileText
 } from 'lucide-react'
 import { createHospitalDoctor, updateHospitalDoctor, deleteHospitalDoctor } from '@/app/actions/hospital'
 import { WelcomeLetterButton } from '@/components/portal/WelcomeLetterButton'
@@ -431,7 +431,7 @@ export function AddDoctorButton({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Doctor's email (Account Invitation) <span className="text-red-500">*</span>
+                          Doctor&apos;s email (Account Invitation) <span className="text-red-500">*</span>
                         </label>
                         <div className="relative">
                           <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
@@ -631,7 +631,7 @@ export function EditDoctorButton({
                     Edit {doctor.name.startsWith('Dr') ? doctor.name : `Dr. ${doctor.name}`}
                   </h2>
                   <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-                    Update the doctor's details, clinic information and account settings.
+                    Update the doctor&apos;s details, clinic information and account settings.
                   </p>
                 </div>
               </div>

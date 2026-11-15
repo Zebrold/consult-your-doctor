@@ -32,7 +32,7 @@ export default async function BookingConfirmationPage(props: Props) {
   const isOwner = viewer?.id === card.patientId
   const qr = card.state === 'confirmed' ? await QRCode.toDataURL(card.links.confirmation, { margin: 1, width: 240 }) : null
   // Set by the payment callback when a payment didn't go through; shown while the booking still waits for payment.
-  const failureReason = card.state === 'pending' && search.payment === 'failed' ? (search.reason || 'The payment was not completed.').slice(0, 300) : null
+  const failureReason = card.state === 'pending' && search.payment === 'failed' ? ((isOwner && search.reason) || 'The payment was not completed.').slice(0, 300) : null
 
   return (
     <ConfirmationClient

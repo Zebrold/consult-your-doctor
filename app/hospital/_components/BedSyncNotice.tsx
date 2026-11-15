@@ -1,17 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { CircleAlert, Copy, Check, X, Database } from 'lucide-react'
+import { useState, useSyncExternalStore } from 'react'
+import { Copy, Check, X, Database } from 'lucide-react'
 
 export function BedSyncNotice() {
   const [dismissed, setDismissed] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  useEffect(() => {
-    if (typeof window !== 'undefined' && sessionStorage.getItem('dismissed_bed_notice') === 'true') {
-      setDismissed(true)
-    }
-  }, [])
+  // Read the stored dismissal after hydration (server snapshot is false, so markup matches)
+  const storedDismissed = useSyncExternalStore(
+    () => () => {},
+    () => sessionStorage.getItem('dismissed_bed_notice') === 'true',
+    () => false,
+  )
 
   const dismiss = () => {
     setDismissed(true)
@@ -30,7 +31,7 @@ export function BedSyncNotice() {
     }
   }
 
-  if (dismissed) return null
+  if (dismissed || storedDismissed) return null
 
   return (
     <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-blue-50/90 via-sky-50/70 to-indigo-50/80 border border-blue-200/80 text-blue-950 text-[13px] flex items-start justify-between gap-3 shadow-sm transition-all">

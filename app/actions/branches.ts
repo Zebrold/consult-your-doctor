@@ -35,6 +35,10 @@ export async function switchBranch(hospitalId: string): Promise<Result> {
   const { data: hospital } = await ctx.admin.from('hospitals').select('id').eq('id', hospitalId).maybeSingle()
   if (!hospital) return { ok: false, error: 'Branch not found.' }
 
+  // Keep a way back: an admin made after the migration has no access row for the hospital they are leaving.
+  // The table check above already passed, so an error here is ignored.
+  await ctx.admin.from('hospital_admin_access').upsert({ profile_id: ctx.user.id, hospital_id: ctx.hospitalId }, { onConflict: 'profile_id,hospital_id' })
+
   const { error: updateError } = await ctx.admin.from('profiles').update({ hospital_id: hospitalId }).eq('id', ctx.user.id).eq('role', 'hospital_admin')
   if (updateError) {
     console.error('switchBranch:', updateError)

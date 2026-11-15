@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { executiveFor } from '@/app/executive/_lib/ops'
 
 type Result = { ok: true } | { ok: false; error: string }
 
@@ -23,8 +24,7 @@ export async function setReviewPublished(kind: 'doctor' | 'hospital', id: string
   const user = await getCurrentUser()
   if (!user) return { ok: false, error: 'Please log in again.' }
   const admin = createAdminClient()
-  const { data: me } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
-  if (me?.role !== 'executive') return { ok: false, error: 'Only the Consult your Doctor team can moderate reviews.' }
+  if (!(await executiveFor('reviews'))) return { ok: false, error: 'Only the Consult your Doctor team can moderate reviews.' }
 
   const table = parsed.data.kind === 'doctor' ? 'doctor_reviews' : 'hospital_reviews'
   const { data: row, error } = await admin

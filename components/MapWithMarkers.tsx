@@ -103,15 +103,6 @@ export default function MapWithMarkers({
       }
     }
 
-    // Pre-populate from cache for instant rendering
-    const fromCache: Record<string, [number, number]> = {}
-    uniqueCities.forEach(c => {
-      if (geocodeCache[c]) fromCache[c] = geocodeCache[c]
-    })
-    if (Object.keys(fromCache).length > 0) {
-      setCityCoords(prev => ({ ...prev, ...fromCache }))
-    }
-
     geocodeAll()
     return () => { cancelled = true }
   }, [uniqueCities])
@@ -122,7 +113,8 @@ export default function MapWithMarkers({
     const cityCounts: Record<string, number> = {}
 
     items.forEach(item => {
-      const base = cityCoords[item.city]
+      // Fall back to the shared module cache so cached cities render instantly
+      const base = cityCoords[item.city] ?? geocodeCache[item.city]
       if (!base) return
 
       cityCounts[item.city] = (cityCounts[item.city] || 0)

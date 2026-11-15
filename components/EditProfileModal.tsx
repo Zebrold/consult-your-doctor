@@ -14,9 +14,17 @@ export function EditProfileModal({
 }: { 
   isOpen: boolean
   onClose: () => void
-  user: any
-  profile: any
-  patientDetails: any
+  user: { phone?: string | null } | null
+  profile: { full_name?: string | null; phone_number?: string | null } | null
+  patientDetails: {
+    blood_group?: string | null
+    date_of_birth?: string | null
+    gender?: string | null
+    address?: string | null
+    emergency_contact_name?: string | null
+    emergency_contact_relation?: string | null
+    emergency_contact_phone?: string | null
+  } | null
   isMandatory?: boolean
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -63,8 +71,8 @@ export function EditProfileModal({
       } else {
         setError(result.error || 'Failed to update profile')
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred')
+    } catch (err) {
+      setError((err instanceof Error && err.message) || 'An error occurred')
     } finally {
       setIsSubmitting(false)
     }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, Search, Calendar, Clock } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export function QuickBookWidget() {

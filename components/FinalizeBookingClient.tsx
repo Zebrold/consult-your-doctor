@@ -84,6 +84,8 @@ export function FinalizeBookingClient({
   const [details] = useState<PatientDetails>(() => patient ?? { name: "", phone: "", email: "", dateOfBirth: "", gender: "" });
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  // What the reserved booking was made for (slot, type, services, who), so a second Pay click can reuse it.
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [fastTrack, setFastTrack] = useState(initialFastTrack);
   const [picked, setPicked] = useState<string[]>(initialServices);
@@ -114,6 +116,22 @@ export function FinalizeBookingClient({
 
     setSubmitting(true);
     setError(null);
+    const choiceKey = [selected.id, choices && fastTrack ? "ft" : "std", pickedServices.map((s) => s.name).sort().join(","), forId ?? ""].join("|");
+    // The same choice as the reserved booking: pay for it again instead of reserving a second one.
+    if (pendingId && pendingKey === choiceKey) {
+      const retryError = await startOnlinePayment({
+        bookingId: pendingId,
+        product: "Consultation",
+        name: activeDetails.name || "Patient",
+        email: (activeDetails.email || "").trim() || null,
+        phone: activeDetails.phone || null,
+      });
+      if (retryError) {
+        setError(retryError === WINDOW_CLOSED ? `Your slot is reserved. ${retryError}` : `Your slot is reserved, but the payment couldn't start: ${retryError}`);
+        setSubmitting(false);
+      }
+      return;
+    }
     const form = new FormData();
     form.append("doctor_id", doctor.id);
     form.append("schedule_id", selected.id);
@@ -150,6 +168,7 @@ export function FinalizeBookingClient({
     });
     if (payError) {
       setPendingId(appointmentId);
+      setPendingKey(choiceKey);
       setError(payError === WINDOW_CLOSED ? `Your slot is reserved. ${payError}` : `Your slot is reserved, but the payment couldn't start: ${payError}`);
       setSubmitting(false);
     }

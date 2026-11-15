@@ -246,9 +246,17 @@ export function PhoneAccountButton({ account, onMenu }: { account: HomeAccount; 
       </Link>
     );
   }
+  // A visitor's profile icon goes straight to the patient sign-in, like the desktop Login.
+  if (account.kind === "guest") {
+    return (
+      <Link href="/login/patient" aria-label="Log in or create an account" className={cls}>
+        <UserRound className="w-[22px] h-[22px] fill-white" strokeWidth={0} />
+      </Link>
+    );
+  }
   return (
-    <button type="button" onClick={onMenu} aria-haspopup="dialog" aria-label={account.kind === "patient" ? "Your account and menu" : "Menu and login"} className={cls}>
-      {account.kind === "patient" && account.name ? (
+    <button type="button" onClick={onMenu} aria-haspopup="dialog" aria-label="Your account and menu" className={cls}>
+      {account.name ? (
         <span className="text-[15px] font-extrabold">{initials(account.name)}</span>
       ) : (
         <UserRound className="w-[22px] h-[22px] fill-white" strokeWidth={0} />

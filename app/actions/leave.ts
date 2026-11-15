@@ -7,6 +7,7 @@ import { getCurrentUser } from '@/lib/supabase/server'
 import { doctorName, istDateKey } from '@/components/patient/format'
 import { BOOKED_CHOICES, LEAVE_REASONS, leaveDates, leaveWindow, type BookedPatients, type LeaveReason } from '@/lib/leave'
 import { notifyBookingConfirmed, notifyDoctorLeave } from '@/lib/notify/patient'
+import { slotHospitalId } from '@/lib/practices'
 
 // Doctors' leave. The doctor asks (/doctor/leave); their hospital approves or declines (/hospital/doctors/leave).
 // Approving closes the doctor's open slots on those days and tells each patient already booked that the hospital will
@@ -183,22 +184,31 @@ async function bookedDuring(admin: Admin, doctorId: string, span: { from: string
 export async function moveBooking(appointmentId: string, scheduleId: string): Promise<Result> {
   const ctx = await hospitalCaller()
   if (!ctx || !uuid.safeParse(appointmentId).success || !uuid.safeParse(scheduleId).success) return { ok: false, error: 'Not found.' }
-  const { data: appt } = await ctx.admin.from('appointments').select('id, doctor_id, schedule_id, status').eq('id', appointmentId).maybeSingle()
+  const { data: appt } = await ctx.admin.from('appointments').select('id, doctor_id, schedule_id, status, hospital_id').eq('id', appointmentId).maybeSingle()
   if (!appt || appt.status !== 'confirmed') return { ok: false, error: 'Only confirmed bookings can be moved.' }
+  // The booking and the new slot must both belong to this hospital (a visiting doctor's slot can be another's).
+  if (((appt.hospital_id as string | null) ?? ctx.hospitalId) !== ctx.hospitalId) return { ok: false, error: 'Not found.' }
   const { data: slot } = await ctx.admin.from('schedules').select('id, doctor_id, start_time, is_booked').eq('id', scheduleId).maybeSingle()
   if (!slot || slot.is_booked) return { ok: false, error: 'That slot has just been taken. Pick another.' }
   if (Date.parse(slot.start_time) <= Date.now()) return { ok: false, error: 'Pick a slot in the future.' }
   const { data: doctors } = await ctx.admin.from('doctors').select('id').in('id', [appt.doctor_id, slot.doctor_id]).eq('hospital_id', ctx.hospitalId)
   if ((doctors ?? []).length !== new Set([appt.doctor_id, slot.doctor_id]).size) return { ok: false, error: 'Not found.' }
+  if ((await slotHospitalId(ctx.admin, scheduleId, ctx.hospitalId)) !== ctx.hospitalId) return { ok: false, error: 'Not found.' }
 
   // Claim the new slot first, so two desks can't give it to two patients.
   const { data: claimed } = await ctx.admin.from('schedules').update({ is_booked: true }).eq('id', scheduleId).eq('is_booked', false).select('id')
   if (!claimed?.length) return { ok: false, error: 'That slot has just been taken. Pick another.' }
-  const { error } = await ctx.admin.from('appointments').update({ schedule_id: scheduleId, doctor_id: slot.doctor_id }).eq('id', appointmentId).eq('status', 'confirmed')
-  if (error) {
+  const { data: moved, error } = await ctx.admin
+    .from('appointments')
+    .update({ schedule_id: scheduleId, doctor_id: slot.doctor_id })
+    .eq('id', appointmentId)
+    .eq('status', 'confirmed')
+    .select('id')
+  if (error || !moved?.length) {
+    // Nothing moved (the booking changed under us): give the new slot back and leave the old one alone.
     await ctx.admin.from('schedules').update({ is_booked: false }).eq('id', scheduleId)
-    console.error('moveBooking:', error)
-    return { ok: false, error: 'Could not move the booking. Please try again.' }
+    if (error) console.error('moveBooking:', error)
+    return { ok: false, error: error ? 'Could not move the booking. Please try again.' : 'This booking has changed and can’t be moved. Please refresh.' }
   }
 
   // The old slot: closed if it falls in the doctor's approved leave, otherwise open again.

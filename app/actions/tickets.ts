@@ -2,10 +2,12 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { sendTicketConfirmationEmail, sendTicketReplyEmail, sendEmail, emailConfigured } from '@/lib/notify/email'
+import { executiveFor } from '@/app/executive/_lib/ops'
+import { sendTicketConfirmationEmail, sendTicketReplyEmail, sendEmail } from '@/lib/notify/email'
 import { sendTicketUpdateSms } from '@/lib/notify/sms'
 import { notifyTicketWhatsApp } from '@/lib/notify/patient'
 import { revalidatePath } from 'next/cache'
+import { randomInt } from 'node:crypto'
 import { siteUrl } from '@/lib/site-url'
 import { clientIp } from '@/lib/otp-guard'
 import { overLimit } from '@/lib/rate-limit'
@@ -47,15 +49,10 @@ export type TicketMessage = {
 }
 
 
-/** The signed-in executive or super admin working the support queue; null for everyone else. */
+/** The signed-in executive whose team may use Support; null for everyone else (including other teams' executives). */
 async function supportStaff() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  const admin = createAdminClient()
-  const { data: profile } = await admin.from('profiles').select('full_name, role').eq('id', user.id).maybeSingle()
-  if (profile?.role !== 'executive') return null
-  return { user, admin, name: profile.full_name as string | null }
+  const ctx = await executiveFor('support')
+  return ctx ? { user: ctx.user, admin: ctx.admin, name: ctx.fullName as string | null } : null
 }
 
 /** Creates a support ticket and notifies executive support and the requester */
@@ -117,17 +114,10 @@ export async function createSupportTicket(input: {
   // Only the support team sets urgency; a requester's choice is kept within the normal range.
   const priority: TicketPriority = input.priority === 'low' || input.priority === 'high' ? input.priority : 'medium'
 
-  // Generate unique ticket code
-  let ticketCode = `CYD-TICK-${Date.now().toString().slice(-6)}`
-  try {
-    const { count } = await admin.from('tickets').select('*', { count: 'exact', head: true })
-    ticketCode = `CYD-TICK-${String(1000 + (count ?? 0) + 1)}`
-  } catch {
-    // Sequence fallback
-  }
-
-  // Attempt database insertion
-  const { data: inserted, error: insertError } = await admin.from('tickets').insert({
+  // Random six-digit code (a row count repeats when two tickets are raised at once); retried once if the code is taken.
+  const newCode = () => `CYD-TICK-${randomInt(100000, 1000000)}`
+  let ticketCode = newCode()
+  const insertTicket = () => admin.from('tickets').insert({
     ticket_code: ticketCode,
     user_id: userId,
     requester_name: requesterName,
@@ -143,7 +133,19 @@ export async function createSupportTicket(input: {
     status: 'open'
   }).select('id, ticket_code').maybeSingle()
 
+  // Attempt database insertion
+  let { error: insertError } = await insertTicket()
+  if (insertError?.code === '23505') {
+    ticketCode = newCode()
+    ;({ error: insertError } = await insertTicket())
+  }
+
   if (insertError) {
+    // Only a table that isn't migrated yet falls back to email; any other failure is reported, not hidden.
+    if (insertError.code !== '42P01' && insertError.code !== 'PGRST205') {
+      console.error('Ticket insert failed:', insertError.message)
+      return { ok: false, error: 'We could not raise your ticket right now. Please try again.' }
+    }
     console.warn('tickets table insert fallback:', insertError.message)
     // If table not migrated yet, email the ticket directly to support inbox
     const supportEmail = process.env.SUPPORT_EMAIL || 'support@consultyourdoctor.de'
@@ -222,7 +224,7 @@ export async function getExecutiveTickets(filter?: {
     }
   }
 
-  const tickets: SupportTicket[] = rows.map((r: any) => ({
+  const tickets: SupportTicket[] = rows.map((r) => ({
     id: r.id,
     ticketCode: r.ticket_code,
     userId: r.user_id,
@@ -277,7 +279,7 @@ export async function getTicketMessages(ticketId: string): Promise<TicketMessage
   const { data: rows } = await query
 
   if (!rows) return []
-  return rows.map((r: any) => ({
+  return rows.map((r) => ({
     id: r.id,
     ticketId: r.ticket_id,
     senderId: r.sender_id,
@@ -420,7 +422,7 @@ export async function getUserTickets(): Promise<SupportTicket[]> {
     .order('created_at', { ascending: false })
 
   if (!rows) return []
-  return rows.map((r: any) => ({
+  return rows.map((r) => ({
     id: r.id,
     ticketCode: r.ticket_code,
     userId: r.user_id,

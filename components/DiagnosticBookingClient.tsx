@@ -65,6 +65,8 @@ export function DiagnosticBookingClient({ center, tests, patient, now, bookingFe
   const [details] = useState<PatientDetails>(() => patient ?? { name: "", phone: "", email: "", dateOfBirth: "", gender: "" });
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  // What the saved booking was made for (date, type, tests, who), so a second Pay click can reuse it.
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
   // A family member the booking is for (null: the account holder).
   const [forId, setForId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -93,6 +95,22 @@ export function DiagnosticBookingClient({ center, tests, patient, now, bookingFe
 
     setSubmitting(true);
     setError(null);
+    const choiceKey = [date, isDoorstep ? "doorstep" : "walk_in", selectedTests.map((t) => t.name).sort().join(","), forId ?? ""].join("|");
+    // The same choice as the saved booking: pay for it again instead of creating a second one.
+    if (pendingId && pendingKey === choiceKey) {
+      const retryError = await startOnlinePayment({
+        bookingId: pendingId,
+        product: "Diagnostic",
+        name: activeDetails.name || "Patient",
+        email: (activeDetails.email || "").trim() || null,
+        phone: activeDetails.phone || null,
+      });
+      if (retryError) {
+        setError(retryError === WINDOW_CLOSED ? `Your booking is saved. ${retryError}` : `Your booking is saved, but the payment couldn't start: ${retryError}`);
+        setSubmitting(false);
+      }
+      return;
+    }
     const form = new FormData();
     form.append("center_id", center.id);
     form.append("preferred_date", date);
@@ -124,6 +142,7 @@ export function DiagnosticBookingClient({ center, tests, patient, now, bookingFe
     });
     if (payError) {
       setPendingId(bookingId);
+      setPendingKey(choiceKey);
       setError(payError === WINDOW_CLOSED ? `Your booking is saved. ${payError}` : `Your booking is saved, but the payment couldn't start: ${payError}`);
       setSubmitting(false);
     }

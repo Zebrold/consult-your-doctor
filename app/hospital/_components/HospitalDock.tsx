@@ -52,6 +52,7 @@ function crumb(pathname: string): string[] {
   if (pathname.startsWith('/hospital/doctors/leave')) return ['Doctors & roster', 'Leave requests']
   if (pathname.startsWith('/hospital/branches/new')) return ['Accounts & branches', 'Add a branch']
   if (pathname.startsWith('/hospital/settings/services')) return ['Settings', 'Services & charges']
+  if (pathname.startsWith('/hospital/settings/account')) return ['Settings', 'Login details']
   const item = [...MENU, ...GROW].find((m) => isActive(pathname, m.href))
   if (item) return [item.label]
   if (pathname.startsWith('/hospital/ai')) return ['Help & support']

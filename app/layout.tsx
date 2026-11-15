@@ -91,7 +91,7 @@ export default async function RootLayout({
         suppressHydrationWarning
         className="font-sans overflow-x-hidden text-on-surface bg-background"
       >
-        <ConditionalLayout header={<Header />}>
+        <ConditionalLayout header={<Header />} signedIn={!!user}>
           {children}
         </ConditionalLayout>
         <Support role={user ? userRole ?? "patient" : null} viewer={user?.id ?? null} />

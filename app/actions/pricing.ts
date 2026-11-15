@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath, updateTag } from 'next/cache'
-import { requireExecutive } from '@/app/executive/_lib/ops'
+import { executiveFor } from '@/app/executive/_lib/ops'
 import {
   BOOKING_FEES_TAG, MAX_CONSULTATION_BOOKING_FEE, MAX_CONVENIENCE_PERCENT, getBookingFees, saveBookingFees, validConsultationBookingFee,
   validConveniencePercent, validDiagnosticPercent,
@@ -14,8 +14,9 @@ export async function bookingFeesAction(): Promise<BookingFees> {
 }
 
 export async function updateBookingFeesAction(input: BookingFees): Promise<{ success: boolean; fees?: BookingFees; error?: string }> {
+  // Team access is checked here, not only when the Payments page renders; this never redirects.
+  if (!(await executiveFor('payments'))) return { success: false, error: 'Only the finance team can change fees.' }
   try {
-    await requireExecutive()
 
     // Server actions take any value from the browser, so the amounts are checked here and not only in the form.
     const consultation = Number(input?.consultation)

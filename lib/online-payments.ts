@@ -121,8 +121,24 @@ export async function settleOnlinePayment(product: OnlineProduct, bookingId: str
     .eq('status', 'pending_payment')
     .select('id')
   if (updateError) console.error(`Error confirming ${table} ${bookingId}:`, updateError)
-  if (confirmed?.length) notifyBookingConfirmed(bookingId)
-  return { ok: true }
+  if (confirmed?.length) {
+    notifyBookingConfirmed(bookingId)
+    return { ok: true }
+  }
+
+  // Nothing moved: the other report of this payment confirmed the booking a moment ago, or the hold was released
+  // between the check above and this update. Only the first is a success.
+  const { data: after } = await admin.from(table).select('status').eq('id', bookingId).maybeSingle()
+  const afterStatus = (after as { status?: string } | null)?.status ?? null
+  if (afterStatus && PAID_STATES.includes(afterStatus)) return { ok: true }
+
+  console.error(`Razorpay: ${bookingId} was ${afterStatus ?? 'missing'} when payment ${payment.id} (${paid}) arrived. Left for review.`)
+  await admin
+    .from('payments')
+    .update({ status: 'pending' })
+    .eq('gateway', ONLINE_GATEWAY)
+    .eq('transaction_id', payment.id)
+  return { ok: false, reason: 'Your payment went through, but this booking is no longer open. Our team will refund it; you don’t need to pay again.' }
 }
 
 /** Records a payment Razorpay reports as failed, so it shows on the booking's payment history. */

@@ -10,33 +10,6 @@ import { slotHospitalId } from '@/lib/practices'
 import { notifyBookingConfirmed } from '@/lib/notify/patient'
 import { redirect } from 'next/navigation'
 
-export async function createAppointment(formData: FormData) {
-  const supabase = await createClient()
-  
-  // 1. Verify User Authentication
-  const { data: { user } } = await supabase.auth.getUser()
-  
-  if (!user) {
-    // If not logged in, redirect to login page.
-    redirect('/login/patient')
-  }
-
-  // 2. Parse form data
-  const doctorId = formData.get('doctor_id') as string
-  const scheduleId = formData.get('schedule_id') as string
-
-  if (!doctorId || !scheduleId) {
-    return { error: 'Please select a hospital, doctor, and an available time slot.' }
-  }
-
-  // 3. Claim the slot and create the appointment (same path as the detailed booking page)
-  const result = await claimSlotAndCreateAppointment(user.id, doctorId, scheduleId)
-  if ('error' in result) return { error: result.error }
-
-  // 4. Return URL to redirect on the client: checkout, or the booking itself when it is a free follow-up
-  return { success: true, url: result.confirmed ? `/book/confirmation/${result.appointmentId}` : `/patient/checkout/${result.appointmentId}` }
-}
-
 export async function createDiagnosticBooking(formData: FormData) {
   const supabase = await createClient()
   
@@ -64,7 +37,7 @@ export async function createDiagnosticBooking(formData: FormData) {
       return { error: 'Please choose a visit date from today onwards.' }
     }
 
-    let center: any = null
+    let center: { test_prices?: Record<string, number | string> | null } | null = null
     const { data: cFull, error: cErr } = await supabase
       .from('diagnostic_centers')
       .select('test_prices, doorstep_enabled, doorstep_fee')

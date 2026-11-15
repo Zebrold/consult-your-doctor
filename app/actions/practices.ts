@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/notify/email'
+import { executiveFor } from '@/app/executive/_lib/ops'
 import { siteUrl } from '@/lib/site-url'
 import { doctorName } from '@/components/patient/format'
 
@@ -33,11 +34,7 @@ async function doctorCaller() {
 }
 
 async function executiveCaller() {
-  const user = await getCurrentUser()
-  if (!user) return null
-  const admin = createAdminClient()
-  const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
-  return profile?.role === 'executive' ? { user, admin } : null
+  return executiveFor('branches')
 }
 
 function refresh() {

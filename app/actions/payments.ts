@@ -1,9 +1,9 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { ONLINE_GATEWAY } from '@/lib/payment-gateways'
+import { executiveFor } from '@/app/executive/_lib/ops'
 
 export type PaymentStatus = 'success' | 'failed' | 'pending' | 'refunded'
 
@@ -44,6 +44,55 @@ export type PaymentAuditRow = {
   createdAt: string
 }
 
+type Joined<T> = T | T[] | null
+const one = <T,>(v: Joined<T> | undefined) => (Array.isArray(v) ? v[0] : v) ?? null
+
+type PaymentRow = {
+  id: string
+  transaction_id: string | null
+  amount: number | string | null
+  gateway: string | null
+  status: string
+  created_at: string | null
+  appointment_id: string | null
+  diagnostic_booking_id: string | null
+  patient_id: string | null
+  hospital_id: string | null
+  diagnostic_center_id: string | null
+  refund_amount: number | string | null
+  refund_reason: string | null
+  refunded_at: string | null
+}
+type PatientRef = { full_name: string | null; patient_code: string | null }
+type AppointmentRef = {
+  id: string
+  patient_id: string | null
+  hospital_id: string | null
+  profiles: Joined<PatientRef>
+  hospitals: Joined<{ id: string; name: string | null; hospital_code: string | null }>
+}
+type DiagnosticRef = {
+  id: string
+  patient_id: string | null
+  center_id: string | null
+  profiles: Joined<PatientRef>
+  diagnostic_centers: Joined<{ id: string; name: string | null; center_code: string | null }>
+}
+type HospitalRef = { id: string; name: string | null; hospital_code: string | null }
+type CenterRef = { id: string; name: string | null; center_code: string | null }
+type AuditDbRow = {
+  id: string
+  payment_id: string
+  action: string
+  performed_by: string | null
+  performed_by_name: string
+  old_status: string | null
+  new_status: string | null
+  amount: number | string | null
+  reason: string
+  created_at: string
+}
+
 export type PaymentStats = {
   totalCollections: number
   successfulCount: number
@@ -57,22 +106,19 @@ export type PaymentStats = {
   totalTransactions: number
 }
 
-/** Verifies that the signed-in user is an authorized executive or super admin */
+/** Verifies that the signed-in user is an executive whose team may use Payments. */
 async function requireExecutiveCaller() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Unauthorized')
-  const { data: profile } = await supabase.from('profiles').select('role, full_name').eq('id', user.id).single()
-  if (profile?.role !== 'executive') {
-    throw new Error('Forbidden: Executive permissions required')
-  }
-  return { user, profile }
+  const ctx = await executiveFor('payments')
+  if (!ctx) throw new Error('Forbidden: Executive permissions required')
+  return { user: ctx.user, profile: { full_name: ctx.fullName } }
 }
 
 /** Fetches payment transactions with full metadata, joins, and summary statistics */
 export async function getExecutivePayments(): Promise<{
   transactions: TransactionRow[]
   stats: PaymentStats
+  /** Set when the payments couldn't be read, so the page shows a message instead of an empty ledger with ₹0 totals. */
+  loadError?: string
 }> {
   await requireExecutiveCaller()
   const admin = createAdminClient()
@@ -87,7 +133,18 @@ export async function getExecutivePayments(): Promise<{
     `)
     .order('created_at', { ascending: false })
 
-  const payments = rawPayments ?? []
+  if (error) {
+    console.error('getExecutivePayments:', error)
+    return {
+      transactions: [],
+      stats: {
+        totalCollections: 0, successfulCount: 0, successfulAmount: 0, pendingCount: 0, pendingAmount: 0,
+        failedCount: 0, failedAmount: 0, refundCount: 0, refundAmount: 0, totalTransactions: 0,
+      },
+      loadError: 'Could not load payments. Please refresh the page.',
+    }
+  }
+  const payments = (rawPayments ?? []) as unknown as PaymentRow[]
 
   // 2. Fetch linked appointments & diagnostic bookings for references and organization IDs
   const appointmentIds = payments.map((p) => p.appointment_id).filter(Boolean) as string[]
@@ -118,13 +175,13 @@ export async function getExecutivePayments(): Promise<{
     admin.from('diagnostic_centers').select('id, name, center_code'),
   ])
 
-  const aptMap = new Map((appointments ?? []).map((a: any) => [a.id, a]))
-  const diagMap = new Map((diagBookings ?? []).map((d: any) => [d.id, d]))
-  const hospMap = new Map((allHospitals ?? []).map((h: any) => [h.id, h]))
-  const centerMap = new Map((allCenters ?? []).map((c: any) => [c.id, c]))
+  const aptMap = new Map(((appointments ?? []) as unknown as AppointmentRef[]).map((a) => [a.id, a]))
+  const diagMap = new Map(((diagBookings ?? []) as unknown as DiagnosticRef[]).map((d) => [d.id, d]))
+  const hospMap = new Map(((allHospitals ?? []) as unknown as HospitalRef[]).map((h) => [h.id, h]))
+  const centerMap = new Map(((allCenters ?? []) as unknown as CenterRef[]).map((c) => [c.id, c]))
 
   // 3. Map into structured TransactionRows
-  const transactions: TransactionRow[] = payments.map((p: any) => {
+  const transactions: TransactionRow[] = payments.map((p) => {
     let patientName: string | null = null
     let patientCode: string | null = null
     let patientId: string | null = p.patient_id ?? null
@@ -138,32 +195,32 @@ export async function getExecutivePayments(): Promise<{
     const bookingKind: 'consultation' | 'diagnostic' = p.diagnostic_booking_id ? 'diagnostic' : 'consultation'
 
     if (p.appointment_id && aptMap.has(p.appointment_id)) {
-      const apt = aptMap.get(p.appointment_id)
-      patientName = (apt.profiles as any)?.full_name ?? null
-      patientCode = (apt.profiles as any)?.patient_code ?? null
+      const apt = aptMap.get(p.appointment_id)!
+      patientName = one(apt.profiles)?.full_name ?? null
+      patientCode = one(apt.profiles)?.patient_code ?? null
       patientId = patientId ?? apt.patient_id ?? null
-      hospitalName = (apt.hospitals as any)?.name ?? null
-      hospitalCode = (apt.hospitals as any)?.hospital_code ?? null
+      hospitalName = one(apt.hospitals)?.name ?? null
+      hospitalCode = one(apt.hospitals)?.hospital_code ?? null
       hospitalId = hospitalId ?? apt.hospital_id ?? null
       bookingRef = p.appointment_id.slice(0, 8).toUpperCase()
     } else if (p.diagnostic_booking_id && diagMap.has(p.diagnostic_booking_id)) {
-      const db = diagMap.get(p.diagnostic_booking_id)
-      patientName = (db.profiles as any)?.full_name ?? null
-      patientCode = (db.profiles as any)?.patient_code ?? null
+      const db = diagMap.get(p.diagnostic_booking_id)!
+      patientName = one(db.profiles)?.full_name ?? null
+      patientCode = one(db.profiles)?.patient_code ?? null
       patientId = patientId ?? db.patient_id ?? null
-      diagName = (db.diagnostic_centers as any)?.name ?? null
-      diagCode = (db.diagnostic_centers as any)?.center_code ?? null
+      diagName = one(db.diagnostic_centers)?.name ?? null
+      diagCode = one(db.diagnostic_centers)?.center_code ?? null
       diagId = diagId ?? db.center_id ?? null
       bookingRef = p.diagnostic_booking_id.slice(0, 8).toUpperCase()
     }
 
     if (hospitalId && hospMap.has(hospitalId)) {
-      const h = hospMap.get(hospitalId)
+      const h = hospMap.get(hospitalId)!
       hospitalName = hospitalName ?? h.name
       hospitalCode = hospitalCode ?? h.hospital_code
     }
     if (diagId && centerMap.has(diagId)) {
-      const c = centerMap.get(diagId)
+      const c = centerMap.get(diagId)!
       diagName = diagName ?? c.name
       diagCode = diagCode ?? c.center_code
     }
@@ -200,7 +257,6 @@ export async function getExecutivePayments(): Promise<{
   const successT = transactions.filter((t) => t.status === 'success')
   const pendingT = transactions.filter((t) => t.status === 'pending')
   const failedT = transactions.filter((t) => t.status === 'failed')
-  const refundT = transactions.filter((t) => t.status === 'refunded')
 
   const stats: PaymentStats = {
     totalCollections: successT.reduce((acc, t) => acc + t.amount, 0),
@@ -210,8 +266,9 @@ export async function getExecutivePayments(): Promise<{
     pendingAmount: pendingT.reduce((acc, t) => acc + t.amount, 0),
     failedCount: failedT.length,
     failedAmount: failedT.reduce((acc, t) => acc + t.amount, 0),
-    refundCount: refundT.length,
-    refundAmount: refundT.reduce((acc, t) => acc + (t.refundAmount ?? t.amount), 0),
+    refundCount: transactions.filter((t) => t.status === 'refunded' || t.refundAmount != null).length,
+    // Partial refunds keep status 'success' and carry a refund amount, so count every row that has one.
+    refundAmount: transactions.reduce((acc, t) => acc + (t.status === 'refunded' ? (t.refundAmount ?? t.amount) : (t.refundAmount ?? 0)), 0),
     totalTransactions: transactions.length,
   }
 
@@ -291,16 +348,18 @@ export async function processPaymentRefund(
 
   // 1. Update payment record, only while it is still a successful payment: two refunds at the same moment can't both
   // go through.
+  const full = refundAmt >= paid
   const { data: marked, error: updateErr } = await admin
     .from('payments')
     .update({
-      status: 'refunded',
+      ...(full ? { status: 'refunded' } : {}),
       refund_amount: refundAmt,
       refund_reason: reason.trim(),
       refunded_at: new Date().toISOString(),
     })
     .eq('id', paymentId)
     .eq('status', 'success')
+    .is('refund_amount', null)
     .select('id')
 
   if (updateErr) {
@@ -310,7 +369,7 @@ export async function processPaymentRefund(
   if (!marked?.length) return { success: false, error: 'This payment has already been refunded.' }
 
   // 1b. A full refund ends the booking.
-  const note = refundAmt >= paid ? await cancelRefundedBooking(admin, currentPayment) : 'Partial refund recorded; the booking stays as it is.'
+  const note = full ? await cancelRefundedBooking(admin, currentPayment) : 'Partial refund recorded; the booking stays as it is.'
 
   // 2. Insert into payment_audits table (traceable financial history)
   try {
@@ -318,11 +377,11 @@ export async function processPaymentRefund(
       .from('payment_audits')
       .insert({
         payment_id: paymentId,
-        action: 'refund',
+        action: full ? 'refund' : 'partial_refund',
         performed_by: user.id,
         performed_by_name: profile.full_name || 'Executive Officer',
         old_status: currentPayment.status,
-        new_status: 'refunded',
+        new_status: full ? 'refunded' : 'success',
         amount: refundAmt,
         reason: reason.trim(),
       })
@@ -355,9 +414,22 @@ export async function adjustPaymentStatus(
   const { data: currentPayment } = await admin.from('payments').select('id, status, amount').eq('id', paymentId).single()
   if (!currentPayment) return { success: false, error: 'Payment not found' }
 
-  await admin.from('payments').update({ status: newStatus }).eq('id', paymentId)
+  // Only change the row if it still has the status that was read, so two overrides can't overwrite each other.
+  const { data: changed, error: updateError } = await admin
+    .from('payments')
+    .update({ status: newStatus })
+    .eq('id', paymentId)
+    .eq('status', currentPayment.status)
+    .select('id')
+  if (updateError) {
+    console.error('adjustPaymentStatus:', updateError)
+    return { success: false, error: 'Could not change the payment status. Please try again.' }
+  }
+  if (!changed?.length) {
+    return { success: false, error: 'This payment changed while you were editing it. Refresh and try again.' }
+  }
 
-  // Create audit trail entry
+  // Create audit trail entry (only once the change has gone through)
   try {
     await admin
       .from('payment_audits')
@@ -391,7 +463,7 @@ export async function getPaymentAuditTrail(paymentId: string): Promise<PaymentAu
     .order('created_at', { ascending: false })
 
   if (!audits) return []
-  return audits.map((a: any) => ({
+  return (audits as unknown as AuditDbRow[]).map((a) => ({
     id: a.id,
     paymentId: a.payment_id,
     action: a.action,

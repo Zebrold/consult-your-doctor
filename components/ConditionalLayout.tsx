@@ -16,9 +16,12 @@ const inSection = (pathname: string, base: string) => pathname === base || pathn
 
 export function ConditionalLayout({
   header,
+  signedIn = false,
   children,
 }: {
   header: React.ReactNode;
+  /** Someone is signed in: the "Open in app" strip is for visitors only. */
+  signedIn?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -42,8 +45,9 @@ export function ConditionalLayout({
   // Phones: the app strip on every patient and public page, stuck to the top while the page scrolls. Sticky headers
   // below it sit at top: var(--strip-h) (globals.css).
   const staffArea = NO_APP_STRIP.some((base) => inSection(pathname ?? "", base));
-  // The partner page scrolls with its header and strip (SiteHeader).
-  const strip = staffArea ? null : <AppPromoStrip pinned={!inSection(pathname ?? "", "/corporate")} />;
+  // The partner page scrolls with its header and strip (SiteHeader). Signed-in people don't see it: without the strip,
+  // --strip-h falls back to 0 (globals.css) and the sticky headers move up to the top.
+  const strip = staffArea || signedIn ? null : <AppPromoStrip pinned={!inSection(pathname ?? "", "/corporate")} />;
   // The opening intro, for people opening the site (not staff, who open their portal all day, nor a booking slip
   // opened at the desk or from WhatsApp, which should show at once).
   const splash = <SplashScreen enabled={!staffArea && !inSection(pathname ?? "", "/book/confirmation")} />;

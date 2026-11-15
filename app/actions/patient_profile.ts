@@ -49,32 +49,9 @@ export async function updatePatientProfile(formData: FormData) {
     .neq('id', user.id)
     .maybeSingle()
 
+  // The phone is a contact number only. Another account's number is never merged or taken over.
   if (phoneConflict) {
-    // If the conflicting profile is an unlinked phone profile (no email or same email) for a patient,
-    // merge its records (appointments, bookings, details) into the current user's profile
-    const canMerge = phoneConflict.role === 'patient' && (!phoneConflict.email || phoneConflict.email.toLowerCase() === (user.email || '').toLowerCase())
-    if (canMerge) {
-      console.log(`[updatePatientProfile] Merging unlinked phone profile ${phoneConflict.id} into ${user.id}`)
-      // Reassign appointments
-      await admin.from('appointments').update({ patient_id: user.id }).eq('patient_id', phoneConflict.id)
-      // Reassign diagnostic bookings
-      await admin.from('diagnostic_bookings').update({ patient_id: user.id }).eq('patient_id', phoneConflict.id)
-      // Copy over patient_details if existing details had info and current doesn't
-      const { data: oldDetails } = await admin.from('patient_details').select('*').eq('id', phoneConflict.id).maybeSingle()
-      if (oldDetails) {
-        await admin.from('patient_details').delete().eq('id', phoneConflict.id)
-      }
-      // Release phone from conflicting profile so unique constraint allows updating user.id
-      await admin.from('profiles').update({ phone_number: null }).eq('id', phoneConflict.id)
-      // Clean up the orphan phone auth user if it exists
-      try {
-        await admin.auth.admin.deleteUser(phoneConflict.id)
-      } catch (delErr) {
-        console.warn('Could not delete old phone auth user:', delErr)
-      }
-    } else {
-      return { success: false, error: 'This mobile number is already registered to another account. Please use a different number or log in with that account.' }
-    }
+    return { success: false, error: 'This mobile number is already registered to another account. Please use a different number or log in with that account.' }
   }
 
   // 2. Ensure current user's profile exists in profiles table
@@ -138,12 +115,9 @@ export async function updatePatientProfile(formData: FormData) {
   // Also sync to auth.users metadata so session context stays up-to-date
   try {
     await admin.auth.admin.updateUserById(user.id, {
-      ...(user.phone ? {} : { phone: cleanPhone }),
       user_metadata: {
         ...user.user_metadata,
         full_name: fullName,
-        phone_number: cleanPhone,
-        phone: cleanPhone,
       },
     })
   } catch (authErr) {

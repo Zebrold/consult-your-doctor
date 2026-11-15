@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/lib/supabase/server'
+import { executiveFor } from '@/app/executive/_lib/ops'
 import { BADGE_COLUMNS, BADGE_PRICES, badgeState, doctorRequirements, meetsRequirements, periodEnd, toBadge, type Badge, type BadgePlan } from '@/lib/badges'
 
 // Verified badges. A doctor (or their hospital) buys a badge: a badge_payments row with the price fixed here, and a
@@ -175,11 +176,7 @@ export async function startHospitalBadges(input: { hospital: boolean; doctorIds:
 // --- The team (/executive/badges) ---------------------------------------------------------------------------------
 
 async function executive() {
-  const user = await getCurrentUser()
-  if (!user) return null
-  const admin = createAdminClient()
-  const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
-  return profile?.role === 'executive' ? { user, admin } : null
+  return executiveFor('badges')
 }
 
 /** Switches a paid badge on after checking the requirements. It runs on from the end of a live one, if any. */

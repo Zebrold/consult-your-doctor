@@ -9,7 +9,7 @@ import { ROLE_COOKIE, ROLE_COOKIE_OPTIONS, roleCookieValue } from '@/lib/role-co
 
 function formatPhoneNumber(phone: string, countryCode: string = '+91') {
   if (phone.startsWith('+')) return phone
-  let cleaned = phone.replace(/\D/g, '')
+  const cleaned = phone.replace(/\D/g, '')
   
   // Clean countryCode (extract only digits and +)
   let cleanedCC = countryCode.replace(/[^\d+]/g, '')
@@ -59,7 +59,7 @@ function verifyOtpHmac(phone: string, token: string, expiresAt: number, expected
 /**
  * Checks a sign-in code. With the challenge table in place the guess is checked against the stored code, which allows
  * a few guesses and works once; a cookie without a challenge id is then refused, so it can't be edited back to the
- * old unlimited check. Before the table exists, the signed cookie alone decides (as it always did).
+ * old unlimited check. Before the table exists (no cid in the cookie), the hash in the cookie alone decides, as it always did; with a challenge the cookie carries no hash.
  */
 async function checkOtp(phone: string, token: string, cookieValue: string | undefined): Promise<OtpVerdict> {
   if (!cookieValue) return 'invalid'
@@ -73,7 +73,8 @@ async function checkOtp(phone: string, token: string, cookieValue: string | unde
   const admin = createAdminClient()
   if (parsed.cid) {
     const verdict = await checkOtpChallenge(admin, parsed.cid, phone, (hash, expiresAt) => verifyOtpHmac(phone, token, expiresAt, hash))
-    if (verdict !== 'unavailable') return verdict
+    // A stored challenge is the only judge: a read error is a refusal, never a fall back to a hash in the cookie.
+    return verdict === 'unavailable' ? 'invalid' : verdict
   } else if (await otpTableReady(admin)) {
     return 'invalid'
   }
@@ -150,7 +151,7 @@ async function authenticatePatientSession(phone: string, fullName: string | null
   return { success: true, user: signInData.user, role: userProfile?.role || 'patient' }
 }
 
-export async function sendOTP(prevState: any, formData: FormData) {
+export async function sendOTP(prevState: unknown, formData: FormData) {
   let phone = formData.get('phone') as string
   const countryCode = (formData.get('countryCode') as string) || '+91'
   const fullName = formData.get('fullName') as string | null
@@ -219,7 +220,7 @@ export async function sendOTP(prevState: any, formData: FormData) {
   }
 
   const cookieStore = await cookies()
-  const otpPayload = JSON.stringify({ phone, expiresAt, hash, cid })
+  const otpPayload = JSON.stringify(cid ? { phone, cid } : { phone, expiresAt, hash })
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -251,7 +252,7 @@ export async function sendOTP(prevState: any, formData: FormData) {
   }
 }
 
-export async function verifyOTP(prevState: any, formData: FormData) {
+export async function verifyOTP(prevState: unknown, formData: FormData) {
   let phone = formData.get('phone') as string
   const token = formData.get('token') as string
   const fullName = formData.get('fullName') as string | null
@@ -306,8 +307,9 @@ export async function verifyOTP(prevState: any, formData: FormData) {
 
     const next = String(formData.get('next') || '')
     redirect(safeNextPath(next))
-  } catch (err: any) {
-    if (err?.digest?.startsWith?.('NEXT_REDIRECT')) {
+  } catch (err) {
+    const digest = (err as { digest?: unknown } | null)?.digest
+    if (typeof digest === 'string' && digest.startsWith('NEXT_REDIRECT')) {
       throw err
     }
     console.error('[verifyOTP error]:', err)
@@ -322,7 +324,7 @@ export async function verifyOTP(prevState: any, formData: FormData) {
   }
 }
 
-export async function verifyOTPInline(prevState: any, formData: FormData) {
+export async function verifyOTPInline(prevState: unknown, formData: FormData) {
   let phone = formData.get('phone') as string
   const token = formData.get('token') as string
   const fullName = formData.get('fullName') as string | null
@@ -375,7 +377,7 @@ export async function verifyOTPInline(prevState: any, formData: FormData) {
     }
 
     return { success: true, user: authResult.user }
-  } catch (err: any) {
+  } catch (err) {
     console.error('[verifyOTPInline error]:', err)
     return {
       error: 'Verification failed. Please try again.',
@@ -396,7 +398,7 @@ export async function logout() {
   redirect('/')
 }
 
-export async function staffLogin(prevState: any, formData: FormData) {
+export async function staffLogin(prevState: unknown, formData: FormData) {
   const supabase = await createClient()
 
   // Staff sign in with their Staff ID or, when their account has one, their work email.

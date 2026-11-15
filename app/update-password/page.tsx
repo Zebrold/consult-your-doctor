@@ -4,11 +4,9 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, KeyRound, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 
 export default function UpdatePasswordPage() {
-  const supabase = createClient()
-  const router = useRouter()
+  const [supabase] = useState(() => createClient())
   
   const [password, setPassword] = useState('')
   const [isUpdating, setIsUpdating] = useState(false)
@@ -36,7 +34,7 @@ export default function UpdatePasswordPage() {
     }
     
     checkSession()
-  }, [])
+  }, [supabase])
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()

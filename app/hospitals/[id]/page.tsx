@@ -198,8 +198,10 @@ export default async function HospitalProfilePage(props: {
     url: `https://consultyourdoctor.de/hospitals/${id}`,
   }
 
-  const photo = hospital.image_url ? (
-    <RemoteImage src={hospital.image_url} alt={`Exterior of ${hospital.name}`} fill sizes="(min-width: 1024px) 1000px, 100vw" load="first" className="object-cover" />
+  // The wide picture: the cover photo the hospital chose (20261117_hospital_cover.sql), else its photo.
+  const banner: string | null = hospital.cover_url || hospital.image_url || null
+  const photo = banner ? (
+    <RemoteImage src={banner} alt={`Exterior of ${hospital.name}`} fill sizes="(min-width: 1024px) 1000px, 100vw" load="first" className="object-cover" />
   ) : (
     <span className="w-full h-full flex items-center justify-center bg-[linear-gradient(160deg,#EAF1FF,#D3E0FF)] text-[#2A4DD0]">
       <Building2 className="w-20 h-20" strokeWidth={1.3} />

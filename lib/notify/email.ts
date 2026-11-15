@@ -169,7 +169,7 @@ export async function sendEmail(email: Email): Promise<boolean> {
   try {
     const from = getFromAddress()
     const logoPath = path.join(process.cwd(), 'public', 'logo-icon.png')
-    const finalAttachments: any[] = []
+    const finalAttachments: (Omit<EmailAttachment, 'content'> & { content?: Buffer })[] = []
 
     if (email.attachments) {
       for (const a of email.attachments) {

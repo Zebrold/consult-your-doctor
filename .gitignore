@@ -42,3 +42,5 @@ next-env.d.ts
 
 .env
 supabase/.temp/beds-data.json
+# local audit notes (contain security findings)
+.claude/audit/

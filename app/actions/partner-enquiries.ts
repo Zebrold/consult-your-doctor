@@ -2,8 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { executiveFor } from '@/app/executive/_lib/ops'
 import { clientIp } from '@/lib/otp-guard'
 import { overLimit } from '@/lib/rate-limit'
 import { collectDocuments, documentsReady } from '@/lib/application-uploads'
@@ -63,12 +63,10 @@ export async function submitPartnerEnquiry(_prev: unknown, form: FormData): Prom
   return { ok: true }
 }
 
+/** The Support desk's joining pipeline: only executives whose team may use Support. */
 async function executive() {
-  const user = await getCurrentUser()
-  if (!user) return null
-  const admin = createAdminClient()
-  const { data: me } = await admin.from('profiles').select('role, full_name').eq('id', user.id).maybeSingle()
-  return me?.role === 'executive' ? { user, admin, name: (me.full_name as string | null) ?? 'Executive' } : null
+  const ctx = await executiveFor('support')
+  return ctx ? { user: ctx.user, admin: ctx.admin, name: ctx.fullName } : null
 }
 
 const STAGES = ['new', 'called', 'interested', 'applied', 'not_interested'] as const

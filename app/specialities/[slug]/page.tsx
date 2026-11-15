@@ -54,6 +54,7 @@ export default async function SpecialityPage(props: { params: Promise<{ slug: st
         cities={cities}
         findHref={findHref}
         doctorCount={[...byName.values()].reduce((a, b) => a + b, 0)}
+        docked={isPatient}
       />
       {isPatient && <PatientDock activeTab="find" isSignedIn name={name} />}
     </>

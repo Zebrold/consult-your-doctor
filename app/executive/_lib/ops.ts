@@ -68,6 +68,20 @@ export async function requireExecutivePage(page: PageKey | 'staff') {
   return ctx
 }
 
+/**
+ * For server actions: the signed-in executive when their team may use `page`, otherwise null. Never redirects, so it is
+ * safe inside actions and try/catch. Before the 20261115 migration everyone is Management, so every executive passes.
+ */
+export async function executiveFor(page: PageKey) {
+  const user = await getCurrentUser()
+  if (!user) return null
+  const admin = createAdminClient()
+  const { data: profile } = await admin.from('profiles').select('role, full_name').eq('id', user.id).maybeSingle()
+  if (profile?.role !== 'executive') return null
+  if (!canOpen(await loadAccess(admin, user.id), page)) return null
+  return { user, admin, fullName: (profile.full_name as string | null) ?? 'Executive' }
+}
+
 // ---------- Formatting helpers ----------
 
 export function formatINR(amount: number) {

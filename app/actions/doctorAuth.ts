@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { siteUrl as publicSiteUrl } from '@/lib/site-url'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { executiveFor } from '@/app/executive/_lib/ops'
 import { randomInt } from 'node:crypto'
 import { sendDoctorRegistrationReceivedEmail, sendDoctorActivationEmail } from '@/lib/notify/email'
 import { clientIp } from '@/lib/otp-guard'
@@ -155,11 +156,7 @@ export async function submitDoctorSignup(_prevState: unknown, formData: FormData
 
 // Approving creates an account and returns its password, so only reviewers may call these actions.
 async function canReviewApplications() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return false
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  return profile?.role === 'executive'
+  return !!(await executiveFor('doctors'))
 }
 
 export async function approveDoctor(requestId: string) {

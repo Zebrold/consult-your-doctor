@@ -263,6 +263,8 @@ export async function registerHospitalPatient(formData: FormData): Promise<DeskR
     if (slotErr || !slot) return fail('Could not create walk-in slot. Please try again.')
     slotId = slot.id
   } else {
+    // Never a slot another hospital published for this doctor as a visiting consultant.
+    if ((await slotHospitalId(ctx.admin, slotId, ctx.hospital.id)) !== ctx.hospital.id) return fail('That slot is at another hospital. Choose another time.')
     const { data: claimed } = await ctx.admin
       .from('schedules')
       .update({ is_booked: true })
@@ -346,7 +348,9 @@ async function visitAt(admin: Admin, hospitalId: string, appointmentId: string) 
   const row = data as unknown as VisitRow | null
   if (!row) return null
   const doctor = one(row.doctors)
-  if (row.hospital_id !== hospitalId && doctor?.hospital_id !== hospitalId) return null
+  // The hospital the booking was made at owns it. Only a booking with no hospital falls back to the doctor's home one.
+  const owner = row.hospital_id ?? doctor?.hospital_id ?? null
+  if (owner !== hospitalId) return null
   return { row, doctor, patient: one(row.patient), fee: Number(doctor?.consultation_fee) || 0 }
 }
 

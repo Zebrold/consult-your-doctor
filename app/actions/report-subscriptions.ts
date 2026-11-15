@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { executiveFor } from '@/app/executive/_lib/ops'
 
 type Result = { ok: true; email: string | null } | { ok: false; error: string }
 
@@ -17,6 +18,7 @@ export async function setMonthlyReport(on: boolean, rawEmail?: string): Promise<
   const admin = createAdminClient()
   const { data: me } = await admin.from('profiles').select('role, email').eq('id', user.id).maybeSingle()
   if (me?.role !== 'executive') return { ok: false, error: 'Only the Consult your Doctor team can schedule reports.' }
+  if (!(await executiveFor('reports'))) return { ok: false, error: 'Your team doesn’t have access to this.' }
 
   if (!on) {
     const { error } = await admin.from('report_subscriptions').update({ active: false }).eq('profile_id', user.id)

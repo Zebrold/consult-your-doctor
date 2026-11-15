@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { ChevronDown, ChevronUp, Search, SlidersHorizontal } from 'lucide-react'
 

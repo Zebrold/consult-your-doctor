@@ -69,12 +69,10 @@ export function NewBookingForm({
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
-  // Reset booking type if doorstep gets disabled
-  useEffect(() => {
-    if (!doorstepEnabled && bookingType === 'doorstep') {
-      setBookingType('walk_in')
-    }
-  }, [doorstepEnabled, bookingType])
+  // Reset booking type if doorstep gets disabled (adjusted during render, not in an effect)
+  if (!doorstepEnabled && bookingType === 'doorstep') {
+    setBookingType('walk_in')
+  }
 
   useEffect(() => {
     if (resendIn <= 0) return

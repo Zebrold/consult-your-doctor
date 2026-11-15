@@ -1,6 +1,6 @@
 import { cache } from 'react'
 import { redirect } from 'next/navigation'
-import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { one } from '@/components/patient/data'
 import { formatINR, istDateKey } from '@/components/patient/format'
@@ -84,7 +84,6 @@ function toHospital(h: HospitalRow, profileReady: boolean): HospitalInfo {
 
 /** The signed-in hospital admin and their hospital. Everything in the portal is scoped to this hospital. */
 export const requireHospital = cache(async () => {
-  const supabase = await createClient()
   const user = await getCurrentUser()
   if (!user) redirect('/login/hospital')
 

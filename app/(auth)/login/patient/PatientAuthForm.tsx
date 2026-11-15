@@ -1,7 +1,7 @@
 'use client'
 
 import { safeNextPath } from '@/lib/safe-redirect'
-import { startTransition, useActionState, useEffect, useRef, useState } from 'react'
+import { startTransition, useActionState, useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { ArrowLeft, ChevronDown, ChevronRight, IdCard, KeyRound, Loader2, LogIn, ShieldCheck } from 'lucide-react'
@@ -11,9 +11,25 @@ import { createClient } from '@/lib/supabase/client'
 import { getGoogleClientId } from '@/lib/google-auth'
 import { AuthCorner, AuthShell, AuthTerms, authButton, authError, authField, authFooter, authHelp, authLabel, authLead, authLink, authRequired, authTitle, type AuthPanel } from '../AuthShell'
 
+// The slice of the Google Identity Services client this form uses.
+type GoogleIdentity = {
+  accounts?: {
+    id?: {
+      initialize: (config: {
+        client_id: string
+        callback: (response: { credential?: string }) => void
+        auto_select: boolean
+        cancel_on_tap_outside: boolean
+      }) => void
+      prompt: () => void
+      renderButton: (parent: HTMLElement, options: Record<string, unknown>) => void
+    }
+  }
+}
+
 declare global {
   interface Window {
-    google?: any
+    google?: GoogleIdentity
   }
 }
 
@@ -77,7 +93,6 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
     searchParams.get('error') === 'google' ? 'Google login could not be completed. Please try again or use your mobile number.' : ''
   )
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
-  const [gsiLoaded, setGsiLoaded] = useState(false)
   const googleBtnContainerRef = useRef<HTMLDivElement>(null)
 
   const isRegister = mode === 'register'
@@ -95,7 +110,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
     setOtp(['', '', '', '', '', ''])
   }
 
-  const handleGoogleCredential = async (credential: string) => {
+  const handleGoogleCredential = useCallback(async (credential: string) => {
     setIsGoogleLoading(true)
     setGoogleError('')
     try {
@@ -115,7 +130,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
       setGoogleError('Connection error during Google authentication. Please try again.')
       setIsGoogleLoading(false)
     }
-  }
+  }, [next])
 
   useEffect(() => {
     if (!googleEnabled) return
@@ -152,7 +167,6 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
             width: 380,
             logo_alignment: 'left',
           })
-          setGsiLoaded(true)
         }
       } catch (err) {
         console.error('[GIS setup error]:', err)
@@ -176,7 +190,7 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
         script.addEventListener('load', initGoogle)
       }
     }
-  }, [googleEnabled, isRegister, next])
+  }, [googleEnabled, isRegister, handleGoogleCredential])
 
   const handleGoogle = async () => {
     setGoogleError('')
@@ -202,9 +216,9 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
         window.location.href = data.url
         return
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('[Google Auth Exception]:', err)
-      setGoogleError(err?.message || 'Failed to start Google login. Please try again.')
+      setGoogleError((err instanceof Error && err.message) || 'Failed to start Google login. Please try again.')
       setIsGoogleLoading(false)
     }
   }

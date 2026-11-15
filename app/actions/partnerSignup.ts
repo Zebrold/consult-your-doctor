@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { executiveFor } from '@/app/executive/_lib/ops'
 import { clientIp } from '@/lib/otp-guard'
 import { overLimit } from '@/lib/rate-limit'
 import { sendPartnerApplicationReceivedEmail } from '@/lib/notify/email'
@@ -277,6 +278,12 @@ export async function rejectPartnerApplication(id: string): Promise<Result> {
   const admin = createAdminClient()
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
   if (profile?.role !== 'executive') return fail('Only the operations team can review applications.')
+  // Which team may review depends on the kind of application, so read the kind first.
+  const { data: pending } = await admin.from('partner_applications').select('kind').eq('id', id).maybeSingle()
+  const page = pending?.kind === 'hospital' ? 'hospitals' : pending?.kind === 'doctor' ? 'doctors' : 'diagnostics'
+  // Hospital applications also show in the Branches queue, so that team may reject them too.
+  const allowed = (await executiveFor(page)) || (pending?.kind === 'hospital' && (await executiveFor('branches')))
+  if (!allowed) return fail('Your team doesn’t have access to this.')
 
   const { data: app, error } = await admin
     .from('partner_applications')

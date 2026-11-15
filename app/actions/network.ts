@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
+import { executiveFor } from '@/app/executive/_lib/ops'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getOrAssignDiagnosticCenterCode, getOrAssignHospitalCode } from '@/lib/organization-ids'
 import { createStaffLogin, passwordProblem, provisionDoctor, randomPassword } from '@/lib/provisioning'
@@ -16,14 +16,9 @@ import type { PartnerKind } from '@/lib/partner-applications'
 type Fail = { success: false; error: string }
 const fail = (error: string): Fail => ({ success: false, error })
 
-/** The signed-in executive, checked against the database on every call (these are public endpoints). */
-async function executiveCaller() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  const admin = createAdminClient()
-  const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
-  return profile?.role === 'executive' ? { user, admin } : null
+/** The signed-in executive whose team may use `page`, checked against the database on every call (these are public endpoints). */
+async function executiveCaller(page: 'hospitals' | 'diagnostics' | 'doctors') {
+  return executiveFor(page)
 }
 
 const NOT_ALLOWED = 'Only the operations team can manage the partner network. Please log in with your executive account.'
@@ -152,7 +147,7 @@ async function completeApplication(
 }
 
 export async function createHospital(form: FormData): Promise<CreatedOrg | Fail> {
-  const caller = await executiveCaller()
+  const caller = await executiveCaller('hospitals')
   if (!caller) return fail(NOT_ALLOWED)
   const parsed = readOrg(form)
   if (!parsed.success) return fail(parsed.error.issues[0].message)
@@ -201,7 +196,7 @@ const priceListSchema = z
   .max(200)
 
 export async function createDiagnosticCenter(form: FormData): Promise<CreatedOrg | Fail> {
-  const caller = await executiveCaller()
+  const caller = await executiveCaller('diagnostics')
   if (!caller) return fail(NOT_ALLOWED)
   const parsed = readOrg(form)
   if (!parsed.success) return fail(parsed.error.issues[0].message)
@@ -260,7 +255,7 @@ export async function createDiagnosticCenter(form: FormData): Promise<CreatedOrg
 
 /** A sign-in for a hospital or centre that doesn't have one yet (added before logins were created with them). */
 export async function addOrganizationLogin(input: { kind: 'hospital' | 'lab'; id: string; password: string; staffId?: string }): Promise<{ success: true; staffId: string } | Fail> {
-  const caller = await executiveCaller()
+  const caller = await executiveCaller(input.kind === 'hospital' ? 'hospitals' : 'diagnostics')
   if (!caller) return fail(NOT_ALLOWED)
   const weak = passwordProblem(input.password ?? '')
   if (weak) return fail(weak)
@@ -298,7 +293,7 @@ const doctorSchema = z.object({
 export async function createDoctorAccount(form: FormData): Promise<
   { success: true; staffId: string; email: string | null; invitationSent: boolean } | Fail
 > {
-  const caller = await executiveCaller()
+  const caller = await executiveCaller('doctors')
   if (!caller) return fail(NOT_ALLOWED)
   const parsed = doctorSchema.safeParse({
     hospitalId: field(form, 'hospitalId'),

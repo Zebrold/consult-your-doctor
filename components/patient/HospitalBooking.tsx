@@ -117,6 +117,8 @@ export function HospitalBooking({
   const [picked, setPicked] = useState<string[]>(initialServices);
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  // What the reserved booking was made for, so a second Pay click with the same choice can reuse it.
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
   // A family member the visit is for (null: the account holder).
   const [forId, setForId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -179,7 +181,25 @@ export function HospitalBooking({
     if (missing) return setError(missing);
     setSubmitting(true);
     setError(null);
+    const choiceKey = [doctor.id, slot.id, choices && fastTrack ? "ft" : "std", pickedServices.map((s) => s.name).sort().join(","), forId ?? ""].join("|");
+    // The same choice as the reserved booking: pay for it again instead of reserving a second one.
+    if (pendingId && pendingKey === choiceKey) {
+      const retryError = await startOnlinePayment({
+        bookingId: pendingId,
+        product: "Consultation",
+        name: patient.name || "Patient",
+        email: (patient.email || "").trim() || null,
+        phone: patient.phone || null,
+      });
+      if (retryError) {
+        setError(retryError === WINDOW_CLOSED ? `Your slot is reserved. ${retryError}` : `Your slot is reserved, but the payment couldn't start: ${retryError}`);
+        setSubmitting(false);
+      }
+      return;
+    }
+    // A different choice: the earlier reservation is no longer the one being paid for.
     setPendingId(null);
+    setPendingKey(null);
     const form = new FormData();
     form.append("doctor_id", doctor.id);
     form.append("schedule_id", slot.id);
@@ -216,6 +236,7 @@ export function HospitalBooking({
     });
     if (payError) {
       setPendingId(appointmentId);
+      setPendingKey(choiceKey);
       setError(payError === WINDOW_CLOSED ? `Your slot is reserved. ${payError}` : `Your slot is reserved, but the payment couldn't start: ${payError}`);
       setSubmitting(false);
     }

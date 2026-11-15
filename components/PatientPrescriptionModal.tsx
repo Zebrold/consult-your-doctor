@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { FileText, Download, X } from 'lucide-react'
 
@@ -11,11 +11,12 @@ interface MedicalRecord {
 
 export function PatientPrescriptionModal({ record, doctorName }: { record: MedicalRecord, doctorName: string }) {
   const [isOpen, setIsOpen] = useState(false)
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  // false on the server and during hydration, true once mounted in the browser
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  )
 
   return (
     <>
@@ -47,7 +48,7 @@ export function PatientPrescriptionModal({ record, doctorName }: { record: Medic
             
             <div className="p-6">
               <div className="mb-6">
-                <h4 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider">Doctor's Notes</h4>
+                <h4 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider">Doctor&apos;s Notes</h4>
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                   <p className="text-sm text-gray-800 whitespace-pre-wrap font-medium">
                     {record.notes}

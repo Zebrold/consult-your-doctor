@@ -10,7 +10,7 @@ export type WalkInDoctor = { id: string; specialty: string | null; consultation_
 
 export function WalkInForm({ doctors, bookingFee }: { doctors: WalkInDoctor[]; bookingFee: number }) {
   const [doctorId, setDoctorId] = useState('')
-  const [schedules, setSchedules] = useState<any[]>([])
+  const [schedules, setSchedules] = useState<{ id: string; start_time: string }[]>([])
   const [scheduleId, setScheduleId] = useState('')
   const [patientName, setPatientName] = useState('')
   const [patientPhone, setPatientPhone] = useState('+91')
@@ -18,7 +18,7 @@ export function WalkInForm({ doctors, bookingFee }: { doctors: WalkInDoctor[]; b
   const [codeSent, setCodeSent] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const supabase = createClient()
+  const [supabase] = useState(() => createClient())
   const router = useRouter()
 
   useEffect(() => {
@@ -51,7 +51,7 @@ export function WalkInForm({ doctors, bookingFee }: { doctors: WalkInDoctor[]; b
     }
     
     fetchSchedules()
-  }, [doctorId])
+  }, [doctorId, supabase])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -176,7 +176,7 @@ export function WalkInForm({ doctors, bookingFee }: { doctors: WalkInDoctor[]; b
                 />
               </div>
               <p className="text-xs text-gray-500 mt-2 font-medium">
-                We'll link the appointment to this number.
+                We&apos;ll link the appointment to this number.
               </p>
               <div className="flex items-center gap-2 mt-3">
                 <input

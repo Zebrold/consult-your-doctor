@@ -17,7 +17,7 @@ export default async function DiagnosticCheckoutPage({ params }: { params: Promi
   const supabase = await createClient()
 
   const [user, fees] = await Promise.all([getCurrentUser(), getBookingFees()])
-  if (!user) redirect('/login/patient')
+  if (!user) redirect(`/login/patient?next=${encodeURIComponent(`/patient/checkout/diagnostic/${bookingId}`)}`)
 
   // Only the patient's own booking is ever loaded (and RLS enforces the same).
   const [{ data: booking }, { data: profile }] = await Promise.all([

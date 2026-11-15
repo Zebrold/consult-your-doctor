@@ -26,7 +26,7 @@ const GROW = [
 ]
 
 const ACCOUNT = [
-  { href: '/hospital/profile#account', title: 'Login details', sub: 'Your name, mobile number and password' },
+  { href: '/hospital/settings/account', title: 'Login details', sub: 'Your name, mobile number, Staff ID and password' },
   { href: '/legal', title: 'Legal documents', sub: 'Terms, privacy and our policies' },
   { href: '/hospital/ai', title: 'Help & support', sub: 'Talk to the Consult your Doctor team' },
 ]

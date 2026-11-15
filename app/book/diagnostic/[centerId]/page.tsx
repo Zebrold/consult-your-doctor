@@ -24,6 +24,18 @@ export async function generateMetadata({ params }: DiagnosticBookingPageProps): 
   };
 }
 
+/** The columns this page reads; the doorstep ones are missing until their migration is applied. */
+type CenterRow = {
+  id: string;
+  name: string;
+  city: string | null;
+  address: string | null;
+  image_url: string | null;
+  test_prices: Record<string, number | string> | null;
+  doorstep_enabled?: boolean | null;
+  doorstep_fee?: number | string | null;
+};
+
 export default async function DiagnosticBookingPage({ params, searchParams }: DiagnosticBookingPageProps) {
   const { centerId } = await params;
   const query = await searchParams;
@@ -31,7 +43,7 @@ export default async function DiagnosticBookingPage({ params, searchParams }: Di
   const supabase = await createClient();
 
   // Try fetching center with doorstep columns; if missing from DB schema, fallback to core fields
-  let center: any = null;
+  let center: CenterRow | null = null;
   const { data: centerFull, error: centerErr } = await supabase
     .from("diagnostic_centers")
     .select("id, name, city, address, image_url, test_prices, doorstep_enabled, doorstep_fee")
@@ -64,7 +76,7 @@ export default async function DiagnosticBookingPage({ params, searchParams }: Di
         city: center.city,
         address: center.address,
         image: center.image_url,
-        doorstepEnabled: (center as any).doorstep_enabled !== false,
+        doorstepEnabled: center.doorstep_enabled !== false,
         doorstepFee: labDoorstepFee(center),
       }}
       tests={pricedTests(center.test_prices)}

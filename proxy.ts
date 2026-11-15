@@ -164,8 +164,14 @@ export async function proxy(request: NextRequest) {
       if (request.nextUrl.searchParams.get('preview') === 'patient' && path.startsWith('/patient')) {
         return supabaseResponse
       }
-      // Redirect to homepage to trigger auth modal, or a dedicated error page
-      return redirectTo('/')
+      // Send the visitor to the login for the part of the site they asked for, and bring them back afterwards.
+      // (/login/* is not a protected route, so this can't loop. Only the patient login reads `next`.)
+      const login = path.startsWith('/doctor') ? '/login/doctor'
+        : path.startsWith('/executive') ? '/login/executive'
+        : path.startsWith('/hospital') ? '/login/hospital'
+        : path.startsWith('/diagnostic') ? '/login/diagnostic'
+        : '/login/patient'
+      return redirectTo(`${login}?next=${encodeURIComponent(path + url.search)}`)
     }
   }
 

@@ -3,7 +3,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
-import { vitalsSentence } from '@/lib/vitals'
 import { RECORD_BUCKET, RECORD_MAX_BYTES, RECORD_TYPES, storeRecordFile } from '@/lib/records'
 import { issuePrescription, prescriptionTemplatePdf, signaturePath } from '@/lib/prescriptions'
 import { z } from 'zod'
@@ -12,7 +11,6 @@ import { RxSchema, filledMedicines, type RxData } from '@/lib/rx'
 import { cleanList } from '@/lib/profile-lists'
 import { PHOTO_CACHE } from '@/lib/photos'
 import { migrationHint } from '@/lib/desk-payments'
-import { ensurePatientProfile, indianMobile, sendPatientOtp, verifyPatientOtp } from '@/lib/patient-onboarding'
 
 const IMAGE_TYPES: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
 
@@ -165,14 +163,18 @@ export async function blockScheduleSlot(scheduleId: string) {
   if (!doctor) return { error: 'Not a doctor' }
 
   // Must only delete if it belongs to the doctor AND is_booked = false
-  const { error } = await supabase
+  const { data: removed, error } = await supabase
     .from('schedules')
     .delete()
     .match({ id: scheduleId, doctor_id: doctor.id, is_booked: false })
+    .select('id')
 
   if (error) {
     console.error('Failed to block schedule:', error)
     return { error: 'Failed to block the slot. It might be already booked.' }
+  }
+  if (!removed || removed.length === 0) {
+    return { error: 'That slot is booked or already gone.' }
   }
 
   revalidateDoctorPages()
@@ -338,83 +340,6 @@ export async function updateAppointmentStatus(appointmentId: string, status: str
   }
   if (!updated || updated.length === 0) {
     return { success: false, error: 'This appointment is unpaid, already closed, or can’t move to that status from its current one.' }
-  }
-
-  revalidateDoctorPages()
-  return { success: true }
-}
-
-/** Texts a walk-in patient the code their visit needs (see addNewPatient). Sent from the doctor's own session. */
-export async function sendDoctorPatientOtp(rawPhone: string): Promise<{ ok: true } | { ok: false; error: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { ok: false, error: 'Unauthorized' }
-  const { data: doctor } = await supabase.from('doctors').select('id').eq('profile_id', user.id).maybeSingle()
-  if (!doctor) return { ok: false, error: 'Not a doctor' }
-  const phone = indianMobile(rawPhone)
-  if (!phone) return { ok: false, error: 'Enter the patient’s 10-digit Indian mobile number.' }
-  return sendPatientOtp(createAdminClient(), phone, `doctor:${doctor.id}:${user.id}`)
-}
-
-export async function addNewPatient(formData: FormData) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Unauthorized' }
-
-  const { data: doctor } = await supabase.from('doctors').select('id, hospital_id').eq('profile_id', user.id).single()
-  if (!doctor) return { success: false, error: 'Not a doctor' }
-
-  const fullName = String(formData.get('full_name') || '').trim().replace(/\s+/g, ' ')
-  const phone = indianMobile(String(formData.get('phone_number') || ''))
-  const rawEmail = String(formData.get('email') || '').trim().toLowerCase()
-  const email = rawEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail) ? rawEmail : null
-  // Only what the doctor actually entered is recorded; nothing clinical is filled in by default.
-  const field = (name: string) => String(formData.get(name) || '').trim()
-  const diagnosis = field('diagnosis')
-  const allergy = field('allergy')
-  const medications = field('medications')
-
-  if (fullName.length < 2) return { success: false, error: 'Patient name is required' }
-  if (!phone) return { success: false, error: 'Enter the patient’s 10-digit mobile number. They confirm it with a code we send them.' }
-
-  // The patient confirms their number with the code texted to it. Without this, a walk-in form could attach visits and
-  // prescriptions to whichever existing account has that email or number.
-  const adminClient = createAdminClient()
-  const verified = await verifyPatientOtp(adminClient, phone, field('code'))
-  if (!verified.ok) return { success: false, error: verified.error }
-  const details = await ensurePatientProfile(adminClient, verified.userId, { name: fullName, phone, email })
-  if (!details.ok) return { success: false, error: details.error }
-  const patientId = verified.userId
-
-  // The walk-in is seen now: give the visit a 30-minute slot starting now
-  const startTime = new Date(Date.now()).toISOString()
-  const endTime = new Date(Date.now() + 1800000).toISOString()
-  const { data: newSchedule } = await adminClient.from('schedules').insert({
-    doctor_id: doctor.id,
-    start_time: startTime,
-    end_time: endTime,
-    is_booked: true
-  }).select('id').single()
-
-  if (newSchedule) {
-    // Create appointment
-    const { data: newApt } = await adminClient.from('appointments').insert({
-      patient_id: patientId,
-      doctor_id: doctor.id,
-      schedule_id: newSchedule.id,
-      hospital_id: doctor.hospital_id || null,
-      status: 'confirmed'
-    }).select('id').single()
-
-    const vitals = { bp: field('bp'), spo2: field('spo2'), hr: field('hr') }
-    if (newApt && (diagnosis || medications)) {
-      // A diagnosis or medicines make a prescription: a PDF in the patient's records, sent to the patient.
-      const issued = await issuePrescription(adminClient, { appointmentId: newApt.id, diagnosis, medicines: medications, advice: '', allergy, vitals })
-      if (!issued.ok) return { success: false, error: `The patient was added, but ${issued.error.charAt(0).toLowerCase()}${issued.error.slice(1)}` }
-    } else if (newApt) {
-      const notes = [vitalsSentence(vitals), allergy && `Allergy: ${allergy}.`].filter(Boolean).join(' ')
-      if (notes) await adminClient.from('medical_records').insert({ appointment_id: newApt.id, document_type: 'prescription', notes, file_url: 'none' })
-    }
   }
 
   revalidateDoctorPages()

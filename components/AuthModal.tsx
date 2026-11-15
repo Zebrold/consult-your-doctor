@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useActionState, useEffect } from 'react'
+import { useState, useActionState } from 'react'
 import { X, ArrowLeft } from 'lucide-react'
 import { sendOTP, verifyOTP } from '@/app/actions/auth'
 
@@ -17,11 +17,14 @@ export function AuthModal({ isOpen, onClose, initialType = 'login' }: AuthModalP
   const [sendOTPState, sendOTPAction, isSendPending] = useActionState(sendOTP, null)
   const [verifyOTPState, verifyOTPAction, isVerifyPending] = useActionState(verifyOTP, null)
   
-  useEffect(() => {
+  // Move to the verify step when a new send-OTP result arrives (adjusted during render)
+  const [seenSendState, setSeenSendState] = useState(sendOTPState)
+  if (sendOTPState !== seenSendState) {
+    setSeenSendState(sendOTPState)
     if (sendOTPState?.success) {
       setStep(2)
     }
-  }, [sendOTPState])
+  }
 
   const handleTypeChange = (newType: 'login' | 'signup') => {
     setType(newType)
@@ -127,7 +130,7 @@ export function AuthModal({ isOpen, onClose, initialType = 'login' }: AuthModalP
             <div className="mt-6 text-center text-sm text-gray-600">
               {type === 'login' ? (
                 <>
-                  Don't have an account?{' '}
+                  Don&apos;t have an account?{' '}
                   <button onClick={() => handleTypeChange('signup')} className="text-[#E31E24] font-semibold hover:underline">
                     Register here
                   </button>
@@ -147,7 +150,7 @@ export function AuthModal({ isOpen, onClose, initialType = 'login' }: AuthModalP
             <div className="text-center mb-6">
               <h1 className="text-2xl font-bold text-gray-900">Verify Mobile Number</h1>
               <p className="text-gray-500 text-sm mt-2">
-                We've sent a 6-digit verification code to <br/><span className="font-semibold text-gray-900">{phoneVal}</span>
+                We&apos;ve sent a 6-digit verification code to <br/><span className="font-semibold text-gray-900">{phoneVal}</span>
               </p>
             </div>
 

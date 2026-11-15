@@ -31,6 +31,9 @@ export async function POST(request: Request) {
       const mine = data.payer_id === user.id || (profile?.role === 'hospital_admin' && !!data.hospital_id && data.hospital_id === profile.hospital_id)
       if (!mine) return fail('Payment not found.', 404)
       if (data.status === 'paid') return fail('This is already paid.', 409)
+      // A request that was withdrawn or replaced has no badge waiting for this payment any more.
+      const { count: waiting } = await admin.from('verified_badges').select('id', { count: 'exact', head: true }).eq('payment_id', id).eq('status', 'awaiting_payment')
+      if (!waiting) return fail('This request was withdrawn. Start again from Verified badges.', 409)
       amount = Number(data.amount) || 0
     } else {
       const { data } = await admin.from('equipment_orders').select('hospital_id, total, status').eq('id', id).maybeSingle()

@@ -1,6 +1,6 @@
-import { PDFDocument, rgb, type PDFImage, type PDFPage } from 'pdf-lib'
+import { PDFDocument, rgb } from 'pdf-lib'
 import fontkit from '@pdf-lib/fontkit'
-import { C, PAGE, drawLogo, loadAssets, safe, wrap, dateText, timeText } from './clinical'
+import { C, PAGE, drawLogo, loadAssets, safe, dateText, timeText } from './clinical'
 import { drawBarcode } from './barcode'
 import { payAtVenueNote } from '@/lib/pricing'
 
@@ -326,7 +326,7 @@ export async function generateAppointmentSlipPdf(data: AppointmentSlipData): Pro
     const barcodeText = safe(data.bookingId).slice(0, 16).toUpperCase()
     drawBarcode(page, barcodeText, M + W - 140, y - 68, 126, 32, C.ink)
     page.drawText(barcodeText, { x: M + W - 120, y: y - 80, font: regular, size: 7.5, color: C.muted })
-  } catch (err) {
+  } catch {
     // Fallback if barcode encoding has unsupported chars
     page.drawText(`REF: ${safe(data.bookingId).slice(0, 12)}`, { x: M + W - 120, y: y - 60, font: bold, size: 8, color: C.ink })
   }

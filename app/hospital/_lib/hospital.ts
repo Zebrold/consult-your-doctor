@@ -7,6 +7,7 @@ import { formatINR, istDateKey } from '@/components/patient/format'
 import type { Tone } from '@/components/portal/ui'
 import { bookedServices, isFastTrack, testList, type BookedTest } from '@/lib/pricing'
 import { isOnlineGateway } from '@/lib/payment-gateways'
+import { familyNames, RELATIONS } from '@/lib/patient-health'
 
 type Admin = ReturnType<typeof createAdminClient>
 type Joined<T> = T | T[] | null
@@ -212,6 +213,8 @@ export type HospitalVisit = {
   bookedOnline: boolean
   /** The earlier visit this is the free follow-up of. */
   followUpOf: string | null
+  /** Booked by the account holder for a family member (20261116): who the visit is really for. */
+  forMember: { name: string; relation: string } | null
 }
 
 type VisitRow = {
@@ -225,6 +228,8 @@ type VisitRow = {
   services?: unknown
   /** Missing until 20261102_hospital_wallets.sql runs. */
   follow_up_of?: string | null
+  /** Missing until 20261116_patient_health.sql runs. */
+  family_member_id?: string | null
   schedules: Joined<{ start_time: string; end_time: string | null }>
   patient: Joined<{ id: string; full_name: string | null; phone_number: string | null; email: string | null }>
 }
@@ -248,7 +253,7 @@ export async function loadHospitalVisits(admin: Admin, hospitalId: string, docto
     .limit(5000)
 
   const rows = (data ?? []) as VisitRow[]
-  const { payments, online } = await loadPayments(admin, rows.map((r) => r.id))
+  const [{ payments, online }, members] = await Promise.all([loadPayments(admin, rows.map((r) => r.id)), familyNames(admin, rows.map((r) => r.family_member_id))])
   return rows
     .map((r) => {
       const slot = one(r.schedules)
@@ -270,9 +275,16 @@ export async function loadHospitalVisits(admin: Admin, hospitalId: string, docto
         services: bookedServices(r.services),
         bookedOnline: online.has(r.id),
         followUpOf: r.follow_up_of ?? null,
+        forMember: r.family_member_id && members[r.family_member_id] ? { name: members[r.family_member_id].name, relation: RELATIONS[members[r.family_member_id].relation] } : null,
       }
     })
     .sort((a, b) => (a.start ?? a.createdAt).localeCompare(b.start ?? b.createdAt))
+}
+
+/** Who a visit is for: the family member it was booked for ("Rahul Sharma, spouse of Ananya Sharma"), or the patient. */
+export function visitPatientName(v: Pick<HospitalVisit, 'patient' | 'forMember'>) {
+  if (v.forMember) return `${v.forMember.name}, ${v.forMember.relation.toLowerCase()} of ${v.patient?.name ?? 'the account holder'}`
+  return v.patient?.name ?? 'Patient'
 }
 
 /** Visits the consultation fee is still to be taken from at the counter when they were booked online. */

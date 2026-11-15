@@ -18,6 +18,7 @@ import { AppointmentTypePicker, PaySummary, ServicePicker, bookingFeeItem } from
 import { PayableTable } from "./PayableTable";
 import { appendPatientDetails, FormError, OnlinePayNote, patientDetailsError, RefundNote, type PatientDetails } from "./booking-ui";
 import { usePatientLocation } from "./location";
+import { WhoFor } from "./WhoFor";
 
 export type HospitalDoctor = {
   id: string;
@@ -116,6 +117,8 @@ export function HospitalBooking({
   const [picked, setPicked] = useState<string[]>(initialServices);
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  // A family member the visit is for (null: the account holder).
+  const [forId, setForId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const presetRef = useRef<HTMLDivElement>(null);
   // Bring the doctor the patient chose into view, below the sticky header.
@@ -182,6 +185,7 @@ export function HospitalBooking({
     form.append("schedule_id", slot.id);
     if (choices && fastTrack) form.append("booking_type", "fast_track");
     for (const s of pickedServices) form.append("services", s.name);
+    if (forId) form.append("family_member_id", forId);
     appendPatientDetails(form, patient);
 
     const res = await finalizeConsultationAppointment(form);
@@ -409,6 +413,7 @@ export function HospitalBooking({
                   </span>
                 )}
               </div>
+              <WhoFor signedIn={!!patient} value={forId} onChange={setForId} />
               {patient ? (
                 <>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4">

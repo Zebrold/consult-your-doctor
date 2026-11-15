@@ -1,121 +1,188 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 import { ShieldCheck } from 'lucide-react'
-import { createClient, getCurrentUser } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { AccountCard, AccountPage } from '@/components/patient/AccountPage'
-import { one } from '@/components/patient/data'
-import { doctorName, formatINR, formatShortDate } from '@/components/patient/format'
-import { isOnlineGateway } from '@/lib/payment-gateways'
+import { AccountPage } from '@/components/patient/AccountPage'
+import { card } from '@/components/patient/app-ui'
+import { firstName, formatINR } from '@/components/patient/format'
+import { AddPolicyButton, CashlessNearby, ClaimsList, PolicyCard, PolicyDetailsButton, StartClaim, type CashlessHospital, type Claim } from '@/components/patient/health/insurance'
+import { istToday, patientAccount } from '@/lib/patient-account'
+import { loadFamily, missingTable } from '@/lib/patient-health'
+import { knownInsurers, loadInsurance, PLAN_LABEL } from '@/lib/insurance'
+import { RECORD_BUCKET } from '@/lib/records'
+import { toLatLng } from '@/lib/geo'
 
-export const metadata: Metadata = { title: 'Payments & billing | Consult Your Doctor' }
+export const metadata: Metadata = { title: 'Insurance' }
 
-type Rel<T> = T | T[] | null
-type PaymentRow = { appointment_id: string | null; diagnostic_booking_id: string | null; amount: number | string | null; gateway: string | null; created_at: string | null }
+type ClaimRow = {
+  id: string
+  claim_type: Claim['type']
+  claim_number: string | null
+  hospital_name: string
+  treated_on: string | null
+  amount: number | string | null
+  status: Claim['status']
+  settled_amount: number | string | null
+  documents: { name?: string; path?: string }[] | null
+  created_at: string
+}
 
-/** What the patient has paid: booking fees online, and bookings settled at a hospital or lab desk. */
-export default async function BillingPage() {
-  const supabase = await createClient()
-  const user = await getCurrentUser()
-  if (!user) redirect('/login/patient?next=/patient/insurance')
+type HospitalRow = { id: string; name: string | null; city: string | null; insurance_accepted?: string[] | null; latitude?: number | null; longitude?: number | null }
 
-  const [{ data: profile }, { data: visits }, { data: labs }] = await Promise.all([
-    createAdminClient().from('profiles').select('full_name, email').eq('id', user.id).maybeSingle(),
-    supabase.from('appointments').select('id, status, doctors ( profiles!doctors_profile_id_fkey ( full_name ) )').eq('patient_id', user.id),
-    supabase.from('diagnostic_bookings').select('id, status, test_name').eq('patient_id', user.id),
+const insurerKey = (s: string) => s.toLowerCase().replace(/\b(general|health|insurance|company|co|ltd|limited)\b|[^a-z]/g, '')
+const num = (v: number | string | null) => (v == null || v === '' ? null : Number(v))
+
+/** Insurance: the policy card, its cover, the patient's own claim tracker and the hospitals that accept the insurer. */
+export default async function InsurancePage() {
+  const { user, admin, profile, name } = await patientAccount('/patient/insurance')
+  const [{ ready, policy }, insurers, family, claimsRes, { data: hospitalRows }] = await Promise.all([
+    loadInsurance(admin, user.id),
+    knownInsurers(admin),
+    loadFamily(admin, user.id),
+    admin.from('insurance_claims').select('*').eq('patient_id', user.id).order('created_at', { ascending: false }),
+    admin.from('hospitals').select('*').eq('status', 'active'),
   ])
-  type Visit = { id: string; status: string; doctors: Rel<{ profiles: Rel<{ full_name: string | null }> }> }
-  type Lab = { id: string; status: string; test_name: string | null }
-  const visitRows = (visits ?? []) as Visit[]
-  const labRows = (labs ?? []) as Lab[]
+  const claimsReady = !missingTable(claimsRes.error)
+  const claimRows = (claimsRes.data ?? []) as ClaimRow[]
 
-  // Payments are read with the service role, limited to this patient's own bookings.
-  const admin = createAdminClient()
-  const [a, b] = await Promise.all([
-    visitRows.length ? admin.from('payments').select('appointment_id, diagnostic_booking_id, amount, gateway, created_at').in('appointment_id', visitRows.map((v) => v.id)).eq('status', 'success') : Promise.resolve({ data: [] }),
-    labRows.length ? admin.from('payments').select('appointment_id, diagnostic_booking_id, amount, gateway, created_at').in('diagnostic_booking_id', labRows.map((l) => l.id)).eq('status', 'success') : Promise.resolve({ data: [] }),
-  ])
-  const payments = [...((a.data ?? []) as PaymentRow[]), ...((b.data ?? []) as PaymentRow[])].sort((x, y) => (y.created_at ?? '').localeCompare(x.created_at ?? ''))
-  const online = payments.filter((p) => isOnlineGateway(p.gateway))
-  const total = online.reduce((s, p) => s + (Number(p.amount) || 0), 0)
-  const unpaid = [
-    ...visitRows.filter((v) => v.status === 'pending_payment').map((v) => ({ id: v.id, label: `Consultation · ${doctorName(one(one(v.doctors)?.profiles)?.full_name)}`, href: `/patient/checkout/${v.id}` })),
-    ...labRows.filter((l) => l.status === 'pending_payment').map((l) => ({ id: l.id, label: `Lab test · ${(l.test_name || 'Tests').replace(/-/g, ' ')}`, href: `/patient/checkout/diagnostic/${l.id}` })),
-  ]
-  const describe = (p: PaymentRow) => {
-    if (p.appointment_id) {
-      const v = visitRows.find((x) => x.id === p.appointment_id)
-      return `Consultation · ${doctorName(one(one(v?.doctors)?.profiles)?.full_name)}`
-    }
-    const l = labRows.find((x) => x.id === p.diagnostic_booking_id)
-    return `Lab test · ${(l?.test_name || 'Tests').replace(/-/g, ' ')}`
+  // Claim documents are private: short-lived signed links for this patient's own files.
+  const paths = claimRows.flatMap((c) => (c.documents ?? []).map((d) => d.path).filter((p): p is string => !!p))
+  const signed: Record<string, string> = {}
+  if (paths.length) {
+    const { data } = await admin.storage.from(RECORD_BUCKET).createSignedUrls(paths, 60 * 60)
+    for (const d of data ?? []) if (d.path && d.signedUrl && !d.error) signed[d.path] = d.signedUrl
   }
+  const claims: Claim[] = claimRows.map((c) => ({
+    id: c.id,
+    number: c.claim_number,
+    type: c.claim_type,
+    hospital: c.hospital_name,
+    treatedOn: c.treated_on,
+    createdAt: c.created_at,
+    amount: num(c.amount),
+    settled: num(c.settled_amount),
+    status: c.status,
+    documents: (c.documents ?? []).map((d) => ({ name: d.name || 'Document', url: d.path ? signed[d.path] ?? null : null })),
+  }))
+
+  const members = family.members.map((m) => ({ id: m.id, name: m.name }))
+  const covered = policy ? family.members.filter((m) => policy.coveredMemberIds.includes(m.id)) : []
+  const insuredLine = [firstName(name) || name, ...covered.map((m) => firstName(m.name) || m.name)].join(', ')
+  const settledTotal = claims.filter((c) => c.status === 'settled').reduce((s, c) => s + (c.settled ?? c.amount ?? 0), 0)
+
+  const cashless: CashlessHospital[] = policy
+    ? ((hospitalRows ?? []) as HospitalRow[])
+        .filter((h) => (h.insurance_accepted ?? []).some((i) => insurerKey(i) && insurerKey(i) === insurerKey(policy.insurer)))
+        .map((h) => {
+          const pin = toLatLng(h.latitude, h.longitude)
+          return { id: h.id, name: h.name || 'Hospital', city: h.city, lat: pin?.lat ?? null, lng: pin?.lng ?? null }
+        })
+    : []
+
+  const detailRows: [string, string | null][] = policy
+    ? [
+        ['Plan', policy.planType ? PLAN_LABEL[policy.planType] : null],
+        ['Room rent', policy.roomRent],
+        ['Co-payment', policy.coPayment],
+        ['Members', insuredLine],
+        ['TPA', policy.tpaName],
+        ['TPA helpline', policy.tpaPhone],
+      ]
+    : []
 
   return (
-    <AccountPage user={user} profile={profile} title="Payments & billing" subtitle="Booking fees you paid online, and bookings paid at the desk.">
-      <div className="grid grid-cols-2 gap-3 lg:gap-4">
-        <div className="rounded-[18px] lg:rounded-2xl bg-white shadow-[0_0_0_1px_#E6EBF3] px-4 lg:px-5 py-4">
-          <span className="block text-[12.5px] font-bold text-[#5B667A]">Paid online</span>
-          <span className="block mt-1.5 text-[24px] lg:text-[28px] font-extrabold tracking-[-0.03em] tabular-nums">{formatINR(total)}</span>
-          <span className="block mt-1 text-[12px] text-[#5B667A]">Booking fees, all time</span>
-        </div>
-        <div className="rounded-[18px] lg:rounded-2xl bg-white shadow-[0_0_0_1px_#E6EBF3] px-4 lg:px-5 py-4">
-          <span className="block text-[12.5px] font-bold text-[#5B667A]">Payments</span>
-          <span className="block mt-1.5 text-[24px] lg:text-[28px] font-extrabold tracking-[-0.03em] tabular-nums">{payments.length}</span>
-          <span className="block mt-1 text-[12px] text-[#5B667A]">Online and at the desk</span>
-        </div>
-      </div>
-
-      {unpaid.length > 0 && (
-        <div role="alert" className="p-3.5 rounded-2xl bg-[#FEF3F2] shadow-[0_0_0_1px_#FBD5D1] flex flex-col gap-2">
-          <span className="text-[13.5px] font-extrabold text-[#912018]">Waiting for payment ({unpaid.length})</span>
-          {unpaid.map((u) => (
-            <div key={u.id} className="flex items-center justify-between gap-3 text-[13px]">
-              <span className="truncate capitalize text-[#27324A]">{u.label}</span>
-              <Link href={u.href} className="shrink-0 font-extrabold text-[#B42318] hover:underline">
-                Pay now
-              </Link>
+    <AccountPage
+      user={user}
+      profile={profile}
+      wide
+      title="Insurance"
+      subtitle="Your policy, the hospitals that accept it and your claims in one place"
+      phoneSubtitle={policy ? `${policy.insurer} · ${policy.policyNumber}` : 'Keep your policy and claims in one place.'}
+    >
+      {!policy ? (
+        <section className={`${card} p-5 lg:p-7 text-center`}>
+          <span className="inline-flex w-12 h-12 rounded-full bg-[#EEF3FF] text-[#2A4DD0] items-center justify-center">
+            <ShieldCheck className="w-6 h-6" />
+          </span>
+          <p className="mt-2.5 text-[16px] font-extrabold">Add your health insurance</p>
+          <p className="mt-1 max-w-md mx-auto text-[13px] leading-relaxed text-[#5B667A]">Keep it as a digital card to show at the hospital desk. The hospitals you book see it on their patient list.</p>
+          <AddPolicyButton patientName={name} insurers={insurers} ready={ready} className="mt-4" />
+          {!ready && <p className="mt-2.5 text-[12px] font-bold text-[#B54708]">Insurance details open up after the next update.</p>}
+        </section>
+      ) : (
+        <div className="grid gap-3.5 lg:gap-5 lg:grid-cols-[420px_minmax(0,1fr)] items-start">
+          <div className="flex flex-col gap-3.5">
+            <PolicyCard policy={policy} members={insuredLine} patientName={name} insurers={insurers} today={istToday()} />
+            <div className="rounded-2xl bg-[#EEF3FF] px-4 py-3.5">
+              <p className="text-[13.5px] font-extrabold">Planned hospital stay?</p>
+              <p className="mt-0.5 text-[12.5px] leading-normal text-[#4A5878]">Ask the hospital&apos;s insurance desk to request cashless approval from your insurer a few days before admission. In an emergency they request it after you are admitted.</p>
             </div>
-          ))}
+          </div>
+          <section className={`${card} p-4 lg:p-[22px]`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-[16px] font-extrabold">Coverage</h2>
+                <p className="mt-0.5 text-[12.5px] lg:text-[13px] text-[#5B667A]">As you entered it from your policy document</p>
+              </div>
+              <PolicyDetailsButton policy={policy} members={members} ready={policy.extended} />
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2.5">
+              <Stat label="Sum insured" value={policy.sumInsured != null ? formatINR(policy.sumInsured) : '–'} />
+              <Stat label="Settled claims" value={formatINR(settledTotal)} />
+              <Stat label="Left" value={policy.sumInsured != null ? formatINR(Math.max(0, policy.sumInsured - settledTotal)) : '–'} />
+            </div>
+            {policy.sumInsured != null && policy.sumInsured > 0 && (
+              <>
+                <span className="block mt-3 h-2 rounded-full bg-[#EEF2F7] overflow-hidden">
+                  <span className="block h-full rounded-full bg-[#2A4DD0]" style={{ width: `${Math.min(100, (settledTotal / policy.sumInsured) * 100)}%` }} />
+                </span>
+                <p className="mt-1.5 text-[12px] text-[#5B667A]">{Math.round((settledTotal / policy.sumInsured) * 100)}% used, from the settled claims you track here</p>
+              </>
+            )}
+            <div className="mt-3">
+              {detailRows.map(([label, value]) => (
+                <div key={label} className="flex justify-between gap-3 py-2.5 border-t border-[#EEF2F7] text-[13px] lg:text-[13.5px]">
+                  <span className="text-[#5B667A]">{label}</span>
+                  <span className={`text-right font-extrabold ${value ? '' : 'text-[#8A94A6] font-bold'}`}>{value ?? 'Not added'}</span>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
       )}
 
-      <AccountCard title="Payment history" sub="Online you pay only the booking fee and its payment convenience fee. Consultation fees and test charges are paid at the hospital or lab.">
-        {payments.length === 0 ? (
-          <p className="py-3 border-t border-[#EEF2F7] text-[13px] text-[#5B667A]">No payments yet.</p>
-        ) : (
-          payments.map((p, i) => (
-            <div key={`${p.appointment_id ?? p.diagnostic_booking_id}-${i}`} className="flex justify-between gap-3 py-[11px] border-t border-[#EEF2F7] text-[13.5px]">
-              <span className="min-w-0">
-                <span className="block font-bold truncate capitalize">{describe(p)}</span>
-                <span className="block text-[12px] text-[#5B667A]">
-                  {[p.created_at ? formatShortDate(p.created_at) : null, isOnlineGateway(p.gateway) ? 'Booking fee, paid online' : 'Paid at the desk'].filter(Boolean).join(' · ')}
-                </span>
-              </span>
-              {isOnlineGateway(p.gateway) ? <span className="shrink-0 font-extrabold">{formatINR(Number(p.amount) || 0)}</span> : <span className="shrink-0 text-[12px] text-[#5B667A]">At the counter</span>}
-            </div>
-          ))
-        )}
-      </AccountCard>
+      <ClaimsList claims={claims} ready={claimsReady} />
 
-      <AccountCard>
-        <div className="flex items-start gap-3">
-          <span className="shrink-0 w-10 h-10 rounded-full bg-[#ECFDF3] text-[#067647] flex items-center justify-center">
-            <ShieldCheck className="w-5 h-5" />
-          </span>
-          <span>
-            <span className="block text-[15px] font-extrabold">Health insurance</span>
-            <span className="block mt-0.5 text-[13px] leading-relaxed text-[#4A5878]">
-              Keep your policy as a digital insurance card in your profile, and the hospitals you book see it at the desk. Claims and
-              cashless approval are handled by the hospital and your insurer; each hospital&apos;s page lists the insurers it works with.{' '}
-              <Link href="/patient/profile#insurance" className="font-extrabold text-[#2A4DD0] hover:underline">
-                Your insurance card
-              </Link>
-            </span>
-          </span>
-        </div>
-      </AccountCard>
+      <div className="grid gap-3.5 lg:gap-5 lg:grid-cols-3 items-start">
+        <StartClaim ready={claimsReady} tpa={policy?.tpaName ?? null} />
+        {policy ? (
+          <CashlessNearby hospitals={cashless} insurer={policy.insurer} />
+        ) : (
+          <section className={`${card} p-4 lg:p-[22px]`}>
+            <h2 className="text-[16px] font-extrabold">Hospitals that accept your insurer</h2>
+            <p className="mt-1 text-[13px] text-[#5B667A]">Add your policy to see the partner hospitals that list your insurer.</p>
+            <Link href="/hospitals" className="inline-block mt-2.5 text-[13px] font-extrabold text-[#2A4DD0] hover:underline">Browse hospitals</Link>
+          </section>
+        )}
+        <section className={`${card} p-4 lg:p-[22px]`}>
+          <h2 className="text-[16px] font-extrabold">What to check in your policy</h2>
+          <ul className="mt-2 flex flex-col gap-2 text-[13px] leading-relaxed text-[#27324A]">
+            <li><strong>Hospital stays</strong> over 24 hours: room, ICU, surgery and medicines, up to your room rent limit.</li>
+            <li><strong>Day-care procedures</strong> such as cataract surgery and dialysis.</li>
+            <li><strong>Before and after</strong> a stay: how many days of tests and medicines are covered.</li>
+            <li><strong>Waiting periods</strong> for illnesses you already had when you bought the policy.</li>
+          </ul>
+          <p className="mt-2.5 text-[12px] text-[#5B667A]">Many policies don&apos;t cover regular OPD consultations. Your policy document has the exact terms.</p>
+        </section>
+      </div>
     </AccountPage>
+  )
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="rounded-xl bg-[#F7F9FC] px-3 py-2.5 min-w-0">
+      <span className="block text-[11.5px] font-bold text-[#5B667A] truncate">{label}</span>
+      <span className="block mt-0.5 text-[15px] lg:text-[17px] font-extrabold tabular-nums truncate">{value}</span>
+    </span>
   )
 }

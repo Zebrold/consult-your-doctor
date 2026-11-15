@@ -17,6 +17,7 @@ import type { ExistingReview } from '@/components/patient/ReviewButton'
 import { currentTime, one } from '@/components/patient/data'
 import { directionsHref, doctorName, formatDayLabel, formatINR, formatTime, istDateKey, visitToken } from '@/components/patient/format'
 import { isOnlineGateway } from '@/lib/payment-gateways'
+import { familyNames } from '@/lib/patient-health'
 
 export const metadata: Metadata = { title: 'My bookings' }
 
@@ -24,6 +25,8 @@ type Rel<T> = T | T[] | null
 type VisitRow = {
   id: string
   status: string
+  /** The family member it was booked for (20261116). */
+  family_member_id?: string | null
   doctor_id: string | null
   /** Missing until 20261028_fast_track_services.sql runs. */
   booking_type?: string | null
@@ -36,6 +39,7 @@ type VisitRow = {
 type LabRow = {
   id: string
   status: string
+  family_member_id?: string | null
   test_name: string | null
   preferred_date: string | null
   booking_type: string | null
@@ -81,7 +85,8 @@ export default async function PatientAppointments() {
       .order('created_at', { ascending: false }),
     supabase
       .from('diagnostic_bookings')
-      .select('id, status, test_name, preferred_date, booking_type, doorstep_fee, diagnostic_centers ( id, name, city, address, image_url, test_prices )')
+      // `*` so family_member_id comes back once 20261116_patient_health.sql has run.
+      .select('*, diagnostic_centers ( id, name, city, address, image_url, test_prices )')
       .eq('patient_id', user.id)
       .order('created_at', { ascending: false }),
     // The patient's own reviews, so finished visits show their rating instead of "Rate your visit".
@@ -92,6 +97,9 @@ export default async function PatientAppointments() {
   const visits = (visitRows ?? []) as VisitRow[]
   const labs = (labRows ?? []) as LabRow[]
   const admin = createAdminClient()
+  // Bookings made for a family member say who they are for.
+  const members = await familyNames(admin, [...visits.map((v) => v.family_member_id), ...labs.map((b) => b.family_member_id)])
+  const forLabel = (id: string | null | undefined) => (id && members[id] ? `For ${members[id].name} · ` : '')
 
   // Booking fees paid online, the prescriptions doctors sent and the reports labs uploaded (private files get short-lived links).
   const [visitPayments, labPayments, recordLinks, reportLinks] = await Promise.all([
@@ -130,7 +138,7 @@ export default async function PatientAppointments() {
       state,
       statusLabel: { ok: 'Confirmed', unpaid: 'Awaiting payment', done: 'Completed', past: 'Date passed', cancelled: 'Cancelled' }[state],
       title: name,
-      sub: `${doctor?.specialty || 'General'} · ${isFastTrack(v.booking_type) ? 'Fast track' : 'Consultation'}`,
+      sub: `${forLabel(v.family_member_id)}${doctor?.specialty || 'General'} · ${isFastTrack(v.booking_type) ? 'Fast track' : 'Consultation'}`,
       specialty: doctor?.specialty || 'General',
       image: doctor?.image_url ?? null,
       placeName: hospital?.name || 'Partner hospital',
@@ -180,7 +188,7 @@ export default async function PatientAppointments() {
       statusLabel:
         { ok: 'Confirmed', unpaid: 'Awaiting payment', past: 'Date passed', cancelled: 'Cancelled', done: b.status === 'report_sent' ? 'Report ready' : b.status === 'visited' ? 'Sample collected' : 'Report on the way' }[state],
       title: tests ? tests.map((t) => t.name).join(', ') : (b.test_name || 'Lab test').replace(/-/g, ' '),
-      sub: `Lab test · ${doorstep ? 'Sample collected at home' : 'Visit the lab'}`,
+      sub: `${forLabel(b.family_member_id)}Lab test · ${doorstep ? 'Sample collected at home' : 'Visit the lab'}`,
       specialty: 'Lab test',
       image: null,
       placeName: center?.name || 'Partner lab',

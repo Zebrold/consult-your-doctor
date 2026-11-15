@@ -31,7 +31,7 @@ const MENU: NavItem[] = [
   { href: '/executive/patients', label: 'Patients', icon: Users },
   { href: '/executive/revenue', label: 'Revenue', icon: IndianRupee },
   { href: '/executive/today', label: 'Check-ins', icon: CalendarCheck },
-  { href: '/executive/ai', label: 'Zebrold AI', icon: Sparkles },
+  { href: '/executive/ai', label: 'Care Assistant', icon: Sparkles },
 ]
 
 const GROW: NavItem[] = [

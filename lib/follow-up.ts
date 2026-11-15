@@ -10,18 +10,22 @@ export const FOLLOW_UP_DAYS = 12
 const DAY = 86_400_000
 const SEEN = ['visited', 'completed']
 
-type Row = { id: string; doctor_id: string; created_at: string; follow_up_of?: string | null; schedules: { start_time: string } | { start_time: string }[] | null }
+type Row = { id: string; doctor_id: string; created_at: string; follow_up_of?: string | null; family_member_id?: string | null; schedules: { start_time: string } | { start_time: string }[] | null }
 
 const startOf = (r: Row) => {
   const s = Array.isArray(r.schedules) ? r.schedules[0] : r.schedules
   return s?.start_time ? Date.parse(s.start_time) : Date.parse(r.created_at)
 }
 
-/** The patient's visits from the last FOLLOW_UP_DAYS that are not themselves follow-ups and have no follow-up yet. */
-async function openVisits(admin: Admin, patientId: string, now: number, doctorId?: string): Promise<Row[]> {
+/**
+ * The patient's visits from the last FOLLOW_UP_DAYS that are not themselves follow-ups and have no follow-up yet. A
+ * follow-up is for the same person: memberId (a family member, or null for the account holder) keeps only their visits.
+ */
+async function openVisits(admin: Admin, patientId: string, now: number, doctorId?: string, memberId: string | null = null): Promise<Row[]> {
   let query = admin
     .from('appointments')
-    .select('id, doctor_id, created_at, follow_up_of, schedules ( start_time )')
+    // All columns, so family_member_id (20261116) comes through once it exists.
+    .select('*, schedules ( start_time )')
     .eq('patient_id', patientId)
     .in('status', SEEN)
     .is('follow_up_of', null)
@@ -31,6 +35,7 @@ async function openVisits(admin: Admin, patientId: string, now: number, doctorId
   if (error || !data?.length) return []
 
   const recent = (data as Row[]).filter((r) => {
+    if ((r.family_member_id ?? null) !== memberId) return false
     const start = startOf(r)
     return start <= now && now - start <= FOLLOW_UP_DAYS * DAY
   })
@@ -45,13 +50,13 @@ async function openVisits(admin: Admin, patientId: string, now: number, doctorId
   return recent.filter((r) => !taken.has(r.id)).sort((a, b) => startOf(b) - startOf(a))
 }
 
-/** The visit a new general booking with this doctor would be a free follow-up of, or null. */
-export async function followUpBase(admin: Admin, patientId: string, doctorId: string, now = Date.now()): Promise<string | null> {
-  const visits = await openVisits(admin, patientId, now, doctorId)
+/** The visit a new general booking with this doctor (for the account holder, or a family member) would be a free follow-up of, or null. */
+export async function followUpBase(admin: Admin, patientId: string, doctorId: string, now = Date.now(), memberId: string | null = null): Promise<string | null> {
+  const visits = await openVisits(admin, patientId, now, doctorId, memberId)
   return visits[0]?.id ?? null
 }
 
-/** The doctors this patient can book a free follow-up with right now. */
+/** The doctors this patient can book a free follow-up with right now (for their own visits). */
 export async function freeFollowUpDoctors(admin: Admin, patientId: string, now = Date.now()): Promise<string[]> {
   const visits = await openVisits(admin, patientId, now)
   return Array.from(new Set(visits.map((v) => v.doctor_id)))

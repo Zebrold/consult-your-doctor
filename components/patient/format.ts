@@ -111,3 +111,11 @@ export function directionsHref(...parts: (string | null | undefined)[]) {
   const query = parts.filter(Boolean).join(', ')
   return query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : null
 }
+
+/** "+91 ••••• ••210": enough to recognise a number without showing it. */
+export function maskPhone(phone: string | null | undefined) {
+  const digits = (phone ?? '').replace(/\D/g, '')
+  if (digits.length < 6) return phone ?? ''
+  const local = digits.slice(-10)
+  return `${digits.length > 10 ? `+${digits.slice(0, digits.length - 10)} ` : ''}••••• ••${local.slice(-3)}`
+}

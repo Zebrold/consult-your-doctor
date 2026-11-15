@@ -660,7 +660,7 @@ function Preview({ draft, patientName, code }: { draft: Draft; patientName: stri
             {new Date(`${draft.followUp}T12:00:00+05:30`).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         )}
-        <p className="text-[11.5px] text-[#5B667A]">Zebrold AI follows up with the patient for 12 days after the consultation.</p>
+        <p className="text-[11.5px] text-[#5B667A]">Care Assistant follows up with the patient for 12 days after the consultation.</p>
       </div>
       <div className="mt-auto pt-4 flex items-end justify-between gap-3 text-[10px] text-[#5B667A]">
         <span className="border-t border-[#0B1B3F] pt-1 w-40">Doctor’s signature and stamp</span>

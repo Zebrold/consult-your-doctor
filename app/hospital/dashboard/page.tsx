@@ -6,7 +6,7 @@ import { IST, doctorName, formatINR, formatTime, istDateKey, visitToken } from '
 import { LiveRefresh } from '@/components/portal/LiveRefresh'
 import { loadHospitalBeds, summarizeBeds, wardSummaries } from '@/lib/beds'
 import {
-  dayOf, dayStartIso, hospitalShare, isPaidVisit, istHour, paymentLook, loadHospitalDoctors, loadHospitalSlots, loadHospitalVisits, requireHospital, sessionLabel, shiftDay,
+  dayOf, dayStartIso, hospitalShare, isPaidVisit, istHour, paymentLook, loadHospitalDoctors, loadHospitalSlots, loadHospitalVisits, requireHospital, sessionLabel, shiftDay, visitPatientName,
   type HospitalVisit,
 } from '../_lib/hospital'
 import { AddDoctorButton } from '../_components/DoctorDialogs'
@@ -266,7 +266,7 @@ export default async function HospitalDashboardPage() {
                         <li key={v.id} className="flex items-center gap-3 py-[11px] border-t border-[#EEF2F7]">
                           <span className="shrink-0 w-[66px] text-[12.5px] font-extrabold">{v.start ? formatTime(v.start) : '—'}</span>
                           <span className="flex-1 min-w-0">
-                            <span className="block text-[14px] font-extrabold truncate">{v.patient?.name ?? 'Patient'}</span>
+                            <span className="block text-[14px] font-extrabold truncate">{visitPatientName(v)}</span>
                             <span className="block text-[12px] text-[#5B667A] truncate">
                               {v.fastTrack && <span className="font-extrabold text-[#B93815]">Fast track · </span>}
                               {[doc ? doctorName(doc.name) : null, `Token ${visitToken(v.id)}`].filter(Boolean).join(' · ')}
@@ -295,7 +295,7 @@ export default async function HospitalDashboardPage() {
                           <span role="cell" className="flex items-center gap-2.5 min-w-0">
                             <Initials name={v.patient?.name ?? null} className="w-8 h-8 text-[11px]" />
                             <span className="min-w-0">
-                              <span className="block font-extrabold truncate">{v.patient?.name ?? 'Patient'}</span>
+                              <span className="block font-extrabold truncate">{visitPatientName(v)}</span>
                               <span className="block text-[12px] text-[#5B667A] truncate">
                                 Token {visitToken(v.id)}
                                 {v.fastTrack && <span className="font-extrabold text-[#B93815]"> · Fast track</span>}

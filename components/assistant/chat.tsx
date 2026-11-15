@@ -8,18 +8,18 @@ import type { LucideIcon } from 'lucide-react'
 import { ArrowUp, Check, ChevronDown, FileDown, FileText, Languages, LoaderCircle, Square } from 'lucide-react'
 import type { PdfDoc } from '@/lib/assistant/pdf-doc'
 
-// The chat both Zebrold AI surfaces share: the Support button on every page (Support.tsx) and each section's
-// full-page Zebrold AI tab (AssistantPage.tsx). Replies stream from app/api/assistant as newline-delimited JSON.
+// The chat both Care Assistant surfaces share: the Support button on every page (Support.tsx) and each section's
+// full-page Care Assistant tab (AssistantPage.tsx). Replies stream from app/api/assistant as newline-delimited JSON.
 
 /** `local` replies (errors, "not set up") are shown but never sent back to the model. */
 export type Msg = { role: 'user' | 'assistant'; content: string; local?: boolean; pdf?: PdfDoc; translations?: Record<string, string>; /** When it was sent (ms). */ at?: number }
-/** Support answers problems with the site; assistant is the open-ended Zebrold AI page. */
+/** Support answers problems with the site; assistant is the open-ended Care Assistant page. */
 export type ChatMode = 'support' | 'assistant'
 
 const HISTORY = 20
 const NONE: Msg[] = []
 
-/** Languages Zebrold AI can answer in. `auto` answers in whatever language the person writes in. */
+/** Languages Care Assistant can answer in. `auto` answers in whatever language the person writes in. */
 export const LANGUAGES: { code: string; label: string; english: string }[] = [
   { code: 'auto', label: 'Auto', english: 'Same as my message' },
   { code: 'en', label: 'English', english: 'English' },
@@ -48,7 +48,7 @@ const readLanguage = () => {
   }
 }
 
-/** The reply language, remembered in this browser and shared by every Zebrold AI chat on the page. */
+/** The reply language, remembered in this browser and shared by every Care Assistant chat on the page. */
 export function useLanguage() {
   const language = useSyncExternalStore(
     (onChange) => {
@@ -77,7 +77,7 @@ export const chatKey = (surface: 'support' | 'ai', section: string, viewer: stri
   `zebrold-${surface}-chat:${section}:${viewer ? viewer.slice(0, 12) : 'guest'}`
 
 const NOT_CONFIGURED =
-  'Zebrold AI isn’t switched on yet. Meanwhile you can [search for doctors](/search), [book a lab test](/diagnostics) or [contact us](/contact).'
+  'Care Assistant isn’t switched on yet. Meanwhile you can [search for doctors](/search), [book a lab test](/diagnostics) or [contact us](/contact).'
 
 function loadChat(key: string): Msg[] {
   if (typeof window === 'undefined') return []
@@ -230,7 +230,7 @@ export function useChat(storeKey: string, mode: ChatMode, language = 'auto') {
       else if (!failed) show(reply)
     } catch {
       if (controller.signal.aborted) show(reply.trim() ? reply : 'Stopped.', !reply.trim())
-      else show(reply.trim() ? reply : 'Couldn’t reach Zebrold AI. Check your connection and try again.', !reply.trim())
+      else show(reply.trim() ? reply : 'Couldn’t reach Care Assistant. Check your connection and try again.', !reply.trim())
     } finally {
       if (runRef.current === run) {
         setBusy(false)
@@ -266,7 +266,7 @@ export function useChat(storeKey: string, mode: ChatMode, language = 'auto') {
       setMessages((all) => all.map((m, i) => (i === index ? { ...m, translations: { ...m.translations, [target]: data.text! } } : m)))
       return null
     } catch {
-      return 'Couldn’t reach Zebrold AI. Check your connection and try again.'
+      return 'Couldn’t reach Care Assistant. Check your connection and try again.'
     }
   }
 
@@ -347,7 +347,7 @@ export function ChatThread({
                 <LoaderCircle className="w-4 h-4 animate-spin text-vibrant-blue" /> {status}
               </>
             ) : (
-              <span className="flex gap-1 px-3.5 py-3 rounded-[18px] bg-[#F0F2F5]" aria-label="Zebrold AI is typing">
+              <span className="flex gap-1 px-3.5 py-3 rounded-[18px] bg-[#F0F2F5]" aria-label="Care Assistant is typing">
                 {[0, 150, 300].map((d) => (
                   <span key={d} className="w-1.5 h-1.5 rounded-full bg-vibrant-blue/70 animate-bounce" style={{ animationDelay: `${d}ms` }} />
                 ))}
@@ -403,7 +403,7 @@ function Answer({ chat, index, message: m, done, question, onNavigate }: { chat:
   )
 }
 
-/** Picks the language Zebrold AI answers in. Sleek, professional icon button without cluttered 'Auto language' text. */
+/** Picks the language Care Assistant answers in. Sleek, professional icon button without cluttered 'Auto language' text. */
 export function LanguagePicker({
   value,
   onChange,
@@ -596,7 +596,7 @@ export function Composer({
             rows={1}
             maxLength={2000}
             placeholder={placeholder}
-            aria-label="Message Zebrold AI"
+            aria-label="Message Care Assistant"
             className="flex-1 resize-none bg-transparent text-[14.5px] text-[#1A1F2B] placeholder:text-[#8A909C] focus:outline-none max-h-32 py-1.5 field-sizing-content"
           />
           {chat.busy ? (

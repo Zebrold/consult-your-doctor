@@ -9,6 +9,8 @@ import { getBookingFees } from "@/lib/booking-fees";
 
 interface DiagnosticBookingPageProps {
   params: Promise<{ centerId: string }>;
+  /** ?test=<name> (repeatable) starts with those tests picked; ?home=1 with home sample collection. */
+  searchParams: Promise<{ test?: string | string[]; home?: string }>;
 }
 
 export async function generateMetadata({ params }: DiagnosticBookingPageProps): Promise<Metadata> {
@@ -22,8 +24,10 @@ export async function generateMetadata({ params }: DiagnosticBookingPageProps): 
   };
 }
 
-export default async function DiagnosticBookingPage({ params }: DiagnosticBookingPageProps) {
+export default async function DiagnosticBookingPage({ params, searchParams }: DiagnosticBookingPageProps) {
   const { centerId } = await params;
+  const query = await searchParams;
+  const initialTests = (Array.isArray(query.test) ? query.test : query.test ? [query.test] : []).slice(0, 10);
   const supabase = await createClient();
 
   // Try fetching center with doorstep columns; if missing from DB schema, fallback to core fields
@@ -68,6 +72,8 @@ export default async function DiagnosticBookingPage({ params }: DiagnosticBookin
       now={currentTime()}
       bookingFeePercent={fees.diagnosticPercent}
       conveniencePercent={fees.conveniencePercent}
+      initialTests={initialTests}
+      initialDoorstep={query.home === "1"}
     />
   );
 }

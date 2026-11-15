@@ -63,9 +63,9 @@ export async function buildPdf(doc: PdfDoc, fonts: Fonts, origin: string, now = 
   const regular = await pdf.embedFont(fonts.regular, { subset: true })
   const bold = await pdf.embedFont(fonts.bold, { subset: true })
   pdf.setTitle(doc.title)
-  pdf.setAuthor('Zebrold AI, Consult Your Doctor')
+  pdf.setAuthor('Care Assistant, Consult Your Doctor')
   pdf.setCreator('consultyourdoctor.de')
-  pdf.setProducer('Zebrold AI')
+  pdf.setProducer('Care Assistant')
   pdf.setCreationDate(now)
 
   let page: PDFPage = pdf.addPage(PAGE)
@@ -94,7 +94,7 @@ export async function buildPdf(doc: PdfDoc, fonts: Fonts, origin: string, now = 
   page.drawRectangle({ x: 0, y: PAGE[1] - 64, width: PAGE[0], height: 64, color: C.primary })
   page.drawText('Consult Your Doctor', { x: MARGIN, y: PAGE[1] - 34, size: 16, font: bold, color: C.white })
   page.drawText('consultyourdoctor.de', { x: MARGIN, y: PAGE[1] - 50, size: 9, font: regular, color: C.white })
-  const tag = 'Zebrold AI'
+  const tag = 'Care Assistant'
   page.drawText(tag, { x: PAGE[0] - MARGIN - bold.widthOfTextAtSize(tag, 11), y: PAGE[1] - 38, size: 11, font: bold, color: C.white })
   y = 64 + 30
 
@@ -165,7 +165,7 @@ export async function buildPdf(doc: PdfDoc, fonts: Fonts, origin: string, now = 
   const pages = pdf.getPages()
   pages.forEach((p, i) => {
     p.drawLine({ start: { x: MARGIN, y: MARGIN + 14 }, end: { x: PAGE[0] - MARGIN, y: MARGIN + 14 }, thickness: 0.5, color: C.line })
-    p.drawText('Made by Zebrold AI on consultyourdoctor.de. For information only, not medical advice.', { x: MARGIN, y: MARGIN, size: 8, font: regular, color: C.muted })
+    p.drawText('Made by Care Assistant on consultyourdoctor.de. For information only, not medical advice.', { x: MARGIN, y: MARGIN, size: 8, font: regular, color: C.muted })
     const label = `Page ${i + 1} of ${pages.length}`
     p.drawText(label, { x: PAGE[0] - MARGIN - regular.widthOfTextAtSize(label, 8), y: MARGIN, size: 8, font: regular, color: C.muted })
   })
@@ -195,7 +195,7 @@ function loadFonts() {
 export async function downloadPdf(doc: PdfDoc) {
   const bytes = await buildPdf(doc, await loadFonts(), window.location.origin)
   const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'application/pdf' }))
-  const name = doc.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'zebrold-ai'
+  const name = doc.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'care-assistant'
   const a = document.createElement('a')
   a.href = url
   a.download = `${name}.pdf`
@@ -225,7 +225,7 @@ export function answerToDoc(question: string | null, answer: string): PdfDoc {
   }
   flush()
   return {
-    title: 'Answer from Zebrold AI',
+    title: 'Answer from Care Assistant',
     subtitle: question ? `You asked: ${question.slice(0, 180)}` : undefined,
     sections: sections.length ? sections.slice(0, 15) : [{ paragraphs: [answer.slice(0, 2000)] }],
   }

@@ -24,8 +24,8 @@ const faqs = (fees: BookingFees): { q: string; a: React.ReactNode }[] => [
     a: (
       <>
         When your doctor finishes the consultation, a prescription PDF is added to{' '}
-        <Link href="/patient/profile#records" className="font-extrabold text-[#2A4DD0] hover:underline">
-          My Profile → Prescriptions &amp; Health Records
+        <Link href="/patient/records" className="font-extrabold text-[#2A4DD0] hover:underline">
+          Health records
         </Link>
         . It is also sent to you on WhatsApp, and by email if you’ve given one.
       </>

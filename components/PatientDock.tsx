@@ -4,9 +4,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
-  Bell, CalendarDays, CircleHelp, FlaskConical, Hospital, House, LogIn, LogOut, Search, Settings, Stethoscope, UserRound, type LucideIcon,
+  Bell, CalendarDays, CircleHelp, FlaskConical, Hospital, House, LogIn, LogOut, Search, Settings, SquareUserRound, Stethoscope, UserRound, type LucideIcon,
 } from "lucide-react";
 import { initials } from "@/components/patient/format";
+import { MY_HEALTH } from "@/components/patient/my-health";
 import { FloatingTabBar } from "@/components/FloatingTabBar";
 
 type Tab = "home" | "find" | "book" | "ai" | "profile";
@@ -29,7 +30,9 @@ type NavItem = { key: string; href: string; label: string; icon: LucideIcon };
 function railKey(path: string, signedIn: boolean): string {
   if (path === "/") return "home";
   if (path.startsWith("/patient/appointments") || path.startsWith("/patient/checkout") || path.startsWith("/book/confirmation")) return "book";
-  if (/^\/patient\/(profile|family|saved|insurance)/.test(path)) return "profile";
+  const health = MY_HEALTH.find((item) => path.startsWith(item.href));
+  if (health) return health.key;
+  if (/^\/patient\/(profile|saved|payments)/.test(path)) return "profile";
   if (path.startsWith("/patient/preferences")) return "settings";
   if (path.startsWith("/patient/support")) return "help";
   if (!signedIn && path.startsWith("/hospitals")) return "hospitals";
@@ -43,10 +46,11 @@ function crumb(path: string): string[] {
   if (path.startsWith("/patient/appointments")) return ["My bookings"];
   if (path.startsWith("/patient/checkout")) return ["My bookings", "Payment"];
   if (path.startsWith("/book/confirmation")) return ["My bookings", "Appointment pass"];
-  if (path.startsWith("/patient/profile")) return ["Profile & records"];
-  if (path.startsWith("/patient/family")) return ["Profile & records", "Family"];
-  if (path.startsWith("/patient/saved")) return ["Profile & records", "Your doctors & labs"];
-  if (path.startsWith("/patient/insurance")) return ["Profile & records", "Payments & billing"];
+  if (path.startsWith("/patient/profile")) return ["Profile & insurance"];
+  if (path.startsWith("/patient/saved")) return ["Profile & insurance", "Your doctors & labs"];
+  if (path.startsWith("/patient/payments")) return ["Profile & insurance", "Payments & billing"];
+  const health = MY_HEALTH.find((item) => path.startsWith(item.href));
+  if (health) return [health.label];
   if (path.startsWith("/patient/preferences")) return ["Settings"];
   if (path.startsWith("/patient/support")) return ["Help & support"];
   if (path === "/ai") return ["Care Assistant"];
@@ -70,17 +74,18 @@ export function PatientDock({ activeTab = "home", isSignedIn = true, name, detai
   const pathname = usePathname() ?? "/";
   const suffix = searchParams.get("preview") === "patient" ? "?preview=patient" : "";
 
+  // Home, in-person visits (choose a speciality), bookings and the account, as outline icons.
   const tabs: (NavItem & { active: boolean })[] = isSignedIn
     ? [
-        { key: "home", href: `/${suffix}`, label: "Home", icon: Stethoscope, active: activeTab === "home" },
+        { key: "home", href: `/${suffix}`, label: "Home", icon: House, active: activeTab === "home" },
+        { key: "find", href: `/specialities${suffix}`, label: "In-Person", icon: Stethoscope, active: activeTab === "find" },
         { key: "book", href: `/patient/appointments${suffix}`, label: "Bookings", icon: CalendarDays, active: activeTab === "book" },
-        { key: "find", href: `/find${suffix}`, label: "Search", icon: Search, active: activeTab === "find" },
-        { key: "profile", href: `/patient/profile${suffix}`, label: "Settings", icon: Settings, active: activeTab === "profile" },
+        { key: "profile", href: `/patient/profile${suffix}`, label: "Account", icon: SquareUserRound, active: activeTab === "profile" },
       ]
     : [
-        { key: "home", href: "/", label: "Home", icon: Stethoscope, active: activeTab === "home" },
+        { key: "home", href: "/", label: "Home", icon: House, active: activeTab === "home" },
+        { key: "find", href: "/specialities", label: "In-Person", icon: Stethoscope, active: activeTab === "find" },
         { key: "book", href: "/login/patient?next=/patient/appointments", label: "Bookings", icon: CalendarDays, active: activeTab === "book" },
-        { key: "find", href: "/find", label: "Search", icon: Search, active: activeTab === "find" },
         { key: "profile", href: "/login/patient", label: "Login", icon: LogIn, active: activeTab === "profile" },
       ];
 
@@ -100,7 +105,7 @@ function Rail({ pathname, isSignedIn, name, detail }: { pathname: string; isSign
         { key: "home", href: "/", label: "Home", icon: House },
         { key: "find", href: "/find", label: "Find care", icon: Search },
         { key: "book", href: "/patient/appointments", label: "My bookings", icon: CalendarDays },
-        { key: "profile", href: "/patient/profile", label: "Profile & records", icon: UserRound },
+        { key: "profile", href: "/patient/profile", label: "Profile & insurance", icon: UserRound },
       ]
     : [
         { key: "home", href: "/", label: "Home", icon: House },
@@ -132,6 +137,14 @@ function Rail({ pathname, isSignedIn, name, detail }: { pathname: string; isSign
       {menu.map((item) => (
         <RailLink key={item.key} item={item} active={active === item.key} />
       ))}
+      {isSignedIn && (
+        <>
+          <span className="px-3.5 pt-[18px] pb-1.5 text-[11px] font-extrabold tracking-[0.1em] text-[#AFC2FF]">MY HEALTH</span>
+          {MY_HEALTH.map((item) => (
+            <RailLink key={item.key} item={item} active={active === item.key} />
+          ))}
+        </>
+      )}
       <span className="flex-1 min-h-8" />
       {extra.map((item) => (
         <RailLink key={item.key} item={item} active={active === item.key} small />

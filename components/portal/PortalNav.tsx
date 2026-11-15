@@ -13,14 +13,14 @@ const TABS: Record<Portal, Tab[]> = {
     { href: '/doctor/dashboard', label: 'Dashboard', icon: LayoutGrid },
     { href: '/doctor/schedule', label: 'Schedule', icon: CalendarDays },
     { href: '/doctor/patients', label: 'Patients', icon: Users },
-    { href: '/doctor/ai', label: 'Zebrold AI', icon: BrainCircuit, ai: true },
+    { href: '/doctor/ai', label: 'Care Assistant', icon: BrainCircuit, ai: true },
     { href: '/doctor/profile', label: 'Profile', icon: CircleUserRound, profile: true },
   ],
   lab: [
     { href: '/diagnostic-center/dashboard', label: 'Dashboard', icon: LayoutGrid },
     { href: '/diagnostic-center/schedule', label: 'Schedule', icon: CalendarDays },
     { href: '/diagnostic-center/patients', label: 'Patients', icon: Users },
-    { href: '/diagnostic-center/ai', label: 'Zebrold AI', icon: BrainCircuit, ai: true },
+    { href: '/diagnostic-center/ai', label: 'Care Assistant', icon: BrainCircuit, ai: true },
     { href: '/diagnostic-center/profile', label: 'Profile', icon: CircleUserRound, profile: true },
   ],
   hospital: [
@@ -30,7 +30,7 @@ const TABS: Record<Portal, Tab[]> = {
     { href: '/hospital/doctors', label: 'Roster', icon: CalendarDays, wide: 'Duty Roster & Doctors' },
     { href: '/hospital/revenue', label: 'Finance', icon: Wallet, wide: 'Finance & Revenue' },
     { href: '/hospital/staff', label: 'Staff', icon: IdCard, wide: 'Staff Directory' },
-    { href: '/hospital/ai', label: 'Zebrold AI', icon: BrainCircuit, ai: true },
+    { href: '/hospital/ai', label: 'Care Assistant', icon: BrainCircuit, ai: true },
     { href: '/hospital/profile', label: 'Profile', icon: CircleUserRound, profile: true },
   ],
 }

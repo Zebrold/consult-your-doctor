@@ -6,6 +6,7 @@ import { one } from '@/components/patient/data'
 import type { Tone } from '@/components/portal/ui'
 import { parseVitals, type Vitals } from '@/lib/vitals'
 import { signRecordFiles } from '@/lib/records'
+import { familyNames, RELATIONS } from '@/lib/patient-health'
 import { parseEducation, type EducationEntry } from '@/lib/education'
 import { bookedServices, isFastTrack, type BookedTest } from '@/lib/pricing'
 
@@ -108,6 +109,8 @@ export type Visit = {
   services: BookedTest[]
   /** The earlier visit this is the free follow-up of. */
   followUpOf: string | null
+  /** Booked by the account holder for a family member (20261116): who the visit is really for. */
+  forMember: { name: string; relation: string } | null
 }
 
 /** Every appointment booked with this doctor, oldest slot first. */
@@ -124,14 +127,17 @@ export async function loadVisits(admin: Admin, doctorId: string): Promise<Visit[
     .eq('doctor_id', doctorId)
 
   type Row = {
-    id: string; status: string; created_at: string; schedule_id: string | null; booking_type?: string | null; services?: unknown; follow_up_of?: string | null
+    id: string; status: string; created_at: string; schedule_id: string | null; booking_type?: string | null; services?: unknown; follow_up_of?: string | null; family_member_id?: string | null
     patient: Joined<{ id: string; full_name: string | null; phone_number: string | null; email: string | null }>
     schedules: Joined<{ start_time: string; end_time: string | null }>
     medical_records: { id: string; notes: string | null; document_type: string | null; file_url: string | null }[] | null
   }
   const rows = (data ?? []) as unknown as Row[]
   // Files are private: hand the doctor signed links (valid for an hour).
-  const links = await signRecordFiles(admin, rows.flatMap((r) => (r.medical_records ?? []).map((m) => m.file_url)))
+  const [links, members] = await Promise.all([
+    signRecordFiles(admin, rows.flatMap((r) => (r.medical_records ?? []).map((m) => m.file_url))),
+    familyNames(admin, rows.map((r) => r.family_member_id)),
+  ])
   return rows
     .map((r) => {
       const patient = one(r.patient)
@@ -150,6 +156,7 @@ export async function loadVisits(admin: Admin, doctorId: string): Promise<Visit[
         fastTrack: isFastTrack(r.booking_type),
         services: bookedServices(r.services),
         followUpOf: r.follow_up_of ?? null,
+        forMember: r.family_member_id && members[r.family_member_id] ? { name: members[r.family_member_id].name, relation: RELATIONS[members[r.family_member_id].relation] } : null,
       }
     })
     .sort((a, b) => (a.start ?? a.createdAt).localeCompare(b.start ?? b.createdAt))
@@ -211,4 +218,10 @@ export const bookingCode = (id: string) => id.slice(0, 8).toUpperCase()
 export function minutesBetween(start: string | null, end: string | null) {
   if (!start || !end) return null
   return Math.round((Date.parse(end) - Date.parse(start)) / 60000)
+}
+
+/** Who a visit is for: the family member it was booked for ("Rahul Sharma, spouse of Ananya Sharma"), or the patient. */
+export function visitName(v: Pick<Visit, 'patient' | 'forMember'>) {
+  if (v.forMember) return `${v.forMember.name}, ${v.forMember.relation.toLowerCase()} of ${v.patient?.name ?? 'the account holder'}`
+  return v.patient?.name ?? 'Patient'
 }

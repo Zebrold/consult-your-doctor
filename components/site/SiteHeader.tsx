@@ -9,13 +9,12 @@ import { DesktopAccount, PhoneAccountButton } from "@/components/home/HomeHero";
 import type { HomeAccount } from "@/components/home/types";
 import { MenuSheet } from "@/components/patient/PhoneSheet";
 import { CorporateMenu } from "@/components/site/CorporateMenu";
-import { PartnerMenu } from "@/components/site/PartnerMenu";
-
-const NAV = [{ href: "/corporate#join", label: "Partner with Us" }];
+import { PartnerLink } from "@/components/site/PartnerMenu";
 
 /**
  * The public pages' header, the home page's blue header in a slimmer band: the logo, the Corporate menu, Partner with
- * Us, Get the App and the account. Phones get the logo and the account menu.
+ * us (a link to the partner page), Get the App and the account. On the partner pages a visitor's Login opens the three
+ * partner logins; elsewhere it is the patient sign-in. Phones get the logo and the account menu.
  * Its height matches --header-h (globals.css), which sticky parts of the legal pages sit under. On phones it sticks
  * just under the "Open in app" strip (--strip-h), except on the partner page, where it scrolls away with the page.
  */
@@ -26,7 +25,6 @@ export function SiteHeader({ account }: { account: HomeAccount }) {
   // lists only the partner portals.
   const partnerPage = pathname === "/corporate" || pathname.startsWith("/corporate/") || pathname.startsWith("/signup/");
   const pinned = !(pathname === "/corporate" || pathname.startsWith("/corporate/"));
-  const active = (href: string) => !href.includes("#") && (pathname === href || pathname.startsWith(`${href}/`));
 
   return (
     <header data-static-header={pinned ? undefined : ""} className={`${pinned ? "sticky top-(--strip-h)" : "relative"} z-50 bg-[#1D4ED8] text-white pt-[env(safe-area-inset-top)] print:static print:shadow-none`}>
@@ -43,12 +41,12 @@ export function SiteHeader({ account }: { account: HomeAccount }) {
             />
           </div>
           <div className="hidden lg:block">
-            <PartnerMenu
+            <PartnerLink
               className={`text-[15px] font-semibold transition-colors ${pathname.startsWith("/corporate") || pathname.startsWith("/signup/") ? "text-white" : "text-white/90 hover:text-white"}`}
             />
           </div>
           <GetTheApp variant="hero" />
-          <DesktopAccount account={account} hasVisit={false} />
+          <DesktopAccount account={account} hasVisit={false} partnersOnly={partnerPage} />
         </nav>
 
         <div className="md:hidden shrink-0">

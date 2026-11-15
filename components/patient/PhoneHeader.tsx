@@ -16,7 +16,7 @@ const glass = "w-10 h-10 rounded-full bg-white/[0.12] border border-white/30 fle
 /** The patient's account links in the desktop dropdown (phones list them in the ☰ sheet). */
 export const PATIENT_ACCOUNT_LINKS: TopBarLink[] = [
   { href: "/patient/appointments", label: "My appointments", icon: <CalendarDays /> },
-  { href: "/patient/profile", label: "My profile", icon: <UserRound /> },
+  { href: "/patient/profile", label: "Profile & insurance", icon: <UserRound /> },
   { href: "/patient/support", label: "Help & support", icon: <LifeBuoy /> },
 ];
 
@@ -159,10 +159,12 @@ export type PhoneHeaderProps = {
   children?: ReactNode;
   /** Leave the header out on desktops, for pages that show their own title there. */
   deskHidden?: boolean;
+  /** A "← My profile" style link above the title, back to the page this one belongs to (in place of the eyebrow). */
+  up?: { href: string; label: string };
 };
 
 /** A patient page's header: the brand row, then the page's eyebrow, title and subtitle. */
-export function PhoneHeader({ title, eyebrow, subtitle, backHref, isSignedIn, name, email, container, children, deskHidden = false }: PhoneHeaderProps) {
+export function PhoneHeader({ title, eyebrow, subtitle, backHref, isSignedIn, name, email, container, children, deskHidden = false, up }: PhoneHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const close = useCallback(() => setMenuOpen(false), []);
   const bare = !title && !children;
@@ -171,9 +173,16 @@ export function PhoneHeader({ title, eyebrow, subtitle, backHref, isSignedIn, na
       <BlueHeader container={container} className={bare || deskHidden ? `${bare ? "pb-4 md:pb-5" : "pb-[22px] md:pb-9"} desk:hidden` : "pb-[22px] md:pb-9"}>
         <BrandRow backHref={backHref} isSignedIn={isSignedIn} onMenu={() => setMenuOpen(true)} name={name} email={email} />
         {title && (
-          <div className="relative mt-[22px] md:mt-8 desk:mt-0 md:max-w-4xl">
-            {eyebrow && <p className="text-[13.5px] md:text-[15px] desk:text-[14px] desk:font-bold text-[#CFDCFF]">{eyebrow}</p>}
-            <h1 className="mt-0.5 text-[26px] md:text-[36px] desk:text-[30px] font-extrabold leading-[1.15] tracking-[-0.02em] line-clamp-2 break-words">{title}</h1>
+          <div className={`relative ${up ? "mt-[18px]" : "mt-[22px]"} md:mt-8 desk:mt-0 md:max-w-4xl`}>
+            {up ? (
+              <Link href={up.href} className="inline-flex items-center gap-1.5 mb-1.5 text-[13px] md:text-[14px] font-extrabold text-[#DCE6FF] hover:text-white transition-colors">
+                <ArrowLeft className="w-4 h-4" strokeWidth={2.6} />
+                {up.label}
+              </Link>
+            ) : (
+              eyebrow && <p className="text-[13.5px] md:text-[15px] desk:text-[14px] desk:font-bold text-[#CFDCFF]">{eyebrow}</p>
+            )}
+            <h1 className={`mt-0.5 ${up ? "text-[24px]" : "text-[26px]"} md:text-[36px] desk:text-[30px] font-extrabold leading-[1.15] tracking-[-0.02em] line-clamp-2 break-words`}>{title}</h1>
             {subtitle && <p className="mt-1 md:mt-2 text-[13px] md:text-[15px] desk:text-[14.5px] text-[#DCE6FF] leading-snug">{subtitle}</p>}
           </div>
         )}

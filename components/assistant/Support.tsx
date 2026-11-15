@@ -17,7 +17,7 @@ const SUGGESTIONS: Record<string, string[]> = {
   executive: ['How do desk payments work?', 'A patient’s booking is missing', 'How do I book a walk-in?'],
 }
 
-/** Each section's full-page Zebrold AI tab. */
+/** Each section's full-page Care Assistant tab. */
 const AI_PAGE: Record<string, string> = {
   visitor: '/ai',
   patient: '/ai',
@@ -50,7 +50,7 @@ const launcherCircle =
   'shrink-0 rounded-full bg-white flex items-center justify-center shadow-[0_0_0_5px_rgba(255,255,255,0.35),0_0_0_6px_rgba(42,77,208,0.12),0_12px_26px_-6px_rgba(11,27,63,0.42)] active:scale-95 transition-transform print:hidden'
 
 /**
- * The help-center chat behind the assistant button on every page, answered by Zebrold AI, after the Care Assistant
+ * The help-center chat behind the assistant button on every page, answered by the Care Assistant, after the Care Assistant
  * chat design. Each panel (patient, doctor, lab, hospital, front desk) and each signed-in person keeps a separate
  * conversation.
  */
@@ -66,7 +66,7 @@ export function Support({ role, viewer }: { role: string | null; viewer: string 
   // Staff accounts can only open their own portal, so the public contact pages are offered to patients and visitors.
   const contactHref = key === 'patient' ? '/patient/support' : key === 'visitor' ? '/contact' : null
   const isPatient = key === 'patient' || key === 'visitor'
-  const title = isPatient ? 'Care Assistant' : 'Zebrold AI'
+  const title = 'Care Assistant'
   const lifted = BAR_PREFIXES.some((p) => pathname.startsWith(p)) || (pathname === '/' && key === 'patient')
   const hidden = isAiPage(pathname)
   // Patient pages show the app's round Care Assistant button above the tab bar.
@@ -85,7 +85,7 @@ export function Support({ role, viewer }: { role: string | null; viewer: string 
     }
   }, [open, hidden])
 
-  // The Zebrold AI pages are a full-screen chat already.
+  // The Care Assistant pages are a full-screen chat already.
   if (hidden) return null
 
   const close = () => setOpen(false)
@@ -161,7 +161,7 @@ export function Support({ role, viewer }: { role: string | null; viewer: string 
               isPatient ? (
                 <p key="hi">Hi! I&apos;m your Care Assistant from Consult your Doctor. I&apos;ll help you book care today.</p>
               ) : (
-                <p key="hi">Hi! I&apos;m Zebrold AI. I can help with your portal: bookings, slots, payments and more.</p>
+                <p key="hi">Hi! I&apos;m the Care Assistant. I can help with your portal: bookings, slots, payments and more.</p>
               ),
               <p key="ask">What can I help you with?</p>,
             ]}

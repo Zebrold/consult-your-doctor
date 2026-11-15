@@ -15,6 +15,7 @@ import { matchBookedTests } from '@/lib/pricing';
 import QRCode from 'qrcode';
 import { siteUrl } from '@/lib/site-url';
 import { formatCityName } from '@/lib/geo';
+import { loadInsurance } from '@/lib/insurance';
 
 // The app banner's QR code: the site's address, made once per server.
 let siteQr: Promise<string> | null = null;
@@ -242,7 +243,7 @@ async function PatientHome({ userId, name, now }: { userId: string | null; name:
     ...withRecords.flatMap((v) =>
       v.records
         .filter((r) => r.document_type === 'prescription' && r.file_url && r.file_url !== 'none')
-        .map((r) => ({ id: r.id, at: v.at, title: 'Prescription', sub: [doctorName(v.doctor), formatShortDate(v.at)].join(' · '), href: '/patient/profile#records' })),
+        .map((r) => ({ id: r.id, at: v.at, title: 'Prescription', sub: [doctorName(v.doctor), formatShortDate(v.at)].join(' · '), href: '/patient/records' })),
     ),
     ...((labRows ?? []) as HomeLabRow[]).map((b) => {
       const center = one(b.diagnostic_centers);
@@ -253,7 +254,7 @@ async function PatientHome({ userId, name, now }: { userId: string | null; name:
         at,
         title: tests ? tests.map((t) => t.name).join(', ') : (b.test_name || 'Lab report').replace(/-/g, ' '),
         sub: [center?.name, at ? formatShortDate(at) : null].filter(Boolean).join(' · '),
-        href: '/patient/profile#labs',
+        href: '/patient/records?type=lab',
       };
     }),
   ].sort((a, b) => b.at.localeCompare(a.at));
@@ -261,6 +262,9 @@ async function PatientHome({ userId, name, now }: { userId: string | null; name:
   const cities = Array.from(
     new Set([...hospitals.map((h) => formatCityName(h.city)), ...((labCities ?? []) as { city: string | null }[]).map((l) => formatCityName(l.city))].filter(Boolean) as string[]),
   ).sort();
+
+  // The patient's insurance card, for the desktop aside.
+  const insurance = userId ? (await loadInsurance(createAdminClient(), userId)).policy : null;
 
   return (
     <>
@@ -274,6 +278,7 @@ async function PatientHome({ userId, name, now }: { userId: string | null; name:
         vitals={vitals}
         vitalsAt={vitalsVisit ? formatShortDate(vitalsVisit.at) : null}
         records={records.map((r) => ({ id: r.id, title: r.title, sub: r.sub, href: r.href }))}
+        insurance={insurance ? { insurer: insurance.insurer, policyNumber: insurance.policyNumber, holder: insurance.holderName || name || 'Patient', validUntil: insurance.validUntil } : null}
       />
       <PatientDock activeTab="home" isSignedIn={!!userId} name={name} detail={userId ? `UHID CYD-${userId.slice(0, 8).toUpperCase()}` : null} />
     </>

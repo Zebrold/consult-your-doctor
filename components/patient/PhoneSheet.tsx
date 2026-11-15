@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Building2, CalendarDays, ChevronDown, ChevronRight, FlaskConical, Handshake, LifeBuoy, LogIn, LogOut, Stethoscope, UserRound, X, type LucideIcon } from "lucide-react";
 import { JOIN_LINKS } from "@/components/site/CorporateMenu";
 import { PARTNER_LOGINS } from "@/components/site/LoginMenu";
+import { MY_HEALTH } from "@/components/patient/my-health";
 
 /** A panel that slides up from the bottom over a dimmed page (a centred dialog on wider screens). */
 export function Sheet({ title, subtitle, onClose, children }: { title: string; subtitle?: string; onClose: () => void; children: ReactNode }) {
@@ -44,7 +45,7 @@ export function MenuSheet({ name, email, isSignedIn, onClose }: { name: string |
     ...(isSignedIn
       ? [
           { href: "/patient/appointments", label: "My appointments", icon: CalendarDays },
-          { href: "/patient/profile", label: "My profile & records", icon: UserRound },
+          { href: "/patient/profile", label: "Profile & insurance", icon: UserRound },
         ]
       : []),
     { href: "/find", label: "Find a doctor", icon: Stethoscope },
@@ -62,6 +63,20 @@ export function MenuSheet({ name, email, isSignedIn, onClose }: { name: string |
             <ChevronRight className="w-5 h-5 text-slate-300" />
           </Link>
         ))}
+        {/* Signed-in patients: the My health pages, as on the desktop sidebar. */}
+        {isSignedIn && (
+          <div className="mt-1 mb-2 p-2 rounded-2xl bg-slate-50">
+            <p className="px-1.5 pt-1 pb-2 text-[11px] font-extrabold tracking-[0.1em] text-slate-500">MY HEALTH</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {MY_HEALTH.map(({ href, label, icon: Icon }) => (
+                <Link key={href} href={href} onClick={onClose} className="flex items-center gap-2 min-h-[44px] px-2.5 rounded-xl bg-white text-[13.5px] font-bold text-indigo-gray-900 active:bg-slate-100">
+                  <Icon className="w-[18px] h-[18px] text-vibrant-blue shrink-0" />
+                  <span className="min-w-0 leading-tight">{label}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
         {/* Corporate opens in place, like the headers' menu: the three ways to join. */}
         <details className="group">
           <summary className="flex items-center gap-3 min-h-[52px] px-2 rounded-2xl text-[16px] font-semibold text-indigo-gray-900 cursor-pointer list-none [&::-webkit-details-marker]:hidden active:bg-slate-100">

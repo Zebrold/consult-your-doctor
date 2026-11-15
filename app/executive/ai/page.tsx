@@ -4,7 +4,7 @@ import { requireExecutivePage } from '../_lib/ops'
 import { WorkBody } from '../_components/ui'
 
 export const metadata: Metadata = {
-  title: 'Zebrold AI',
+  title: 'Care Assistant',
 }
 
 // The section layout checks who is signed in; the assistant's API checks the session again on every message.

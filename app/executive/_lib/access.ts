@@ -23,7 +23,7 @@ export const PAGES = [
   { key: 'patients', label: 'Patients', href: '/executive/patients' },
   { key: 'revenue', label: 'Revenue', href: '/executive/revenue' },
   { key: 'today', label: 'Check-ins', href: '/executive/today' },
-  { key: 'ai', label: 'Zebrold AI', href: '/executive/ai' },
+  { key: 'ai', label: 'Care Assistant', href: '/executive/ai' },
   { key: 'badges', label: 'Verified badges', href: '/executive/badges' },
   { key: 'equipment', label: 'Equipment orders', href: '/executive/equipment' },
   { key: 'reviews', label: 'Review moderation', href: '/executive/reviews' },

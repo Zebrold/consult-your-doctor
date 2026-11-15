@@ -13,7 +13,8 @@ import { LocationMenu } from "@/components/patient/LocationMenu";
 import { PATIENT_ACCOUNT_LINKS } from "@/components/patient/PhoneHeader";
 import { AccountMenu } from "@/components/portal/TopBar";
 import { CorporateMenu } from "@/components/site/CorporateMenu";
-import { PartnerMenu } from "@/components/site/PartnerMenu";
+import { LoginMenu } from "@/components/site/LoginMenu";
+import { PartnerLink } from "@/components/site/PartnerMenu";
 import type { HomeAccount } from "./types";
 
 type Place = ReturnType<typeof usePatientLocation>;
@@ -53,7 +54,6 @@ export function HomeHero({ account, place, cities, visitLine, onLocation, onMenu
   const location = place.location;
   const rawCity = locationCity(location);
   const city = rawCity ? formatCityName(rawCity) : null;
-  const findHref = city ? `/find?city=${encodeURIComponent(city)}` : "/find";
 
   const where =
     place.status === "locating"
@@ -71,7 +71,7 @@ export function HomeHero({ account, place, cities, visitLine, onLocation, onMenu
   };
 
   const services: Service[] = [
-    { href: findHref, title: "Consult a doctor", kind: "In-person visits", tag: "E-prescriptions", image: "/images/home/doctor.webp", alt: "Doctor in a white coat with a stethoscope" },
+    { href: "/specialities", title: "Consult a doctor", kind: "In-person visits", tag: "E-prescriptions", image: "/images/home/doctor.webp", alt: "Doctor in a white coat with a stethoscope" },
     { href: "/diagnostics", title: "Diagnostics", kind: "Book lab tests", tag: "Digital reports", image: "/images/home/lab-microscope.webp", alt: "Microscope and sample tubes" },
     { href: "/specialities", title: "Hospital booking", kind: "Find & book hospitals", tag: "Confirmed slots", image: "/images/home/hospital-building.webp", alt: "Hospital building" },
   ];
@@ -164,7 +164,7 @@ export function HomeHero({ account, place, cities, visitLine, onLocation, onMenu
               <CorporateMenu className="text-white text-base font-semibold hover:text-[#DCE7FF] transition-colors" />
             </div>
             <div className="hidden lg:block">
-              <PartnerMenu className="text-white text-base font-semibold hover:text-[#DCE7FF] transition-colors" />
+              <PartnerLink className="text-white text-base font-semibold hover:text-[#DCE7FF] transition-colors" />
             </div>
             <GetTheApp variant="hero" />
             <DesktopAccount account={account} hasVisit={!!visitLine} />
@@ -257,8 +257,13 @@ export function PhoneAccountButton({ account, onMenu }: { account: HomeAccount; 
   );
 }
 
-export function DesktopAccount({ account, hasVisit }: { account: HomeAccount; hasVisit: boolean }) {
+/**
+ * The header's account control. A visitor's Login goes straight to the patient sign-in; on the partner pages
+ * (`partnersOnly`) it is a menu of the doctor, hospital and diagnostic centre logins instead.
+ */
+export function DesktopAccount({ account, hasVisit, partnersOnly = false }: { account: HomeAccount; hasVisit: boolean; partnersOnly?: boolean }) {
   const pill = "flex items-center gap-1.5 min-h-[38px] px-[22px] rounded-[10px] bg-[#0B1B3F] text-white text-sm font-bold hover:bg-[#13285A] transition-colors";
+  if (account.kind === "guest" && partnersOnly) return <LoginMenu partnersOnly className={pill} />;
   if (account.kind === "guest") {
     return (
       <Link href="/login/patient" className={pill}>

@@ -80,7 +80,7 @@ export default function LegalHubPage() {
           </p>
           <h1 className="mt-4 font-title-md text-[32px] md:text-[46px] font-extrabold leading-[1.08] tracking-tight max-w-3xl">The rules we work by, in writing</h1>
           <p className="mt-3 text-[15.5px] md:text-[17px] text-white/85 max-w-2xl leading-relaxed">
-            How consultations, prescriptions, diagnostic reports, Zebrold AI and your personal data are handled on Consult Your Doctor. Each document is version 1.0,
+            How consultations, prescriptions, diagnostic reports, Care Assistant and your personal data are handled on Consult Your Doctor. Each document is version 1.0,
             approved and electronically signed by the directors of {LEGAL_COMPANY.name}, and takes effect on {DOC_EFFECTIVE}.
           </p>
           <dl className="mt-7 grid grid-cols-3 gap-2.5 max-w-xl">

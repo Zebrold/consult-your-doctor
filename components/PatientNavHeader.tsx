@@ -16,7 +16,7 @@ interface PatientNavHeaderProps {
   className?: string;
   /** Gives the page the home page's blue header with this title, at every screen size. */
   title?: string;
-  /** The blue header without a title, for pages that need the room (Zebrold AI). */
+  /** The blue header without a title, for pages that need the room (Care Assistant). */
   blue?: boolean;
   /** Above the title in the blue header. */
   eyebrow?: string;
@@ -26,15 +26,17 @@ interface PatientNavHeaderProps {
   hero?: ReactNode;
   /** Leave the blue header out on desktops, for pages that show their own title there. */
   deskHidden?: boolean;
+  /** A "← My profile" style link above the title in the blue header. */
+  up?: { href: string; label: string };
 }
 
 /** The patient pages' header: the blue app header (with a title), or the white bar with the logo and the account. */
 export function PatientNavHeader({
-  name, email, isSignedIn = false, backHref, container = "max-w-[1240px] px-margin-x-mobile lg:px-12", className = "", title, blue = !!title, eyebrow, subtitle, hero, deskHidden,
+  name, email, isSignedIn = false, backHref, container = "max-w-[1240px] px-margin-x-mobile lg:px-12", className = "", title, blue = !!title, eyebrow, subtitle, hero, deskHidden, up,
 }: PatientNavHeaderProps) {
   if (blue) {
     return (
-      <PhoneHeader title={title} eyebrow={eyebrow} subtitle={subtitle} backHref={backHref} isSignedIn={isSignedIn} name={name} email={email} container={container} deskHidden={deskHidden}>
+      <PhoneHeader title={title} eyebrow={eyebrow} subtitle={subtitle} backHref={backHref} isSignedIn={isSignedIn} name={name} email={email} container={container} deskHidden={deskHidden} up={up}>
         {hero}
       </PhoneHeader>
     );

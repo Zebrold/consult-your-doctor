@@ -39,7 +39,7 @@ const ABOUT: Seg[][] = [
   [{ t: 'The company pays doctors starting from 6000 per month,', b: true }, { t: ' and your payment is based on your monthly bookings, so the more patients you see, the more you earn.' }],
   [{ t: 'Our system tracks your bookings automatically and gives you a clear monthly statement of your bookings and earnings, so you always know how your payment was calculated.' }],
   [{ t: 'We are the first AI-assisted doctor follow-up service,', b: true }, { t: ' and we care for every patient for 12 days after their consultation is completed.' }],
-  [{ t: 'During those 12 days, our Zebrold AI checks in with the patient regularly and asks how they are recovering, so no patient is left without support.' }],
+  [{ t: 'During those 12 days, our Care Assistant checks in with the patient regularly and asks how they are recovering, so no patient is left without support.' }],
   [{ t: 'The AI reminds patients to take their medicines on time and as prescribed, which helps them complete their treatment properly.' }],
   [{ t: 'If a patient reports worsening symptoms or a warning sign, the AI alerts you straight away so that you can step in and act without delay.' }],
   [{ t: 'You receive a short progress summary for each patient, so you do not need to make extra calls or send extra messages yourself.' }],
@@ -63,7 +63,7 @@ const GETTING_STARTED = [
   'Complete your profile and upload your licence and registration documents.',
   'Set your availability and consultation fees.',
   'Check your prescription template, including your name, registration number and signature.',
-  'Start receiving patients. After each consultation, our Zebrold AI looks after the patient’s follow-up for 12 days.',
+  'Start receiving patients. After each consultation, our Care Assistant looks after the patient’s follow-up for 12 days.',
 ]
 
 const SECURITY = [

@@ -29,7 +29,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       },
       {
         q: 'Can I book for a family member?',
-        a: 'Family accounts aren’t available yet. Each family member books and signs in with their own mobile number.',
+        a: 'Yes. Add them under Family members (up to 6 people), then choose who the visit is for on the booking page. You book and pay from your account and get the slip; the booking and prescription name your family member.',
       },
       {
         q: 'What should I bring to my appointment?',
@@ -60,7 +60,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         q: 'Where can I find my payment receipt?',
         a: 'Payments & billing in your account lists every booking fee you paid, and each booking’s page shows its payment. If you added an email address, your booking email has it too.',
-        link: { href: '/patient/insurance', label: 'Payments & billing' },
+        link: { href: '/patient/payments', label: 'Payments & billing' },
       },
     ],
   },

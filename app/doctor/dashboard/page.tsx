@@ -6,7 +6,7 @@ import { IST, ageFrom, doctorName, formatSlot, formatTime, istDateKey, visitToke
 import { showHR, showSpO2 } from '@/lib/vitals'
 import { loadDoctorInpatients } from '@/lib/beds'
 import { loadDoctorReviews } from '@/lib/reviews'
-import { isOpenVisit, latestVitals, loadPatientFacts, loadSlots, loadVisits, patientCode, requireDoctor, type PatientFacts, type RecordedVitals, type Visit } from '../_lib/doctor'
+import { isOpenVisit, latestVitals, loadPatientFacts, loadSlots, loadVisits, patientCode, requireDoctor, visitName, type PatientFacts, type RecordedVitals, type Visit } from '../_lib/doctor'
 import { latestAllergy } from '../_lib/notes'
 import { NextStepButton, PrescriptionButton, SIZE, WritePrescriptionButton, type PickVisit, type VisitRef } from '../_components/VisitControls'
 import { Inpatients } from '../_components/Inpatients'
@@ -22,7 +22,7 @@ export const dynamic = 'force-dynamic'
 const DAY = 86_400_000
 const PAID = ['confirmed', 'visited', 'completed']
 
-const ref = (v: Visit): VisitRef => ({ id: v.id, status: v.status, patientName: v.patient?.name ?? 'Patient', phone: v.patient?.phone ?? null })
+const ref = (v: Visit): VisitRef => ({ id: v.id, status: v.status, patientName: visitName(v), phone: v.patient?.phone ?? null })
 const noonOf = (key: string) => Date.parse(`${key}T12:00:00+05:30`)
 
 /** "42 F" from the patient's own profile, or null. */
@@ -221,8 +221,8 @@ export default async function DoctorDashboard() {
                         <Link href={v.patient ? `/doctor/patients/${v.patient.id}` : '/doctor/schedule'} className="flex items-center gap-3 py-[11px] border-t border-[#EEF2F7]">
                           <span className="shrink-0 w-16 text-[13px] font-extrabold">{formatTime(v.start!)}</span>
                           <span className="flex-1 min-w-0">
-                            <span className="block text-[14px] font-extrabold truncate">{v.patient?.name ?? 'Patient'}</span>
-                            <span className="block text-[12px] text-[#5B667A] truncate">{[ageSex(v.patient ? facts[v.patient.id] : undefined, now), visitKind(v)].filter(Boolean).join(' · ')}</span>
+                            <span className="block text-[14px] font-extrabold truncate">{visitName(v)}</span>
+                            <span className="block text-[12px] text-[#5B667A] truncate">{[(v.forMember ? null : ageSex(v.patient ? facts[v.patient.id] : undefined, now)), visitKind(v)].filter(Boolean).join(' · ')}</span>
                           </span>
                           <Status status={v.status} dot={false} />
                         </Link>
@@ -239,14 +239,14 @@ export default async function DoctorDashboard() {
                       <span role="columnheader" className="sr-only">Record</span>
                     </div>
                     {todays.map((v) => {
-                      const line = [ageSex(v.patient ? facts[v.patient.id] : undefined, now), `Token ${visitToken(v.id)}`].filter(Boolean).join(' · ')
+                      const line = [(v.forMember ? null : ageSex(v.patient ? facts[v.patient.id] : undefined, now)), `Token ${visitToken(v.id)}`].filter(Boolean).join(' · ')
                       return (
                         <div key={v.id} role="row" className="grid grid-cols-[80px_minmax(0,1.3fr)_minmax(0,1fr)_130px_120px] gap-4 items-center py-[13px] border-b border-[#EEF2F7] text-[13.5px]">
                           <span role="cell" className="font-extrabold">{formatTime(v.start!)}</span>
                           <span role="cell" className="flex items-center gap-2.5 min-w-0">
                             <Initials name={v.patient?.name ?? null} className="w-[34px] h-[34px] text-[11.5px]" />
                             <span className="min-w-0">
-                              <span className="block font-extrabold truncate">{v.patient?.name ?? 'Patient'}</span>
+                              <span className="block font-extrabold truncate">{visitName(v)}</span>
                               <span className="block text-[12px] text-[#5B667A] truncate">{line}</span>
                             </span>
                           </span>
@@ -314,7 +314,7 @@ export default async function DoctorDashboard() {
                     <li key={v.id} className="flex items-center gap-3 py-3 border-t border-[#EEF2F7]">
                       <Initials name={v.patient?.name ?? null} className="w-[38px] h-[38px] lg:w-9 lg:h-9 text-[12.5px] lg:text-[12px]" />
                       <span className="flex-1 min-w-0">
-                        <span className="block text-[14px] font-extrabold truncate">{v.patient?.name ?? 'Patient'}</span>
+                        <span className="block text-[14px] font-extrabold truncate">{visitName(v)}</span>
                         <span className="block text-[12px] text-[#5B667A] truncate">
                           {v.fastTrack && <span className="font-extrabold text-[#B54708]">Fast track · </span>}
                           Token {visitToken(v.id)} · slot {formatTime(v.start!)}

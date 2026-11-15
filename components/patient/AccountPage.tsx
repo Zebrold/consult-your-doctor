@@ -10,15 +10,24 @@ export function AccountPage({
   profile,
   title,
   subtitle,
+  phoneSubtitle,
   actions,
+  hero,
+  wide = false,
   children,
 }: {
   user: User;
   profile: { full_name?: string | null; email?: string | null } | null;
   title: string;
-  subtitle: string;
+  subtitle: ReactNode;
+  /** A shorter line for the phone's blue header, when the desktop one is long. */
+  phoneSubtitle?: ReactNode;
   /** Buttons beside the desktop title. */
   actions?: ReactNode;
+  /** Inside the phone's blue header, under the title: the page's main buttons or a summary. */
+  hero?: ReactNode;
+  /** Use the full width on desktops (pages with a two-column layout). */
+  wide?: boolean;
   children: ReactNode;
 }) {
   const name = profile?.full_name || user.user_metadata?.full_name || "Patient";
@@ -29,14 +38,14 @@ export function AccountPage({
         email={profile?.email || user.email}
         isSignedIn
         container="max-w-[900px] px-4 md:px-6"
-        backHref="/patient/profile"
-        eyebrow="My account"
+        up={{ href: "/patient/profile", label: "My profile" }}
         title={title}
-        subtitle={subtitle}
+        subtitle={phoneSubtitle ?? subtitle}
+        hero={hero}
         deskHidden
       />
       <PageBody>
-        <div className="max-w-[900px] lg:max-w-[1080px] mx-auto lg:mx-0 px-4 md:px-6 lg:px-0 pt-4 lg:pt-0 flex flex-col gap-3.5 lg:gap-5">
+        <div className={`max-w-[900px] ${wide ? "lg:max-w-none" : "lg:max-w-[1080px]"} mx-auto lg:mx-0 px-4 md:px-6 lg:px-0 pt-4 lg:pt-0 flex flex-col gap-3.5 lg:gap-5`}>
           <DeskTitle title={title} subtitle={subtitle} actions={actions} />
           {children}
         </div>

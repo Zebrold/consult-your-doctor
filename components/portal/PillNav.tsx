@@ -13,7 +13,7 @@ export type PillTab = {
   active: boolean
   /** A longer label for wide screens. */
   wide?: string
-  /** The Zebrold AI tab: highlighted icon. */
+  /** The Care Assistant tab: highlighted icon. */
   ai?: boolean
   /** The profile tab: shown after a divider, with a round avatar icon. */
   profile?: boolean

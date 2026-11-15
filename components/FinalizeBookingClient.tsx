@@ -13,6 +13,7 @@ import { startOnlinePayment, WINDOW_CLOSED } from "@/lib/razorpay-client";
 import { appendPatientDetails, DayStrip, FormError, OnlinePayNote, patientDetailsError, RefundNote, type PatientDetails } from "@/components/patient/booking-ui";
 import { directionsHref, doctorName, formatINR, formatLongDate, formatSlot, formatTime, initials, isMorning, istDateKey, upcomingDays } from "@/components/patient/format";
 import { RemoteImage } from "@/components/RemoteImage";
+import { WhoFor } from "@/components/patient/WhoFor";
 import { AppointmentTypePicker, PaySummary, ServicePicker, bookingPath } from "@/components/patient/BookingChoices";
 import { onlinePayable, type BookedTest, type BookingFees } from "@/lib/pricing";
 import { doctorBookingHref } from "@/lib/booking-links";
@@ -86,6 +87,8 @@ export function FinalizeBookingClient({
   const [submitting, setSubmitting] = useState(false);
   const [fastTrack, setFastTrack] = useState(initialFastTrack);
   const [picked, setPicked] = useState<string[]>(initialServices);
+  // A family member the visit is for (null: the account holder).
+  const [forId, setForId] = useState<string | null>(null);
   const customDate = useRef<HTMLInputElement>(null);
 
   const daySlots = slotsByDay.get(date) ?? [];
@@ -116,6 +119,7 @@ export function FinalizeBookingClient({
     form.append("schedule_id", selected.id);
     if (choices && fastTrack) form.append("booking_type", "fast_track");
     for (const s of pickedServices) form.append("services", s.name);
+    if (forId) form.append("family_member_id", forId);
     appendPatientDetails(form, activeDetails);
 
     const res = await finalizeConsultationAppointment(form);
@@ -305,6 +309,7 @@ export function FinalizeBookingClient({
                     </span>
                   )}
                 </div>
+                <WhoFor signedIn={!!patient} value={forId} onChange={setForId} />
                 {patient ? (
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4">
                     <Detail label="Name" value={details.name || patient.name || "Patient"} />

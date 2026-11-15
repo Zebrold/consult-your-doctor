@@ -44,6 +44,11 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Record, report and claim uploads go through server actions and allow files up to 5 MB (lib/records.ts), plus the
+  // multipart overhead. The default limit is 1 MB.
+  experimental: {
+    serverActions: { bodySizeLimit: "6mb" },
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

@@ -242,3 +242,6 @@ export async function loadReviewsFor(admin: Admin, { doctorIds, hospitalId }: { 
   const [doctors, hospital] = await Promise.all([doctorReviewsOf(admin, doctorIds), hospitalId ? hospitalReviewsOf(admin, hospitalId) : Promise.resolve([])])
   return [...doctors, ...hospital].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 }
+
+/** What stood out on a visit, as patients pick it on My reviews. Saved in doctor_reviews.tags (20261116). */
+export const REVIEW_TAGS = ['Explained clearly', 'On time', 'Friendly staff', 'Clean and safe', 'Easy booking', 'Long wait'] as const

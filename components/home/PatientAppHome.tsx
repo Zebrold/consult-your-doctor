@@ -3,13 +3,13 @@
 import { useCallback, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { CalendarDays, ChevronDown, ChevronRight, FileText, FlaskConical, Hospital, MapPin, Search, Stethoscope, UserRound } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronRight, FileText, FlaskConical, Hospital, MapPin, Search, ShieldCheck, Stethoscope, UserRound } from "lucide-react";
 import { PhoneHeader } from "@/components/patient/PhoneHeader";
 import { LocationSheet } from "@/components/patient/LocationSheet";
 import { nearbyOnly, usePatientLocation } from "@/components/patient/location";
 import { AppSearch, PageBody, SectionHead, StatusDot, btnOutline, btnPrimary, card } from "@/components/patient/app-ui";
 import { HospitalGridCard, HospitalListCard } from "@/components/patient/HospitalCards";
-import { IST, directionsHref, doctorName, firstName, formatTime, initials } from "@/components/patient/format";
+import { IST, directionsHref, doctorName, firstName, formatShortDate, formatTime, initials } from "@/components/patient/format";
 import { SPECIALITIES, specialityIcon } from "./specialities";
 import type { HomeHospital } from "./types";
 import { RemoteImage } from "@/components/RemoteImage";
@@ -39,6 +39,8 @@ type Props = {
   vitals: { label: string; value: string }[];
   vitalsAt: string | null;
   records: PatientRecord[];
+  /** The signed-in patient's insurance card, for the desktop aside. */
+  insurance?: { insurer: string; policyNumber: string; holder: string; validUntil: string | null } | null;
 };
 
 const month = (iso: string) => new Date(iso).toLocaleDateString("en-US", { timeZone: IST, month: "short" }).toUpperCase();
@@ -46,7 +48,7 @@ const day = (iso: string) => new Date(iso).toLocaleDateString("en-US", { timeZon
 const weekday = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { timeZone: IST, weekday: "short", day: "numeric", month: "short" });
 
 /** A signed-in patient's home: greeting, search, specialities, their next visit and partner hospitals near them. */
-export function PatientAppHome({ greeting, name, isSignedIn, hospitals, cities, next, vitals, vitalsAt, records }: Props) {
+export function PatientAppHome({ greeting, name, isSignedIn, hospitals, cities, next, vitals, vitalsAt, records, insurance = null }: Props) {
   const place = usePatientLocation();
   const [sheet, setSheet] = useState(false);
   const closeSheet = useCallback(() => setSheet(false), []);
@@ -137,6 +139,7 @@ export function PatientAppHome({ greeting, name, isSignedIn, hospitals, cities, 
 
           <aside className="hidden lg:flex flex-col gap-4">
             <NextAppointmentCard next={next} />
+            {insurance && <InsuranceMini insurance={insurance} />}
             {vitals.length > 0 && (
               <div className={`${card} p-[22px]`}>
                 <SectionHead title="Health summary" sub={vitalsAt ? `From your visit on ${vitalsAt}` : "From your last visit"} />
@@ -151,7 +154,7 @@ export function PatientAppHome({ greeting, name, isSignedIn, hospitals, cities, 
               </div>
             )}
             <div className={`${card} p-[22px]`}>
-              <SectionHead title="Recent reports" href="/patient/profile#records" link="All" />
+              <SectionHead title="Recent reports" href="/patient/records" link="All" />
               {records.length === 0 ? (
                 <p className="py-3 border-t border-[#EEF2F7] text-[13px] text-[#5B667A] leading-relaxed">
                   Prescriptions from your doctors and reports from your labs appear here after your visits.
@@ -215,8 +218,36 @@ const QUICK = [
   { href: "/find", title: "Book a doctor", sub: "In-clinic consultation", icon: Stethoscope },
   { href: "/diagnostics", title: "Lab tests", sub: "Verified partner labs", icon: FlaskConical },
   { href: "/hospitals", title: "Hospitals", sub: "Verified partners near you", icon: Hospital },
-  { href: "/patient/profile#records", title: "My records", sub: "Prescriptions & reports", icon: FileText },
+  { href: "/patient/insurance", title: "Insurance", sub: "Your digital card", icon: ShieldCheck },
 ];
+
+/** The insurance card in the desktop aside, opening the Insurance page. */
+function InsuranceMini({ insurance }: { insurance: NonNullable<Props["insurance"]> }) {
+  return (
+    <Link href="/patient/insurance" className="relative isolate overflow-hidden block rounded-2xl p-5 text-white bg-[linear-gradient(135deg,#1E3BB3_0%,#2A4DD0_55%,#3D63E6_100%)] shadow-[0_12px_26px_-14px_rgba(42,77,208,0.7)] hover:brightness-105 transition">
+      <span aria-hidden className="absolute -z-10 -right-12 -top-16 w-44 h-44 rounded-full border-[24px] border-white/[0.07]" />
+      <span className="flex items-center gap-2 text-[11px] font-extrabold tracking-[0.08em] text-[#C9D7FF]">
+        <ShieldCheck className="w-4 h-4" /> HEALTH INSURANCE
+      </span>
+      <span className="block mt-3 text-[10.5px] font-extrabold tracking-[0.08em] text-[#C9D7FF]">MEMBER NAME</span>
+      <span className="block text-[14.5px] font-extrabold truncate">{insurance.holder}</span>
+      <span className="block mt-2 text-[10.5px] font-extrabold tracking-[0.08em] text-[#C9D7FF]">POLICY NUMBER</span>
+      <span className="block text-[17px] font-extrabold tracking-[0.05em] tabular-nums break-all">{insurance.policyNumber}</span>
+      <span className="mt-2.5 grid grid-cols-2 gap-3">
+        <span className="min-w-0">
+          <span className="block text-[10.5px] font-extrabold tracking-[0.08em] text-[#C9D7FF]">INSURER</span>
+          <span className="block text-[13px] font-extrabold truncate">{insurance.insurer}</span>
+        </span>
+        {insurance.validUntil && (
+          <span className="min-w-0 text-right">
+            <span className="block text-[10.5px] font-extrabold tracking-[0.08em] text-[#C9D7FF]">VALID TILL</span>
+            <span className="block text-[13px] font-extrabold truncate">{formatShortDate(insurance.validUntil)}</span>
+          </span>
+        )}
+      </span>
+    </Link>
+  );
+}
 
 function QuickActions() {
   return (

@@ -8,7 +8,7 @@ import { ROLE_COOKIE, readRoleCookie } from '@/lib/role-cookie'
 
 export const metadata: Metadata = {
   title: 'Terms & Conditions | Consult Your Doctor',
-  description: 'The terms for using Consult Your Doctor: bookings, payments, refunds, prescriptions, Zebrold AI, reviews and partner responsibilities.',
+  description: 'The terms for using Consult Your Doctor: bookings, payments, refunds, prescriptions, Care Assistant, reviews and partner responsibilities.',
   alternates: { canonical: '/terms-of-use' },
 }
 

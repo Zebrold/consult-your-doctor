@@ -71,7 +71,7 @@ const matches = (hay: string, q: string) => {
 }
 
 /**
- * Zebrold AI's tools. Search reads only public listing data (active hospitals and labs); get_my_bookings is bound to
+ * Care Assistant's tools. Search reads only public listing data (active hospitals and labs); get_my_bookings is bound to
  * the signed-in patient's id from the session, never to anything the model or the browser supplies. create_pdf only
  * hands a document to the visitor's browser through `onPdf`.
  */

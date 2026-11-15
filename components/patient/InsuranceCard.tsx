@@ -113,7 +113,7 @@ const field =
 const fieldLabel = "block mb-1.5 text-[12.5px] font-extrabold text-[#27324A]";
 
 /** Add or change the policy: a sheet from the bottom on phones, a dialog on desktops. */
-function InsuranceDialog({ policy, patientName, insurers, onClose, onSaved }: {
+export function InsuranceDialog({ policy, patientName, insurers, onClose, onSaved }: {
   policy: InsurancePolicy | null;
   patientName: string;
   insurers: string[];

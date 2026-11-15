@@ -83,6 +83,15 @@ const clinicLines = (h: { address: string | null; city: string | null } | null) 
  * Writes the prescription for a visit: a PDF in the patient's records (which their profile shows), the notes on the
  * visit, and the PDF sent to the patient on WhatsApp and by email.
  */
+/** The family member a visit was booked for (20261116), or null: for the account holder, or before the migration. */
+async function visitMember(admin: Admin, appointmentId: string): Promise<{ full_name: string; date_of_birth: string | null; gender: string | null } | null> {
+  const { data, error } = await admin.from('appointments').select('*').eq('id', appointmentId).maybeSingle()
+  const memberId = !error && data ? ((data as { family_member_id?: string | null }).family_member_id ?? null) : null
+  if (!memberId) return null
+  const { data: member } = await admin.from('family_members').select('full_name, date_of_birth, gender').eq('id', memberId).maybeSingle()
+  return (member as { full_name: string; date_of_birth: string | null; gender: string | null } | null) ?? null
+}
+
 export async function issuePrescription(admin: Admin, input: PrescriptionInput): Promise<{ ok: true; prescriptionNo: string } | { ok: false; error: string }> {
   // The doctor's registration (20261009) is a newer column; fall back to a select without it on older databases.
   const select = (withRegistration: boolean) =>
@@ -103,11 +112,14 @@ export async function issuePrescription(admin: Admin, input: PrescriptionInput):
   const patient = one(visit.patient)
   const doctor = one(visit.doctors)
   const hospital = one(visit.hospitals)
-  const [{ data: facts }, number, signature] = await Promise.all([
+  const [{ data: ownFacts }, number, signature, member] = await Promise.all([
     admin.from('patient_details').select('date_of_birth, gender').eq('id', visit.patient_id).maybeSingle(),
     nextPrescriptionNo(admin),
     doctor ? loadSignature(admin, doctor.id) : Promise.resolve(null),
+    visitMember(admin, input.appointmentId),
   ])
+  // A visit booked for a family member is written out in their name, age and sex; the account holder's phone stays the contact.
+  const facts = member ? { date_of_birth: member.date_of_birth, gender: member.gender } : ownFacts
   const notes = prescriptionNotes(input)
   const code = input.appointmentId.slice(0, 8).toUpperCase()
   const drName = doctorName(one(doctor?.profiles)?.full_name ?? 'Doctor')
@@ -119,7 +131,7 @@ export async function issuePrescription(admin: Admin, input: PrescriptionInput):
     doctor: { name: drName, registration: doctor?.registration_number ?? null, council: doctor?.registration_council ?? null, signature },
     clinic: { name: hospital?.name ?? 'Consult Your Doctor', lines: clinicLines(hospital) },
     patient: {
-      name: patient?.full_name ?? 'Patient',
+      name: member?.full_name ?? patient?.full_name ?? 'Patient',
       sex: facts?.gender ? facts.gender.charAt(0).toUpperCase() + facts.gender.slice(1).toLowerCase() : null,
       dateOfBirth: facts?.date_of_birth ?? null,
       age: ageFrom(facts?.date_of_birth ?? null, Date.now()),
@@ -146,9 +158,12 @@ export async function issuePrescription(admin: Admin, input: PrescriptionInput):
     return { ok: false, error: 'Could not save the prescription PDF. Please try again.' }
   }
 
-  // prescription_no arrives with the 20261010 migration; save without it on older databases.
+  // prescription_no arrives with the 20261010 migration and medicines (kept for the patient's reminders) with 20261116;
+  // save without them on older databases.
   const record = { appointment_id: input.appointmentId, document_type: 'prescription', notes, file_url: path }
-  let { error: insertError } = await admin.from('medical_records').insert({ ...record, prescription_no: number })
+  const structured = typeof input.medicines === 'string' ? null : filledMedicines(input.medicines)
+  let { error: insertError } = await admin.from('medical_records').insert({ ...record, prescription_no: number, ...(structured?.length ? { medicines: structured } : {}) })
+  if (insertError && /medicines/i.test(insertError.message)) ({ error: insertError } = await admin.from('medical_records').insert({ ...record, prescription_no: number }))
   if (insertError && /prescription_no|schema cache/i.test(insertError.message)) ({ error: insertError } = await admin.from('medical_records').insert(record))
   if (insertError) {
     console.error('issuePrescription record:', insertError)

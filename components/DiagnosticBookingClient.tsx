@@ -16,6 +16,7 @@ import {
 } from "@/components/patient/booking-ui";
 import { directionsHref, formatINR, formatLongDate, upcomingDays } from "@/components/patient/format";
 import { RemoteImage } from "@/components/RemoteImage";
+import { WhoFor } from "@/components/patient/WhoFor";
 
 export interface DiagnosticCenter {
   id: string;
@@ -37,20 +38,24 @@ interface DiagnosticBookingClientProps {
   bookingFeePercent: number;
   /** The payment convenience fee, as a per cent of the booking fee, that the Razorpay order adds (lib/booking-fees.ts). */
   conveniencePercent: number;
+  /** Tests to start with, e.g. a check-up package picked on Health check-ups (names from the lab's tests). */
+  initialTests?: string[];
+  /** Start with home sample collection chosen. */
+  initialDoorstep?: boolean;
 }
 
 const COLLAPSED = 8;
 
-export function DiagnosticBookingClient({ center, tests, patient, now, bookingFeePercent, conveniencePercent }: DiagnosticBookingClientProps) {
+export function DiagnosticBookingClient({ center, tests, patient, now, bookingFeePercent, conveniencePercent, initialTests = [], initialDoorstep = false }: DiagnosticBookingClientProps) {
   const days = useMemo(() => upcomingDays(now, 6), [now]);
   const today = days[0].key;
   const doorstepEnabled = center.doorstepEnabled !== false;
   const doorstepFee = center.doorstepFee ?? DEFAULT_DOORSTEP_FEE;
-  const [bookingType, setBookingType] = useState<'walk_in' | 'doorstep'>('walk_in');
+  const [bookingType, setBookingType] = useState<'walk_in' | 'doorstep'>(initialDoorstep && doorstepEnabled ? 'doorstep' : 'walk_in');
   const isDoorstep = bookingType === 'doorstep' && doorstepEnabled;
   const currentDoorstepFee = isDoorstep ? doorstepFee : 0;
 
-  const [chosen, setChosen] = useState<string[]>([]);
+  const [chosen, setChosen] = useState<string[]>(() => initialTests.filter((name) => tests.some((t) => t.name === name)));
   const [filter, setFilter] = useState("");
   const [showAll, setShowAll] = useState(false);
   // Late in the evening most labs have closed, so suggest tomorrow (today stays selectable).
@@ -60,6 +65,8 @@ export function DiagnosticBookingClient({ center, tests, patient, now, bookingFe
   const [details] = useState<PatientDetails>(() => patient ?? { name: "", phone: "", email: "", dateOfBirth: "", gender: "" });
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  // A family member the booking is for (null: the account holder).
+  const [forId, setForId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const selectedTests = tests.filter((t) => chosen.includes(t.name));
@@ -91,6 +98,7 @@ export function DiagnosticBookingClient({ center, tests, patient, now, bookingFe
     form.append("preferred_date", date);
     form.append("booking_type", isDoorstep ? "doorstep" : "walk_in");
     form.append("doorstep_fee", String(currentDoorstepFee));
+    if (forId) form.append("family_member_id", forId);
     for (const t of selectedTests) form.append("test_names", t.name);
     appendPatientDetails(form, activeDetails);
 
@@ -288,6 +296,7 @@ export function DiagnosticBookingClient({ center, tests, patient, now, bookingFe
               </Card>
 
               <Card title="Patient details" aside={patient ? <span className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#ECFDF3] text-[#067647] text-[11.5px] font-extrabold"><CircleCheck className="w-3.5 h-3.5" /> From your profile</span> : undefined}>
+                <WhoFor signedIn={!!patient} value={forId} onChange={setForId} />
                 {patient ? (
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4">
                     <Detail label="Name" value={details.name || patient.name || "Patient"} />

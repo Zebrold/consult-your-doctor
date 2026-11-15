@@ -1,36 +1,86 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
-import { redirect } from 'next/navigation'
-import { Users } from 'lucide-react'
-import { createClient, getCurrentUser } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { AccountCard, AccountPage } from '@/components/patient/AccountPage'
+import { currentTime } from '@/components/patient/data'
+import { AccountPage } from '@/components/patient/AccountPage'
+import { card } from '@/components/patient/app-ui'
+import { ageFrom, doctorName, formatShortDate } from '@/components/patient/format'
+import { AddMember, MemberCard } from '@/components/patient/health/family'
+import { patientAccount } from '@/lib/patient-account'
+import { loadFamily, loadHealthDetails, RELATIONS } from '@/lib/patient-health'
+import { loadPatientVisits } from '@/lib/patient-visits'
+import { loadInsurance } from '@/lib/insurance'
 
-export const metadata: Metadata = { title: 'Family | Consult Your Doctor' }
+export const metadata: Metadata = { title: 'Family members' }
 
-/** Family members. Linked family accounts don't exist yet, so the page says how to book for someone else today. */
+const DONE = new Set(['cancelled', 'refunded', 'completed', 'visited', 'no_show', 'pending_payment'])
+
+/** Family members: the account holder and the people they book for, with their next visit and insurance cover. */
 export default async function FamilyPage() {
-  const supabase = await createClient()
-  const user = await getCurrentUser()
-  if (!user) redirect('/login/patient?next=/patient/family')
-  const { data: profile } = await createAdminClient().from('profiles').select('full_name, email').eq('id', user.id).maybeSingle()
+  const { user, admin, profile, name } = await patientAccount('/patient/family')
+  const [details, { ready, members }, visits, { policy }] = await Promise.all([
+    loadHealthDetails(admin, user.id),
+    loadFamily(admin, user.id),
+    loadPatientVisits(admin, user.id),
+    loadInsurance(admin, user.id),
+  ])
+  const now = currentTime()
+
+  // The next visit booked for each person (the account holder's are the ones without a family member).
+  const next = new Map<string, string>()
+  for (const v of [...visits].sort((a, b) => (a.at ?? '').localeCompare(b.at ?? ''))) {
+    if (!v.at || DONE.has(v.status) || Date.parse(v.at) < now) continue
+    const key = v.familyMemberId ?? 'me'
+    if (!next.has(key)) next.set(key, `${v.doctor?.specialty || doctorName(v.doctor?.name)} · ${formatShortDate(v.at)}`)
+  }
+  const describe = (relation: string, dob: string | null, gender: string | null) =>
+    [relation, ageFrom(dob, now) != null ? `${ageFrom(dob, now)} yrs` : null, gender].filter(Boolean).join(' · ')
+
+  const people = [
+    {
+      member: null,
+      name,
+      line: describe('You', details.dateOfBirth, details.gender),
+      bloodGroup: details.bloodGroup,
+      covered: policy ? true : null,
+      nextVisit: next.get('me') ?? null,
+    },
+    ...members.map((m) => ({
+      member: m,
+      name: m.name,
+      line: describe(RELATIONS[m.relation], m.dateOfBirth, m.gender),
+      bloodGroup: m.bloodGroup,
+      covered: policy ? policy.coveredMemberIds.includes(m.id) : null,
+      nextVisit: next.get(m.id) ?? null,
+    })),
+  ]
 
   return (
-    <AccountPage user={user} profile={profile} title="Family" subtitle="Booking for the people you care for.">
-      <AccountCard>
-        <div className="py-3 text-center">
-          <span className="inline-flex w-12 h-12 rounded-full bg-[#EEF3FF] text-[#2A4DD0] items-center justify-center">
-            <Users className="w-[22px] h-[22px]" />
-          </span>
-          <p className="mt-2.5 text-[15px] font-extrabold">Family accounts aren&apos;t available yet</p>
-          <p className="mt-1 max-w-md mx-auto text-[13px] leading-relaxed text-[#5B667A]">
-            Bookings, prescriptions and reports belong to the account that books them. Each family member can log in with their own mobile number to book and keep their records.
-          </p>
-          <Link href="/patient/support" className="inline-block mt-3.5 text-[13px] font-extrabold text-[#2A4DD0] hover:underline">
-            Questions? Contact support
-          </Link>
+    <AccountPage
+      user={user}
+      profile={profile}
+      wide
+      title="Family members"
+      subtitle="Book care and keep records for the people you look after"
+      phoneSubtitle={`${people.length} ${people.length === 1 ? 'person' : 'people'} on your account`}
+    >
+      <div className="grid gap-3.5 lg:gap-5 lg:grid-cols-[minmax(0,1fr)_360px] items-start">
+        <div className="grid gap-3.5 lg:gap-5 md:grid-cols-2 min-w-0">
+          {people.map((p) => (
+            <MemberCard key={p.member?.id ?? 'me'} person={p} />
+          ))}
         </div>
-      </AccountCard>
+        <div className="flex flex-col gap-3.5 lg:gap-5 min-w-0">
+          <AddMember count={members.length} ready={ready} />
+          <section className={`${card} p-4 lg:p-[22px]`}>
+            <h2 className="text-[16px] font-extrabold">Good to know</h2>
+            <ul className="mt-2 flex flex-col gap-2 text-[13px] leading-relaxed text-[#27324A] list-disc pl-5">
+              <li>Bookings for a family member are made and paid from your account, and the slip comes to you.</li>
+              <li>Doctors see who the visit is for. Records you upload can be filed under each person.</li>
+              <li>Add family members to your policy from the Insurance page.</li>
+              <li>Grown-up family members can also make their own account with their mobile number.</li>
+            </ul>
+          </section>
+        </div>
+      </div>
     </AccountPage>
   )
 }

@@ -6,7 +6,7 @@ import { ageSex, loadPatientFacts } from '@/lib/patient-facts'
 import { insuranceLine, loadInsuranceFor } from '@/lib/insurance'
 import { getBookingFees } from '@/lib/booking-fees'
 import { bookingOptionsReady } from '@/lib/booking-options'
-import { dayOf, hospitalShare, isPaidVisit, loadHospitalDoctors, loadHospitalVisits, paymentLook, PAYMENT_METHOD, requireHospital, shiftDay } from '../_lib/hospital'
+import { dayOf, hospitalShare, isPaidVisit, loadHospitalDoctors, loadHospitalVisits, paymentLook, PAYMENT_METHOD, requireHospital, shiftDay, visitPatientName } from '../_lib/hospital'
 import { PatientsBoard, type BoardRow, type BoardView } from '../_components/PatientsBoard'
 import { AddPatientButton } from '../_components/PatientDesk'
 import { DeskHead, HosBody, HosHeader, PhoneStats, StatCard, btnPrimary, delta, plural } from '../_components/hos-ui'
@@ -40,7 +40,7 @@ export default async function HospitalPatientsPage(props: { searchParams?: Promi
       status: v.status,
       start: v.start,
       day: dayOf(v.start ?? v.createdAt),
-      patientName: v.patient?.name ?? 'Patient',
+      patientName: visitPatientName(v),
       phone: v.patient?.phone ?? null,
       ageSex: v.patient ? ageSex(facts[v.patient.id], now) : null,
       doctor: doc ? doctorName(doc.name) : 'Doctor',

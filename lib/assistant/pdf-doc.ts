@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-/** The content of a PDF Zebrold AI hands the visitor. The browser lays it out (components/assistant/pdf.ts). */
+/** The content of a PDF Care Assistant hands the visitor. The browser lays it out (components/assistant/pdf.ts). */
 export const PdfDocSchema = z.object({
   title: z.string().trim().min(1).max(120).describe('Document title, e.g. "Orthopedic doctors in New Delhi"'),
   subtitle: z.string().trim().max(200).optional().describe('One line under the title'),
@@ -65,7 +65,7 @@ export function preparePdfArgs(raw: unknown): unknown {
   let sections = parseMaybe(d.sections)
   if (!Array.isArray(sections)) sections = sections && typeof sections === 'object' ? [sections] : typeof sections === 'string' && sections.trim() ? [{ paragraphs: [sections] }] : []
   return {
-    title: cut(asText(d.title) || 'Zebrold AI', 120),
+    title: cut(asText(d.title) || 'Care Assistant', 120),
     subtitle: d.subtitle == null ? undefined : cut(asText(d.subtitle), 200) || undefined,
     sections: (sections as unknown[]).slice(0, 15).map((raw) => {
       const s = parseMaybe(raw)

@@ -15,7 +15,7 @@ const MENU = [
   { href: '/executive/diagnostics', title: 'Diagnostics', sub: 'Partner labs and lab bookings to follow up' },
   { href: '/executive/patients', title: 'Patients', sub: 'Stalled bookings and the patient directory' },
   { href: '/executive/revenue', title: 'Revenue', sub: 'By month, by source and by partner' },
-  { href: '/executive/ai', title: 'Zebrold AI', sub: 'Ask about bookings, payments and partners' },
+  { href: '/executive/ai', title: 'Care Assistant', sub: 'Ask about bookings, payments and partners' },
 ]
 
 const GROW = [

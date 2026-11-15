@@ -4,7 +4,7 @@ import { Phone } from 'lucide-react'
 import { currentTime } from '@/components/patient/data'
 import { ageFrom, formatShortDate, formatSlot, formatTime, istDateKey, visitToken } from '@/components/patient/format'
 import { vitalsList } from '@/lib/vitals'
-import { latestVitals, loadPatientFacts, loadVisits, patientCode, requireDoctor, type Visit } from '../../_lib/doctor'
+import { latestVitals, loadPatientFacts, loadVisits, patientCode, requireDoctor, visitName, type Visit } from '../../_lib/doctor'
 import { latestAllergy, readNotes } from '../../_lib/notes'
 import { CallLink, CheckInButton, PrescriptionButton, type VisitRef } from '../../_components/VisitControls'
 import { DocBackHeader, DocBody, EmptyLine, Initials, Panel, PanelHead, Row, Status, visitStatus } from '../../_components/doc-ui'
@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: 'Patient record | Doctor Portal' }
 export const dynamic = 'force-dynamic'
 
 const PAID = ['confirmed', 'visited', 'completed']
-const ref = (v: Visit): VisitRef => ({ id: v.id, status: v.status, patientName: v.patient?.name ?? 'Patient', phone: v.patient?.phone ?? null })
+const ref = (v: Visit): VisitRef => ({ id: v.id, status: v.status, patientName: visitName(v), phone: v.patient?.phone ?? null })
 
 /** A patient's record as their doctor sees it: who they are, their latest readings and notes, every visit and file. */
 export default async function DoctorPatientRecord(props: { params: Promise<{ id: string }> }) {

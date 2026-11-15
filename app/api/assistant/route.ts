@@ -8,7 +8,7 @@ import { assistantTools, type AssistantTool } from '@/lib/assistant/tools'
 import { getBookingFees } from '@/lib/booking-fees'
 import type { PdfDoc } from '@/lib/assistant/pdf-doc'
 
-// Zebrold AI: the Support chat on every page and each section's Zebrold AI page, running on Cloudflare Workers AI
+// Care Assistant: the Support chat on every page and each section's Care Assistant page, running on Cloudflare Workers AI
 // (which doesn't train on or reuse what it's sent). Streams newline-delimited JSON events to components/assistant/chat.tsx:
 // {type:"status",text} | {type:"text",text} | {type:"pdf",pdf} | {type:"error",text} | {type:"done"}.
 
@@ -52,13 +52,13 @@ class UpstreamError extends Error {
 
 function friendly(err: unknown) {
   if (err instanceof UpstreamError) {
-    if (err.status === 401 || err.status === 403) return 'Zebrold AI isn’t set up correctly yet. Please try again later.'
+    if (err.status === 401 || err.status === 403) return 'Care Assistant isn’t set up correctly yet. Please try again later.'
     if (err.status === 429 || /daily free allocation|neurons/i.test(err.detail)) {
-      return 'Zebrold AI has used up today’s free allowance. Please try again tomorrow. Meanwhile you can [search for doctors](/search) or [book a lab test](/diagnostics).'
+      return 'Care Assistant has used up today’s free allowance. Please try again tomorrow. Meanwhile you can [search for doctors](/search) or [book a lab test](/diagnostics).'
     }
-    if (err.status >= 500) return 'Zebrold AI is busy right now. Please try again in a minute.'
+    if (err.status >= 500) return 'Care Assistant is busy right now. Please try again in a minute.'
   }
-  if (err instanceof TypeError) return 'Couldn’t reach Zebrold AI. Please try again.'
+  if (err instanceof TypeError) return 'Couldn’t reach Care Assistant. Please try again.'
   return 'Something went wrong. Please try again.'
 }
 

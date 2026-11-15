@@ -166,6 +166,7 @@ export async function createDiagnosticBooking(formData: FormData) {
     console.error('Error creating diagnostic booking:', error)
     return { error: 'Failed to book diagnostic test.' }
   }
+  await tagBookingMember(admin, 'diagnostic_bookings', booking.id as string, user.id, await bookingMember(admin, user.id, formData))
 
   // 4. Return URL to redirect on the client
   return { success: true, bookingId: booking.id as string, url: `/patient/checkout/diagnostic/${booking.id}` }
@@ -265,6 +266,7 @@ export async function finalizeConsultationAppointment(formData: FormData) {
   const options: BookingOptions = {
     fastTrack: isFastTrack(formData.get('booking_type')),
     services: Array.from(new Set(formData.getAll('services').map(String).filter(Boolean))),
+    memberId: await bookingMember(createAdminClient(), user.id, formData),
   }
   const result = await claimSlotAndCreateAppointment(user.id, doctorId, scheduleId, options)
   if ('error' in result) return { error: result.error }
@@ -272,8 +274,26 @@ export async function finalizeConsultationAppointment(formData: FormData) {
   return { success: true, appointmentId: result.appointmentId, confirmed: result.confirmed }
 }
 
-/** What the patient picked on the hospital page: fast track, and hospital services by name. */
-type BookingOptions = { fastTrack: boolean; services: string[] }
+/** What the patient picked on the hospital page: fast track, hospital services by name, and who the visit is for. */
+type BookingOptions = { fastTrack: boolean; services: string[]; memberId?: string | null }
+
+/**
+ * The family member a booking is for (form field `family_member_id`), when it is one of this patient's own, else null.
+ * Before 20261116 there is no family_members table, so nothing can be picked.
+ */
+async function bookingMember(admin: ReturnType<typeof createAdminClient>, patientId: string, formData: FormData): Promise<string | null> {
+  const id = String(formData.get('family_member_id') || '')
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null
+  const { data } = await admin.from('family_members').select('id').eq('id', id).eq('patient_id', patientId).maybeSingle()
+  return data?.id ?? null
+}
+
+/** Names the family member on a booking just made (the column arrives with 20261116; without it nothing is written). */
+async function tagBookingMember(admin: ReturnType<typeof createAdminClient>, table: 'appointments' | 'diagnostic_bookings', bookingId: string, patientId: string, memberId: string | null) {
+  if (!memberId) return
+  const { error } = await admin.from(table).update({ family_member_id: memberId }).eq('id', bookingId).eq('patient_id', patientId)
+  if (error) console.error(`tagBookingMember ${table}:`, error.message)
+}
 
 // An unpaid booking holds its slot until it is paid. Without a cap, one account could hold every open slot of every
 // doctor. Patients can't cancel an unpaid booking themselves, so their own holds older than STALE_HOLD_MS are
@@ -400,7 +420,7 @@ async function claimSlotAndCreateAppointment(
 
     // A general booking with a doctor seen in the last 12 days is a free follow-up (lib/follow-up.ts): no booking fee,
     // confirmed straight away. It holds no unpaid slot, so the hold cap doesn't apply to it.
-    const followUpOf = options.fastTrack ? null : await followUpBase(admin, patientId, doctorId)
+    const followUpOf = options.fastTrack ? null : await followUpBase(admin, patientId, doctorId, Date.now(), options.memberId ?? null)
 
     if (!followUpOf && !(await makeRoomForHold(admin, patientId))) {
       return { error: 'You already have unpaid bookings waiting. Please pay for one of them from My Appointments, or try again in 30 minutes.' }
@@ -437,6 +457,7 @@ async function claimSlotAndCreateAppointment(
       await admin.from('schedules').update({ is_booked: false }).eq('id', scheduleId)
       return { error: 'Could not create the appointment. Please try again.' }
     }
+    await tagBookingMember(admin, 'appointments', appointment.id as string, patientId, options.memberId ?? null)
 
     if (confirmed) {
       notifyBookingConfirmed(appointment.id as string)

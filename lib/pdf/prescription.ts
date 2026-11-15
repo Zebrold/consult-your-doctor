@@ -52,7 +52,7 @@ const STANDARD_NOTES = [
 
 const FOLLOW_UP_TEXT: Seg[] = [
   { t: 'Your follow-up care is taken care of by our ' },
-  { t: 'Zebrold AI', b: true },
+  { t: 'Care Assistant', b: true },
   {
     t: ', which checks in with you regularly for 12 days after your consultation to see how you are recovering and to remind you to take your medicines on time. If your symptoms get worse or anything seems wrong, it will alert your doctor straight away so you get help without delay.',
   },

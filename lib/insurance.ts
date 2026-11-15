@@ -2,7 +2,8 @@ import type { createAdminClient } from '@/lib/supabase/admin'
 
 // A patient's health insurance policy, kept as a digital card on their profile (patient_insurance,
 // supabase/migrations/20261103_patient_insurance.sql). The hospitals they book see it on their patient list. Claims and
-// cashless approval are between the hospital and the insurer; nothing here files or tracks a claim.
+// cashless approval are between the hospital and the insurer: the site never files a claim. The patient can keep track of
+// their own claims on the Insurance page (insurance_claims, 20261116).
 
 type Admin = ReturnType<typeof createAdminClient>
 
@@ -13,11 +14,37 @@ export type InsurancePolicy = {
   memberId: string | null
   /** yyyy-mm-dd */
   validUntil: string | null
+  // Policy details the patient adds on the Insurance page (20261116); null until then.
+  planType: 'individual' | 'family_floater' | 'group' | 'government' | null
+  sumInsured: number | null
+  tpaName: string | null
+  tpaPhone: string | null
+  roomRent: string | null
+  coPayment: string | null
+  /** Family members (family_members ids) the policy covers besides the patient. */
+  coveredMemberIds: string[]
+  /** False until the 20261116 policy detail columns exist. */
+  extended: boolean
 }
 
-type Row = { patient_id: string; insurer: string; policy_number: string; holder_name: string | null; member_id: string | null; valid_until: string | null }
+type Row = {
+  patient_id: string
+  insurer: string
+  policy_number: string
+  holder_name: string | null
+  member_id: string | null
+  valid_until: string | null
+  plan_type?: InsurancePolicy['planType']
+  sum_insured?: number | string | null
+  tpa_name?: string | null
+  tpa_phone?: string | null
+  room_rent?: string | null
+  co_payment?: string | null
+  covered_member_ids?: string[] | null
+}
 
-const COLUMNS = 'patient_id, insurer, policy_number, holder_name, member_id, valid_until'
+// `*` so the policy details added by 20261116 come through once they exist, and nothing breaks before.
+const COLUMNS = '*'
 
 const toPolicy = (r: Row): InsurancePolicy => ({
   insurer: r.insurer,
@@ -25,6 +52,14 @@ const toPolicy = (r: Row): InsurancePolicy => ({
   holderName: r.holder_name,
   memberId: r.member_id,
   validUntil: r.valid_until,
+  planType: r.plan_type ?? null,
+  sumInsured: r.sum_insured == null || r.sum_insured === '' ? null : Number(r.sum_insured),
+  tpaName: r.tpa_name ?? null,
+  tpaPhone: r.tpa_phone ?? null,
+  roomRent: r.room_rent ?? null,
+  coPayment: r.co_payment ?? null,
+  coveredMemberIds: Array.isArray(r.covered_member_ids) ? r.covered_member_ids : [],
+  extended: 'plan_type' in r,
 })
 
 // 42P01 / PGRST205: the table hasn't been created yet.
@@ -70,4 +105,12 @@ export async function knownInsurers(admin: Admin): Promise<string[]> {
     }
   }
   return [...names.values()].sort((a, b) => a.localeCompare(b))
+}
+
+/** The kinds of plan a patient can say their policy is. */
+export const PLAN_LABEL: Record<NonNullable<InsurancePolicy['planType']>, string> = {
+  individual: 'Individual',
+  family_floater: 'Family floater',
+  group: 'Group (employer)',
+  government: 'Government scheme',
 }

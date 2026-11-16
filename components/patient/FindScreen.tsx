@@ -1,35 +1,12 @@
-import { createClient, getCurrentUser } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient, getSessionUser } from "@/lib/supabase/server";
 import { FindClient, type FindDoctor, type FindLab, type FindMode } from "@/components/patient/FindClient";
-import { loadHospitals } from "@/components/home/data";
-import { currentTime, loadAvailability, one } from "@/components/patient/data";
+import { currentTime, one } from "@/components/patient/data";
 import { pricedTests } from "@/lib/pricing";
 import { getBookingFees } from "@/lib/booking-fees";
 import { toLatLng } from "@/lib/geo";
 import { pausedDoctorIds } from "@/lib/doctor-pause";
+import { loadDoctorRatings, loadPublicAvailability, loadPublicDoctorRows, loadPublicHospitals, loadPublicLabs } from "@/lib/public-directory";
 import { PatientDock } from "@/components/PatientDock";
-
-type DoctorRow = {
-  id: string;
-  specialty: string | null;
-  experience_years: number | null;
-  consultation_fee: number | null;
-  image_url: string | null;
-  qualifications: string | null;
-  profiles: { full_name: string | null } | { full_name: string | null }[] | null;
-  hospitals: FindDoctor["hospital"] | NonNullable<FindDoctor["hospital"]>[];
-};
-
-type LabRow = {
-  id: string;
-  name: string;
-  city: string | null;
-  address: string | null;
-  image_url: string | null;
-  test_prices: Parameters<typeof pricedTests>[0];
-  latitude?: unknown;
-  longitude?: unknown;
-};
 
 export type FindData = Awaited<ReturnType<typeof loadFindData>>;
 export type FindInitial = { mode: FindMode; q?: string; specialty?: string; city?: string; availableToday?: boolean };
@@ -38,32 +15,24 @@ export type FindInitial = { mode: FindMode; q?: string; specialty?: string; city
 export async function loadFindData() {
   const supabase = await createClient();
   const now = currentTime();
-  const user = await getCurrentUser();
+  const user = await getSessionUser();
 
-  const [{ data: dbDoctors, error }, availability, allHospitals, labsResult, fees, viewer] = await Promise.all([
-    supabase.from("doctors").select(`
-      id, specialty, experience_years, consultation_fee, image_url, qualifications,
-      profiles!doctors_profile_id_fkey ( full_name ),
-      hospitals ( id, name, city, address )
-    `),
-    loadAvailability(supabase, now),
-    loadHospitals(supabase),
-    // Map pins come from a later migration; without them the labs still list, ordered by city.
-    supabase
-      .from("diagnostic_centers")
-      .select("id, name, city, address, image_url, test_prices, latitude, longitude")
-      .eq("status", "active")
-      .then((res) => (res.error ? supabase.from("diagnostic_centers").select("id, name, city, address, image_url, test_prices").eq("status", "active") : res)),
+  // The lists are shared by every visitor and kept for a minute or two (lib/public-directory.ts), so this is one round
+  // of reads at most, and usually only the viewer's name.
+  const [dbDoctors, availability, allHospitals, labRows, fees, viewer, paused] = await Promise.all([
+    loadPublicDoctorRows(),
+    loadPublicAvailability(),
+    loadPublicHospitals(),
+    loadPublicLabs(),
     getBookingFees(),
     user ? supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle() : Promise.resolve({ data: null }),
+    // Doctors whose bookings are paused are hidden from patients.
+    pausedDoctorIds(),
   ]);
-  if (error) console.error("Error fetching doctors for the Find screen:", error);
 
   // Doctors are seen at their hospital, so they are as near as its pin.
   const pins = new Map(allHospitals.map((h) => [h.id, h.lat != null && h.lng != null ? { lat: h.lat, lng: h.lng } : null]));
-  // Doctors whose bookings are paused are hidden from patients.
-  const paused = await pausedDoctorIds();
-  const doctors: FindDoctor[] = ((dbDoctors ?? []) as DoctorRow[]).filter((d) => !paused.has(d.id)).map((d) => {
+  const doctors: FindDoctor[] = dbDoctors.filter((d) => !paused.has(d.id)).map((d) => {
     const hospital = one(d.hospitals);
     const pin = hospital ? pins.get(hospital.id) ?? null : null;
     return {
@@ -86,26 +55,18 @@ export async function loadFindData() {
   });
 
   // Published patient ratings; doctors without any show none.
-  if (doctors.length) {
-    const { data: ratingRows } = await createAdminClient()
-      .from("doctor_reviews")
-      .select("doctor_id, rating")
-      .in("doctor_id", doctors.map((d) => d.id))
-      .eq("is_published", true);
-    const byDoctor = new Map<string, number[]>();
-    for (const r of (ratingRows ?? []) as { doctor_id: string; rating: number }[]) byDoctor.set(r.doctor_id, [...(byDoctor.get(r.doctor_id) ?? []), r.rating]);
-    for (const d of doctors) {
-      const ratings = byDoctor.get(d.id);
-      if (ratings?.length) {
-        d.reviewCount = ratings.length;
-        d.rating = ratings.reduce((a, b) => a + b, 0) / ratings.length;
-      }
+  const ratings = await loadDoctorRatings(doctors.map((d) => d.id));
+  for (const d of doctors) {
+    const r = ratings.get(d.id);
+    if (r) {
+      d.reviewCount = r.count;
+      d.rating = r.rating;
     }
   }
 
-  const labs: FindLab[] = ((labsResult.data ?? []) as LabRow[]).map((l) => {
+  const labs: FindLab[] = labRows.map((l) => {
     const pin = toLatLng(l.latitude, l.longitude);
-    const priced = pricedTests(l.test_prices);
+    const priced = pricedTests(l.test_prices as Parameters<typeof pricedTests>[0]);
     return { id: l.id, name: l.name, city: l.city, address: l.address, image: l.image_url, tests: priced.length, testNames: priced.map((t) => t.name), lat: pin?.lat ?? null, lng: pin?.lng ?? null };
   });
 

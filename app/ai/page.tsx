@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { createClient, getSessionUser } from '@/lib/supabase/server'
 import { PatientDock } from '@/components/PatientDock'
 import { AssistantPage } from '@/components/assistant/AssistantPage'
 
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 // The patients' Care Assistant, open to visitors too. Staff are kept to their own portal's AI page by the middleware.
 export default async function AiPage() {
   const supabase = await createClient()
-  const user = await getCurrentUser()
+  const user = await getSessionUser()
 
   let name: string | null = null
   if (user) {

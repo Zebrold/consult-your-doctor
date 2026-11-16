@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,7 +9,7 @@ import { GetTheApp } from "@/components/GetTheApp";
 import { initials } from "@/components/patient/format";
 import { locationCity, type usePatientLocation } from "@/components/patient/location";
 import { formatCityName } from "@/lib/geo";
-import { LocationMenu } from "@/components/patient/LocationMenu";
+import { LocationMenu, useLocationMenu } from "@/components/patient/LocationMenu";
 import { PATIENT_ACCOUNT_LINKS } from "@/components/patient/PhoneHeader";
 import { AccountMenu } from "@/components/portal/TopBar";
 import { CorporateMenu } from "@/components/site/CorporateMenu";
@@ -24,12 +24,10 @@ type Place = ReturnType<typeof usePatientLocation>;
 type Props = {
   account: HomeAccount;
   place: Place;
-  /** Cities with partner hospitals or labs, for the desktop location menu. */
+  /** Cities with partner hospitals or labs, for the location dropdown. */
   cities: string[];
   /** "Your next visit: ..." for a signed-in patient with one coming up. */
   visitLine: string | null;
-  /** Phones: opens the location sheet. */
-  onLocation: () => void;
   onMenu: () => void;
 };
 
@@ -47,12 +45,11 @@ type Service = {
   alt: string;
 };
 
-export function HomeHero({ account, place, cities, visitLine, onLocation, onMenu }: Props) {
+export function HomeHero({ account, place, cities, visitLine, onMenu }: Props) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [locOpen, setLocOpen] = useState(false);
-  const closeLoc = useCallback(() => setLocOpen(false), []);
-  const locAnchor = useRef<HTMLButtonElement>(null);
+  // The location dropdown, under the phone's or the desktop's location field.
+  const loc = useLocationMenu();
   const location = place.location;
   const rawCity = locationCity(location);
   const city = rawCity ? formatCityName(rawCity) : null;
@@ -89,7 +86,7 @@ export function HomeHero({ account, place, cities, visitLine, onLocation, onMenu
       {/* Phones (the app strip above this comes from ConditionalLayout, on every page) */}
       <section className="md:hidden bg-[#1D4ED8] px-4 pt-[18px] pb-7 flex flex-col gap-[18px] overflow-hidden">
         <div className="flex items-center justify-between gap-3">
-          <button type="button" onClick={onLocation} aria-haspopup="dialog" className="flex-1 min-w-0 text-left text-white">
+          <button type="button" onClick={loc.toggle} aria-haspopup="dialog" aria-expanded={loc.open} className="flex-1 min-w-0 text-left text-white">
             <span className="flex items-center gap-2 text-[20px] font-extrabold min-w-0">
               <MapPin className="w-[22px] h-[22px] shrink-0 fill-white/25" strokeWidth={2.2} />
               <span className="truncate">{location?.label ?? "Your location"}</span>
@@ -181,22 +178,20 @@ export function HomeHero({ account, place, cities, visitLine, onLocation, onMenu
           {visitLine && <VisitPill line={visitLine} />}
 
           <form role="search" onSubmit={search} className="mt-6 lg:mt-10 w-full grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-4 lg:gap-6">
-            {/* The location: a dropdown under the field (phones use the location sheet). */}
+            {/* The location: a dropdown under the field. */}
             <div className="relative flex">
               <button
-                ref={locAnchor}
                 type="button"
-                onClick={() => setLocOpen((v) => !v)}
+                onClick={loc.toggle}
                 aria-haspopup="dialog"
-                aria-expanded={locOpen}
+                aria-expanded={loc.open}
                 aria-label={`Your location: ${where ?? "not set"}. Change`}
-                className={`w-full flex items-center gap-3 h-[62px] lg:h-[66px] px-5 lg:px-6 bg-white rounded-2xl text-left shadow-[0_12px_28px_-16px_rgba(4,18,66,0.6)] transition-shadow ${locOpen ? "ring-4 ring-[#A9CBFF]/80" : "hover:ring-4 hover:ring-[#A9CBFF]/50"}`}
+                className={`w-full flex items-center gap-3 h-[62px] lg:h-[66px] px-5 lg:px-6 bg-white rounded-2xl text-left shadow-[0_12px_28px_-16px_rgba(4,18,66,0.6)] transition-shadow ${loc.open ? "ring-4 ring-[#A9CBFF]/80" : "hover:ring-4 hover:ring-[#A9CBFF]/50"}`}
               >
                 <MapPin className="w-6 h-6 text-[#1D4ED8] shrink-0" strokeWidth={2.2} />
                 <span className="flex-1 min-w-0 truncate text-[17px] font-semibold text-[#0B1B3F]">{where ?? "Set your location"}</span>
-                <ChevronDown className={`w-5 h-5 text-[#1D4ED8] shrink-0 transition-transform duration-200 ${locOpen ? "rotate-180" : ""}`} strokeWidth={2.6} />
+                <ChevronDown className={`w-5 h-5 text-[#1D4ED8] shrink-0 transition-transform duration-200 ${loc.open ? "rotate-180" : ""}`} strokeWidth={2.6} />
               </button>
-              {locOpen && <LocationMenu place={place} cities={cities} anchor={locAnchor} onClose={closeLoc} />}
             </div>
             <div className="relative flex items-center gap-2 h-[62px] lg:h-[66px] pl-5 lg:pl-6 pr-2 bg-white rounded-2xl text-left shadow-[0_12px_28px_-16px_rgba(4,18,66,0.6)] focus-within:ring-4 focus-within:ring-[#A9CBFF]/70 transition-shadow">
               <label htmlFor="home-search" className="sr-only">{searchLabel}</label>
@@ -222,6 +217,8 @@ export function HomeHero({ account, place, cities, visitLine, onLocation, onMenu
           <DesktopServiceCard service={services[2]} image="-right-1 bottom-5 w-[70%] h-auto" />
         </div>
       </section>
+
+      {loc.anchor && <LocationMenu place={place} cities={cities} anchor={loc.anchor} onClose={loc.close} />}
     </>
   );
 }

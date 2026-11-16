@@ -61,7 +61,7 @@ export const viewport: Viewport = {
   themeColor: "#2A4DD0",
 };
 
-import { getCurrentUser } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { ROLE_COOKIE, readRoleCookie } from "@/lib/role-cookie";
 
@@ -71,7 +71,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const cookieStore = await cookies();
-  const user = await getCurrentUser();
+  const user = await getSessionUser();
   const userRole = user ? readRoleCookie(cookieStore.get(ROLE_COOKIE)?.value, user.id) : null;
 
   return (

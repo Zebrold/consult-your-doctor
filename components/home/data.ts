@@ -4,7 +4,7 @@ import { toLatLng } from '@/lib/geo'
 import { pausedDoctorIds } from '@/lib/doctor-pause'
 import type { HomeHospital } from './types'
 
-type Supabase = Awaited<ReturnType<typeof createClient>>
+type Supabase = Pick<Awaited<ReturnType<typeof createClient>>, 'from'>
 
 /** A facility that says the hospital never closes: "24/7 Emergency", "24 hours pharmacy", "Round-the-clock ICU". */
 /** A facility name that means the hospital never closes ("24/7 Emergency", "Open 24 hours"). */
@@ -30,9 +30,13 @@ type HospitalRow = {
   doctors: { id: string; specialty: string | null }[] | null
 }
 
-/** Every active partner hospital, those with photos first, with its doctors' specialties and published rating. */
-export async function loadHospitals(supabase: Supabase): Promise<HomeHospital[]> {
+/**
+ * Every active partner hospital, those with photos first, with its doctors' specialties and published rating. `strict`
+ * throws when the hospitals can't be read at all, instead of returning none (for the cached list, lib/public-directory.ts).
+ */
+export async function loadHospitals(supabase: Supabase, { strict = false } = {}): Promise<HomeHospital[]> {
   let rows: HospitalRow[] = []
+  let failure: string | null = null
   for (const select of SELECTS) {
     const { data, error } = await supabase
       .from('hospitals')
@@ -41,9 +45,12 @@ export async function loadHospitals(supabase: Supabase): Promise<HomeHospital[]>
       .order('image_url', { ascending: false, nullsFirst: false })
     if (!error) {
       rows = (data ?? []) as unknown as HospitalRow[]
+      failure = null
       break
     }
+    failure = error.message
   }
+  if (failure && strict) throw new Error(`hospitals list: ${failure}`)
 
   // Published patient ratings. The table comes with 20261015_hospital_reviews_and_doorstep.sql; without it no
   // hospital shows a rating.

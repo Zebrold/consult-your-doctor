@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, Building2, Mail, MapPin, Navigation, Phone, ShieldCheck, Siren, Star, type LucideIcon } from 'lucide-react'
 import { jsonLd } from '@/lib/json-ld'
-import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { createClient, getSessionUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { isFastTrack } from '@/lib/pricing'
 import { patientServices } from '@/lib/hospital-services'
@@ -42,10 +42,15 @@ export async function HospitalPageView({ id, query, preview = false }: { id: str
   const askedServices = ([] as string[]).concat(query.service ?? [])
   const from = SPECIALITIES.find((s) => s.slug === fromSlug) ?? null
   const supabase = await createClient()
-  const user = preview ? null : await getCurrentUser()
+  const user = preview ? null : await getSessionUser()
   const now = currentTime()
+  const admin = createAdminClient()
 
-  const [{ data: hospital, error: hospitalError }, { data: viewer }, fees, choices, patient, freeFollowUp] = await Promise.all([
+  const DOCTOR_FIELDS = 'id, specialty, qualifications, experience_years, image_url, consultation_fee, profiles!doctors_profile_id_fkey ( full_name )'
+  type Row = { id: string; specialty: string | null; qualifications: string | null; experience_years: number | null; image_url: string | null; consultation_fee: number | null; profiles: { full_name: string | null } | { full_name: string | null }[] | null }
+
+  // Everything that needs only the hospital's id, in one round (it used to be five rounds one after another).
+  const [{ data: hospital, error: hospitalError }, { data: viewer }, fees, choices, patient, freeFollowUp, { data: doctorRows }, visitingIds, paused, ratingResult, { data: pickedRow }] = await Promise.all([
     supabase.from('hospitals').select('*').eq('id', id).single(),
     user ? createAdminClient().from('profiles').select('full_name, role, email').eq('id', user.id).maybeSingle() : Promise.resolve({ data: null }),
     getBookingFees(),
@@ -54,6 +59,26 @@ export async function HospitalPageView({ id, query, preview = false }: { id: str
     user ? loadPatientDefaults(supabase, createAdminClient()) : Promise.resolve(null),
     // Doctors this patient saw in the last 12 days: a general booking with them has no booking fee.
     user ? freeFollowUpDoctors(createAdminClient(), user.id) : Promise.resolve([] as string[]),
+    supabase.from('doctors').select(DOCTOR_FIELDS).eq('hospital_id', id),
+    // Doctors from other hospitals confirmed to consult here too (lib/practices.ts); booked here on the slots this
+    // hospital published for them.
+    visitingDoctorIds(admin, id),
+    // Doctors whose bookings are paused have no card, no open times and can't be preselected.
+    pausedDoctorIds(),
+    // The hospital's published rating (when the table exists).
+    admin.from('hospital_reviews').select('rating').eq('hospital_id', id).eq('is_published', true),
+    // The time picked on the doctor's profile can be later than the ones listed here (kept below only if that doctor
+    // is listed here).
+    pickedSlot && pickedDoctor
+      ? supabase
+        .from('schedules')
+        .select('id, doctor_id, start_time')
+        .eq('id', pickedSlot)
+        .eq('doctor_id', pickedDoctor)
+        .eq('is_booked', false)
+        .gt('start_time', new Date(now).toISOString())
+        .maybeSingle()
+      : Promise.resolve({ data: null }),
   ])
   if (hospitalError || !hospital) notFound()
 
@@ -65,24 +90,14 @@ export async function HospitalPageView({ id, query, preview = false }: { id: str
   // The priced services the hospital shows patients (Services & charges on its portal); hidden ones are left off.
   const tests = patientServices(hospital)
 
-  const DOCTOR_FIELDS = 'id, specialty, qualifications, experience_years, image_url, consultation_fee, profiles!doctors_profile_id_fkey ( full_name )'
-  const { data: doctorRows } = await supabase.from('doctors').select(DOCTOR_FIELDS).eq('hospital_id', id)
-  type Row = { id: string; specialty: string | null; qualifications: string | null; experience_years: number | null; image_url: string | null; consultation_fee: number | null; profiles: { full_name: string | null } | { full_name: string | null }[] | null }
-  const ownRows = (doctorRows ?? []) as Row[]
-  // Doctors from other hospitals confirmed to consult here too (lib/practices.ts); booked here on the slots this
-  // hospital published for them.
-  const visitingIds = await visitingDoctorIds(createAdminClient(), id)
-  const { data: visitingRows } = visitingIds.length ? await supabase.from('doctors').select(DOCTOR_FIELDS).in('id', visitingIds) : { data: [] }
+  const ownRows = ((doctorRows ?? []) as Row[]).filter((r) => !paused.has(r.id))
   const visitingSet = new Set(visitingIds)
-  // Doctors whose bookings are paused have no card, no open times and can't be preselected.
-  const paused = await pausedDoctorIds()
-  const rows = [...ownRows, ...((visitingRows ?? []) as Row[]).filter((r) => !ownRows.some((o) => o.id === r.id))].filter((r) => !paused.has(r.id))
+  const ownIds = new Set(ownRows.map((r) => r.id))
+  const visitingToLoad = visitingIds.filter((v) => !ownIds.has(v) && !paused.has(v))
 
-  // Each doctor's open times over the next 30 days (patients pick the day and time here), and the hospital's published
-  // rating (when the table exists).
-  const admin = createAdminClient()
-  // Open times with the hospital each was published for; before 20261115_executive_workspace.sql slots have no
-  // hospital_id, so every slot is at the doctor's own hospital.
+  // Each doctor's open times over the next 30 days (patients pick the day and time here), with the hospital each was
+  // published for; before 20261115_executive_workspace.sql slots have no hospital_id, so every slot is at the doctor's
+  // own hospital.
   const openSlotsHere = async (doctorIds: string[]) => {
     const query = (columns: string) =>
       supabase
@@ -97,21 +112,13 @@ export async function HospitalPageView({ id, query, preview = false }: { id: str
     const first = await query('id, doctor_id, start_time, hospital_id')
     return first.error ? query('id, doctor_id, start_time') : first
   }
-  const [{ data: slotRows }, ratingResult, { data: pickedRow }] = await Promise.all([
-    rows.length ? openSlotsHere(rows.map((d) => d.id)) : Promise.resolve({ data: [] }),
-    admin.from('hospital_reviews').select('rating').eq('hospital_id', id).eq('is_published', true),
-    // The time picked on the doctor's profile can be later than the ones listed here.
-    pickedSlot && rows.some((d) => d.id === pickedDoctor)
-      ? supabase
-        .from('schedules')
-        .select('id, doctor_id, start_time')
-        .eq('id', pickedSlot)
-        .eq('doctor_id', pickedDoctor!)
-        .eq('is_booked', false)
-        .gt('start_time', new Date(now).toISOString())
-        .maybeSingle()
-      : Promise.resolve({ data: null }),
+  // The second and last round: the visiting doctors' cards and every listed doctor's open times.
+  const slotDoctorIds = [...ownIds, ...visitingToLoad]
+  const [{ data: visitingRows }, { data: slotRows }] = await Promise.all([
+    visitingToLoad.length ? supabase.from('doctors').select(DOCTOR_FIELDS).in('id', visitingToLoad) : Promise.resolve({ data: [] }),
+    slotDoctorIds.length ? openSlotsHere(slotDoctorIds) : Promise.resolve({ data: [] }),
   ])
+  const rows = [...ownRows, ...((visitingRows ?? []) as Row[])]
   const slotsBy = new Map<string, { id: string; start: string }[]>()
   for (const s of (slotRows ?? []) as unknown as { id: string; doctor_id: string; start_time: string; hospital_id?: string | null }[]) {
     // Own doctors' slots here (no hospital_id, or this one); visiting doctors' only the ones published here.
@@ -120,7 +127,7 @@ export async function HospitalPageView({ id, query, preview = false }: { id: str
     if (mine.length < SLOTS_PER_DOCTOR) mine.push({ id: s.id, start: s.start_time })
     slotsBy.set(s.doctor_id, mine)
   }
-  const pickedAny = pickedRow as { id: string; doctor_id: string; start_time: string; hospital_id?: string | null } | null
+  const pickedAny = pickedRow && rows.some((d) => d.id === pickedDoctor) ? (pickedRow as { id: string; doctor_id: string; start_time: string; hospital_id?: string | null }) : null
   const picked = pickedAny && (pickedAny.hospital_id ? pickedAny.hospital_id === id : !visitingSet.has(pickedAny.doctor_id)) ? pickedAny : null
   if (picked && !slotsBy.get(picked.doctor_id)?.some((s) => s.id === picked.id)) {
     slotsBy.set(picked.doctor_id, [...(slotsBy.get(picked.doctor_id) ?? []), { id: picked.id, start: picked.start_time }].sort((a, b) => a.start.localeCompare(b.start)))

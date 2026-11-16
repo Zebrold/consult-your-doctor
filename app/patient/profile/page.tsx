@@ -6,7 +6,7 @@ import {
   BedDouble, Bookmark, ChevronRight, CircleAlert, CircleCheck, CircleHelp, FileText, HeartPulse, LogOut, MapPin, Phone, Receipt, Settings, ShieldCheck, SquarePen,
   Stethoscope, UserPlus, Users, type LucideIcon,
 } from 'lucide-react'
-import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { createClient, getSessionUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { PatientDock } from '@/components/PatientDock'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
@@ -64,7 +64,7 @@ const MY_HEALTH_SUB: Record<string, string> = {
 export default async function PatientProfilePage(props: { searchParams?: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const searchParams = (await props.searchParams) ?? {}
   const supabase = await createClient()
-  const user = await getCurrentUser()
+  const user = await getSessionUser()
   if (!user) redirect('/login/patient?next=/patient/profile')
 
   const now = currentTime()

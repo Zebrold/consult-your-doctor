@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { User } from "@supabase/supabase-js";
+import type { SessionUser } from "@/lib/supabase/server";
 import { PatientNavHeader } from "@/components/PatientNavHeader";
 import { PatientDock } from "@/components/PatientDock";
 import { DeskTitle, PageBody } from "./app-ui";
@@ -16,7 +16,7 @@ export function AccountPage({
   wide = false,
   children,
 }: {
-  user: User;
+  user: SessionUser;
   profile: { full_name?: string | null; email?: string | null } | null;
   title: string;
   subtitle: ReactNode;

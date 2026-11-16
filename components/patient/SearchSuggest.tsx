@@ -4,7 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Building2, FlaskConical, Search, Stethoscope, TestTube, UserRound, type LucideIcon } from "lucide-react";
-import { SPECIALITIES } from "@/components/home/specialities";
+import { SPECIALITIES, specialityIcon } from "@/components/home/specialities";
 
 // The search boxes' suggestions (app/api/search/suggest): as you type, matching specialities, doctors, hospitals,
 // diagnostic centres and tests, each opening its page; Enter on your own words still searches everything (/find).
@@ -17,6 +17,13 @@ const ICON: Record<Suggestion["kind"], LucideIcon> = { speciality: Stethoscope, 
 const GROUP: Record<Suggestion["kind"], string> = { speciality: "Specialities", doctor: "Doctors", hospital: "Hospitals", lab: "Diagnostic centres", test: "Lab tests" };
 
 const POPULAR: Suggestion[] = SPECIALITIES.slice(0, 6).map((s) => ({ kind: "speciality", title: s.name, sub: s.tagline, href: `/specialities/${s.slug}` }));
+
+/** A speciality suggestion's picture (public/images/specialities), from the slug in its /specialities/<slug> link. */
+const KNOWN = new Set(SPECIALITIES.map((s) => s.slug));
+function illustration(href: string) {
+  const slug = /^\/specialities\/([^/?#]+)/.exec(href)?.[1];
+  return slug && KNOWN.has(slug) ? specialityIcon({ slug }) : null;
+}
 
 /** The title with the typed part in bold. */
 function Marked({ text, q }: { text: string; q: string }) {
@@ -178,9 +185,18 @@ export function SearchSuggest({
                   onPointerEnter={() => setActive(i)}
                   className={`flex items-center gap-3 px-4 py-2.5 transition-colors ${active === i ? "bg-[#F2F5FC]" : ""}`}
                 >
-                  <span className="shrink-0 w-9 h-9 rounded-xl bg-[#EEF3FF] text-[#2A4DD0] flex items-center justify-center">
-                    <Icon className="w-[18px] h-[18px]" strokeWidth={2.1} />
-                  </span>
+                  {s.kind === "speciality" && illustration(s.href) ? (
+                    // The speciality's own picture, in the round tile the home page's specialities use. Lazy: the list is
+                    // in the page while hidden, and an eager image would be preloaded with every page that has a search box.
+                    <span className="shrink-0 w-10 h-10 rounded-full bg-[linear-gradient(160deg,#F2F6FF_0%,#DCE7FF_100%)] shadow-[inset_0_0_0_1px_#D6E2FB] flex items-center justify-center">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={illustration(s.href)!} alt="" width={26} height={26} loading="lazy" decoding="async" className="w-[26px] h-[26px]" />
+                    </span>
+                  ) : (
+                    <span className="shrink-0 w-10 h-10 rounded-full bg-[#EEF3FF] text-[#2A4DD0] flex items-center justify-center">
+                      <Icon className="w-[18px] h-[18px]" strokeWidth={2.1} />
+                    </span>
+                  )}
                   <span className="min-w-0">
                     <span className="block truncate text-[14px] font-bold">
                       <Marked text={s.title} q={typing ? q : ""} />
@@ -201,7 +217,7 @@ export function SearchSuggest({
               onPointerEnter={() => setActive(items.length)}
               className={`flex items-center gap-3 px-4 py-3 mt-1 border-t border-[#EEF1F6] transition-colors ${active === items.length ? "bg-[#F2F5FC]" : ""}`}
             >
-              <span className="shrink-0 w-9 h-9 rounded-xl bg-[#2A4DD0] text-white flex items-center justify-center">
+              <span className="shrink-0 w-10 h-10 rounded-full bg-[#2A4DD0] text-white flex items-center justify-center">
                 <Search className="w-[17px] h-[17px]" strokeWidth={2.3} />
               </span>
               <span className="min-w-0 truncate text-[14px] font-bold">

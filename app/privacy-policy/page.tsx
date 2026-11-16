@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { LegalPage } from '@/components/legal/LegalPage'
 import { PRIVACY } from '@/lib/legal'
-import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { createClient, getSessionUser } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import { ROLE_COOKIE, readRoleCookie } from '@/lib/role-cookie'
 
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default async function PrivacyPage() {
   const cookieStore = await cookies()
   const supabase = await createClient()
-  const user = await getCurrentUser()
+  const user = await getSessionUser()
 
   let userContext = null
   if (user) {

@@ -52,10 +52,10 @@ export default async function BookDoctorPage({ params, searchParams }: BookDocto
   const supabase = await createClient();
   const now = currentTime();
 
-  const { data: row } = await supabase.from("doctors").select(DOCTOR_FIELDS).eq("id", doctorId).maybeSingle();
+  const [{ data: row }, paused] = await Promise.all([supabase.from("doctors").select(DOCTOR_FIELDS).eq("id", doctorId).maybeSingle(), pausedDoctorIds()]);
   if (!row) notFound();
   // A paused doctor takes no new bookings; their profile still opens (with no open times).
-  if ((await pausedDoctorIds()).has(doctorId)) redirect(`/doctors/${doctorId}`);
+  if (paused.has(doctorId)) redirect(`/doctors/${doctorId}`);
   const d = row as unknown as DoctorRow;
   const hospital = one(d.hospitals);
   // Doctors are booked on their hospital's page, start to finish; this page is only for doctors without one.

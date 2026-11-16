@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown, MapPin, Search, SlidersHorizontal, Stethoscope } from "lucide-react";
 import { PhoneHeader } from "@/components/patient/PhoneHeader";
-import { LocationSheet } from "@/components/patient/LocationSheet";
+import { LocationMenu, useLocationMenu } from "@/components/patient/LocationMenu";
 import { nearbyOnly, usePatientLocation } from "@/components/patient/location";
 import { PageBody, SectionHead, btnPrimary, card } from "@/components/patient/app-ui";
 import { HospitalGridCard, HospitalListCard } from "@/components/patient/HospitalCards";
@@ -34,8 +34,7 @@ export function BrowseSpecialities({
   cities: string[];
 }) {
   const place = usePatientLocation();
-  const [sheet, setSheet] = useState(false);
-  const closeSheet = useCallback(() => setSheet(false), []);
+  const loc = useLocationMenu();
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
   const tiles = SPECIALITIES.filter((s) => matches(s, q));
@@ -146,7 +145,7 @@ export function BrowseSpecialities({
               id="near-title"
               title="Top hospitals near you"
               sub={
-                <button type="button" onClick={() => setSheet(true)} aria-haspopup="dialog" className="inline-flex items-center gap-1 font-bold text-[#2A4DD0] hover:underline underline-offset-4">
+                <button type="button" onClick={loc.toggle} aria-haspopup="dialog" aria-expanded={loc.open} className="inline-flex items-center gap-1 font-bold text-[#2A4DD0] hover:underline underline-offset-4">
                   <MapPin className="w-3.5 h-3.5" />
                   {where ? `Nearest to ${where}` : "Set your location"}
                   <ChevronDown className="w-3 h-3" strokeWidth={2.6} />
@@ -157,7 +156,7 @@ export function BrowseSpecialities({
             {near.length === 0 ? (
               <div className={`${card} p-5 text-[13.5px] text-[#4A5878] leading-relaxed`}>
                 No partner hospital lists {where ? `in ${where}` : "here"} yet.{" "}
-                <button type="button" onClick={() => setSheet(true)} className="font-extrabold text-[#2A4DD0] hover:underline">
+                <button type="button" onClick={loc.toggle} aria-haspopup="dialog" className="font-extrabold text-[#2A4DD0] hover:underline">
                   Change location
                 </button>{" "}
                 or browse{" "}
@@ -185,7 +184,7 @@ export function BrowseSpecialities({
         </div>
       </PageBody>
 
-      {sheet && <LocationSheet place={place} cities={cities} onClose={closeSheet} />}
+      {loc.anchor && <LocationMenu place={place} cities={cities} anchor={loc.anchor} onClose={loc.close} />}
     </>
   );
 }

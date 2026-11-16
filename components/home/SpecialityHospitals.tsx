@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type MouseEvent, type ReactNode, type Ref } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Building2, ChevronDown, MapPin } from "lucide-react";
 import { byNearness, usePatientLocation } from "@/components/patient/location";
-import { LocationSheet } from "@/components/patient/LocationSheet";
+import { LocationMenu, useLocationMenu } from "@/components/patient/LocationMenu";
 import { formatDistance } from "@/lib/geo";
 import { specialityIcon, type SpecialityInfo } from "./specialities";
 import { VerifiedBadge } from "./ui";
@@ -45,8 +45,8 @@ export function SpecialityHospitals({
   docked?: boolean;
 }) {
   const place = usePatientLocation();
-  const [sheet, setSheet] = useState(false);
-  const closeSheet = useCallback(() => setSheet(false), []);
+  const loc = useLocationMenu();
+  const locChip = useRef<HTMLButtonElement>(null);
   const [chosenSort, setSort] = useState<Sort | null>(null);
   const [allDay, setAllDay] = useState(false);
   const sort: Sort = chosenSort ?? (place.location ? "near" : "doctors");
@@ -60,7 +60,7 @@ export function SpecialityHospitals({
 
   const chooseNear = () => {
     setSort("near");
-    if (!place.location) setSheet(true);
+    if (!place.location) loc.openAt(locChip.current);
   };
 
   return (
@@ -90,7 +90,7 @@ export function SpecialityHospitals({
 
         {hospitals.length > 0 && (
           <div role="toolbar" aria-label="Sort and filter hospitals" className="flex gap-2 px-4 md:px-6 pt-3 pb-1 overflow-x-auto no-scrollbar">
-            <Chip onClick={() => setSheet(true)} haspopup>
+            <Chip onClick={loc.toggle} haspopup expanded={loc.open} buttonRef={locChip}>
               <MapPin className="w-[15px] h-[15px]" strokeWidth={2.2} />
               <span className="max-w-[140px] truncate">{place.location?.label ?? "Set location"}</span>
               <ChevronDown className="w-[13px] h-[13px]" strokeWidth={2.6} />
@@ -123,18 +123,34 @@ export function SpecialityHospitals({
         )}
       </div>
 
-      {sheet && <LocationSheet place={place} cities={cities} onClose={closeSheet} />}
+      {loc.anchor && <LocationMenu place={place} cities={cities} anchor={loc.anchor} onClose={loc.close} />}
     </main>
   );
 }
 
-function Chip({ pressed, haspopup, onClick, children }: { pressed?: boolean; haspopup?: boolean; onClick: () => void; children: ReactNode }) {
+function Chip({
+  pressed,
+  haspopup,
+  expanded,
+  buttonRef,
+  onClick,
+  children,
+}: {
+  pressed?: boolean;
+  haspopup?: boolean;
+  expanded?: boolean;
+  buttonRef?: Ref<HTMLButtonElement>;
+  onClick: (e: MouseEvent<HTMLButtonElement>) => void;
+  children: ReactNode;
+}) {
   return (
     <button
+      ref={buttonRef}
       type="button"
       onClick={onClick}
       aria-pressed={haspopup ? undefined : pressed}
       aria-haspopup={haspopup ? "dialog" : undefined}
+      aria-expanded={haspopup ? !!expanded : undefined}
       className={`shrink-0 flex items-center gap-1.5 h-9 px-3.5 rounded-full border-[1.5px] text-[13px] font-bold whitespace-nowrap transition-colors ${
         pressed ? "border-[#2A4DD0] bg-[#EAF1FF] text-[#1F3FB8]" : "border-[#D6DDE8] bg-white text-[#27324A] hover:border-[#A9CBFF]"
       }`}

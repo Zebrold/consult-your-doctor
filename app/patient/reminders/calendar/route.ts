@@ -1,4 +1,4 @@
-import { getCurrentUser } from '@/lib/supabase/server'
+import { getSessionUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { istToday } from '@/lib/patient-account'
 import { loadHealthDetails } from '@/lib/patient-health'
@@ -17,7 +17,7 @@ const hhmm = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2
 const fold = (line: string) => (line.length <= 74 ? line : line.match(/.{1,73}/g)!.join('\r\n '))
 
 export async function GET() {
-  const user = await getCurrentUser()
+  const user = await getSessionUser()
   if (!user) return new Response('Please log in to download your reminders.', { status: 401 })
   const admin = createAdminClient()
   const today = istToday()

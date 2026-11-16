@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { ChevronRight, Languages, LogOut, Mail, MessageCircle, ShieldCheck, SquarePen, type LucideIcon } from 'lucide-react'
-import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { createClient, getSessionUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { AccountCard, AccountPage } from '@/components/patient/AccountPage'
 import { ProfileEditButton } from '@/components/patient/ProfileEditButton'
@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: 'Settings | Consult Your Doctor' }
 /** The patient's settings: their details, where updates go, the assistant's language, privacy and signing out. */
 export default async function SettingsPage() {
   const supabase = await createClient()
-  const user = await getCurrentUser()
+  const user = await getSessionUser()
   if (!user) redirect('/login/patient?next=/patient/preferences')
 
   const [{ data: profile }, { data: details }] = await Promise.all([

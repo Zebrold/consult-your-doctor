@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { CalendarDays, ChevronDown, ChevronRight, FileText, FlaskConical, Hospital, MapPin, Search, ShieldCheck, Stethoscope, UserRound } from "lucide-react";
 import { PhoneHeader } from "@/components/patient/PhoneHeader";
-import { LocationSheet } from "@/components/patient/LocationSheet";
+import { LocationMenu, useLocationMenu } from "@/components/patient/LocationMenu";
 import { nearbyOnly, usePatientLocation } from "@/components/patient/location";
 import { AppSearch, PageBody, SectionHead, StatusDot, btnOutline, btnPrimary, card } from "@/components/patient/app-ui";
 import { DigitalInsuranceCard } from "@/components/patient/InsuranceCard";
@@ -51,8 +50,7 @@ const weekday = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { tim
 /** A signed-in patient's home: greeting, search, specialities, their next visit and partner hospitals near them. */
 export function PatientAppHome({ greeting, name, isSignedIn, hospitals, cities, next, vitals, vitalsAt, records, insurance = null }: Props) {
   const place = usePatientLocation();
-  const [sheet, setSheet] = useState(false);
-  const closeSheet = useCallback(() => setSheet(false), []);
+  const loc = useLocationMenu();
   const near = nearbyOnly(hospitals, place.location).slice(0, 6);
   const where = place.location?.label;
   const nearSub = where ? `Nearest to ${where}` : "Verified partner hospitals";
@@ -64,8 +62,9 @@ export function PatientAppHome({ greeting, name, isSignedIn, hospitals, cities, 
           <div className="-mt-2 flex flex-col gap-4">
             <button
               type="button"
-              onClick={() => setSheet(true)}
+              onClick={loc.toggle}
               aria-haspopup="dialog"
+              aria-expanded={loc.open}
               className="self-start inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-white/30 bg-white/[0.12] text-[13px] font-bold active:scale-95 transition-transform"
             >
               <MapPin className="w-[15px] h-[15px]" />
@@ -112,7 +111,7 @@ export function PatientAppHome({ greeting, name, isSignedIn, hospitals, cities, 
               {near.length === 0 ? (
                 <div className={`${card} p-5 text-[13.5px] text-[#4A5878] leading-relaxed`}>
                   No partner hospital lists {where ? `in ${where}` : "here"} yet.{" "}
-                  <button type="button" onClick={() => setSheet(true)} className="font-extrabold text-[#2A4DD0] hover:underline">
+                  <button type="button" onClick={loc.toggle} aria-haspopup="dialog" className="font-extrabold text-[#2A4DD0] hover:underline">
                     Change location
                   </button>{" "}
                   or browse{" "}
@@ -179,7 +178,7 @@ export function PatientAppHome({ greeting, name, isSignedIn, hospitals, cities, 
         </div>
       </PageBody>
 
-      {sheet && <LocationSheet place={place} cities={cities} onClose={closeSheet} />}
+      {loc.anchor && <LocationMenu place={place} cities={cities} anchor={loc.anchor} onClose={loc.close} />}
     </>
   );
 }

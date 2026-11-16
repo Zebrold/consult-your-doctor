@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
-import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { getSessionUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { loadHospitals } from '@/components/home/data'
+import { loadPublicHospitals } from '@/lib/public-directory'
 import { BrowseSpecialities } from '@/components/home/BrowseSpecialities'
 import { PatientDock } from '@/components/PatientDock'
 
@@ -13,11 +13,10 @@ export const metadata: Metadata = {
 
 // Where "Hospital booking" on the home page leads: every speciality, then partner hospitals near the patient.
 export default async function SpecialitiesPage() {
-  const supabase = await createClient()
-  const user = await getCurrentUser()
+  const user = await getSessionUser()
   const [profile, hospitals] = await Promise.all([
     user ? createAdminClient().from('profiles').select('role, full_name, email').eq('id', user.id).maybeSingle() : Promise.resolve({ data: null }),
-    loadHospitals(supabase),
+    loadPublicHospitals(),
   ])
   const role = profile.data?.role ?? null
   const isPatient = !!user && (!role || role === 'patient')

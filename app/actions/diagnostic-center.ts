@@ -1,7 +1,8 @@
 'use server'
 
 import { parseLatLng } from '@/lib/geo'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
+import { DIRECTORY_TAG } from '@/lib/public-directory'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { REPORT_BUCKET, REPORT_MAX_BYTES, REPORT_TYPES, reportPath } from '@/lib/lab-reports'
@@ -63,6 +64,7 @@ export async function saveLabTest(name: string, price: number): Promise<Result> 
   }
   revalidateLabPages()
   revalidatePath('/find')
+  updateTag(DIRECTORY_TAG)
   return { success: true }
 }
 
@@ -82,6 +84,7 @@ export async function removeLabTest(name: string): Promise<Result> {
   }
   revalidateLabPages()
   revalidatePath('/find')
+  updateTag(DIRECTORY_TAG)
   return { success: true }
 }
 
@@ -211,6 +214,7 @@ export async function updateLabProfile(formData: FormData): Promise<Result> {
   }
   revalidateLabPages()
   revalidatePath('/find')
+  updateTag(DIRECTORY_TAG)
   return { success: true }
 }
 

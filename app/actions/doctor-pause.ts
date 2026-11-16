@@ -1,6 +1,8 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
+import { PAUSED_DOCTORS_TAG } from '@/lib/doctor-pause'
+import { DIRECTORY_TAG } from '@/lib/public-directory'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/lib/supabase/server'
@@ -24,6 +26,9 @@ function refresh(doctorId: string, hospitalId: string | null) {
   if (hospitalId) revalidatePath(`/hospitals/${hospitalId}`)
   revalidatePath('/find')
   revalidatePath('/')
+  // The cached patient-facing lists (lib/public-directory.ts), so the pause shows at once.
+  updateTag(PAUSED_DOCTORS_TAG)
+  updateTag(DIRECTORY_TAG)
 }
 
 export async function setHospitalDoctorPaused(doctorId: string, paused: boolean): Promise<Result> {

@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { ShieldCheck } from 'lucide-react'
-import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { createClient, getSessionUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { AccountCard, AccountPage } from '@/components/patient/AccountPage'
 import { one } from '@/components/patient/data'
@@ -17,7 +17,7 @@ type PaymentRow = { appointment_id: string | null; diagnostic_booking_id: string
 /** What the patient has paid: booking fees online, and bookings settled at a hospital or lab desk. */
 export default async function BillingPage() {
   const supabase = await createClient()
-  const user = await getCurrentUser()
+  const user = await getSessionUser()
   if (!user) redirect('/login/patient?next=/patient/payments')
 
   const [{ data: profile }, { data: visits }, { data: labs }] = await Promise.all([

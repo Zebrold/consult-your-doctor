@@ -1,4 +1,4 @@
-import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { createClient, getSessionUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { Building2, CalendarDays, CircleCheck, CircleX, Clock, SearchX, UserRound } from 'lucide-react'
@@ -17,7 +17,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
   const { appointmentId } = await params
   const supabase = await createClient()
 
-  const [user, fees] = await Promise.all([getCurrentUser(), getBookingFees()])
+  const [user, fees] = await Promise.all([getSessionUser(), getBookingFees()])
   if (!user) redirect(`/login/patient?next=${encodeURIComponent(`/patient/checkout/${appointmentId}`)}`)
 
   // Only the patient's own appointment is ever loaded (and RLS enforces the same).

@@ -1,7 +1,8 @@
 'use server'
 
 import { parseLatLng } from '@/lib/geo'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
+import { DIRECTORY_TAG } from '@/lib/public-directory'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { migrationHint } from '@/lib/desk-payments'
@@ -28,6 +29,8 @@ async function hospitalContext() {
 
 function revalidateHospitalPages(hospitalId: string) {
   for (const path of ['/hospital/profile', '/hospital/dashboard', `/hospitals/${hospitalId}`, '/hospitals', '/']) revalidatePath(path)
+  // The cached hospital lists on the home page, Find and the speciality pages (lib/public-directory.ts).
+  updateTag(DIRECTORY_TAG)
 }
 
 /** Saves the hospital's public details and, optionally, a new photo. */

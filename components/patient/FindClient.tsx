@@ -6,7 +6,7 @@ import { preconnect } from "react-dom";
 import Link from "next/link";
 import { ArrowRight, Building2, CalendarDays, Check, ChevronDown, Hospital, MapPin, Search, SearchX, SlidersHorizontal, Star, Stethoscope, UserRound, FlaskConical, Clock } from "lucide-react";
 import { PhoneHeader } from "@/components/patient/PhoneHeader";
-import { LocationSheet } from "@/components/patient/LocationSheet";
+import { LocationMenu, useLocationMenu } from "@/components/patient/LocationMenu";
 import { Sheet } from "@/components/patient/PhoneSheet";
 import { byNearness, usePatientLocation } from "@/components/patient/location";
 import { VerifiedBadge } from "@/components/home/ui";
@@ -106,8 +106,9 @@ export function FindClient({ doctors, hospitals, labs, now, initial, account, fe
   const [sortChoice, setSort] = useState<Sort | null>(null);
   const [visible, setVisible] = useState(PAGE);
   const [selectedClinic, setSelectedClinic] = useState<string | null>(null);
-  const [sheet, setSheet] = useState<"filters" | "location" | null>(null);
+  const [sheet, setSheet] = useState<"filters" | null>(null);
   const closeSheet = useCallback(() => setSheet(null), []);
+  const loc = useLocationMenu();
 
   const byLocation = cityChoice === null && !!place.location;
   const where = byLocation ? place.location!.label : cityChoice || "all cities";
@@ -238,7 +239,7 @@ export function FindClient({ doctors, hospitals, labs, now, initial, account, fe
             <p className="mt-1 text-[14px] text-[#5B667A]">{subtitle}</p>
           </div>
           <div className="flex gap-2.5 shrink-0">
-            <button type="button" onClick={() => setSheet("location")} aria-haspopup="dialog" className={btnOutline}>
+            <button type="button" onClick={loc.toggle} aria-haspopup="dialog" aria-expanded={loc.open} className={btnOutline}>
               <MapPin className="w-4 h-4" /> <span className="max-w-[160px] truncate">{byLocation ? where : cityChoice || "All cities"}</span>
             </button>
             <label className={`${btnOutline} relative`}>
@@ -348,7 +349,7 @@ export function FindClient({ doctors, hospitals, labs, now, initial, account, fe
                     Showing {NOUN[mode][1]} {byLocation ? "near" : cityChoice ? "in" : "in"} <strong>{byLocation ? where : cityChoice || "all cities"}</strong>
                   </span>
                 </span>
-                <button type="button" onClick={() => setSheet("location")} className="shrink-0 text-[12.5px] font-extrabold text-[#2A4DD0]">
+                <button type="button" onClick={loc.toggle} aria-haspopup="dialog" aria-expanded={loc.open} className="shrink-0 text-[12.5px] font-extrabold text-[#2A4DD0]">
                   Change
                 </button>
               </div>
@@ -406,7 +407,7 @@ export function FindClient({ doctors, hospitals, labs, now, initial, account, fe
         </div>
       </PageBody>
 
-      {sheet === "location" && <LocationSheet place={place} cities={cities} onClose={closeSheet} />}
+      {loc.anchor && <LocationMenu place={place} cities={cities} anchor={loc.anchor} onClose={loc.close} />}
       {sheet === "filters" && (
         <Sheet title="Filters" subtitle={`Narrow the ${NOUN[mode][1]}`} onClose={closeSheet}>
           <Filters

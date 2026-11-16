@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Building2, Search } from 'lucide-react'
-import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { createClient, getSessionUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { AccountCard, AccountPage } from '@/components/patient/AccountPage'
 import { btnPrimary } from '@/components/patient/app-ui'
@@ -17,7 +17,7 @@ type Rel<T> = T | T[] | null
 /** The doctors and labs the patient has booked, newest first, with a quick way to book them again. */
 export default async function SavedPage() {
   const supabase = await createClient()
-  const user = await getCurrentUser()
+  const user = await getSessionUser()
   if (!user) redirect('/login/patient?next=/patient/saved')
 
   const [{ data: profile }, { data: visits }, { data: labs }] = await Promise.all([

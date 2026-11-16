@@ -1,16 +1,19 @@
-import type { createClient } from '@/lib/supabase/server'
+import { getSessionUser, type createClient } from '@/lib/supabase/server'
 import type { createAdminClient } from '@/lib/supabase/admin'
 import { istDateKey } from './format'
 
-type Supabase = Awaited<ReturnType<typeof createClient>>
+type Supabase = Pick<Awaited<ReturnType<typeof createClient>>, 'from'>
 type Admin = ReturnType<typeof createAdminClient>
 
 export type Availability = { nextSlot: string | null; openToday: number }
 
 const LOOKAHEAD_DAYS = 30
 
-/** Each doctor's next open appointment slot (and how many are left today), from the hospitals' published schedules. */
-export async function loadAvailability(supabase: Supabase, now: number, doctorIds?: string[]): Promise<Record<string, Availability>> {
+/**
+ * Each doctor's next open appointment slot (and how many are left today), from the hospitals' published schedules.
+ * `strict` throws when the slots can't be read, instead of returning none (for the cached list, lib/public-directory.ts).
+ */
+export async function loadAvailability(supabase: Supabase, now: number, doctorIds?: string[], { strict = false } = {}): Promise<Record<string, Availability>> {
   if (doctorIds && doctorIds.length === 0) return {}
   let query = supabase
     .from('schedules')
@@ -22,7 +25,8 @@ export async function loadAvailability(supabase: Supabase, now: number, doctorId
     .limit(5000)
   if (doctorIds) query = query.in('doctor_id', doctorIds)
 
-  const { data } = await query
+  const { data, error } = await query
+  if (error && strict) throw new Error(`open slots: ${error.message}`)
   const today = istDateKey(now)
   const result: Record<string, Availability> = {}
   for (const slot of (data ?? []) as { doctor_id: string; start_time: string }[]) {
@@ -40,7 +44,7 @@ export type PatientDefaults = { name: string; phone: string; email: string; date
  * session (supabase/migrations/20261031_audit_fixes.sql), and this reads only their own row.
  */
 export async function loadPatientDefaults(supabase: Supabase, admin: Admin): Promise<PatientDefaults | null> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser()
   if (!user) return null
   const [{ data: profile }, { data: details }] = await Promise.all([
     admin.from('profiles').select('full_name, phone_number, email').eq('id', user.id).maybeSingle(),

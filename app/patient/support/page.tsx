@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { ChevronDown, HelpCircle, MessageCircleQuestion, PhoneCall, Stethoscope } from 'lucide-react'
-import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { createClient, getSessionUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { PatientNavHeader } from '@/components/PatientNavHeader'
 import { DeskTitle, PageBody, btnOutline, card } from '@/components/patient/app-ui'
@@ -64,7 +64,7 @@ const faqs = (fees: BookingFees): { q: string; a: React.ReactNode }[] => [
 export default async function PatientSupport() {
   const FAQS = faqs(await getBookingFees())
   const supabase = await createClient()
-  const user = await getCurrentUser()
+  const user = await getSessionUser()
   if (!user) redirect('/login/patient?next=/patient/support')
 
   const [{ data: profile }, { data: appointments }, { data: labs }] = await Promise.all([

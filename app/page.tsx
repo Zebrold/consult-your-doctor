@@ -1,11 +1,10 @@
 import type { Viewport } from 'next';
 import { redirect } from 'next/navigation';
-import { createClient, getCurrentUser } from '@/lib/supabase/server';
+import { createClient, getSessionUser } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { HomePage } from '@/components/home/HomePage';
-import { loadHospitals } from '@/components/home/data';
 import type { HomeAccount, HomeDoctor } from '@/components/home/types';
-import { currentTime, loadAvailability, one } from '@/components/patient/data';
+import { currentTime, one } from '@/components/patient/data';
 import { PatientDock } from '@/components/PatientDock';
 import { Footer } from '@/components/Footer';
 import { PatientAppHome, type PatientRecord, type PatientVisit } from '@/components/home/PatientAppHome';
@@ -17,6 +16,8 @@ import { siteUrl } from '@/lib/site-url';
 import { formatCityName } from '@/lib/geo';
 import { loadInsurance } from '@/lib/insurance';
 import { pausedDoctorIds } from '@/lib/doctor-pause';
+import { partnerCities } from '@/lib/partner-cities';
+import { loadDoctorRatings, loadPublicAvailability, loadPublicDoctorRows, loadPublicHospitals } from '@/lib/public-directory';
 
 // The app banner's QR code: the site's address, made once per server.
 let siteQr: Promise<string> | null = null;
@@ -47,7 +48,7 @@ export default async function Home(props: {
   if (searchParams?.booking === 'consultation') redirect('/find');
 
   const supabase = await createClient();
-  const user = await getCurrentUser();
+  const user = await getSessionUser();
 
   let profile: { role?: string | null; full_name?: string | null } | null = null;
   if (user) {
@@ -68,32 +69,22 @@ export default async function Home(props: {
     return <PatientHome userId={user?.id ?? null} name={account.kind === 'patient' ? account.name : null} now={now} />;
   }
 
-  const [{ data: dbDoctors }, hospitals, { data: labCities }, availability, appQr] = await Promise.all([
-    supabase
-      .from('doctors')
-      .select(`
-        id, specialty, experience_years, consultation_fee, image_url, qualifications,
-        profiles!doctors_profile_id_fkey ( full_name ),
-        hospitals ( id, name, city )
-      `)
-      .limit(500),
-    loadHospitals(supabase),
-    supabase.from('diagnostic_centers').select('city').eq('status', 'active'),
-    loadAvailability(supabase, now),
+  // The lists are shared by every visitor and kept for a minute or two (lib/public-directory.ts), so this is one round
+  // of reads at most, and usually none.
+  const [dbDoctors, hospitals, cities, availability, appQr, paused] = await Promise.all([
+    loadPublicDoctorRows(),
+    loadPublicHospitals(),
+    partnerCities().catch(() => [] as string[]),
+    loadPublicAvailability(),
     siteQrSvg(),
+    // Doctors whose bookings are paused are hidden from patients.
+    pausedDoctorIds(),
   ]);
 
   // Doctors are seen at their hospital, so they are as near as its pin.
   const hospitalPins = new Map(hospitals.map((h) => [h.id, h.lat != null && h.lng != null ? { lat: h.lat, lng: h.lng } : null]));
 
-  type DoctorRow = {
-    id: string; specialty: string | null; experience_years: number | null; consultation_fee: number | null; image_url: string | null; qualifications: string | null;
-    profiles: { full_name: string | null } | { full_name: string | null }[] | null;
-    hospitals: { id: string; name: string; city: string | null } | { id: string; name: string; city: string | null }[] | null;
-  };
-  // Doctors whose bookings are paused are hidden from patients.
-  const paused = await pausedDoctorIds();
-  const doctors: HomeDoctor[] = ((dbDoctors ?? []) as DoctorRow[]).filter((d) => !paused.has(d.id)).map((d) => {
+  const doctors: HomeDoctor[] = dbDoctors.filter((d) => !paused.has(d.id)).map((d) => {
     const hospital = one(d.hospitals);
     const pin = hospital ? hospitalPins.get(hospital.id) ?? null : null;
     return {
@@ -123,26 +114,14 @@ export default async function Home(props: {
     .slice(0, 150);
 
   // Published patient ratings; doctors without any show none.
-  if (bookable.length) {
-    const { data: ratingRows } = await createAdminClient()
-      .from('doctor_reviews')
-      .select('doctor_id, rating')
-      .in('doctor_id', bookable.map((d) => d.id))
-      .eq('is_published', true);
-    const byDoctor = new Map<string, number[]>();
-    for (const r of (ratingRows ?? []) as { doctor_id: string; rating: number }[]) byDoctor.set(r.doctor_id, [...(byDoctor.get(r.doctor_id) ?? []), r.rating]);
-    for (const d of bookable) {
-      const ratings = byDoctor.get(d.id);
-      if (ratings?.length) {
-        d.reviewCount = ratings.length;
-        d.rating = ratings.reduce((a, b) => a + b, 0) / ratings.length;
-      }
+  const ratings = await loadDoctorRatings(bookable.map((d) => d.id));
+  for (const d of bookable) {
+    const r = ratings.get(d.id);
+    if (r) {
+      d.reviewCount = r.count;
+      d.rating = r.rating;
     }
   }
-
-  const cities = Array.from(
-    new Set([...hospitals.map((h) => formatCityName(h.city)), ...((labCities ?? []) as { city: string | null }[]).map((l) => formatCityName(l.city))].filter(Boolean) as string[]),
-  ).sort();
 
   return (
     <>
@@ -187,9 +166,10 @@ function greetingAt(now: number) {
 /** The signed-in patient's home: partner hospitals, their next visit, latest vitals and newest records. */
 async function PatientHome({ userId, name, now }: { userId: string | null; name: string | null; now: number }) {
   const supabase = await createClient();
-  const [hospitals, { data: labCities }, { data: visitRows }, { data: labRows }] = await Promise.all([
-    loadHospitals(supabase),
-    supabase.from('diagnostic_centers').select('city').eq('status', 'active'),
+  // One round of reads: the shared hospital and city lists (usually cached), the patient's visits, reports and card.
+  const [hospitals, cities, { data: visitRows }, { data: labRows }, insured] = await Promise.all([
+    loadPublicHospitals(),
+    partnerCities().catch(() => [] as string[]),
     userId
       ? supabase
         .from('appointments')
@@ -213,6 +193,8 @@ async function PatientHome({ userId, name, now }: { userId: string | null; name:
         .order('created_at', { ascending: false })
         .limit(6)
       : Promise.resolve({ data: [] }),
+    // The patient's insurance card, for the desktop aside.
+    userId ? loadInsurance(createAdminClient(), userId) : Promise.resolve(null),
   ]);
 
   const visits = ((visitRows ?? []) as HomeVisitRow[]).map((v) => {
@@ -262,12 +244,7 @@ async function PatientHome({ userId, name, now }: { userId: string | null; name:
     }),
   ].sort((a, b) => b.at.localeCompare(a.at));
 
-  const cities = Array.from(
-    new Set([...hospitals.map((h) => formatCityName(h.city)), ...((labCities ?? []) as { city: string | null }[]).map((l) => formatCityName(l.city))].filter(Boolean) as string[]),
-  ).sort();
-
-  // The patient's insurance card, for the desktop aside.
-  const insurance = userId ? (await loadInsurance(createAdminClient(), userId)).policy : null;
+  const insurance = insured?.policy ?? null;
 
   return (
     <>

@@ -1,4 +1,5 @@
 import { cache } from 'react'
+import { unstable_cache } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 /**
@@ -13,12 +14,32 @@ type Admin = ReturnType<typeof createAdminClient>
 
 const asBy = (v: unknown): PausedBy | null => (v === 'doctor' || v === 'hospital' ? v : null)
 
+/** Expired by the pause actions, so a pause shows on the lists at once. */
+export const PAUSED_DOCTORS_TAG = 'paused-doctors'
+
+// 42703 / PGRST204: the bookings_paused column doesn't exist yet (before the migration nobody is paused).
+const missingColumn = (e: { code?: string; message?: string }) => e.code === '42703' || e.code === 'PGRST204' || /bookings_paused/.test(e.message ?? '')
+
+// Every patient-facing list asks for these, so they are kept for a minute across requests instead of read each time.
+// Bookings themselves check the doctor's own row (doctorPause), not this list.
+const readPausedIds = unstable_cache(
+  async (): Promise<string[]> => {
+    const { data, error } = await createAdminClient().from('doctors').select('id').eq('bookings_paused', true).limit(5000)
+    if (error) {
+      if (missingColumn(error)) return []
+      // Throwing keeps a failed read out of the cache, so the next request asks again.
+      throw new Error(`paused doctors: ${error.message}`)
+    }
+    return ((data ?? []) as { id: string }[]).map((r) => r.id)
+  },
+  ['paused-doctor-ids-v1'],
+  { tags: [PAUSED_DOCTORS_TAG], revalidate: 60 },
+)
+
 /** Ids of every doctor whose bookings are paused (empty before the migration or on any read error). Once per request. */
 export const pausedDoctorIds = cache(async (): Promise<Set<string>> => {
   try {
-    const { data, error } = await createAdminClient().from('doctors').select('id').eq('bookings_paused', true).limit(5000)
-    if (error) return new Set()
-    return new Set(((data ?? []) as { id: string }[]).map((r) => r.id))
+    return new Set(await readPausedIds())
   } catch {
     return new Set()
   }

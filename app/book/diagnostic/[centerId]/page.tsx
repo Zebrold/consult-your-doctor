@@ -42,13 +42,18 @@ export default async function DiagnosticBookingPage({ params, searchParams }: Di
   const initialTests = (Array.isArray(query.test) ? query.test : query.test ? [query.test] : []).slice(0, 10);
   const supabase = await createClient();
 
-  // Try fetching center with doorstep columns; if missing from DB schema, fallback to core fields
+  // The lab (with the doorstep columns; on an older database without them, the core fields), the patient's details and
+  // the fees, in one round.
   let center: CenterRow | null = null;
-  const { data: centerFull, error: centerErr } = await supabase
-    .from("diagnostic_centers")
-    .select("id, name, city, address, image_url, test_prices, doorstep_enabled, doorstep_fee")
-    .eq("id", centerId)
-    .maybeSingle();
+  const [{ data: centerFull, error: centerErr }, patient, fees] = await Promise.all([
+    supabase
+      .from("diagnostic_centers")
+      .select("id, name, city, address, image_url, test_prices, doorstep_enabled, doorstep_fee")
+      .eq("id", centerId)
+      .maybeSingle(),
+    loadPatientDefaults(supabase, createAdminClient()),
+    getBookingFees(),
+  ]);
 
   if (!centerErr && centerFull) {
     center = centerFull;
@@ -60,11 +65,6 @@ export default async function DiagnosticBookingPage({ params, searchParams }: Di
       .maybeSingle();
     center = centerBasic;
   }
-
-  const [patient, fees] = await Promise.all([
-    loadPatientDefaults(supabase, createAdminClient()),
-    getBookingFees(),
-  ]);
 
   if (!center) notFound();
 

@@ -1,6 +1,7 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
+import { DIRECTORY_TAG } from '@/lib/public-directory'
 import { z } from 'zod'
 import { getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -42,6 +43,8 @@ export async function setReviewPublished(kind: 'doctor' | 'hospital', id: string
   const target = row as { doctor_id?: string | null; hospital_id?: string | null }
   revalidatePath('/executive/reviews')
   revalidatePath('/')
+  // Ratings on the cached lists (lib/public-directory.ts).
+  updateTag(DIRECTORY_TAG)
   if (target.doctor_id) revalidatePath(`/doctors/${target.doctor_id}`)
   if (target.hospital_id) revalidatePath(`/hospitals/${target.hospital_id}`)
   return { ok: true }

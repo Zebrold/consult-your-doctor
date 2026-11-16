@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getCurrentUser } from '@/lib/supabase/server'
+import { getSessionUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 /**
@@ -8,7 +8,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
  * public API.
  */
 export async function patientAccount(next: string) {
-  const user = await getCurrentUser()
+  const user = await getSessionUser()
   if (!user) redirect(`/login/patient?next=${encodeURIComponent(next)}`)
   const admin = createAdminClient()
   const { data } = await admin.from('profiles').select('full_name, email, phone_number').eq('id', user.id).maybeSingle()

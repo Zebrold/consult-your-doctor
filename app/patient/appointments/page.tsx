@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import QRCode from 'qrcode'
-import { createClient, getCurrentUser } from '@/lib/supabase/server'
+import { createClient, getSessionUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { signRecordFiles } from '@/lib/records'
 import { signReportLinks } from '@/lib/lab-reports'
@@ -79,7 +79,7 @@ function relativeDay(at: string, now: number) {
 
 export default async function PatientAppointments() {
   const supabase = await createClient()
-  const user = await getCurrentUser()
+  const user = await getSessionUser()
   if (!user) redirect('/login/patient?next=/patient/appointments')
 
   const now = currentTime()
@@ -112,13 +112,12 @@ export default async function PatientAppointments() {
   const visits = (visitRows ?? []) as VisitRow[]
   const labs = (labRows ?? []) as LabRow[]
   const admin = createAdminClient()
-  // Bookings made for a family member say who they are for.
-  const members = await familyNames(admin, [...visits.map((v) => v.family_member_id), ...labs.map((b) => b.family_member_id)])
-  const forLabel = (id: string | null | undefined) => (id && members[id] ? `For ${members[id].name} · ` : '')
-
-  // Booking fees paid online, the prescriptions doctors sent and the reports labs uploaded (private files get short-lived links).
+  // Booking fees paid online, the prescriptions doctors sent and the reports labs uploaded (private files get short-lived
+  // links), and who family bookings are for, in one round.
   const paymentCols = 'id, status, appointment_id, diagnostic_booking_id, amount, gateway, refund_amount, refunded_at'
-  const [visitPayments, labPayments, recordLinks, reportLinks, cancellationQuery] = await Promise.all([
+  const [members, visitPayments, labPayments, recordLinks, reportLinks, cancellationQuery] = await Promise.all([
+    // Bookings made for a family member say who they are for.
+    familyNames(admin, [...visits.map((v) => v.family_member_id), ...labs.map((b) => b.family_member_id)]),
     visits.length ? admin.from('payments').select(paymentCols).in('appointment_id', visits.map((v) => v.id)).in('status', ['success', 'refunded']) : Promise.resolve({ data: [] as PaymentRow[] }),
     labs.length ? admin.from('payments').select(paymentCols).in('diagnostic_booking_id', labs.map((b) => b.id)).in('status', ['success', 'refunded']) : Promise.resolve({ data: [] as PaymentRow[] }),
     signRecordFiles(admin, visits.flatMap((v) => (v.medical_records ?? []).filter((r) => r.document_type === 'prescription').map((r) => r.file_url))),
@@ -126,6 +125,7 @@ export default async function PatientAppointments() {
     // The patient's own cancellations; an error (before 20261118_self_service_features.sql) means none yet.
     admin.from('booking_cancellations').select('appointment_id, diagnostic_booking_id, refund_due, paid_amount').eq('patient_id', user.id),
   ])
+  const forLabel = (id: string | null | undefined) => (id && members[id] ? `For ${members[id].name} · ` : '')
   const payments = [...((visitPayments.data ?? []) as PaymentRow[]), ...((labPayments.data ?? []) as PaymentRow[])]
   const paymentsOf = (id: string) => payments.filter((p) => (p.appointment_id ?? p.diagnostic_booking_id) === id)
   const paidOnline = (id: string) => paymentsOf(id).find((p) => p.status === 'success' && isOnlineGateway(p.gateway))

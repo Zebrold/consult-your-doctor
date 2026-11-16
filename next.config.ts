@@ -48,6 +48,11 @@ const nextConfig: NextConfig = {
   // multipart overhead. The default limit is 1 MB.
   experimental: {
     serverActions: { bodySizeLimit: "6mb" },
+    // Every page here is dynamic (the root layout reads the session), and the browser kept none of them: going back to
+    // a page opened a moment ago waited on the server again. Keep a visited page for 30 seconds, so moving between
+    // Home, Bookings and Profile is instant. Changes still show at once: revalidatePath in the server actions and
+    // router.refresh() after them clear this cache.
+    staleTimes: { dynamic: 30 },
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

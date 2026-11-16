@@ -1,5 +1,5 @@
 import { jsonLd } from "@/lib/json-ld";
-import { createClient, getCurrentUser } from "@/lib/supabase/server";
+import { createClient, getSessionUser } from "@/lib/supabase/server";
 import { getBookingFees } from "@/lib/booking-fees";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
@@ -63,11 +63,8 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
   const { id } = await props.params;
 
   const supabase = await createClient();
-  const user = await getCurrentUser();
-  // For the top bar: doctors open this page from their portal ("My public profile"); everyone else is a patient or visitor.
-  const { data: viewer } = user
-    ? await createAdminClient().from("profiles").select("full_name, email, role").eq("id", user.id).maybeSingle()
-    : { data: null };
+  const user = await getSessionUser();
+  const admin = createAdminClient();
 
   // Fetch full doctor data from DB. Registration, education and insurance arrive with the 20261009 migration.
   const selectDoctor = (withProfile: boolean) =>
@@ -90,18 +87,6 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
       `)
       .eq("id", id)
       .maybeSingle();
-  let { data: doctor, error: doctorError } = await selectDoctor(true);
-  if (doctorError) ({ data: doctor, error: doctorError } = await selectDoctor(false));
-
-  if (!doctor || doctorError) {
-    notFound();
-  }
-
-  const doctorData: ProfileDoctorData = doctor as unknown as ProfileDoctorData;
-  doctorData.education = parseEducation((doctor as { education?: unknown }).education);
-  // Reviews patients wrote after their visits (read on the server; only first names are shown).
-  doctorData.reviews = await loadDoctorReviews(createAdminClient(), id, 6);
-
   // Only times patients can still book: from now on and not taken. Past slots must never look bookable. Only the
   // doctor's own hospital's times here; hospitals they also visit list their slots on their own page (lib/practices.ts).
   const openSlots = (columns: string) =>
@@ -112,18 +97,42 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
       .eq("is_booked", false)
       .gte("start_time", new Date().toISOString())
       .order("start_time", { ascending: true });
-  const first = await openSlots("id, start_time, end_time, is_booked, hospital_id");
-  const slotRows = (first.error ? (await openSlots("id, start_time, end_time, is_booked")).data : first.data) as unknown as
-    | { id: string; start_time: string; end_time: string; is_booked: boolean; hospital_id?: string | null }[]
-    | null;
+
+  // Everything that needs only the doctor's id, in one round (it used to be six rounds one after another).
+  const [{ data: viewer }, firstDoctor, reviews, firstSlots, paused, { data: links }] = await Promise.all([
+    // For the top bar: doctors open this page from their portal ("My public profile"); everyone else is a patient or visitor.
+    user ? admin.from("profiles").select("full_name, email, role").eq("id", user.id).maybeSingle() : Promise.resolve({ data: null }),
+    selectDoctor(true),
+    // Reviews patients wrote after their visits (read on the server; only first names are shown).
+    loadDoctorReviews(admin, id, 6),
+    openSlots("id, start_time, end_time, is_booked, hospital_id"),
+    pausedDoctorIds(),
+    admin.from("doctor_practices").select("hospital_id").eq("doctor_id", id).eq("status", "confirmed").limit(20),
+  ]);
+
+  // Older databases lack some columns; then the same reads without them.
+  let { data: doctor, error: doctorError } = firstDoctor;
+  if (doctorError) ({ data: doctor, error: doctorError } = await selectDoctor(false));
+
+  if (!doctor || doctorError) {
+    notFound();
+  }
+
+  const doctorData: ProfileDoctorData = doctor as unknown as ProfileDoctorData;
+  doctorData.education = parseEducation((doctor as { education?: unknown }).education);
+  doctorData.reviews = reviews;
+
   const homeId = (doctor as { hospital_id?: string | null }).hospital_id ?? null;
+  const alsoIds = ((links ?? []) as { hospital_id: string }[]).map((l) => l.hospital_id).filter((h) => h !== homeId);
+  const [slotRows, { data: alsoRows }] = await Promise.all([
+    (firstSlots.error ? openSlots("id, start_time, end_time, is_booked").then((r) => r.data) : Promise.resolve(firstSlots.data)) as Promise<unknown> as Promise<
+      { id: string; start_time: string; end_time: string; is_booked: boolean; hospital_id?: string | null }[] | null
+    >,
+    alsoIds.length ? supabase.from("hospitals").select("id, name, city").in("id", alsoIds) : Promise.resolve({ data: [] }),
+  ]);
   doctorData.schedules = (slotRows ?? []).filter((s) => !s.hospital_id || s.hospital_id === homeId);
   // A paused doctor stays reachable but shows no open times (the page's existing "no open times" state).
-  if ((await pausedDoctorIds()).has(id)) doctorData.schedules = [];
-
-  const { data: links } = await createAdminClient().from("doctor_practices").select("hospital_id").eq("doctor_id", id).eq("status", "confirmed").limit(20);
-  const alsoIds = ((links ?? []) as { hospital_id: string }[]).map((l) => l.hospital_id).filter((h) => h !== homeId);
-  const { data: alsoRows } = alsoIds.length ? await supabase.from("hospitals").select("id, name, city").in("id", alsoIds) : { data: [] };
+  if (paused.has(id)) doctorData.schedules = [];
   const alsoAt = (alsoRows ?? []) as { id: string; name: string; city: string | null }[];
 
   const schema = {

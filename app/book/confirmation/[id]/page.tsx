@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import QRCode from 'qrcode'
-import { getCurrentUser } from '@/lib/supabase/server'
+import { getSessionUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { loadBookingCard } from '@/lib/booking-card'
 import { currentTime } from '@/components/patient/data'
@@ -26,7 +26,7 @@ interface Props {
 export default async function BookingConfirmationPage(props: Props) {
   const { id } = await props.params
   const search = (await props.searchParams) ?? {}
-  const [viewer, card] = await Promise.all([getCurrentUser(), loadBookingCard(createAdminClient(), id)])
+  const [viewer, card] = await Promise.all([getSessionUser(), loadBookingCard(createAdminClient(), id)])
   if (!card) notFound()
 
   const isOwner = viewer?.id === card.patientId

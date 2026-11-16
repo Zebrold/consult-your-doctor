@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { ROLE_COOKIE, ROLE_COOKIE_OPTIONS, readRoleCookie, roleCookieValue } from '@/lib/role-cookie'
+import { serverFetch } from '@/lib/supabase/fetch'
 
 const AUTH_PAGES = ['/login', '/signup', '/signup/doctor', '/signup/hospital', '/signup/diagnostic-centre', '/login/patient', '/login/doctor', '/login/hospital', '/login/executive', '/login/diagnostic']
 
@@ -59,6 +60,8 @@ export async function proxy(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      // A stalled request gives up instead of holding every page (lib/supabase/fetch.ts).
+      global: { fetch: serverFetch },
       cookies: {
         getAll() {
           return request.cookies.getAll()

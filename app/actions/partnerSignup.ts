@@ -26,14 +26,32 @@ import {
   type PartnerDetails,
   type PartnerKind,
 } from '@/lib/partner-applications'
+import {
+  ACCOUNT_MESSAGE,
+  EMAIL_MESSAGE,
+  GSTIN_MESSAGE,
+  GSTIN_PAN_MESSAGE,
+  IFSC_MESSAGE,
+  LANDLINE_MESSAGE,
+  LATER_TIME_MESSAGE,
+  PAN_MESSAGE,
+  PINCODE_MESSAGE,
+  UPI_MESSAGE,
+  gstinMatchesPan,
+  isEmail,
+  isLaterTime,
+  phoneProblem,
+} from '@/lib/join-rules'
+import { APPLICATION_DOCS } from '@/lib/application-documents'
 
 // Hospitals and diagnostic centres apply to join from /signup/hospital and /signup/diagnostic-centre. Applicants
 // aren't signed in, so the checks and the insert run here with the admin client; the executive portal reviews the
 // applications, and approving one goes through createHospital / createDiagnosticCenter (app/actions/network.ts).
 // Documents are uploaded first (app/actions/applicationUploads.ts); the form sends the upload's id.
 
-type Result = { success: true } | { success: false; error: string }
-const fail = (error: string): Result => ({ success: false, error })
+// `field` names the input to fix: the form opens its step and shows the message under it (app/(auth)/signup/join-ui.tsx).
+type Result = { success: true } | { success: false; error: string; field?: string }
+const fail = (error: string, field?: string): Result => ({ success: false, error, field })
 
 const text = (max: number) => z.string().trim().max(max)
 const optional = (max: number) => text(max).optional().default('')
@@ -46,8 +64,8 @@ const optionalCount = (max: number) => z.union([z.literal(''), z.coerce.number()
 const date = (message: string) => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, message)
 const optionalDate = z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]).optional().default('')
 const time = (message: string) => z.string().regex(/^\d{2}:\d{2}$/, message)
-const phoneDigits = z.string().trim().regex(/^[0-9 ]{6,15}$/, 'Enter a valid phone number.')
-const orgPhone = (message: string) => z.string().trim().regex(/^[0-9 +-]{6,16}$/, message)
+const orgPhone = () => z.string().trim().regex(/^[0-9 +-]{6,16}$/, LANDLINE_MESSAGE)
+const emailField = z.string().trim().toLowerCase().max(200).refine(isEmail, EMAIL_MESSAGE)
 const year = new Date().getFullYear()
 
 const common = z.object({
@@ -58,36 +76,50 @@ const common = z.object({
   landmark: optional(120),
   city: text(80).min(2, 'Enter the city.'),
   state: oneOf(INDIAN_STATES, 'Choose the state.'),
-  pincode: z.string().trim().regex(/^[1-9][0-9]{5}$/, 'Enter the 6-digit PIN code.'),
-  orgPhone: orgPhone('Enter the phone number patients call.'),
-  orgEmail: z.string().trim().toLowerCase().max(200).email('Enter the organisation’s email address.'),
+  pincode: z.string().trim().regex(/^[1-9][0-9]{5}$/, PINCODE_MESSAGE),
+  orgPhone: orgPhone(),
+  orgEmail: emailField,
   website: z.union([z.literal(''), z.string().trim().max(200).url('Enter the website as a full address, starting with https://')]).optional().default(''),
   registrationNumber: required(80, 'Enter your registration or licence number.'),
   registrationValidUntil: date('Enter the date your registration is valid until.'),
   registrationAuthority: required(120, 'Enter the authority that issued your registration.'),
   bmwAuthorisation: required(80, 'Enter your biomedical waste authorisation.'),
-  pan: z.string().trim().toUpperCase().regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, 'Check the PAN: 10 characters, like ABCDE1234F.'),
-  gstin: z.union([z.literal(''), z.string().trim().toUpperCase().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/, 'Check the GSTIN: 15 characters.')]).optional().default(''),
+  pan: z.string().trim().toUpperCase().regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, PAN_MESSAGE),
+  gstin: z.union([z.literal(''), z.string().trim().toUpperCase().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/, GSTIN_MESSAGE)]).optional().default(''),
   bankHolder: required(120, 'Enter the bank account holder’s name.'),
-  bankAccount: z.string().trim().regex(/^[0-9]{9,18}$/, 'Check the bank account number: 9 to 18 digits.'),
-  bankIfsc: z.string().trim().toUpperCase().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Check the IFSC code: 11 characters, like HDFC0001234.'),
-  upiId: z.union([z.literal(''), z.string().trim().max(120).regex(/^[A-Za-z0-9._-]{2,}@[A-Za-z0-9]{2,}$/, 'Check the UPI ID, like name@bank.')]).optional().default(''),
+  bankAccount: z.string().trim().regex(/^[0-9]{9,18}$/, ACCOUNT_MESSAGE),
+  bankIfsc: z.string().trim().toUpperCase().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, IFSC_MESSAGE),
+  upiId: z.union([z.literal(''), z.string().trim().max(120).regex(/^[A-Za-z0-9._-]{2,}@[A-Za-z0-9]{2,}$/, UPI_MESSAGE)]).optional().default(''),
   contactName: text(120).min(2, 'Enter the contact person’s name.'),
   contactRole: text(80).min(2, 'Enter the contact person’s role.'),
-  email: z.string().trim().toLowerCase().max(200).email('Enter a valid work email address.'),
+  email: emailField,
   countryCode: z.string().trim().regex(/^\+\d{1,4}$/, 'Choose the country code.'),
-  phone: phoneDigits,
+  // Checked against its country code below (crossChecks).
+  phone: z.string().trim(),
   bestTimeToCall: optionalOneOf(CALL_TIMES),
   secondName: optional(120),
   secondCountryCode: z.union([z.literal(''), z.string().trim().regex(/^\+\d{1,4}$/)]).optional().default(''),
-  secondPhone: z.union([z.literal(''), phoneDigits]).optional().default(''),
-  secondEmail: z.union([z.literal(''), z.string().trim().toLowerCase().max(200).email('Check the second contact’s email address.')]).optional().default(''),
+  secondPhone: z.string().trim().optional().default(''),
+  secondEmail: z.union([z.literal(''), emailField]).optional().default(''),
 })
+
+/** The checks that compare fields: each phone against its country code, the GSTIN against the PAN, and the hours. */
+type Crossed = { countryCode: string; phone: string; secondCountryCode: string; secondPhone: string; pan: string; gstin: string; openFrom: string; openTo: string }
+function crossChecks(d: Crossed, ctx: z.RefinementCtx) {
+  const phone = phoneProblem(d.countryCode, d.phone.replace(/\D/g, ''))
+  if (phone) ctx.addIssue({ code: 'custom', path: ['phone'], message: phone })
+  if (d.secondPhone) {
+    const second = phoneProblem(d.secondCountryCode || '+91', d.secondPhone.replace(/\D/g, ''))
+    if (second) ctx.addIssue({ code: 'custom', path: ['secondPhone'], message: second })
+  }
+  if (!gstinMatchesPan(d.gstin, d.pan)) ctx.addIssue({ code: 'custom', path: ['gstin'], message: GSTIN_PAN_MESSAGE })
+  if (!isLaterTime(d.openFrom, d.openTo)) ctx.addIssue({ code: 'custom', path: ['openTo'], message: LATER_TIME_MESSAGE })
+}
 
 const hospitalSchema = common.extend({
   facilityType: oneOf(HOSPITAL_TYPES, 'Choose the type of facility.'),
   doctorsOnStaff: count(1, 5000, 'Enter how many doctors are on staff.'),
-  emergencyPhone: z.union([z.literal(''), orgPhone('Check the emergency phone number.')]).optional().default(''),
+  emergencyPhone: z.union([z.literal(''), orgPhone()]).optional().default(''),
   accreditation: oneOf(HOSPITAL_ACCREDITATIONS, 'Choose your accreditation, or None yet.'),
   accreditationNumber: optional(80),
   accreditationValidUntil: optionalDate,
@@ -101,7 +133,7 @@ const hospitalSchema = common.extend({
   openFrom: time('Enter when your OPD opens.'),
   openTo: time('Enter when your OPD closes.'),
   insurers: optional(400),
-})
+}).superRefine(crossChecks)
 
 const labSchema = common.extend({
   centreType: oneOf(LAB_TYPES, 'Choose the type of centre.'),
@@ -122,7 +154,7 @@ const labSchema = common.extend({
   testsOffered: count(1, 20000, 'Enter how many tests you offer.'),
   reportTime: oneOf(REPORT_TIMES, 'Choose your usual report time.'),
   reportFormat: oneOf(REPORT_FORMATS, 'Choose how you share reports.'),
-})
+}).superRefine(crossChecks)
 
 const LISTS = ['departments', 'facilities', 'openDays', 'services']
 
@@ -142,13 +174,15 @@ const opt = (v: string) => v || undefined
 
 export async function submitPartnerApplication(kind: PartnerKind, _prev: unknown, form: FormData): Promise<Result> {
   if (kind !== 'hospital' && kind !== 'diagnostic_center') return fail('Unknown application type.')
-  const second = kind === 'hospital' ? 'keepUpdated' : 'reportsSigned'
-  if (form.get('authorised') !== 'on' || form.get(second) !== 'on' || form.get('consentVerification') !== 'on') {
-    return fail('Please confirm all three declarations before sending.')
-  }
-
   const parsed = (kind === 'hospital' ? hospitalSchema : labSchema).safeParse(formValues(form))
-  if (!parsed.success) return fail(parsed.error.issues[0].message)
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]
+    return fail(issue.message, typeof issue.path[0] === 'string' ? issue.path[0] : undefined)
+  }
+  const second = kind === 'hospital' ? 'keepUpdated' : 'reportsSigned'
+  for (const name of ['authorised', second, 'consentVerification']) {
+    if (form.get(name) !== 'on') return fail('Tick this to continue.', name)
+  }
   const d = parsed.data
 
   let details: PartnerDetails
@@ -174,7 +208,7 @@ export async function submitPartnerApplication(kind: PartnerKind, _prev: unknown
     }
   } else {
     const l = d as z.infer<typeof labSchema>
-    if (l.services.includes('Ultrasound') && !l.pcpndtNumber) return fail('Centres that perform ultrasound need a PCPNDT registration number.')
+    if (l.services.includes('Ultrasound') && !l.pcpndtNumber) return fail('Centres that perform ultrasound need a PCPNDT registration number.', 'pcpndtNumber')
     details = {
       centreType: l.centreType,
       branches: num(l.branches),
@@ -197,11 +231,6 @@ export async function submitPartnerApplication(kind: PartnerKind, _prev: unknown
     }
   }
 
-  // Each application emails the address given, so limit how many one network can send.
-  if (await overLimit(`partner-signup:${(await clientIp()) ?? 'unknown'}`, 5, 60 * 60_000)) {
-    return fail('Several applications have been sent from this network. Please try again in an hour.')
-  }
-
   const admin = createAdminClient()
   const { data: open } = await admin
     .from('partner_applications')
@@ -211,13 +240,22 @@ export async function submitPartnerApplication(kind: PartnerKind, _prev: unknown
     .eq('email', d.email)
     .limit(1)
     .maybeSingle()
-  if (open) return fail('An application from this email address is already waiting for review. Our team will be in touch.')
+  if (open) return fail('An application from this email address is already waiting for review. Our team will be in touch.', 'email')
 
   // The documents uploaded under this form's upload id. Before the documents bucket exists, they come by email.
   const uploads = await documentsReady(admin)
   const documents = uploads ? await collectDocuments(admin, kind, String(form.get('uploadId') ?? '') || null) : {}
   const missing = uploads ? missingDocuments(kind, documents) : []
-  if (missing.length > 0) return fail(`Please add the ${missing.join(', ').toLowerCase()}.`)
+  if (missing.length > 0) {
+    const firstMissing = APPLICATION_DOCS[kind].find((doc) => doc.required && !documents[doc.key])
+    return fail(`Please add the ${missing.join(', ').toLowerCase()}.`, firstMissing ? `doc:${firstMissing.key}` : undefined)
+  }
+
+  // Each application emails the address given, so limit how many one network can send. Counted only now, when the
+  // application is about to be saved: corrections after a message above don't use up the network's attempts.
+  if (await overLimit(`partner-signup:${(await clientIp()) ?? 'unknown'}`, 5, 60 * 60_000)) {
+    return fail('Several applications have been sent from this network. Please try again in an hour.')
+  }
 
   const { error } = await admin.from('partner_applications').insert({
     kind,
@@ -259,7 +297,7 @@ export async function submitPartnerApplication(kind: PartnerKind, _prev: unknown
     } satisfies PartnerDetails,
   })
   if (error) {
-    if (error.code === '23505') return fail('An application from this email address is already waiting for review.')
+    if (error.code === '23505') return fail('An application from this email address is already waiting for review.', 'email')
     console.error('submitPartnerApplication:', error)
     return fail('We could not send your application. Please try again, or contact us.')
   }

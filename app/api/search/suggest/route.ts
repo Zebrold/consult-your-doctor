@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { SPECIALITIES } from '@/components/home/specialities'
 import { pricedTests } from '@/lib/pricing'
 import { pausedDoctorIds } from '@/lib/doctor-pause'
+import { serverFetch } from '@/lib/supabase/fetch'
 
 // Suggestions under the search boxes (components/patient/SearchSuggest.tsx): specialities, doctors, hospitals,
 // diagnostic centres and tests matching what is typed. Only what the Find page shows the public: names, specialities and
@@ -25,7 +26,7 @@ async function build(): Promise<Entry[]> {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } },
+    { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: serverFetch } },
   )
   const [doctors, hospitals, labs, paused] = await Promise.all([
     supabase.from('doctors').select('id, specialty, profiles!doctors_profile_id_fkey ( full_name ), hospitals ( name, city )').limit(2000),

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useActionState, type ReactNode } from 'react'
+import { useEffect, useState, useActionState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { staffLogin, sendPasswordResetOTP } from '@/app/actions/auth'
 import { ArrowLeft, ChevronRight, Loader2, MailCheck } from 'lucide-react'
@@ -47,6 +47,12 @@ export function StaffLoginCard({
   footer: ReactNode
 }) {
   const [state, formAction, isPending] = useActionState(staffLogin, null)
+  // Signed in: open the portal with a full page load, so it starts fresh with the new session.
+  const opening = !!state && 'to' in state && !!state.to
+  useEffect(() => {
+    if (state && 'to' in state && state.to) window.location.assign(state.to)
+  }, [state])
+  const busy = isPending || opening
   const [showPassword, setShowPassword] = useState(false)
 
   const [view, setView] = useState<'login' | 'forgot' | 'verify'>('login')
@@ -149,8 +155,8 @@ export function StaffLoginCard({
               </div>
             </div>
 
-            <button disabled={isPending} type="submit" className={authButton}>
-              {isPending ? (
+            <button disabled={busy} type="submit" className={authButton}>
+              {busy ? (
                 <>
                   <Loader2 className="w-[18px] h-[18px] animate-spin" /> Logging in…
                 </>

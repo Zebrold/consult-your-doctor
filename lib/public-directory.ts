@@ -1,6 +1,7 @@
 import { unstable_cache } from 'next/cache'
 import { createClient } from '@supabase/supabase-js'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { serverFetch } from '@/lib/supabase/fetch'
 import { loadHospitals } from '@/components/home/data'
 import type { HomeHospital } from '@/components/home/types'
 import { loadAvailability, type Availability } from '@/components/patient/data'
@@ -25,6 +26,7 @@ const SLOTS_REVALIDATE = 60
 const publicClient = () =>
   createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: serverFetch },
   })
 
 async function orElse<T>(read: () => Promise<T>, fallback: T): Promise<T> {

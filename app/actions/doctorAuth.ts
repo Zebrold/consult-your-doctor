@@ -12,6 +12,8 @@ import { overLimit } from '@/lib/rate-limit'
 import { collectDocuments, documentsReady, missingDocuments } from '@/lib/application-uploads'
 import { DOCTOR_LANGUAGES, DOCTOR_SPECIALTIES, GENDERS, MEDICAL_COUNCILS, PRACTICE_TYPES, SLOT_MINUTES, doctorDetails, parseApplication, type DoctorDetails } from '@/lib/doctor-applications'
 import { WEEKDAYS } from '@/lib/partner-applications'
+import { EMAIL_MESSAGE, PERSONAL_PAN_MESSAGE, isEmail, isLaterTime, phoneProblem } from '@/lib/join-rules'
+import { APPLICATION_DOCS } from '@/lib/application-documents'
 
 export async function getHospitals() {
   const supabase = await createClient()
@@ -31,15 +33,20 @@ export async function submitDoctorSignup(_prevState: unknown, formData: FormData
   // " | " separates the packed fields below, so strip pipes from free-text input.
   const field = (name: string) => ((formData.get(name) as string | null) ?? '').replace(/\|/g, '/').trim()
   const list = (name: string, allowed: string[]) => formData.getAll(name).map(String).filter((v) => allowed.includes(v))
-  const year = (name: string) => (/^\d{4}$/.test(field(name)) ? Number(field(name)) : null)
+  const year = (name: string) => {
+    const y = /^\d{4}$/.test(field(name)) ? Number(field(name)) : 0
+    return y >= 1950 && y <= new Date().getFullYear() ? y : null
+  }
   const isDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v)
   const isTime = (v: string) => /^\d{2}:\d{2}$/.test(v)
-  const fail = (error: string) => ({ error, success: false })
+  // `field` names the input to fix: the form opens its step and shows the message under it (app/(auth)/signup/join-ui.tsx).
+  const fail = (error: string, input?: string) => ({ error, success: false, field: input })
 
   const fullName = [field('title'), field('firstName'), field('middleName'), field('lastName')].filter(Boolean).join(' ')
   const email = field('email').toLowerCase()
+  const countryCode = field('countryCode') || '+91'
   const phoneDigits = field('phone').replace(/\D/g, '')
-  const phone = phoneDigits ? `${field('countryCode')}${phoneDigits}` : ''
+  const phone = `${countryCode}${phoneDigits}`
   const specialty = field('specialty')
   const qualificationsRaw = field('qualifications')
   const experienceYears = field('experience_years')
@@ -49,75 +56,95 @@ export async function submitDoctorSignup(_prevState: unknown, formData: FormData
   const registrationNumber = field('registrationNumber')
   const subSpecialty = field('subSpecialty')
 
-  if (!field('firstName') || !field('lastName') || !email || !phone || !hospitalId) {
-    return fail('Name, email, mobile number, and hospital selection are required.')
+  // The same rules and words as the form's own checks (lib/join-rules.ts), in the order the form asks.
+  if (!field('title')) return fail('Choose one from the list.', 'title')
+  if (!field('firstName')) return fail('This is required.', 'firstName')
+  if (!field('lastName')) return fail('This is required.', 'lastName')
+  if (fullName.length > 200) return fail('Please shorten your name.', 'firstName')
+  if (!GENDERS.includes(field('gender'))) return fail('Choose one from the list.', 'gender')
+  if (!isDate(field('dateOfBirth'))) return fail('Choose a date.', 'dateOfBirth')
+  if (!isEmail(email) || email.length > 200) return fail(EMAIL_MESSAGE, 'email')
+  const phoneIssue = phoneProblem(countryCode, phoneDigits)
+  if (phoneIssue) return fail(phoneIssue, 'phone')
+  const languages = list('languages', DOCTOR_LANGUAGES)
+  if (!languages.length) return fail('Choose at least one.', 'languages')
+
+  if (!MEDICAL_COUNCILS.includes(council)) return fail('Choose one from the list.', 'council')
+  if (registrationNumber.length < 2) return fail('Enter your registration number as printed on your certificate.', 'registrationNumber')
+  if (!year('registrationYear')) return fail(`Enter a year from 1950 to ${new Date().getFullYear()}.`, 'registrationYear')
+  if (!/^\d{1,2}$/.test(experienceYears)) return fail('Enter a number from 0 to 70.', 'experience_years')
+  if (qualificationsRaw.length < 2) return fail('Enter your highest qualification, for example MBBS or MD.', 'qualifications')
+  if (field('college').length < 2) return fail('This is required.', 'college')
+  if (!year('passingYear')) return fail(`Enter a year from 1950 to ${new Date().getFullYear()}.`, 'passingYear')
+  if (!DOCTOR_SPECIALTIES.includes(specialty)) return fail('Choose one from the list.', 'specialty')
+
+  if (!PRACTICE_TYPES.includes(field('practiceType'))) return fail('Choose one from the list.', 'practiceType')
+  if (!hospitalId) return fail('Choose one from the list.', 'hospitalId')
+  if (!/^\d{1,6}$/.test(consultationFee)) return fail('Enter a number from 0 to 100000.', 'consultation_fee')
+  const consultDays = list('consultDays', WEEKDAYS)
+  if (!consultDays.length) return fail('Choose at least one.', 'consultDays')
+  if (!isTime(field('consultFrom'))) return fail('Choose a time.', 'consultFrom')
+  if (!isTime(field('consultTo'))) return fail('Choose a time.', 'consultTo')
+  if (!isLaterTime(field('consultFrom'), field('consultTo'))) return fail('The end time should be after the start time.', 'consultTo')
+  if (!SLOT_MINUTES.includes(Number(field('slotMinutes')))) return fail('Choose one from the list.', 'slotMinutes')
+
+  const pan = field('pan').toUpperCase()
+  if (!/^[A-Z]{3}P[A-Z][0-9]{4}[A-Z]$/.test(pan)) return fail(PERSONAL_PAN_MESSAGE, 'pan')
+
+  for (const name of ['confirmRegistration', 'noDisciplinary', 'consentVerification']) {
+    if (formData.get(name) !== 'on') return fail('Tick this to continue.', name)
   }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200 || fullName.length > 200) {
-    return fail('Please check your name and email address.')
-  }
-  if (!council || !registrationNumber || !specialty || !qualificationsRaw) {
-    return fail('Medical council, registration number, qualification, and specialty are required for verification.')
-  }
-  if (!DOCTOR_SPECIALTIES.includes(specialty) || !MEDICAL_COUNCILS.includes(council)) return fail('Choose your speciality and medical council from the lists.')
-  if (!/^\d{1,2}$/.test(experienceYears) || !/^\d{1,6}$/.test(consultationFee)) return fail('Check your years of experience and consultation fee.')
 
   const details: DoctorDetails = {
     middleName: field('middleName') || undefined,
-    gender: GENDERS.includes(field('gender')) ? field('gender') : undefined,
-    dateOfBirth: isDate(field('dateOfBirth')) ? field('dateOfBirth') : undefined,
-    languages: list('languages', DOCTOR_LANGUAGES),
+    gender: field('gender'),
+    dateOfBirth: field('dateOfBirth'),
+    languages,
     registrationYear: year('registrationYear'),
     registrationValidUntil: isDate(field('registrationValidUntil')) ? field('registrationValidUntil') : undefined,
-    college: field('college').slice(0, 160) || undefined,
+    college: field('college').slice(0, 160),
     passingYear: year('passingYear'),
     otherQualifications: field('otherQualifications').slice(0, 300) || undefined,
-    practiceType: PRACTICE_TYPES.includes(field('practiceType')) ? field('practiceType') : undefined,
+    practiceType: field('practiceType'),
     clinic: field('clinic').slice(0, 300) || undefined,
-    consultDays: list('consultDays', WEEKDAYS),
-    consultFrom: isTime(field('consultFrom')) ? field('consultFrom') : undefined,
-    consultTo: isTime(field('consultTo')) ? field('consultTo') : undefined,
-    slotMinutes: SLOT_MINUTES.includes(Number(field('slotMinutes'))) ? Number(field('slotMinutes')) : null,
+    consultDays,
+    consultFrom: field('consultFrom'),
+    consultTo: field('consultTo'),
+    slotMinutes: Number(field('slotMinutes')),
     bio: field('bio').slice(0, 1500) || undefined,
     conditions: field('conditions').slice(0, 400) || undefined,
     awards: field('awards').slice(0, 400) || undefined,
-    pan: field('pan').toUpperCase() || undefined,
-  }
-  if (!details.gender || !details.dateOfBirth) return fail('Enter your gender and date of birth.')
-  if (!details.languages?.length) return fail('Choose the languages you consult in.')
-  if (!details.registrationYear || !details.college || !details.passingYear) return fail('Enter your year of registration, college and year of passing.')
-  if (!details.practiceType || !details.consultDays?.length || !details.consultFrom || !details.consultTo || !details.slotMinutes) {
-    return fail('Enter how you practise, the days and hours you consult and the time per patient.')
-  }
-  if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(details.pan ?? '')) return fail('Check your PAN: 10 characters, like ABCDE1234F.')
-
-  if (formData.get('confirmRegistration') !== 'on' || formData.get('noDisciplinary') !== 'on' || formData.get('consentVerification') !== 'on') {
-    return fail('Please confirm all three declarations before sending.')
-  }
-
-  // Each application emails the address given, so limit how many one network can send.
-  if (await overLimit(`doctor-signup:${(await clientIp()) ?? 'unknown'}`, 5, 60 * 60_000)) {
-    return fail('Several applications have been sent from this network. Please try again in an hour.')
+    pan,
   }
 
   // Check if email already exists in users or requests
   // Admin client: a visitor's session may not search every profile's email (that would show which addresses are registered).
   const { data: existingUser } = await supabase.from('profiles').select('id').eq('email', email).maybeSingle()
   if (existingUser) {
-    return fail('This email is already registered in the system.')
+    return fail('This email is already registered. Sign in to the doctor portal, or use another email.', 'email')
   }
 
   const { data: existingReq } = await supabase.from('doctor_signup_requests').select('id').eq('email', email).eq('status', 'pending').limit(1).maybeSingle()
   if (existingReq) {
-    return fail('A registration request for this email is already pending.')
+    return fail('An application with this email is already waiting for review. Our team will be in touch.', 'email')
   }
 
   // The documents uploaded under this form's upload id. Before the documents bucket exists, they come by email.
   const uploads = await documentsReady(supabase)
   const documents = uploads ? await collectDocuments(supabase, 'doctor', field('uploadId') || null) : {}
   const missing = uploads ? missingDocuments('doctor', documents) : []
-  if (missing.length > 0) return fail(`Please add your ${missing.join(', ').toLowerCase()}.`)
+  if (missing.length > 0) {
+    const firstMissing = APPLICATION_DOCS.doctor.find((d) => d.required && !documents[d.key])
+    return fail(`Please add your ${missing.join(', ').toLowerCase()}.`, firstMissing ? `doc:${firstMissing.key}` : undefined)
+  }
   if (Object.keys(documents).length > 0) details.documents = documents
   if (!uploads) details.documentsByEmail = true
+
+  // Each application emails the address given, so limit how many one network can send. Counted only now, when the
+  // application is about to be saved: corrections after a message above don't use up the network's attempts.
+  if (await overLimit(`doctor-signup:${(await clientIp()) ?? 'unknown'}`, 5, 60 * 60_000)) {
+    return fail('Several applications have been sent from this network. Please try again in an hour.')
+  }
 
   // The fields approveDoctor() reads are packed into qualifications: the first part is the qualification, then the
   // EXP:/FEE: parts by prefix; COUNCIL:/REG:/SUB: are shown to the reviewer as they are.

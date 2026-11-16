@@ -8,6 +8,21 @@
 begin;
 
 -- ---------------------------------------------------------------------------------------------------------
+-- 0. A helper step 3 needs: the doctors rows that belong to the signed-in doctor. It comes with
+--    20261005_security_hardening.sql; it is created here too, with the same definition, so this script also runs on a
+--    database where that one hasn't been run yet. Running 20261005 later replaces it with the same function.
+-- ---------------------------------------------------------------------------------------------------------
+
+create or replace function public.cyd_my_doctor_ids()
+returns setof uuid
+language sql stable security definer
+set search_path = ''
+as $$ select id from public.doctors where profile_id = auth.uid() $$;
+
+revoke execute on function public.cyd_my_doctor_ids() from public, anon;
+grant execute on function public.cyd_my_doctor_ids() to authenticated;
+
+-- ---------------------------------------------------------------------------------------------------------
 -- 1. Appointments. Doctors used to update their own appointments through the REST API: the status (an unpaid booking
 --    could be marked confirmed), the patient it belonged to, its fees. Doctors now act through the server only
 --    (app/actions/doctor.ts), which checks the visit is theirs and only moves it forward.

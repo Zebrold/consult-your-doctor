@@ -1,11 +1,11 @@
 'use client'
 
-import { useActionState } from 'react'
 import { Stethoscope } from 'lucide-react'
 import { submitDoctorSignup } from '@/app/actions/doctorAuth'
 import { APPLICATION_DOCS } from '@/lib/application-documents'
 import { DOCTOR_LANGUAGES, DOCTOR_SPECIALTIES, DOCTOR_TITLES, GENDERS, MEDICAL_COUNCILS, PRACTICE_TYPES, SLOT_MINUTES } from '@/lib/doctor-applications'
 import { WEEKDAYS } from '@/lib/partner-applications'
+import { EMAIL_MESSAGE, EMAIL_PATTERN, PERSONAL_PAN_MESSAGE, PERSONAL_PAN_PATTERN } from '@/lib/join-rules'
 import {
   AlreadyCard,
   CheckGroup,
@@ -15,6 +15,7 @@ import {
   FormError,
   HowJoiningCard,
   JoinColumns,
+  JoinFormProvider,
   JoinHero,
   JoinSection,
   JoinSent,
@@ -47,8 +48,11 @@ const latestBirthDate = () => {
 }
 
 export function DoctorSignupForm({ hospitals, uploads }: { hospitals: { id: string; name: string }[]; uploads: boolean }) {
-  const [state, formAction, pending] = useActionState(submitDoctorSignup, null)
-  const { formRef, errorRef, onSubmit, updateProgress, done, step, submitted, error, busy } = useJoinForm({ kind: 'doctor', sections: SECTIONS, state, action: formAction, pending })
+  const { formRef, errorRef, onSubmit, updateProgress, done, step, reached, goTo, submitted, error, busy, ctx } = useJoinForm({
+    kind: 'doctor',
+    sections: SECTIONS,
+    send: (data) => submitDoctorSignup(null, data),
+  })
 
   const form = submitted ? (
     <JoinSent
@@ -56,7 +60,16 @@ export function DoctorSignupForm({ hospitals, uploads }: { hospitals: { id: stri
       text="Thank you. Your application is now with our credentialing team, and we have emailed you to confirm it arrived. Once your registration is verified, we email you a link to set your password and sign in to the doctor portal."
     />
   ) : (
-    <form ref={formRef} onSubmit={onSubmit} onInput={updateProgress} onChange={updateProgress} className="rounded-[20px] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.06),0_8px_24px_-16px_rgba(11,27,63,0.16)] p-5 sm:p-7 md:p-9">
+    // noValidate: the steps check the fields themselves (useJoinForm) and say what to fix under each one.
+    <form
+      ref={formRef}
+      noValidate
+      onSubmit={onSubmit}
+      onInput={updateProgress}
+      onChange={updateProgress}
+      className="scroll-mt-28 rounded-[20px] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.06),0_8px_24px_-16px_rgba(11,27,63,0.16)] p-5 sm:p-7 md:p-9"
+    >
+      <JoinFormProvider value={ctx}>
       <FormError error={error} errorRef={errorRef} />
 
       {/* 1. Identity and contact */}
@@ -77,10 +90,10 @@ export function DoctorSignupForm({ hospitals, uploads }: { hospitals: { id: stri
           <SelectBox id="gender" name="gender" required options={GENDERS} />
         </Field>
         <Field label="Date of birth" htmlFor="dob" pair required>
-          <input id="dob" name="dateOfBirth" type="date" required min="1930-01-01" max={latestBirthDate()} autoComplete="bday" className={inputCls} />
+          <input id="dob" name="dateOfBirth" type="date" required min="1930-01-01" max={latestBirthDate()} data-range="Enter your date of birth: you must be at least 21 to apply." autoComplete="bday" className={inputCls} />
         </Field>
         <Field label="Email address" htmlFor="work-email" required span={2} hint="Your doctor account is created with this email.">
-          <input id="work-email" name="email" type="email" required maxLength={200} autoComplete="email" className={inputCls} />
+          <input id="work-email" name="email" type="email" required maxLength={200} pattern={EMAIL_PATTERN} title={EMAIL_MESSAGE} autoComplete="email" className={inputCls} />
         </Field>
         <Field label="Mobile number" htmlFor="mobile-phone" required hint="Saved to your doctor profile.">
           <PhoneInput id="mobile-phone" name="phone" codeName="countryCode" required label="Mobile number" />
@@ -98,10 +111,10 @@ export function DoctorSignupForm({ hospitals, uploads }: { hospitals: { id: stri
           <input id="registration-number" name="registrationNumber" required minLength={2} maxLength={80} className={inputCls} />
         </Field>
         <Field label="Year of registration" htmlFor="registration-year" pair required>
-          <input id="registration-year" name="registrationYear" type="number" inputMode="numeric" required min={1950} max={thisYear} className={inputCls} />
+          <input id="registration-year" name="registrationYear" type="number" inputMode="numeric" required min={1950} max={thisYear} data-range={`Enter a year from 1950 to ${thisYear}.`} className={inputCls} />
         </Field>
         <Field label="Valid until" htmlFor="registration-valid" pair optional>
-          <input id="registration-valid" name="registrationValidUntil" type="date" min={today()} className={inputCls} />
+          <input id="registration-valid" name="registrationValidUntil" type="date" min={today()} data-range="Your registration should be valid today or later." className={inputCls} />
         </Field>
         <Field label="Years of experience" htmlFor="experience" pair required>
           <input id="experience" name="experience_years" type="number" inputMode="numeric" required min={0} max={70} className={inputCls} />
@@ -113,7 +126,7 @@ export function DoctorSignupForm({ hospitals, uploads }: { hospitals: { id: stri
           <input id="college" name="college" required minLength={2} maxLength={160} className={inputCls} />
         </Field>
         <Field label="Year of passing" htmlFor="passing-year" pair required>
-          <input id="passing-year" name="passingYear" type="number" inputMode="numeric" required min={1950} max={thisYear} className={inputCls} />
+          <input id="passing-year" name="passingYear" type="number" inputMode="numeric" required min={1950} max={thisYear} data-range={`Enter a year from 1950 to ${thisYear}.`} className={inputCls} />
         </Field>
         <Field label="Speciality" htmlFor="specialty" required>
           <SelectBox id="specialty" name="specialty" required options={DOCTOR_SPECIALTIES} />
@@ -153,7 +166,7 @@ export function DoctorSignupForm({ hospitals, uploads }: { hospitals: { id: stri
           <input id="consult-from" name="consultFrom" type="time" required className={inputCls} />
         </Field>
         <Field label="To" htmlFor="consult-to" pair required>
-          <input id="consult-to" name="consultTo" type="time" required className={inputCls} />
+          <input id="consult-to" name="consultTo" type="time" required data-after="consult-from" data-after-message="The end time should be after the start time." className={inputCls} />
         </Field>
         <Field label="Time per patient" htmlFor="slot-minutes" required>
           <SelectBox id="slot-minutes" name="slotMinutes" required options={SLOT_MINUTES.map((m) => ({ value: String(m), label: `${m} minutes` }))} />
@@ -176,7 +189,7 @@ export function DoctorSignupForm({ hospitals, uploads }: { hospitals: { id: stri
       {/* 5. Proof of identity */}
       <JoinSection n={5} section="proof" title="Proof of identity" sub="We match these with your medical registration." badge>
         <Field label="PAN number" htmlFor="pan" required>
-          <input id="pan" name="pan" required maxLength={10} pattern="[A-Za-z]{5}[0-9]{4}[A-Za-z]" title="10 characters, like ABCDE1234F." className={`${inputCls} uppercase`} />
+          <input id="pan" name="pan" required maxLength={10} pattern={PERSONAL_PAN_PATTERN} title={PERSONAL_PAN_MESSAGE} data-upper autoCapitalize="characters" spellCheck={false} className={`${inputCls} uppercase`} />
         </Field>
         <FileField doc={docs.panCard} uploads={uploads} span={2} />
         <FileField doc={docs.photoId} uploads={uploads} />
@@ -191,6 +204,7 @@ export function DoctorSignupForm({ hospitals, uploads }: { hospitals: { id: stri
         ]}
       />
       <SendRow busy={busy} />
+      </JoinFormProvider>
     </form>
   )
 
@@ -205,7 +219,7 @@ export function DoctorSignupForm({ hospitals, uploads }: { hospitals: { id: stri
         <PhoneSteps steps={STEPS.map((title) => ({ title }))} after="Credential review" current={step} done={done} submitted={submitted} />
       </JoinHero>
       <div className="px-4 md:px-[max(24px,10%)]">
-        <StepStrip steps={STEPS.map((title) => ({ title }))} after="Credential review" current={step} done={done} submitted={submitted} />
+        <StepStrip steps={STEPS.map((title) => ({ title }))} after="Credential review" current={step} done={done} submitted={submitted} reached={reached} onStep={goTo} />
         <JoinColumns
           form={form}
           aside={

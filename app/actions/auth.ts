@@ -455,15 +455,19 @@ export async function staffLogin(prevState: unknown, formData: FormData) {
   const cookieStore = await cookies()
   cookieStore.set(ROLE_COOKIE, roleCookieValue(data.user.id, expectedRole), ROLE_COOKIE_OPTIONS)
 
-  if (expectedRole === 'doctor') {
-    redirect('/doctor/dashboard')
-  } else if (expectedRole === 'executive') {
-    redirect('/executive/dashboard')
-  } else if (expectedRole === 'hospital_admin') {
-    redirect('/hospital/dashboard')
-  } else if (expectedRole === 'diagnostic_admin') {
-    redirect('/diagnostic-center/dashboard')
-  }
+  // The browser opens the portal with a normal page load (StaffLoginCard). A redirect from here would make the server
+  // draw the whole dashboard inside this sign-in response, so any slow part of the dashboard kept the button on
+  // "Logging in…" with nothing else to see.
+  const to = STAFF_HOME[expectedRole]
+  return to ? { to } : { error: 'Unknown portal.' }
+}
+
+/** Where each staff portal opens after signing in. */
+const STAFF_HOME: Record<string, string> = {
+  doctor: '/doctor/dashboard',
+  executive: '/executive/dashboard',
+  hospital_admin: '/hospital/dashboard',
+  diagnostic_admin: '/diagnostic-center/dashboard',
 }
 
 /**

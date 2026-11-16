@@ -36,17 +36,30 @@ export function SearchSuggest({
   placeholder,
   defaultValue = "",
   inputClassName,
+  value: controlled,
+  onValueChange,
+  searchHref = (q) => `/find?q=${encodeURIComponent(q)}`,
 }: {
   id: string;
   placeholder: string;
   defaultValue?: string;
   inputClassName: string;
+  /** For a box whose form keeps the words itself (the home page adds the city to the search). */
+  value?: string;
+  onValueChange?: (value: string) => void;
+  /** Where "See all results" goes; defaults to /find?q=. */
+  searchHref?: (q: string) => string;
 }) {
   const router = useRouter();
   const listId = useId();
   const box = useRef<HTMLDivElement>(null);
   const cacheRef = useRef(new Map<string, Suggestion[]>());
-  const [value, setValue] = useState(defaultValue);
+  const [own, setOwn] = useState(defaultValue);
+  const value = controlled ?? own;
+  const setValue = (v: string) => {
+    if (controlled === undefined) setOwn(v);
+    onValueChange?.(v);
+  };
   const [open, setOpen] = useState(false);
   const [found, setFound] = useState<{ q: string; items: Suggestion[] }>({ q: "", items: [] });
   const [active, setActive] = useState(-1);
@@ -99,7 +112,7 @@ export function SearchSuggest({
     setOpen(false);
     router.push(href);
   };
-  const allHref = `/find?q=${encodeURIComponent(q)}`;
+  const allHref = searchHref(q);
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -133,6 +146,7 @@ export function SearchSuggest({
         onFocus={() => setOpen(true)}
         onKeyDown={onKeyDown}
         placeholder={placeholder}
+        enterKeyHint="search"
         autoComplete="off"
         role="combobox"
         aria-autocomplete="list"

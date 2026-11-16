@@ -15,6 +15,8 @@ import { AccountMenu } from "@/components/portal/TopBar";
 import { CorporateMenu } from "@/components/site/CorporateMenu";
 import { LoginMenu } from "@/components/site/LoginMenu";
 import { PartnerLink } from "@/components/site/PartnerMenu";
+import { displayFont } from "@/components/site/display-font";
+import { SearchSuggest } from "@/components/patient/SearchSuggest";
 import type { HomeAccount } from "./types";
 
 type Place = ReturnType<typeof usePatientLocation>;
@@ -62,12 +64,15 @@ export function HomeHero({ account, place, cities, visitLine, onLocation, onMenu
         ? [formatCityName(location.label), location.city && location.city !== location.label ? formatCityName(location.city) : null].filter(Boolean).join(", ")
         : null;
 
+  const findHref = (q: string) => {
+    const params = new URLSearchParams();
+    if (q.trim()) params.set("q", q.trim());
+    if (city) params.set("city", city);
+    return params.size ? `/find?${params}` : "/find";
+  };
   const search = (e: FormEvent) => {
     e.preventDefault();
-    const params = new URLSearchParams();
-    if (query.trim()) params.set("q", query.trim());
-    if (city) params.set("city", city);
-    router.push(params.size ? `/find?${params}` : "/find");
+    router.push(findHref(query));
   };
 
   const services: Service[] = [
@@ -103,16 +108,15 @@ export function HomeHero({ account, place, cities, visitLine, onLocation, onMenu
           <PhoneAccountButton account={account} onMenu={onMenu} />
         </div>
 
-        <form role="search" onSubmit={search} className="flex items-center gap-2.5 min-h-[52px] pl-4 pr-1.5 bg-white rounded-[14px] shadow-[0_10px_24px_-14px_rgba(4,18,66,0.6)]">
+        <form role="search" onSubmit={search} className="relative z-[2] flex items-center gap-2.5 min-h-[52px] pl-4 pr-1.5 bg-white rounded-[14px] shadow-[0_10px_24px_-14px_rgba(4,18,66,0.6)]">
           <label htmlFor="home-search-phone" className="sr-only">{searchLabel}</label>
-          <input
+          <SearchSuggest
             id="home-search-phone"
-            type="search"
-            enterKeyHint="search"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onValueChange={setQuery}
+            searchHref={findHref}
             placeholder="Search doctors, hospitals or lab tests"
-            className="flex-1 min-w-0 bg-transparent text-[15px] text-[#0B1B3F] placeholder:text-[#6B7489] outline-none [&::-webkit-search-cancel-button]:hidden"
+            inputClassName="flex-1 min-w-0 bg-transparent text-[15px] text-[#0B1B3F] placeholder:text-[#6B7489] outline-none [&::-webkit-search-cancel-button]:hidden"
           />
           <button type="submit" aria-label="Search" className="w-10 h-10 rounded-[10px] bg-[#1D4ED8] text-white flex items-center justify-center shrink-0 active:scale-95 transition-transform">
             <Search className="w-5 h-5" strokeWidth={2.4} />
@@ -194,16 +198,15 @@ export function HomeHero({ account, place, cities, visitLine, onLocation, onMenu
               </button>
               {locOpen && <LocationMenu place={place} cities={cities} anchor={locAnchor} onClose={closeLoc} />}
             </div>
-            <div className="flex items-center gap-2 h-[62px] lg:h-[66px] pl-5 lg:pl-6 pr-2 bg-white rounded-2xl shadow-[0_12px_28px_-16px_rgba(4,18,66,0.6)] focus-within:ring-4 focus-within:ring-[#A9CBFF]/70 transition-shadow">
+            <div className="relative flex items-center gap-2 h-[62px] lg:h-[66px] pl-5 lg:pl-6 pr-2 bg-white rounded-2xl text-left shadow-[0_12px_28px_-16px_rgba(4,18,66,0.6)] focus-within:ring-4 focus-within:ring-[#A9CBFF]/70 transition-shadow">
               <label htmlFor="home-search" className="sr-only">{searchLabel}</label>
-              <input
+              <SearchSuggest
                 id="home-search"
-                type="search"
-                enterKeyHint="search"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onValueChange={setQuery}
+                searchHref={findHref}
                 placeholder={searchLabel}
-                className="flex-1 min-w-0 bg-transparent text-[17px] text-[#0B1B3F] placeholder:text-[#6B7489] outline-none [&::-webkit-search-cancel-button]:hidden"
+                inputClassName="flex-1 min-w-0 bg-transparent text-[17px] text-[#0B1B3F] placeholder:text-[#6B7489] outline-none [&::-webkit-search-cancel-button]:hidden"
               />
               <button type="submit" aria-label="Search" className="w-12 h-12 rounded-xl text-[#1D4ED8] flex items-center justify-center shrink-0 hover:bg-[#EEF3FF] transition-colors">
                 <Search className="w-6 h-6" strokeWidth={2.4} />
@@ -308,18 +311,18 @@ function PhoneServiceCard({ service: s, wide = false, image }: { service: Servic
   return (
     <Link
       href={s.href}
-      className={`relative overflow-hidden flex flex-col bg-white rounded-[22px] text-[#151B2E] shadow-[0_1px_2px_rgba(4,18,66,0.08),0_16px_30px_-14px_rgba(4,18,66,0.6)] active:scale-[0.99] transition-transform ${
+      className={`relative overflow-hidden flex flex-col bg-white rounded-[24px] text-[#0B1B3F] shadow-[0_1px_2px_rgba(4,18,66,0.08),0_16px_30px_-14px_rgba(4,18,66,0.6)] active:scale-[0.99] transition-transform ${
         wide ? "min-h-[200px] p-5" : "min-h-[236px] p-4"
       }`}
     >
-      <h2 className={`relative z-[1] font-extrabold uppercase leading-[1.05] tracking-[-0.02em] ${wide ? "max-w-[64%] text-[22px]" : "text-[17px]"}`}>{s.title}</h2>
-      <p className={`relative z-[1] mt-1.5 font-semibold uppercase leading-[1.3] text-[#7A8197] ${wide ? "text-[13px]" : "text-[11px]"}`}>{s.kind}</p>
-      <span className={`relative z-[1] self-start mt-3 rounded-full bg-[#E4ECFF] text-[#1D4ED8] font-extrabold uppercase ${wide ? "px-3 py-1.5 text-[12px]" : "px-2.5 py-1 text-[10.5px]"}`}>
+      <h2 className={`${displayFont.className} relative z-[1] font-extrabold uppercase leading-none tracking-[-0.01em] ${wide ? "max-w-[64%] text-[24px]" : "text-[18px]"}`}>{s.title}</h2>
+      <p className={`${displayFont.className} relative z-[1] mt-1.5 font-bold uppercase leading-[1.2] text-[#0B1B3F]/55 ${wide ? "text-[14px]" : "text-[12px]"}`}>{s.kind}</p>
+      <span className={`${displayFont.className} relative z-[1] self-start mt-3 rounded-lg bg-gradient-to-r from-[#DCE7FF] via-[#EEF3FF] to-transparent text-[#1D4ED8] font-extrabold uppercase ${wide ? "pl-2.5 pr-7 py-1 text-[13px]" : "pl-2 pr-5 py-1 text-[11px]"}`}>
         {s.tag}
       </span>
       <span aria-hidden className="relative z-[1] mt-auto pt-3">
-        <span className={`rounded-full bg-[#1D4ED8] text-white flex items-center justify-center ${wide ? "w-11 h-11" : "w-9 h-9"}`}>
-          <ArrowRight className={wide ? "w-5 h-5" : "w-[18px] h-[18px]"} strokeWidth={2.4} />
+        <span className={`rounded-full bg-[#1D4ED8] text-white flex items-center justify-center shadow-[0_8px_18px_rgba(29,78,216,0.35)] ${wide ? "w-11 h-11" : "w-9 h-9"}`}>
+          <ArrowRight className={wide ? "w-5 h-5" : "w-[18px] h-[18px]"} strokeWidth={2.6} />
         </span>
       </span>
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -332,16 +335,16 @@ function DesktopServiceCard({ service: s, image }: { service: Service; image: st
   return (
     <Link
       href={s.href}
-      className="group relative overflow-hidden flex flex-col min-h-[280px] lg:min-h-[320px] xl:min-h-[350px] p-6 lg:p-7 bg-white rounded-[22px] lg:rounded-[26px] text-[#151B2E] shadow-[0_2px_4px_rgba(4,18,66,0.08),0_24px_48px_-22px_rgba(4,18,66,0.6)] transition-[translate,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_2px_4px_rgba(4,18,66,0.08),0_32px_56px_-22px_rgba(4,18,66,0.7)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#A9CBFF]"
+      className="group relative overflow-hidden flex flex-col min-h-[280px] lg:min-h-[320px] xl:min-h-[350px] p-6 lg:p-8 bg-white rounded-[28px] lg:rounded-[36px] text-[#0B1B3F] shadow-[0_2px_4px_rgba(4,18,66,0.08),0_24px_48px_-22px_rgba(4,18,66,0.6)] transition-[translate,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_2px_4px_rgba(4,18,66,0.08),0_32px_56px_-22px_rgba(4,18,66,0.7)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#A9CBFF]"
     >
-      <h2 className="relative z-[1] text-[20px] lg:text-[22px] xl:text-[28px] font-extrabold uppercase leading-[1.05] tracking-[-0.02em]">{s.title}</h2>
-      <p className="relative z-[1] mt-2 text-[12px] lg:text-[14px] xl:text-[16px] font-semibold uppercase leading-[1.3] tracking-[0.01em] text-[#7A8197]">{s.kind}</p>
-      <span className="relative z-[1] self-start mt-4 lg:mt-5 px-3 lg:px-3.5 py-1 lg:py-1.5 rounded-full bg-[#E4ECFF] text-[#1D4ED8] text-[11px] lg:text-[12px] xl:text-[14px] font-extrabold uppercase tracking-[0.01em]">
+      <h2 className={`${displayFont.className} relative z-[1] text-[22px] lg:text-[26px] xl:text-[30px] font-extrabold uppercase leading-none tracking-[-0.01em]`}>{s.title}</h2>
+      <p className={`${displayFont.className} relative z-[1] mt-2 text-[13px] lg:text-[15px] xl:text-[18px] font-bold uppercase leading-[1.15] text-[#0B1B3F]/55`}>{s.kind}</p>
+      <span className={`${displayFont.className} relative z-[1] self-start mt-4 lg:mt-5 pl-2.5 pr-8 py-1 lg:py-1.5 rounded-lg bg-gradient-to-r from-[#DCE7FF] via-[#EEF3FF] to-transparent text-[#1D4ED8] text-[12px] lg:text-[13.5px] xl:text-[16px] font-extrabold uppercase`}>
         {s.tag}
       </span>
       <span aria-hidden className="relative z-[1] mt-auto pt-4">
-        <span className="w-10 h-10 lg:w-12 lg:h-12 xl:w-[52px] xl:h-[52px] rounded-full bg-[#1D4ED8] text-white flex items-center justify-center shadow-[0_10px_20px_-8px_rgba(29,78,216,0.7)] transition-colors duration-300 group-hover:bg-[#1E40AF]">
-          <ArrowRight className="w-[18px] h-[18px] lg:w-5 lg:h-5 transition-transform duration-300 group-hover:translate-x-0.5" strokeWidth={2.4} />
+        <span className="w-11 h-11 lg:w-12 lg:h-12 xl:w-14 xl:h-14 rounded-full bg-[#1D4ED8] text-white flex items-center justify-center shadow-[0_8px_18px_rgba(29,78,216,0.35)] transition-transform duration-300 group-hover:translate-x-1">
+          <ArrowRight className="w-5 h-5 xl:w-7 xl:h-7" strokeWidth={2.6} />
         </span>
       </span>
       {/* eslint-disable-next-line @next/next/no-img-element */}

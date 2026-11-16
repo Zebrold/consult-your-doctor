@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Outfit } from "next/font/google";
+import { displayFont as outfit } from "@/components/site/display-font";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ChartLine, CreditCard, Landmark, ShieldCheck, type LucideIcon } from "lucide-react";
@@ -18,10 +18,6 @@ export const metadata: Metadata = {
 // (lib/assistant/knowledge.ts; payments and wallets: lib/wallet.ts).
 
 const SIDES = "px-4 md:px-[max(24px,10%)]";
-
-/** The partner cards' heavy, rounded display face (titles, subtitles and tags). */
-const outfit = Outfit({ subsets: ["latin"], display: "swap" });
-
 const PARTNERS = [
   {
     id: "hospitals",

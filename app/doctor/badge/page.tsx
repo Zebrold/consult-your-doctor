@@ -1,11 +1,12 @@
 import type { Metadata } from 'next'
 import { currentTime } from '@/components/patient/data'
 import { doctorName, formatShortDate } from '@/components/patient/format'
-import { BADGE_PRICES, badgeState, doctorRequirements, loadBadges, meetsRequirements } from '@/lib/badges'
+import { badgeState, doctorRequirements, loadBadges, meetsRequirements } from '@/lib/badges'
+import { getBadgePrices } from '@/lib/badge-prices'
 import { loadDoctorReviews } from '@/lib/reviews'
 import { requireDoctor } from '../_lib/doctor'
 import { DoctorBadge } from '../_components/DoctorBadge'
-import { DeskHead, DocBackHeader, DocBody } from '../_components/doc-ui'
+import { DeskHead, DocBody, DocHeader } from '../_components/doc-ui'
 
 export const metadata: Metadata = { title: 'Verified badge | Doctor Portal' }
 export const dynamic = 'force-dynamic'
@@ -17,10 +18,11 @@ export const dynamic = 'force-dynamic'
 export default async function DoctorBadgePage() {
   const { admin, user, doctor } = await requireDoctor()
   const now = currentTime()
-  const [{ ready, badges }, { data: me }, reviews] = await Promise.all([
+  const [{ ready, badges }, { data: me }, reviews, prices] = await Promise.all([
     loadBadges(admin, { doctorIds: [doctor.id] }),
     admin.from('profiles').select('created_at, email, phone_number').eq('id', user.id).maybeSingle(),
     loadDoctorReviews(admin, doctor.id, 0),
+    getBadgePrices(),
   ])
   const s = badgeState(badges, now)
   const reqs = doctorRequirements({ registrationNumber: doctor.registrationNumber, image: doctor.image, joined: (me?.created_at as string | null) ?? null }, now)
@@ -29,9 +31,7 @@ export default async function DoctorBadgePage() {
   const subtitle = 'A blue tick that tells patients our team has checked your profile'
   return (
     <>
-      <DocBackHeader backHref="/doctor/profile" backLabel="Back to profile" title="Verified badge">
-        <p className="mt-2.5 mx-1.5 text-[13px] leading-[1.5] text-[#DCE6FF]">{subtitle}</p>
-      </DocBackHeader>
+      <DocHeader doctor={{ name: doctor.name, image: doctor.image }} title="Verified badge" subtitle={subtitle} />
       <DocBody>
         <DeskHead title="Verified badge" subtitle={subtitle} />
         {!ready && <p className="mb-4 p-3.5 rounded-[14px] bg-[#FFF6E8] text-[13px] text-[#7A2E0E]">Verified badges are being set up. You can get yours here once that’s done.</p>}
@@ -46,7 +46,7 @@ export default async function DoctorBadgePage() {
             reviews: reviews.summary.count,
             hospital: doctor.hospital?.name ?? null,
           }}
-          prices={{ monthly: BADGE_PRICES.doctor.monthly!, yearly: BADGE_PRICES.doctor.yearly! }}
+          prices={prices.doctor}
           state={{
             liveUntil: s.live?.endsAt ? formatShortDate(s.upcoming?.endsAt ?? s.live.endsAt) : null,
             inReview: !!s.inReview,

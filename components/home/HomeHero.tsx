@@ -111,7 +111,7 @@ export function HomeHero({ account, place, cities, visitLine, onLocation, onMenu
             enterKeyHint="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search doctors, hospitals or labs"
+            placeholder="Search doctors, hospitals or lab tests"
             className="flex-1 min-w-0 bg-transparent text-[15px] text-[#0B1B3F] placeholder:text-[#6B7489] outline-none [&::-webkit-search-cancel-button]:hidden"
           />
           <button type="submit" aria-label="Search" className="w-10 h-10 rounded-[10px] bg-[#1D4ED8] text-white flex items-center justify-center shrink-0 active:scale-95 transition-transform">

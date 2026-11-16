@@ -15,6 +15,7 @@ import { parseEducation } from "@/lib/education";
 import { loadDoctorReviews } from "@/lib/reviews";
 import { currentTime } from "@/components/patient/data";
 import { siteUrl } from "@/lib/site-url";
+import { pausedDoctorIds } from "@/lib/doctor-pause";
 
 export const revalidate = 0;
 
@@ -117,6 +118,8 @@ export default async function DoctorProfilePage(props: DoctorProfilePageProps) {
     | null;
   const homeId = (doctor as { hospital_id?: string | null }).hospital_id ?? null;
   doctorData.schedules = (slotRows ?? []).filter((s) => !s.hospital_id || s.hospital_id === homeId);
+  // A paused doctor stays reachable but shows no open times (the page's existing "no open times" state).
+  if ((await pausedDoctorIds()).has(id)) doctorData.schedules = [];
 
   const { data: links } = await createAdminClient().from("doctor_practices").select("hospital_id").eq("doctor_id", id).eq("status", "confirmed").limit(20);
   const alsoIds = ((links ?? []) as { hospital_id: string }[]).map((l) => l.hospital_id).filter((h) => h !== homeId);

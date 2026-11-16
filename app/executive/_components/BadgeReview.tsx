@@ -22,7 +22,7 @@ export function BadgeReview({ badgeId }: { badgeId: string }) {
     })
 
   return (
-    <div className="flex flex-col gap-2 sm:self-end sm:w-[360px]">
+    <div className="flex flex-col gap-2 sm:self-end lg:self-auto lg:w-auto shrink-0">
       {rejecting ? (
         <>
           <textarea

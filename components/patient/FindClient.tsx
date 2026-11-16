@@ -258,7 +258,7 @@ export function FindClient({ doctors, hospitals, labs, now, initial, account, fe
 
         {/* Mode tabs: underlined on phones, a segmented control on desktops. */}
         <div className="px-4 md:px-6 lg:px-0 pt-2.5 lg:pt-0 bg-white lg:bg-transparent border-b border-[#E1E7F0] lg:border-0 lg:mb-[18px]">
-          <div role="tablist" aria-label="What are you looking for" className="grid grid-cols-3 lg:inline-flex lg:gap-1 lg:p-1 lg:rounded-xl lg:bg-white lg:shadow-[inset_0_0_0_1px_#E6EAF0]">
+          <div role="tablist" aria-label="What are you looking for" className="grid grid-cols-3 lg:inline-flex lg:gap-1 lg:p-1 lg:rounded-xl lg:bg-[#F4F6FA] lg:shadow-[inset_0_0_0_1px_#E6EAF0]">
             {MODES.map(({ key, label, icon: Icon }) => {
               const on = key === mode;
               return (

@@ -3,7 +3,7 @@ import { Hospital } from 'lucide-react'
 import { IST, formatINR, istDateKey } from '@/components/patient/format'
 import { monthName } from '@/lib/report-stats'
 import type { DoctorInfo, Slot, Visit } from '../_lib/doctor'
-import { DeskHead, DocBackHeader, DocBody, Panel, Row, btnOutline, card } from './doc-ui'
+import { DeskHead, DocBody, DocHeader, Panel, Row, btnOutline, card } from './doc-ui'
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 /** "10 AM", "2:30 PM" in India time. */
@@ -63,7 +63,23 @@ function timings(slots: Slot[]): string[] {
  * Hospitals & clinics, after the DeskDocPractice export. A doctor on Consult your Doctor consults at one hospital, which
  * publishes their slots, so this shows that hospital: the usual timings, the fee and this month's consultations.
  */
-export function DoctorPractice({ doctor, slots, visits, now, others }: { doctor: Pick<DoctorInfo, 'fee' | 'hospital'>; slots: Slot[]; visits: Visit[]; now: number; others?: React.ReactNode }) {
+export function DoctorPractice({
+  doctor,
+  slots,
+  visits,
+  now,
+  visiting,
+  invitations,
+}: {
+  doctor: Pick<DoctorInfo, 'name' | 'image' | 'fee' | 'hospital'>
+  slots: Slot[]
+  visits: Visit[]
+  now: number
+  /** Cards for the hospitals the doctor visits, after their own. */
+  visiting?: React.ReactNode
+  /** The Invitations panel below the grid. */
+  invitations?: React.ReactNode
+}) {
   const month = istDateKey(now).slice(0, 7)
   const consultations = visits.filter((v) => (v.status === 'visited' || v.status === 'completed') && v.start && istDateKey(v.start).startsWith(month)).length
   const hours = timings(slots)
@@ -73,9 +89,7 @@ export function DoctorPractice({ doctor, slots, visits, now, others }: { doctor:
 
   return (
     <>
-      <DocBackHeader backHref="/doctor/profile" backLabel="Back to profile" title="Hospitals & clinics">
-        <p className="mt-2.5 mx-1.5 text-[13px] leading-[1.5] text-[#DCE6FF]">{subtitle}</p>
-      </DocBackHeader>
+      <DocHeader doctor={{ name: doctor.name, image: doctor.image }} title="Hospitals & clinics" subtitle={subtitle} />
       <DocBody>
         <DeskHead title="Hospitals & clinics" subtitle={subtitle} />
 
@@ -91,7 +105,7 @@ export function DoctorPractice({ doctor, slots, visits, now, others }: { doctor:
                 <span className="w-11 h-11 rounded-xl bg-[#F4F6FA] flex items-center justify-center shrink-0">
                   <Hospital className="w-[22px] h-[22px] text-[#2A4DD0]" strokeWidth={2} aria-hidden />
                 </span>
-                <span className="inline-flex items-center h-6 px-[9px] rounded-full bg-[#EEF3FF] text-[#2A4DD0] text-[11.5px] font-extrabold whitespace-nowrap">Your hospital</span>
+                <span className="inline-flex items-center h-6 px-[9px] rounded-full bg-[#EEF3FF] text-[#2A4DD0] text-[11.5px] font-extrabold whitespace-nowrap">Primary</span>
               </div>
               <span className="block mt-3.5 text-[17px] font-extrabold">{h.name}</span>
               <span className="block mb-3 text-[13px] text-[#5B667A]">{h.address || h.city || 'Address not added yet'}</span>
@@ -124,6 +138,8 @@ export function DoctorPractice({ doctor, slots, visits, now, others }: { doctor:
               </div>
             </section>
 
+            {visiting}
+
             <section className="rounded-2xl border-[1.5px] border-dashed border-[#C9D2E0] bg-[#F9FBFE] p-4 lg:p-[22px] flex flex-col justify-center">
               <h2 className="text-[15px] font-extrabold">How timings work</h2>
               <p className="mt-1.5 text-[13.5px] leading-[1.6] text-[#27324A]">
@@ -133,7 +149,8 @@ export function DoctorPractice({ doctor, slots, visits, now, others }: { doctor:
             </section>
           </div>
         )}
-        {others}
+        {!h && visiting && <div className="grid gap-3.5 lg:gap-4 lg:grid-cols-3 mt-3.5 lg:mt-5">{visiting}</div>}
+        {invitations}
       </DocBody>
     </>
   )

@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
-import { Boxes, PackageCheck, Truck } from 'lucide-react'
+import { Boxes, Plus } from 'lucide-react'
 import { formatINR, formatShortDate, istDateKey } from '@/components/patient/format'
 import { CATEGORY_LABEL, ORDER_STATUS, loadOrders, loadProducts, loadSuppliers, supplierRatings, type Order } from '@/lib/equipment'
 import { currentTime, requireExecutivePage } from '../_lib/ops'
-import { Card, EmptyState, ExePage, Note, Stat, Stats, Status, plural } from '../_components/ui'
-import { OrderSteps, ProductEditor, SupplierList } from '../_components/EquipmentDesk'
+import { Card, EmptyState, ExePage, Note, Stat, Stats, btnPrimary, plural } from '../_components/ui'
+import { AddProductForm, OrderTable, ProductEditor, SupplierList, type OrderRow } from '../_components/EquipmentDesk'
 
 export const metadata: Metadata = { title: 'Equipment orders' }
 export const dynamic = 'force-dynamic'
@@ -34,8 +34,6 @@ export default async function ExecutiveEquipmentPage() {
   }
 
   const month = istDateKey(currentTime()).slice(0, 7)
-  const open = orders.filter((o) => ['placed', 'confirmed', 'shipped'].includes(o.status))
-  const done = orders.filter((o) => !open.includes(o)).slice(0, 30)
   const placed = orders.filter((o) => o.status === 'placed').length
   const moving = orders.filter((o) => o.status === 'confirmed' || o.status === 'shipped').length
   // Delivered orders don't carry a delivery date, so this counts orders placed this month that are delivered.
@@ -44,46 +42,41 @@ export default async function ExecutiveEquipmentPage() {
   const outOfStock = products.filter((p) => p.active && p.stock === 0).length
   const rated = orders.filter((o) => o.rating)
 
-  const orderRow = (o: Order, actions: boolean) => (
-    <li key={o.id} className="flex flex-col lg:flex-row lg:items-start gap-3 lg:gap-6 py-4 border-t border-[#EEF2F7] first:border-t-0 first:pt-0">
-      <div className="min-w-0 flex-1">
-        <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="font-mono text-[12.5px] font-bold text-[#2A4DD0]">{o.code}</span>
-          <span className="text-[14px] font-extrabold">{nameOf.get(o.hospitalId) ?? 'Hospital'}</span>
-          <Status label={ORDER_STATUS[o.status].label} color={ORDER_STATUS[o.status].color} />
-        </p>
-        <p className="mt-0.5 text-[12.5px] text-[#5B667A]">
-          {formatINR(o.total)} · {formatShortDate(o.createdAt)}
-          {o.paidAt ? ` · paid ${formatShortDate(o.paidAt)}` : ' · not paid'}
-          {o.deliveryFee ? ` · delivery ${formatINR(o.deliveryFee)}` : ' · free delivery'}
-        </p>
-        <ul className="mt-1.5 text-[13px]">
-          {o.items.map((i) => (
-            <li key={i.name}>
-              {i.quantity} × {i.name}{' '}
-              <span className="text-[#5B667A]">
-                ({i.unit}, {formatINR(i.price)}
-                {i.supplierId && supplierName.get(i.supplierId) ? `, from ${supplierName.get(i.supplierId)}` : ''})
-              </span>
-            </li>
-          ))}
-        </ul>
-        {o.rating && (
-          <p className="mt-1 text-[12.5px] text-[#5B667A]">
-            Hospital’s rating: <span className="text-[#F59E0B]">{'★'.repeat(o.rating)}</span>
-            <span className="text-[#D6DDE8]">{'★'.repeat(5 - o.rating)}</span>
-            {o.ratingNote ? ` · ${o.ratingNote}` : ''}
-          </p>
-        )}
-        {o.note && <p className="mt-1 text-[12.5px] text-[#5B667A]">Hospital’s note: {o.note}</p>}
-        {o.teamNote && <p className="mt-1 text-[12.5px] text-[#5B667A]">Our note: {o.teamNote}</p>}
-      </div>
-      {actions && <OrderSteps orderId={o.id} status={o.status} />}
-    </li>
-  )
+  const orderRows: OrderRow[] = orders.map((o: Order) => {
+    const units = o.items.reduce((n, i) => n + i.quantity, 0)
+    const names = o.items.map((i) => i.name)
+    const supplierNames = [...new Set(o.items.map((i) => (i.supplierId ? supplierName.get(i.supplierId) : undefined)).filter((x): x is string => !!x))]
+    return {
+      id: o.id,
+      code: o.code,
+      hospital: nameOf.get(o.hospitalId) || 'Hospital',
+      status: o.status,
+      statusLabel: ORDER_STATUS[o.status].label,
+      statusColor: ORDER_STATUS[o.status].color,
+      total: o.total,
+      items: `${plural(units, 'item')} · ${names.slice(0, 2).join(', ')}${names.length > 2 ? '…' : ''}`,
+      suppliers: supplierNames.join(', '),
+      meta: [
+        formatShortDate(o.createdAt),
+        o.paidAt ? `paid ${formatShortDate(o.paidAt)}` : 'not paid',
+        o.deliveryFee ? `delivery ${formatINR(o.deliveryFee)}` : 'free delivery',
+      ].join(' · '),
+      rating: o.rating ?? null,
+      notes: [o.ratingNote ? `Rating note: ${o.ratingNote}` : '', o.note ? `Hospital’s note: ${o.note}` : '', o.teamNote ? `Our note: ${o.teamNote}` : ''].filter(Boolean),
+    }
+  })
 
   return (
-    <ExePage name={profile.fullName} title="Equipment orders" subtitle="Add equipment hospitals can buy, and follow every order from payment to delivery">
+    <ExePage
+      name={profile.fullName}
+      title="Equipment orders"
+      subtitle="Add equipment hospitals can buy, and follow every order from payment to delivery"
+      actions={
+        <a href="#add-equipment" className={btnPrimary}>
+          <Plus className="w-4 h-4" strokeWidth={2.4} aria-hidden /> Add equipment
+        </a>
+      }
+    >
       <Stats>
         <Stat label="New orders" value={placed} note="Paid, need confirming" tone={placed ? 'warn' : undefined} />
         <Stat label="In transit" value={moving} note="Packing or shipped" />
@@ -91,30 +84,30 @@ export default async function ExecutiveEquipmentPage() {
         <Stat label="Products listed" value={onSale} note={more ? `${outOfStock} out of stock · ${products.length - onSale} switched off` : `${products.length - onSale} switched off`} tone={outOfStock ? 'warn' : undefined} />
       </Stats>
 
-      <Card title="Orders to handle" sub="Confirm each paid order, then mark it shipped and delivered. Oldest at the bottom.">
-        {open.length === 0 ? <EmptyState icon={Truck}>Nothing to handle.</EmptyState> : <ul>{open.map((o) => orderRow(o, true))}</ul>}
+      <Card title="Orders from hospitals" sub="Confirm each paid order, then mark it shipped and delivered.">
+        <OrderTable orders={orderRows} />
         <div className="mt-4">
           <Note>Cancelling a paid order means refunding it from the Razorpay dashboard.</Note>
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] gap-3.5 lg:gap-5 items-start">
-        <Card title="Catalogue" sub={`${plural(products.length, 'product')} · what hospitals see on their Order equipment page. Switch a product off to stop new orders; past orders keep their prices.`}>
-          <ProductEditor products={products} categories={CATEGORY_LABEL} suppliers={suppliers} more={more} />
-          {!more && (
-            <div className="mt-4">
-              <Note tone="amber">Suppliers, stock, cost prices and photos start once supabase/migrations/20261115_executive_workspace.sql has run.</Note>
-            </div>
-          )}
+      <Card title="Catalogue" sub={`${plural(products.length, 'product')} · what hospitals see on their Order equipment page. Switch a product off to stop new orders; past orders keep their prices.`}>
+        <ProductEditor products={products} categories={CATEGORY_LABEL} suppliers={suppliers} more={more} />
+        {!more && (
+          <div className="mt-4">
+            <Note tone="amber">Suppliers, stock, cost prices and photos start once supabase/migrations/20261115_executive_workspace.sql has run.</Note>
+          </div>
+        )}
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 lg:gap-5 items-start">
+        <Card id="add-equipment" title="Add equipment" sub="New products go live for hospitals straight away">
+          <AddProductForm categories={CATEGORY_LABEL} suppliers={suppliers} more={more} />
         </Card>
         <Card title="Suppliers" sub={rated.length ? `Ratings from ${rated.length} delivered ${rated.length === 1 ? 'order' : 'orders'} that hospitals rated` : 'Hospitals rate each delivered order; the ratings show here'}>
           {supplierRes.ready ? <SupplierList suppliers={suppliers} ratings={ratings} /> : <p className="text-[13px] text-[#5B667A]">Starts once the 20261115 migration has run.</p>}
         </Card>
       </div>
-
-      <Card title="Recent orders" sub="Delivered, cancelled and unpaid">
-        {done.length === 0 ? <EmptyState icon={PackageCheck}>No orders yet.</EmptyState> : <ul>{done.map((o) => orderRow(o, o.status === 'awaiting_payment'))}</ul>}
-      </Card>
     </ExePage>
   )
 }

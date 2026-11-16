@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Download, Search, Stethoscope } from 'lucide-react'
 import { doctorName } from '@/components/patient/format'
-import { EmptyState, Initials, Table, Verified, btnOutline, td, th } from './ui'
+import { Chip, EmptyState, Initials, Status, Table, Verified, btnOutline, td, th } from './ui'
 
 export type RosterRow = {
   id: string
@@ -22,12 +22,12 @@ export type RosterRow = {
 const PAGE = 25
 
 function downloadCsv(rows: RosterRow[]) {
-  const header = ['Doctor', 'Specialty', 'Qualifications', 'Hospital', 'City', 'Experience (yrs)', 'Fee (INR)', "Today's appointments", 'Open future slots', 'Verified badge']
+  const header = ['Doctor', 'Specialty', 'Qualifications', 'Hospital', 'Joined via', 'City', 'Experience (yrs)', 'Fee (INR)', "Today's appointments", 'Open future slots', 'Verified badge']
   const escape = (v: unknown) => {
     const s = String(v ?? '')
     return `"${(/^[=+\-@\t\r]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`
   }
-  const lines = [header, ...rows.map((r) => [doctorName(r.name), r.specialty, r.qualifications, r.hospital, r.city, r.experienceYears, r.fee, r.todayCount, r.openSlots, r.verified ? 'Yes' : 'No'])]
+  const lines = [header, ...rows.map((r) => [doctorName(r.name), r.specialty, r.qualifications, r.hospital, r.hospital ? 'Hospital' : 'Independent', r.city, r.experienceYears, r.fee, r.todayCount, r.openSlots, r.verified ? 'Yes' : 'No'])]
   const blob = new Blob(['﻿' + lines.map((l) => l.map(escape).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -88,11 +88,12 @@ export function DoctorRoster({ doctors, specialties }: { doctors: RosterRow[]; s
         <EmptyState icon={Stethoscope}>No doctors match these filters.</EmptyState>
       ) : (
         <>
-          <Table min={900}>
+          <Table min={980}>
             <thead>
               <tr>
                 <th className={th}>Doctor</th>
                 <th className={th}>Practice</th>
+                <th className={th}>Joined via</th>
                 <th className={th}>Exp.</th>
                 <th className={th}>Fee</th>
                 <th className={th}>Today</th>
@@ -119,10 +120,19 @@ export function DoctorRoster({ doctors, specialties }: { doctors: RosterRow[]; s
                     <span className="block font-bold truncate max-w-[220px]">{d.hospital ?? 'No hospital'}</span>
                     {d.city && <span className="block text-[12px] text-[#5B667A]">{d.city}</span>}
                   </td>
+                  <td className={td}>
+                    {d.hospital ? (
+                      <Chip tone="blue" className="!rounded-full !h-6">
+                        Hospital
+                      </Chip>
+                    ) : (
+                      <Chip className="!rounded-full !h-6 !text-[#27324A] !bg-[#F1F4F9]">Independent</Chip>
+                    )}
+                  </td>
                   <td className={`${td} whitespace-nowrap`}>{d.experienceYears != null ? `${d.experienceYears} yrs` : '—'}</td>
                   <td className={`${td} font-extrabold tabular-nums`}>₹{d.fee.toLocaleString('en-IN')}</td>
                   <td className={`${td} whitespace-nowrap`}>{d.todayCount} booked</td>
-                  <td className={`${td} whitespace-nowrap`}>{d.openSlots > 0 ? <span className="font-bold text-[#2A4DD0]">{d.openSlots} open</span> : <span className="font-bold text-[#B54708]">None open</span>}</td>
+                  <td className={`${td} whitespace-nowrap`}>{d.openSlots > 0 ? <Status label={`${d.openSlots} open`} color="#2A4DD0" /> : <Status label="None open" color="#B54708" />}</td>
                   <td className={td}>{d.verified ? <Verified size={18} /> : <span className="text-[#98A2B3]">—</span>}</td>
                 </tr>
               ))}

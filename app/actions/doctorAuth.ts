@@ -5,7 +5,7 @@ import { siteUrl as publicSiteUrl } from '@/lib/site-url'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { executiveFor } from '@/app/executive/_lib/ops'
 import { randomInt } from 'node:crypto'
-import { sendDoctorRegistrationReceivedEmail, sendDoctorActivationEmail } from '@/lib/notify/email'
+import { sendDoctorRegistrationReceivedEmail, sendDoctorActivationEmail, sendApplicationRejectedEmail } from '@/lib/notify/email'
 import { clientIp } from '@/lib/otp-guard'
 import { overLimit } from '@/lib/rate-limit'
 import { collectDocuments, documentsReady, missingDocuments } from '@/lib/application-uploads'
@@ -329,9 +329,19 @@ export async function rejectDoctor(requestId: string) {
   }
 
   const adminClient = createAdminClient()
-  const { error } = await adminClient.from('doctor_signup_requests').update({ status: 'rejected' }).eq('id', requestId)
+  const { data: rejected, error } = await adminClient
+    .from('doctor_signup_requests')
+    .update({ status: 'rejected' })
+    .eq('id', requestId)
+    .neq('status', 'rejected')
+    .select('email, full_name')
+    .maybeSingle()
   if (error) {
     return { success: false, error: error.message }
+  }
+  // Tell the applicant, once: a second click finds the request already rejected and sends nothing.
+  if (rejected?.email) {
+    await sendApplicationRejectedEmail({ to: rejected.email, name: rejected.full_name || 'Doctor', kind: 'doctor' }).catch(() => false)
   }
   return { success: true }
 }

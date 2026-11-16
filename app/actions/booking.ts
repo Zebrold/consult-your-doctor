@@ -7,6 +7,7 @@ import { patientServices } from '@/lib/hospital-services'
 import { loadBookingFees } from '@/lib/booking-fees'
 import { followUpBase } from '@/lib/follow-up'
 import { slotHospitalId } from '@/lib/practices'
+import { doctorPause } from '@/lib/doctor-pause'
 import { notifyBookingConfirmed } from '@/lib/notify/patient'
 import { redirect } from 'next/navigation'
 
@@ -269,7 +270,7 @@ async function tagBookingMember(admin: ReturnType<typeof createAdminClient>, tab
 }
 
 // An unpaid booking holds its slot until it is paid. Without a cap, one account could hold every open slot of every
-// doctor. Patients can't cancel an unpaid booking themselves, so their own holds older than STALE_HOLD_MS are
+// doctor. Patients can cancel an unpaid booking themselves, but an abandoned checkout never does, so their own holds older than STALE_HOLD_MS are
 // released to make room for a new one.
 const HOLD_LIMIT = 3
 const STALE_HOLD_MS = 30 * 60_000
@@ -368,6 +369,10 @@ async function claimSlotAndCreateAppointment(
       .eq('id', doctorId)
       .maybeSingle()
     if (!doctor) return { error: 'This doctor is no longer available for booking.' }
+    // A paused doctor takes no new online bookings, free follow-ups included (before the migration nobody is paused).
+    if ((await doctorPause(admin, doctorId)).paused) {
+      return { error: "This doctor isn't taking new bookings right now. Please choose another doctor." }
+    }
     if (!Number(doctor.consultation_fee)) {
       return { error: "This doctor's consultation fee hasn't been set yet, so they can't be booked online." }
     }

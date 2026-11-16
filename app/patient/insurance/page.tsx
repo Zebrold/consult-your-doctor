@@ -89,6 +89,16 @@ export default async function InsurancePage() {
       ]
     : []
 
+  const hasSum = policy?.sumInsured != null && policy.sumInsured > 0
+  // On phones the design lists these as rows instead of tiles.
+  const phoneRows: [string, string | null][] = policy
+    ? [
+        ['Sum insured', policy.sumInsured != null ? formatINR(policy.sumInsured) : null],
+        ['Settled claims', formatINR(settledTotal)],
+        ['Left', policy.sumInsured != null ? formatINR(Math.max(0, policy.sumInsured - settledTotal)) : null],
+      ]
+    : []
+
   return (
     <AccountPage
       user={user}
@@ -110,10 +120,10 @@ export default async function InsurancePage() {
         </section>
       ) : (
         <div className="grid gap-3.5 lg:gap-5 lg:grid-cols-[420px_minmax(0,1fr)] items-start">
-          <div className="flex flex-col gap-3.5">
+          <div className="flex flex-col gap-3.5 lg:self-stretch">
             <PolicyCard policy={policy} members={insuredLine} patientName={name} insurers={insurers} today={istToday()} />
-            <div className="rounded-2xl bg-[#EEF3FF] px-4 py-3.5">
-              <p className="text-[13.5px] font-extrabold">Planned hospital stay?</p>
+            <div className="hidden lg:block flex-1 rounded-2xl bg-white shadow-[0_0_0_1px_#E6EAF0] p-[18px]">
+              <p className="text-[14.5px] font-extrabold">Planned hospital stay?</p>
               <p className="mt-0.5 text-[12.5px] leading-normal text-[#4A5878]">Ask the hospital&apos;s insurance desk to request cashless approval from your insurer a few days before admission. In an emergency they request it after you are admitted.</p>
             </div>
           </div>
@@ -125,24 +135,30 @@ export default async function InsurancePage() {
               </div>
               <PolicyDetailsButton policy={policy} members={members} ready={policy.extended} />
             </div>
-            <div className="mt-3 grid grid-cols-3 gap-2.5">
+            {hasSum && (
+              <div className="mt-3 lg:hidden flex items-baseline justify-between gap-3 text-[13px] font-bold">
+                <span className="font-extrabold">{formatINR(settledTotal)} used</span>
+                <span className="text-[#5B667A]">of {formatINR(policy.sumInsured!)}</span>
+              </div>
+            )}
+            <div className="mt-3 hidden lg:grid grid-cols-3 gap-2.5">
               <Stat label="Sum insured" value={policy.sumInsured != null ? formatINR(policy.sumInsured) : '–'} />
               <Stat label="Settled claims" value={formatINR(settledTotal)} />
-              <Stat label="Left" value={policy.sumInsured != null ? formatINR(Math.max(0, policy.sumInsured - settledTotal)) : '–'} />
+              <Stat label="Left" value={policy.sumInsured != null ? formatINR(Math.max(0, policy.sumInsured - settledTotal)) : '–'} blue />
             </div>
-            {policy.sumInsured != null && policy.sumInsured > 0 && (
+            {hasSum && (
               <>
-                <span className="block mt-3 h-2 rounded-full bg-[#EEF2F7] overflow-hidden">
-                  <span className="block h-full rounded-full bg-[#2A4DD0]" style={{ width: `${Math.min(100, (settledTotal / policy.sumInsured) * 100)}%` }} />
+                <span className="block mt-2 lg:mt-3.5 h-1.5 rounded-full bg-[#EEF2F7] overflow-hidden">
+                  <span className="block h-full rounded-full bg-[#2A4DD0]" style={{ width: `${Math.min(100, (settledTotal / policy.sumInsured!) * 100)}%` }} />
                 </span>
-                <p className="mt-1.5 text-[12px] text-[#5B667A]">{Math.round((settledTotal / policy.sumInsured) * 100)}% used, from the settled claims you track here</p>
+                <p className="mt-1.5 text-[12px] text-[#5B667A]">{Math.round((settledTotal / policy.sumInsured!) * 100)}% of your cover used, from the settled claims you track here</p>
               </>
             )}
-            <div className="mt-3">
-              {detailRows.map(([label, value]) => (
-                <div key={label} className="flex justify-between gap-3 py-2.5 border-t border-[#EEF2F7] text-[13px] lg:text-[13.5px]">
-                  <span className="text-[#5B667A]">{label}</span>
-                  <span className={`text-right font-extrabold ${value ? '' : 'text-[#8A94A6] font-bold'}`}>{value ?? 'Not added'}</span>
+            <div className="mt-3 lg:grid lg:grid-cols-3 lg:gap-x-6">
+              {[...phoneRows, ...detailRows].map(([label, value], i) => (
+                <div key={label} className={`flex justify-between gap-3 py-2.5 border-t border-[#EEF2F7] text-[13px] lg:block lg:py-3 ${i < phoneRows.length ? 'lg:hidden' : ''}`}>
+                  <span className="text-[#5B667A] lg:block lg:text-[12px] lg:font-bold">{label}</span>
+                  <span className={`text-right font-extrabold lg:block lg:text-left lg:mt-0.5 lg:text-[14px] ${value ? '' : 'text-[#8A94A6] font-bold'}`}>{value ?? 'Not added'}</span>
                 </div>
               ))}
             </div>
@@ -178,11 +194,11 @@ export default async function InsurancePage() {
   )
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, blue }: { label: string; value: string; blue?: boolean }) {
   return (
-    <span className="rounded-xl bg-[#F7F9FC] px-3 py-2.5 min-w-0">
-      <span className="block text-[11.5px] font-bold text-[#5B667A] truncate">{label}</span>
-      <span className="block mt-0.5 text-[15px] lg:text-[17px] font-extrabold tabular-nums truncate">{value}</span>
+    <span className="rounded-[14px] bg-[#F7F9FC] shadow-[inset_0_0_0_1px_#E6EAF0] px-[18px] py-4 min-w-0">
+      <span className="block text-[12.5px] font-bold text-[#5B667A] truncate">{label}</span>
+      <span className={`block mt-1 text-[24px] font-extrabold tabular-nums truncate ${blue ? 'text-[#2A4DD0]' : ''}`}>{value}</span>
     </span>
   )
 }

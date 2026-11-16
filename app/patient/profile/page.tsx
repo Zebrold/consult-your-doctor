@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
-  BedDouble, ChevronRight, CircleAlert, CircleCheck, CircleHelp, FileText, HeartPulse, LogOut, MapPin, Phone, Receipt, Settings, ShieldCheck, SquarePen,
+  BedDouble, Bookmark, ChevronRight, CircleAlert, CircleCheck, CircleHelp, FileText, HeartPulse, LogOut, MapPin, Phone, Receipt, Settings, ShieldCheck, SquarePen,
   Stethoscope, UserPlus, Users, type LucideIcon,
 } from 'lucide-react'
 import { createClient, getCurrentUser } from '@/lib/supabase/server'
@@ -48,8 +48,17 @@ type LabRow = {
 type PaymentRow = { appointment_id: string | null; diagnostic_booking_id?: string | null; amount: number | string; gateway: string | null; status: string; created_at?: string | null }
 type Payment = PaymentRow & { booking_id: string }
 
-/** Short names for the My health links on phones. */
-const SHORT: Record<string, string> = { insurance: 'Insurance', records: 'Records', family: 'Family', reminders: 'Medicines', checkups: 'Check-ups', reviews: 'Reviews', emergency: 'Emergency' }
+/** The sub-lines under each My health row on phones. */
+const MY_HEALTH_SUB: Record<string, string> = {
+  insurance: 'Policy card, partner hospitals and your claim tracker',
+  records: 'Prescriptions, lab reports and your files',
+  family: 'Book visits and tests for your family',
+  reminders: "Today's medicines and follow-ups",
+  checkups: 'Lab test packages from partner labs',
+  reviews: 'Rate your visits and see your reviews',
+  emergency: 'Call 108, nearest hospitals and medical ID',
+}
+
 
 /** Profile & insurance: who the patient is, their medical details, vitals over time, family, insurance card and payments. */
 export default async function PatientProfilePage(props: { searchParams?: Promise<{ [key: string]: string | string[] | undefined }> }) {
@@ -195,12 +204,13 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
             }
           />
 
-          {/* Phones: the My health pages, which desktops have in the sidebar. */}
-          <nav aria-label="My health" className="lg:hidden grid grid-cols-4 gap-x-1 gap-y-4 pt-[18px] px-4 md:px-6">
-            {MY_HEALTH.map((item) => (
-              <QuickLink key={item.key} href={item.href} icon={item.icon} label={SHORT[item.key] ?? item.label} />
-            ))}
-            <QuickLink href="/patient/payments" icon={Receipt} label="Payments" />
+          {/* Phones: quick links; the My health pages are listed further down, and desktops have them in the sidebar. */}
+          <nav aria-label="Quick links" className="lg:hidden grid grid-cols-5 gap-1 pt-[18px] px-4 md:px-6">
+            <QuickLink href="/patient/family" icon={Users} label="Family" />
+            <QuickLink href="/patient/insurance" icon={ShieldCheck} label="Insurance" />
+            <QuickLink href="/patient/saved" icon={Bookmark} label="Saved" />
+            <QuickLink href="/patient/preferences" icon={Settings} label="Settings" />
+            <QuickLink href="/patient/support" icon={CircleHelp} label="Help" />
           </nav>
 
           <div className="flex flex-col gap-3 px-4 md:px-6 lg:px-0 pt-4 lg:pt-0 empty:hidden lg:mb-5">
@@ -221,11 +231,11 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
               </div>
             )}
             {payment === 'success' && <Banner tone="teal" icon={CircleCheck}>Payment received. Your booking is confirmed and listed under My bookings with its booking ID.</Banner>}
-            {payment === 'failed' && <Banner tone="coral" icon={CircleAlert}>The payment didn&apos;t go through, so the booking isn&apos;t confirmed yet. You can try again from Recent payments below.</Banner>}
+            {payment === 'failed' && <Banner tone="coral" icon={CircleAlert}>The payment didn&apos;t go through, so the booking isn&apos;t confirmed yet. You can pay it from My bookings.</Banner>}
           </div>
 
-          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_440px] lg:gap-5 lg:items-start">
-            <div className="flex flex-col gap-3.5 lg:gap-5 min-w-0 px-4 md:px-6 lg:px-0 pt-1 lg:pt-0">
+          <div className="flex flex-col gap-3.5 px-4 md:px-6 lg:px-0 pt-1 lg:pt-0 lg:grid lg:grid-cols-[minmax(0,1fr)_440px] lg:gap-5 lg:items-start">
+            <div className="contents lg:flex lg:flex-col lg:gap-5 lg:min-w-0">
               <div className={`hidden lg:flex items-center gap-[18px] p-[22px] ${card}`}>
                 <span className="shrink-0 w-[68px] h-[68px] rounded-full shadow-[inset_0_0_0_1.5px_#D6DDE8] text-[#2A4DD0] flex items-center justify-center text-[22px] font-extrabold">{initials(name)}</span>
                 <span className="flex-1 min-w-0">
@@ -241,7 +251,7 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
               </div>
 
               {(admissions.current || admissions.past.length > 0) && (
-                <Panel id="admission" title={admissions.current ? 'Current hospital admission' : 'Hospital stays'} sub={admissions.current ? 'Your bed and care team, updated by the hospital' : 'Your earlier admissions'} action={<LiveRefresh />}>
+                <Panel id="admission" className="order-1 lg:order-none" title={admissions.current ? 'Current hospital admission' : 'Hospital stays'} sub={admissions.current ? 'Your bed and care team, updated by the hospital' : 'Your earlier admissions'} action={<LiveRefresh />}>
                   {admissions.current && (
                     <div className="p-3.5 rounded-[14px] bg-[#EEF3FF] flex flex-col gap-3">
                       <div className="flex items-start justify-between gap-3">
@@ -289,6 +299,7 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
 
               <Panel
                 id="medical"
+                className="order-2 lg:order-none"
                 title="Personal & medical details"
                 sub="Shared only with the doctors, hospitals and labs you book"
                 action={
@@ -322,16 +333,17 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
 
               <Panel
                 id="vitals"
-                title="Vitals trend"
-                sub={bpTrend.length ? `Blood pressure, last ${bpTrend.length} ${bpTrend.length === 1 ? 'visit' : 'visits'}` : undefined}
-                action={latestVitals?.at ? <span className="shrink-0 text-[12px] text-[#5B667A]">Latest {formatShortDate(latestVitals.at)}</span> : undefined}
+                className="order-4 lg:order-none"
+                title={<><span className="lg:hidden">Latest vitals</span><span className="hidden lg:inline">Vitals trend</span></>}
+                sub={bpTrend.length ? <span className="hidden lg:inline">{`Blood pressure, last ${bpTrend.length} ${bpTrend.length === 1 ? 'visit' : 'visits'}`}</span> : undefined}
+                action={latestVitals?.at ? <span className="shrink-0 text-[12px] text-[#5B667A]"><span className="lg:hidden">Updated</span><span className="hidden lg:inline">Latest</span> {formatShortDate(latestVitals.at)}</span> : undefined}
               >
                 {!latestVitals ? (
                   <p className="py-2.5 border-t border-[#EEF2F7] text-[13px] text-[#5B667A] leading-relaxed">Your doctor records your blood pressure, pulse and other vitals at your visit; they show here afterwards.</p>
                 ) : (
-                  <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_200px] items-end">
+                  <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_200px] items-end">
                     {bpTrend.length > 0 ? (
-                      <div className="flex items-end gap-3 h-[150px] pt-2 border-b border-[#EEF2F7]" role="img" aria-label={`Blood pressure readings: ${bpTrend.map((b) => `${b.sys}/${b.dia}`).join(', ')}`}>
+                      <div className="hidden lg:flex items-end gap-3 h-[150px] pt-2 border-b border-[#EEF2F7]" role="img" aria-label={`Blood pressure readings: ${bpTrend.map((b) => `${b.sys}/${b.dia}`).join(', ')}`}>
                         {bpTrend.map((b, i) => (
                           <div key={i} className="flex-1 min-w-0 h-full flex flex-col items-center justify-end gap-1">
                             <span className="text-[10.5px] font-extrabold tabular-nums text-[#27324A]">{b.sys}/{b.dia}</span>
@@ -343,20 +355,21 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
                         ))}
                       </div>
                     ) : (
-                      <p className="text-[13px] text-[#5B667A]">No blood pressure readings yet.</p>
+                      <p className="hidden lg:block text-[13px] text-[#5B667A]">No blood pressure readings yet.</p>
                     )}
-                    <div className="flex flex-col">
+                    <div className="grid grid-cols-2 gap-x-4 lg:flex lg:flex-col">
                       <Field label="Blood pressure" value={latestVitals.vitals.bp} />
                       <Field label="Pulse" value={latestVitals.vitals.hr ? showHR(latestVitals.vitals.hr) : null} />
                       <Field label="SpO₂" value={latestVitals.vitals.spo2 ? showSpO2(latestVitals.vitals.spo2) : null} />
                     </div>
                   </div>
                 )}
-                {bpTrend.length > 0 && <p className="mt-2 text-[11.5px] text-[#8A94A6]">Light bar: top number (systolic). Dark bar: bottom number (diastolic). Ask your doctor what your readings mean.</p>}
+                {bpTrend.length > 0 && <p className="hidden lg:block mt-2 text-[11.5px] text-[#8A94A6]">Light bar: top number (systolic). Dark bar: bottom number (diastolic). Ask your doctor what your readings mean.</p>}
               </Panel>
 
               <Panel
                 id="family"
+                className="hidden lg:block"
                 title="Family members"
                 sub="Book for the people you care for"
                 action={
@@ -386,9 +399,10 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
               </Panel>
             </div>
 
-            <div className="flex flex-col gap-3.5 lg:gap-5 px-4 md:px-6 lg:px-0 pt-3.5 lg:pt-0">
+            <div className="contents lg:flex lg:flex-col lg:gap-5">
               <Panel
                 id="insurance"
+                className="order-3 lg:order-none"
                 title="Health insurance"
                 sub="Your digital insurance card"
                 action={
@@ -402,6 +416,7 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
 
               <Panel
                 id="payments"
+                className="hidden lg:block"
                 title="Recent payments"
                 action={
                   <Link href="/patient/payments" className="shrink-0 flex items-center gap-0.5 text-[13px] font-extrabold text-[#2A4DD0] hover:underline">
@@ -437,12 +452,26 @@ export default async function PatientProfilePage(props: { searchParams?: Promise
                 )}
               </Panel>
 
-              <section aria-label="More" className="lg:hidden rounded-[20px] bg-white shadow-[0_0_0_1px_#E6EBF3] overflow-hidden">
+              {/* Phones: the My health pages (desktops have them in the sidebar). */}
+              <section aria-labelledby="my-health-title" className="order-5 lg:hidden mt-1.5">
+                <h2 id="my-health-title" className="mx-1 mb-2.5 text-[12px] font-extrabold tracking-[0.04em] text-[#5B667A]">MY HEALTH</h2>
+                <div className="rounded-[18px] bg-white shadow-[0_0_0_1px_#E6EBF3] overflow-hidden">
+                  {MY_HEALTH.map((item) => (
+                    <Link key={item.key} href={item.href} className="flex items-center gap-3 px-4 py-3.5 border-b border-[#EEF2F7] last:border-b-0">
+                      <item.icon className="w-[20px] h-[20px] shrink-0 text-[#2A4DD0]" />
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-[14.5px] font-extrabold">{item.label}</span>
+                        <span className="block text-[12px] text-[#5B667A]">{MY_HEALTH_SUB[item.key]}</span>
+                      </span>
+                      <ChevronRight className="w-4 h-4 shrink-0 text-[#9AA4B5]" strokeWidth={2.4} />
+                    </Link>
+                  ))}
+                </div>
+              </section>
+
+              <section aria-label="More" className="order-6 lg:order-none lg:hidden rounded-[20px] bg-white shadow-[0_0_0_1px_#E6EBF3] overflow-hidden">
                 <MenuRow href="/patient/records" icon={FileText} label="Prescriptions & reports" />
-                <MenuRow href="/patient/payments" icon={Receipt} label="Payments & billing" />
-                <MenuRow href="/patient/saved" icon={Users} label="Your doctors & labs" />
-                <MenuRow href="/patient/preferences" icon={Settings} label="Settings" />
-                <MenuRow href="/patient/support" icon={CircleHelp} label="Help & support" />
+                <MenuRow href="/patient/payments" icon={Receipt} label="Payment history" />
                 <MenuRow href="/legal" icon={ShieldCheck} label="Privacy & consent" />
                 <form action="/auth/signout" method="post">
                   <button type="submit" className="w-full flex items-center gap-3 min-h-[52px] px-4 text-[14px] font-extrabold text-[#B42318] text-left">
@@ -471,9 +500,9 @@ function Banner({ tone, icon: Icon, children }: { tone: 'teal' | 'coral'; icon: 
 }
 
 /** A white card with a title, an optional line under it and an action on the right. */
-function Panel({ id, title, sub, action, children }: { id: string; title: string; sub?: string; action?: ReactNode; children: ReactNode }) {
+function Panel({ id, title, sub, action, className = '', children }: { id: string; title: ReactNode; sub?: ReactNode; action?: ReactNode; className?: string; children: ReactNode }) {
   return (
-    <section id={id} aria-labelledby={`${id}-title`} className={`scroll-mt-24 lg:scroll-mt-[96px] p-4 lg:p-[22px] ${card} rounded-[20px]! lg:rounded-2xl!`}>
+    <section id={id} aria-labelledby={`${id}-title`} className={`scroll-mt-24 lg:scroll-mt-[96px] p-4 lg:p-[22px] ${card} rounded-[20px]! lg:rounded-2xl! ${className}`}>
       <div className="flex items-start gap-3 mb-1.5 lg:mb-3">
         <span className="flex-1 min-w-0">
           <h2 id={`${id}-title`} className="text-[16px] font-extrabold tracking-[-0.01em]">{title}</h2>

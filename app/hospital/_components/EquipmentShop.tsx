@@ -15,9 +15,9 @@ const ICON: Record<EquipmentCategory, LucideIcon> = { devices: Stethoscope, ppe:
 type Payer = { name: string; email: string | null; phone: string | null }
 
 /** The DeskHosEquipment page body: catalogue with search and categories on the left; the order and recent orders on the right. */
-export function EquipmentShop({ products, orders, deliverTo, payer }: { products: Product[]; orders: Order[]; deliverTo: string; payer: Payer }) {
+export function EquipmentShop({ products, orders, deliverTo, payer, initialQuery = '' }: { products: Product[]; orders: Order[]; deliverTo: string; payer: Payer; initialQuery?: string }) {
   const router = useRouter()
-  const [q, setQ] = useState('')
+  const [q, setQ] = useState(initialQuery)
   const [cat, setCat] = useState<EquipmentCategory | 'all'>('all')
   const [cart, setCart] = useState<Record<string, number>>({})
   const [note, setNote] = useState('')
@@ -67,12 +67,12 @@ export function EquipmentShop({ products, orders, deliverTo, payer }: { products
   return (
     <div className="grid gap-3.5 lg:gap-5 lg:grid-cols-[minmax(0,1fr)_340px] items-start">
       <div className="min-w-0">
-        <label className="flex items-center gap-2.5 h-11 px-3.5 mb-3.5 rounded-xl bg-white shadow-[inset_0_0_0_1px_#E1E7F0] focus-within:shadow-[inset_0_0_0_1.5px_#2A4DD0]">
+        <label className="hidden lg:flex items-center gap-2.5 h-11 px-3.5 mb-3.5 rounded-xl bg-white shadow-[inset_0_0_0_1px_#E1E7F0] focus-within:shadow-[inset_0_0_0_1.5px_#2A4DD0]">
           <Search className="w-[17px] h-[17px] text-[#5B667A] shrink-0" />
           <input type="search" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search equipment and supplies" placeholder="Search equipment and supplies" className="flex-1 min-w-0 bg-transparent outline-none text-[14px]" />
         </label>
         {cats.length > 2 && (
-          <div role="tablist" aria-label="Category" className="flex flex-wrap gap-2 mb-4">
+          <div role="tablist" aria-label="Category" className="flex gap-2 mb-4 -mx-4 px-4 overflow-x-auto no-scrollbar lg:mx-0 lg:px-0 lg:flex-wrap lg:overflow-visible">
             {cats.map((c) => (
               <button
                 key={c.key}
@@ -80,7 +80,7 @@ export function EquipmentShop({ products, orders, deliverTo, payer }: { products
                 role="tab"
                 aria-selected={cat === c.key}
                 onClick={() => setCat(c.key)}
-                className={`h-[38px] px-4 rounded-full border text-[13.5px] font-extrabold transition-colors ${cat === c.key ? 'border-[#2A4DD0] bg-[#2A4DD0] text-white' : 'border-[#D6DDE8] bg-white text-[#27324A] hover:border-[#9DB4F5]'}`}
+                className={`shrink-0 whitespace-nowrap h-[38px] px-4 rounded-full border text-[13.5px] font-extrabold transition-colors ${cat === c.key ? 'border-[#2A4DD0] bg-[#2A4DD0] text-white' : 'border-[#D6DDE8] bg-white text-[#27324A] hover:border-[#9DB4F5]'}`}
               >
                 {c.label}
               </button>

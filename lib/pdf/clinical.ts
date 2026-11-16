@@ -74,7 +74,8 @@ export type Fonts = { regular: PDFFont; bold: PDFFont }
 export function richWrap(segs: Seg[], fonts: Fonts, size: number, width: number): Seg[][] {
   const words: Seg[] = []
   for (const s of segs) {
-    const parts = safe(s.t).split(/(\s+)/)
+    // Not trimmed: a segment's leading or trailing space is what separates it from its neighbour ("Note:" + " Please").
+    const parts = String(s.t ?? '').replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '').split(/(\s+)/)
     for (const p of parts) if (p) words.push({ t: p, b: s.b })
   }
   const lines: Seg[][] = [[]]

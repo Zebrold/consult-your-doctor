@@ -60,7 +60,7 @@ export default async function FamilyPage() {
       wide
       title="Family members"
       subtitle="Book care and keep records for the people you look after"
-      phoneSubtitle={`${people.length} ${people.length === 1 ? 'person' : 'people'} on your account`}
+      phoneSubtitle="Book care and keep records for your family."
     >
       <div className="grid gap-3.5 lg:gap-5 lg:grid-cols-[minmax(0,1fr)_360px] items-start">
         <div className="grid gap-3.5 lg:gap-5 md:grid-cols-2 min-w-0">

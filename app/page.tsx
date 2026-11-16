@@ -16,6 +16,7 @@ import QRCode from 'qrcode';
 import { siteUrl } from '@/lib/site-url';
 import { formatCityName } from '@/lib/geo';
 import { loadInsurance } from '@/lib/insurance';
+import { pausedDoctorIds } from '@/lib/doctor-pause';
 
 // The app banner's QR code: the site's address, made once per server.
 let siteQr: Promise<string> | null = null;
@@ -90,7 +91,9 @@ export default async function Home(props: {
     profiles: { full_name: string | null } | { full_name: string | null }[] | null;
     hospitals: { id: string; name: string; city: string | null } | { id: string; name: string; city: string | null }[] | null;
   };
-  const doctors: HomeDoctor[] = ((dbDoctors ?? []) as DoctorRow[]).map((d) => {
+  // Doctors whose bookings are paused are hidden from patients.
+  const paused = await pausedDoctorIds();
+  const doctors: HomeDoctor[] = ((dbDoctors ?? []) as DoctorRow[]).filter((d) => !paused.has(d.id)).map((d) => {
     const hospital = one(d.hospitals);
     const pin = hospital ? hospitalPins.get(hospital.id) ?? null : null;
     return {

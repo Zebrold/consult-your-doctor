@@ -7,7 +7,7 @@ import { initials } from '@/components/patient/format'
 import { updateAppointmentStatus } from '@/app/actions/doctor'
 import { PrescriptionWriter } from './PrescriptionWriter'
 
-export type VisitRef = { id: string; status: string; patientName: string; phone: string | null }
+export type VisitRef = { id: string; status: string; patientName: string; phone: string | null; /** The patient's known allergy, shown in the writer's header. */ allergy?: string | null }
 
 const canCheckIn = (v: VisitRef) => v.status === 'confirmed'
 // A finished visit can take another prescription too (to send the patient an update); it stays completed.
@@ -157,6 +157,7 @@ export function WritePrescriptionButton({
   kind = 'outline',
   className,
   size,
+  picker,
 }: {
   current: VisitRef | null
   recent: PickVisit[]
@@ -164,6 +165,8 @@ export function WritePrescriptionButton({
   kind?: Kind
   className?: string
   size?: string
+  /** Own wording for the list (New consult); the default is the Write Rx copy. */
+  picker?: PickerCopy
 }) {
   const [picking, setPicking] = useState(false)
   const [visit, setVisit] = useState<VisitRef | null>(null)
@@ -182,6 +185,7 @@ export function WritePrescriptionButton({
       {picking && (
         <VisitPicker
           visits={recent}
+          copy={picker}
           onClose={() => setPicking(false)}
           onPick={(v) => {
             setPicking(false)
@@ -194,15 +198,22 @@ export function WritePrescriptionButton({
   )
 }
 
-function VisitPicker({ visits, onPick, onClose }: { visits: PickVisit[]; onPick: (v: VisitRef) => void; onClose: () => void }) {
+type PickerCopy = { title: string; sub: string; empty: string }
+const DEFAULT_PICKER: PickerCopy = {
+  title: 'Write a prescription',
+  sub: 'Choose the visit it belongs to. The patient sees it in their account.',
+  empty: "No paid visits in the last 30 days. Prescriptions are written for patients booked with you, online or at your hospital's desk.",
+}
+
+function VisitPicker({ visits, copy = DEFAULT_PICKER, onPick, onClose }: { visits: PickVisit[]; copy?: PickerCopy; onPick: (v: VisitRef) => void; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true" aria-label="Choose a visit">
       <button type="button" aria-label="Close" className="absolute inset-0 bg-[#0B1B3F]/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full sm:max-w-lg max-h-[85dvh] bg-white text-[#0B1B3F] rounded-t-[22px] sm:rounded-[20px] shadow-2xl p-5 sm:p-6 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-6 flex flex-col gap-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-[18px] font-extrabold tracking-[-0.01em]">Write a prescription</h3>
-            <p className="mt-0.5 text-[13px] text-[#5B667A]">Choose the visit it belongs to. The patient sees it in their account.</p>
+            <h3 className="text-[18px] font-extrabold tracking-[-0.01em]">{copy.title}</h3>
+            <p className="mt-0.5 text-[13px] text-[#5B667A]">{copy.sub}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 rounded-full bg-[#F4F6FA] hover:bg-[#EEF2F7] flex items-center justify-center shrink-0">
             <X className="w-4 h-4" />
@@ -229,9 +240,7 @@ function VisitPicker({ visits, onPick, onClose }: { visits: PickVisit[]; onPick:
             })}
           </ul>
         ) : (
-          <p className="p-4 rounded-xl bg-[#F4F6FA] text-[13px] text-[#5B667A]">
-            No paid visits in the last 30 days. Prescriptions are written for patients booked with you, online or at your hospital&apos;s desk.
-          </p>
+          <p className="p-4 rounded-xl bg-[#F4F6FA] text-[13px] text-[#5B667A]">{copy.empty}</p>
         )}
       </div>
     </div>

@@ -3,9 +3,11 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { BadgeCheck, CheckCircle2, CircleCheck, Loader2 } from 'lucide-react'
+import { BadgeCheck, CircleCheck, Loader2 } from 'lucide-react'
 import { startHospitalBadges } from '@/app/actions/badges'
 import { formatINR } from '@/components/patient/format'
+import { RadioCard } from '@/components/portal/form-ui'
+import type { BadgePlan } from '@/lib/badges'
 import { startPurchase } from '@/lib/purchase-client'
 import { Panel, PanelHead, Verified, btnPrimary, card } from './hos-ui'
 
@@ -60,13 +62,14 @@ export function HospitalBadges({
   payer,
 }: {
   ready: boolean
-  hospital: { name: string; price: number; state: HospitalBadgeState }
+  hospital: { name: string; prices: Record<BadgePlan, number>; doctorMonthly: number; state: HospitalBadgeState }
   doctors: BadgeDoctorRow[]
   payer: { name: string; email: string | null; phone: string | null }
 }) {
   const router = useRouter()
   // Doctors who asked the hospital to pay start ticked.
   const [picked, setPicked] = useState<Set<string>>(() => new Set(doctors.filter((d) => d.selectable && d.state === 'asked').map((d) => d.id)))
+  const [plan, setPlan] = useState<BadgePlan>('monthly')
   const [busy, setBusy] = useState<'hospital' | 'doctors' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
@@ -78,7 +81,7 @@ export function HospitalBadges({
     setBusy(what)
     setError(null)
     setDone(null)
-    const started = await startHospitalBadges(what === 'hospital' ? { hospital: true, doctorIds: [] } : { hospital: false, doctorIds: chosen.map((d) => d.id) })
+    const started = await startHospitalBadges(what === 'hospital' ? { hospital: true, doctorIds: [], plan } : { hospital: false, doctorIds: chosen.map((d) => d.id) })
     if (!started.ok || !started.paymentId) {
       setError(started.ok ? 'Could not start the payment.' : started.error)
       setBusy(null)
@@ -115,7 +118,7 @@ export function HospitalBadges({
       )}
 
       <section className={`${card} flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-[22px] px-4 lg:px-6 py-4 lg:py-[22px] mb-3.5 lg:mb-5`}>
-        <span className="w-14 h-14 lg:w-16 lg:h-16 shrink-0 rounded-2xl bg-[#2A4DD0] flex items-center justify-center">
+        <span className="hidden lg:flex w-14 h-14 lg:w-16 lg:h-16 shrink-0 rounded-2xl bg-[#2A4DD0] flex items-center justify-center">
           <BadgeCheck className="w-8 h-8 text-white" strokeWidth={2} />
         </span>
         <span className="flex-1 min-w-0">
@@ -127,36 +130,45 @@ export function HospitalBadges({
         </span>
         <span className="lg:text-right shrink-0">
           {h.inReview ? (
-            <>
+            <span className="flex items-center justify-between gap-2.5 mt-1 pt-3.5 border-t border-[#EEF2F7] lg:block lg:mt-0 lg:pt-0 lg:border-0">
               <span className="inline-flex items-center h-6 px-[9px] rounded-full bg-[#FFF6E8] text-[#B54708] text-[11.5px] font-extrabold">Being checked</span>
-              <span className="block mt-1.5 text-[12.5px] text-[#5B667A]">Paid · our team is checking it</span>
-            </>
+              <span className="block lg:mt-1.5 text-[12.5px] text-[#5B667A]">Paid · our team is checking it</span>
+            </span>
           ) : h.activeUntil && !h.canRenew ? (
-            <>
+            <span className="flex items-center justify-between gap-2.5 mt-1 pt-3.5 border-t border-[#EEF2F7] lg:block lg:mt-0 lg:pt-0 lg:border-0">
               <span className="inline-flex items-center h-6 px-[9px] rounded-full bg-[#EEF3FF] text-[#2A4DD0] text-[11.5px] font-extrabold">Active</span>
-              <span className="block mt-1.5 text-[12.5px] text-[#5B667A]">Until {h.renewedUntil ?? h.activeUntil}</span>
-            </>
+              <span className="block lg:mt-1.5 text-[12.5px] text-[#5B667A]">Until {h.renewedUntil ?? h.activeUntil}</span>
+            </span>
           ) : (
-            <>
+            <span className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2.5 mt-1 pt-3.5 border-t border-[#EEF2F7] lg:block lg:mt-0 lg:pt-0 lg:border-0">
               <span className="block text-[20px] font-extrabold">
-                {formatINR(hospital.price)}
-                <span className="text-[13px] font-semibold text-[#5B667A]"> / month</span>
+                {formatINR(hospital.prices[plan])}
+                <span className="text-[13px] font-semibold text-[#5B667A]"> / {plan === 'yearly' ? 'year' : 'month'}</span>
               </span>
               {h.activeUntil && <span className="block text-[12.5px] text-[#5B667A]">Active until {h.activeUntil}</span>}
-              {h.rejected && <span className="block max-w-[260px] text-[12.5px] text-[#B42318]">Not approved: {h.rejected}</span>}
-              <button type="button" disabled={!ready || !h.live || !!busy} onClick={() => pay('hospital')} className={`${btnPrimary} mt-2`}>
+              {h.rejected && <span className="block col-span-2 max-w-[260px] lg:ml-auto text-[12.5px] text-[#B42318]">Not approved: {h.rejected}</span>}
+              <button type="button" disabled={!ready || !h.live || !!busy} onClick={() => pay('hospital')} className={`${btnPrimary} col-start-2 row-start-1 row-span-2 lg:mt-2`}>
                 {busy === 'hospital' && <Loader2 className="w-4 h-4 animate-spin" />}
-                {h.activeUntil ? 'Renew for a month' : 'Verify this hospital'}
+                {h.activeUntil ? (plan === 'yearly' ? 'Renew for a year' : 'Renew for a month') : 'Verify this hospital'}
               </button>
-              {!h.live && <span className="block mt-1.5 text-[12px] text-[#B54708]">Your hospital needs to be live first.</span>}
-            </>
+              <span role="radiogroup" aria-label="Plan" className="grid grid-cols-2 gap-2 col-span-2 mt-3 text-left lg:w-[360px]">
+                <RadioCard on={plan === 'monthly'} onPick={() => setPlan('monthly')} title={`Monthly · ${formatINR(hospital.prices.monthly)}`} detail="per month" />
+                <RadioCard
+                  on={plan === 'yearly'}
+                  onPick={() => setPlan('yearly')}
+                  title={`Yearly · ${formatINR(hospital.prices.yearly)}`}
+                  detail={hospital.prices.monthly * 12 > hospital.prices.yearly ? `per year · save ${formatINR(hospital.prices.monthly * 12 - hospital.prices.yearly)}` : 'per year'}
+                />
+              </span>
+              {!h.live && <span className="block col-span-2 mt-1.5 text-[12px] text-[#B54708]">Your hospital needs to be live first.</span>}
+            </span>
           )}
         </span>
       </section>
 
       <div className="grid gap-3.5 lg:gap-5 lg:grid-cols-[minmax(0,1fr)_340px] items-start">
         <Panel>
-          <PanelHead title="Doctor badges" sub={`${formatINR(doctors[0]?.price ?? 499)} per doctor per month. Select the doctors you want to verify.`} />
+          <PanelHead title="Doctor badges" sub={`${formatINR(hospital.doctorMonthly)} per doctor per month. Select the doctors you want to verify.`} />
           {doctors.length === 0 ? (
             <p className="py-3 text-[13px] text-[#5B667A] border-t border-[#EEF2F7]">No doctors on your roster yet.</p>
           ) : (
@@ -191,6 +203,7 @@ export function HospitalBadges({
                           <span className="truncate">{d.name}</span>
                           {d.state === 'live' && <Verified size={17} />}
                         </span>
+                        <span className="block lg:hidden text-[12px] text-[#5B667A] truncate">{d.specialty}</span>
                         <span className={`block lg:hidden text-[12px] truncate ${d.warn ? 'text-[#B54708]' : 'text-[#5B667A]'}`}>{d.note}</span>
                       </span>
                     </span>
@@ -229,7 +242,7 @@ export function HospitalBadges({
             <ul className="grid gap-3">
               {GIVES.map(([b, rest]) => (
                 <li key={b} className="flex gap-2.5 items-start text-[13.5px] leading-[1.45] text-[#27324A]">
-                  <CheckCircle2 className="w-[18px] h-[18px] mt-px text-[#2A4DD0] shrink-0" />
+                  <span className="shrink-0 mt-px"><Verified size={18} /></span>
                   <span>
                     <strong>{b}</strong> {rest}
                   </span>

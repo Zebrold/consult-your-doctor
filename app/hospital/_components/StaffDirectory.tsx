@@ -3,7 +3,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { CalendarPlus, Download, Mail, Phone, Search } from 'lucide-react'
-import { formatShortDate } from '@/components/patient/format'
 import { AddDoctorButton, EditDoctorButton, type EditableDoctor } from './DoctorDialogs'
 import { DeskHead, HosBody, HosHeader, Initials, PhoneStats, btnOutline, btnPrimary, card, lineTab, segGroup, segTab, telHref, type PhoneStat } from './hos-ui'
 import { ROLE, type StaffRole } from '../_lib/roles'
@@ -46,7 +45,7 @@ function exportCsv(rows: StaffMember[]) {
 }
 
 const iconBtn = 'w-[34px] h-[34px] rounded-[10px] border border-[#D6DDE8] bg-white flex items-center justify-center text-[#27324A] hover:bg-[#F4F6FA] shrink-0'
-const tableGrid = 'grid grid-cols-[minmax(0,1.5fr)_120px_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_96px_150px] gap-3.5'
+const tableGrid = 'grid grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_110px_minmax(0,1.7fr)_150px] gap-3.5'
 
 /**
  * Staff & access after the HosStaff export: everyone with a login at the hospital, by role, with what each role can
@@ -126,14 +125,14 @@ export function StaffDirectory({
               <button type="button" onClick={() => exportCsv(shown)} disabled={!shown.length} className={`${btnOutline} disabled:opacity-50`}>
                 <Download className="w-4 h-4" /> Export CSV
               </button>
-              <AddDoctorButton departments={departments} label="Add doctor" className={btnPrimary} />
+              <AddDoctorButton departments={departments} hospitalName={hospitalName} label="Add doctor" className={btnPrimary} />
             </>
           }
         />
 
         <PhoneStats stats={stats} />
         <div className="lg:hidden mt-3.5">
-          <AddDoctorButton departments={departments} label="Add doctor" className={`${btnPrimary} w-full !h-[46px] !shadow-none`} />
+          <AddDoctorButton departments={departments} hospitalName={hospitalName} label="Add doctor" className={`${btnPrimary} w-full !h-[46px] !shadow-none`} />
         </div>
         {deskStats}
 
@@ -167,31 +166,30 @@ export function StaffDirectory({
           ))}
         </section>
 
-        {/* Desktops */}
+        {/* Desktops: the table beside the cards under it */}
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-5 lg:items-start">
         <section className={`hidden lg:block ${card} p-[22px] min-w-0`}>
-          <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3.5">
             <div>
-              <h2 className="text-[16px] font-extrabold tracking-[-0.01em]">Staff directory</h2>
+              <h2 className="text-[16px] font-extrabold tracking-[-0.01em]">Team members</h2>
               <p className="mt-[3px] text-[13px] text-[#5B667A]">Everyone with a login at your hospital and what they can access</p>
             </div>
-            <div className="flex items-center gap-2.5">
-              <label className="flex items-center gap-2 h-[42px] px-3 rounded-xl bg-[#F4F6FA] shadow-[inset_0_0_0_1px_#E6EAF0] focus-within:shadow-[inset_0_0_0_1.5px_#2A4DD0] w-[240px]">
+            <div role="tablist" aria-label="Role" className={segGroup}>
+              {FILTERS.map((f) => (
+                <button key={f.key} type="button" role="tab" aria-selected={role === f.key} onClick={() => setRole(f.key)} className={segTab(role === f.key)}>
+                  {f.label} <span className={role === f.key ? '' : 'text-[#8A94A6]'}>{counts[f.key]}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <label className="flex items-center gap-2 h-[42px] px-3 mb-4 rounded-xl bg-[#F4F6FA] shadow-[inset_0_0_0_1px_#E6EAF0] focus-within:shadow-[inset_0_0_0_1.5px_#2A4DD0]">
                 <Search className="w-4 h-4 text-[#5B667A] shrink-0" />
                 <span className="sr-only">Search staff</span>
                 <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, ID or department" className="flex-1 min-w-0 bg-transparent outline-none text-[13.5px] placeholder:text-[#7A8599]" />
               </label>
-              <div role="tablist" aria-label="Role" className={segGroup}>
-                {FILTERS.map((f) => (
-                  <button key={f.key} type="button" role="tab" aria-selected={role === f.key} onClick={() => setRole(f.key)} className={segTab(role === f.key)}>
-                    {f.label} <span className={role === f.key ? '' : 'text-[#8A94A6]'}>{counts[f.key]}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
           <div role="table" aria-label="Staff directory">
             <div role="row" className={`${tableGrid} px-3.5 py-2.5 -mx-3.5 rounded-[10px] bg-[#F7F9FC] text-[11.5px] font-extrabold tracking-[0.04em] uppercase text-[#5B667A]`}>
-              {['Staff member', 'Role', 'Access', 'Department', 'Activity', 'Joined', 'Actions'].map((h) => (
+              {['Staff member', 'Department', 'Role', 'Access', 'Actions'].map((h) => (
                 <span key={h} role="columnheader" className={h === 'Actions' ? 'text-right' : ''}>
                   {h}
                 </span>
@@ -209,20 +207,14 @@ export function StaffDirectory({
                       <span className="block text-[12px] text-[#5B667A] truncate">{[s.staffId ? `#${s.staffId}` : 'No staff ID', s.phone].filter(Boolean).join(' · ')}</span>
                     </span>
                   </span>
+                  <span role="cell" className="text-[#27324A] truncate">
+                    {s.department ?? '—'}
+                  </span>
                   <span role="cell" className="text-[12.5px] font-extrabold" style={{ color: ROLE[s.role].color }}>
                     {roleLabel(s)}
                   </span>
                   <span role="cell" className="text-[12.5px] text-[#5B667A]">
-                    {ROLE[s.role].scope}
-                  </span>
-                  <span role="cell" className="text-[#27324A] truncate">
-                    {s.department ?? '—'}
-                  </span>
-                  <span role="cell" className="text-[12.5px] text-[#5B667A]">
-                    {s.activity ?? '—'}
-                  </span>
-                  <span role="cell" className="text-[12.5px] text-[#5B667A] whitespace-nowrap">
-                    {s.joined ? formatShortDate(s.joined) : '—'}
+                    {accessLine(s)}
                   </span>
                   <span role="cell" className="flex items-center justify-end gap-1.5">
                     {actions(s)}
@@ -232,8 +224,8 @@ export function StaffDirectory({
             )}
           </div>
         </section>
-
-        {children}
+        <aside className="flex flex-col gap-3.5 lg:gap-5 mt-3.5 lg:mt-0 min-w-0">{children}</aside>
+        </div>
       </HosBody>
     </>
   )

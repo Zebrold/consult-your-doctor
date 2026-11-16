@@ -66,6 +66,7 @@ export async function verifySmtp(): Promise<{ ok: boolean; error?: string }> {
 }
 
 import path from 'node:path'
+import { CANONICAL_SITE_URL } from '@/lib/site-url'
 
 export type EmailAttachment = {
   filename: string
@@ -78,86 +79,101 @@ export type EmailAttachment = {
 export type Email = {
   to: string
   subject: string
+  /** The headline under the blue brand header, e.g. "Application received". */
+  heading?: string
   /** Plain paragraphs; links are written out in full. */
   paragraphs: string[]
+  /** Label and value pairs (ticket ID, staff ID...), shown in a grey box under the text. */
+  facts?: [string, string][]
   attachments?: EmailAttachment[]
   button?: { text: string; url: string }
   html?: string
 }
 
-const escape = (s: string) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
-const linkify = (s: string) => escape(s).replace(/https?:\/\/[^\s<]+/g, (url) => `<a href="${url}" style="color:#0050cb;font-weight:600;text-decoration:underline;">${url}</a>`)
+/** Inline logos: the blue stethoscope (booking email) and the white one on the blue header (every other email). */
+const LOGO_CID = 'cydlogo'
+const LOGO_WHITE_CID = 'cydlogowhite'
 
-function html(paragraphs: string[], button?: { text: string; url: string }) {
-  const logoUrl = 'https://www.consultyourdoctor.de/logo-icon.png'
+// The website's look: the blue header band with the white stethoscope and the name in Helvetica, Manrope text,
+// #2A4DD0 buttons and the blue footer. Email clients take tables and inline styles only.
+const FONT = "font-family:Manrope,'Helvetica Neue',Helvetica,Arial,sans-serif;"
+const BRAND_FONT = "font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;"
+const C = { ink: '#0B1B3F', text: '#3F4A5E', muted: '#5B667A', blue: '#2A4DD0', header: '#1D4ED8', soft: '#F5F7FB', line: '#E3E8F0', page: '#EEF2F7', footer: '#E1E8FA' }
+
+const escape = (s: string) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
+const linkify = (s: string) => escape(s).replace(/https?:\/\/[^\s<]+/g, (url) => `<a href="${url}" target="_blank" style="color:${C.blue};font-weight:700;text-decoration:underline;word-break:break-all;">${url}</a>`)
+
+function html(email: Pick<Email, 'heading' | 'paragraphs' | 'facts' | 'button'>) {
+  const site = CANONICAL_SITE_URL
+  const { heading, paragraphs, facts, button } = email
+  const factRows = (facts ?? [])
+    .map(
+      ([label, value], i) =>
+        `<tr><td valign="top" style="${FONT}font-size:13.5px;color:${C.muted};padding:9px 0;${i ? `border-top:1px solid ${C.line};` : ''}">${escape(label)}</td><td valign="top" align="right" style="${FONT}font-size:14px;font-weight:800;color:${C.ink};padding:9px 0 9px 16px;${i ? `border-top:1px solid ${C.line};` : ''}">${linkify(value)}</td></tr>`,
+    )
+    .join('')
 
   return `<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Consult Your Doctor</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>${escape(heading || 'Consult your Doctor')}</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&display=swap" rel="stylesheet">
 </head>
-<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; -webkit-font-smoothing: antialiased;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f1f5f9; width: 100%; margin: 0; padding: 0;">
-    <tr>
-      <td align="center" style="padding: 32px 14px 40px;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 590px; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 35px rgba(0, 80, 203, 0.08); border: 1px solid #e2e8f0;">
-          
-          <!-- Top Multi-Tone Brand Accent Line -->
-          <tr>
-            <td height="5" style="background: linear-gradient(90deg, #0050cb 0%, #0066ff 40%, #06b6d4 75%, #10b981 100%); font-size: 0; line-height: 0;">&nbsp;</td>
-          </tr>
+<body style="margin:0;padding:0;background:${C.page};-webkit-font-smoothing:antialiased;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.page};"><tr><td align="center" style="padding:24px 10px 32px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#ffffff;border:1px solid ${C.line};border-radius:14px;border-collapse:separate;overflow:hidden;">
 
-          <!-- Header with Official Website Logo -->
-          <tr>
-            <td style="padding: 22px 28px; border-bottom: 1px solid #f1f5f9; background-color: #ffffff;">
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td valign="middle" style="padding-right: 14px;">
-                    <a href="https://www.consultyourdoctor.de" target="_blank" style="text-decoration: none; display: block;">
-                      <img src="${logoUrl}" width="48" height="48" alt="Consult your Doctor" style="display: block; border: 0; outline: none; width: 48px; height: 48px; border-radius: 12px;" />
-                    </a>
-                  </td>
-                  <td valign="middle">
-                    <a href="https://www.consultyourdoctor.de" target="_blank" style="text-decoration: none;">
-                      <div style="font-size: 21px; font-weight: 800; color: #0050cb; letter-spacing: -0.4px; line-height: 1.15; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Consult your Doctor</div>
-                      <div style="font-size: 11px; font-weight: 700; color: #64748b; letter-spacing: 0.8px; text-transform: uppercase; margin-top: 3px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Verified Healthcare Network</div>
-                    </a>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+  <tr><td style="background:${C.header};border-radius:14px 14px 0 0;padding:18px 26px;">
+    <a href="${site}" target="_blank" style="text-decoration:none;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td valign="middle" style="padding-right:12px;"><img src="cid:${LOGO_WHITE_CID}" width="36" height="36" alt="" style="display:block;width:36px;height:36px;border:0;" /></td>
+      <td valign="middle" style="${BRAND_FONT}font-size:22px;font-weight:700;letter-spacing:-0.2px;color:#ffffff;">Consult your Doctor</td>
+    </tr></table></a>
+  </td></tr>
 
-          <!-- Content Body -->
-          <tr>
-            <td style="padding: 30px 28px 24px; font-size: 14.5px; line-height: 1.65; color: #1e293b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-              ${paragraphs.map((p) => `<p style="margin: 0 0 16px;">${linkify(p)}</p>`).join('')}
-              ${
-                button
-                  ? `<div style="margin: 28px 0 10px; text-align: center;">
-                      <a href="${button.url}" target="_blank" style="display: inline-block; padding: 14px 36px; background-color: #0050cb; color: #ffffff; text-decoration: none; font-weight: 700; border-radius: 50px; font-size: 14.5px; box-shadow: 0 4px 16px rgba(0, 80, 203, 0.3); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">${escape(button.text)} &rarr;</a>
-                    </div>`
-                  : ''
-              }
-            </td>
-          </tr>
+  <tr><td style="padding:30px 26px 10px;${FONT}">
+    ${heading ? `<div style="${FONT}font-size:22px;line-height:1.3;font-weight:800;color:${C.ink};padding-bottom:16px;">${escape(heading)}</div>` : ''}
+    ${paragraphs.map((p) => `<p style="margin:0 0 14px;${FONT}font-size:15px;line-height:1.6;color:${C.text};">${linkify(p)}</p>`).join('')}
+    ${factRows ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.soft};border-radius:12px;border-collapse:separate;margin:6px 0 14px;"><tr><td style="padding:6px 18px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${factRows}</table></td></tr></table>` : ''}
+    ${
+      button
+        ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:18px auto 10px;"><tr><td align="center" style="background:${C.blue};border-radius:10px;">
+        <a href="${escape(button.url)}" target="_blank" style="display:inline-block;padding:13px 44px;${FONT}font-size:15px;font-weight:800;color:#ffffff;text-decoration:none;">${escape(button.text)}</a>
+      </td></tr></table>`
+        : ''
+    }
+  </td></tr>
 
-          <!-- Corporate Medical Footer -->
-          <tr>
-            <td style="padding: 22px 28px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 11.5px; line-height: 1.5; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-              <div style="font-weight: 700; color: #334155; margin-bottom: 3px;">Consult Your Doctor &bull; Verified Healthcare Network</div>
-              <div>A service of Zebrold International Pvt Ltd &bull; Confidential Healthcare Notification</div>
-            </td>
-          </tr>
+  <tr><td style="padding:14px 26px 26px;${FONT}font-size:13px;line-height:1.55;color:${C.muted};">
+    Questions? Visit <a href="${site}/contact" target="_blank" style="color:${C.blue};font-weight:700;text-decoration:none;">Help &amp; Support</a>. This mailbox doesn&#39;t take replies.
+  </td></tr>
 
-        </table>
-      </td>
-    </tr>
-  </table>
+  <tr><td style="background:${C.blue};border-radius:0 0 14px 14px;padding:22px 26px 24px;${FONT}font-size:12.5px;line-height:1.6;color:${C.footer};">
+    <div style="${BRAND_FONT}font-size:16px;font-weight:700;color:#ffffff;">Consult your Doctor</div>
+    <div style="padding-top:6px;">Find doctors at partner hospitals and diagnostic labs, book and pay online, and keep your prescriptions and reports in one place.</div>
+    <div style="padding-top:12px;"><a href="${site}" target="_blank" style="color:#ffffff;font-weight:700;text-decoration:none;">consultyourdoctor.de</a>&nbsp;&nbsp;&middot;&nbsp;&nbsp;<a href="${site}/contact" target="_blank" style="color:#ffffff;font-weight:700;text-decoration:none;">Help &amp; Support</a>&nbsp;&nbsp;&middot;&nbsp;&nbsp;<a href="${site}/legal" target="_blank" style="color:#ffffff;font-weight:700;text-decoration:none;">Legal</a></div>
+    <div style="padding-top:12px;color:#C9D4F5;">&copy; ${new Date().getFullYear()} Consult Your Doctor. All rights reserved.</div>
+  </td></tr>
+
+</table>
+</td></tr></table>
 </body>
 </html>`
+}
+
+/** The plain-text twin of html(), for clients that don't show HTML. */
+function text(email: Pick<Email, 'heading' | 'paragraphs' | 'facts' | 'button'>) {
+  return [
+    email.heading,
+    ...email.paragraphs,
+    ...(email.facts?.length ? [email.facts.map(([l, v]) => `${l}: ${v}`).join('\n')] : []),
+    email.button ? `${email.button.text}: ${email.button.url}` : null,
+    `Consult your Doctor · ${CANONICAL_SITE_URL}`,
+  ]
+    .filter((p): p is string => !!p)
+    .join('\n\n')
 }
 
 /** Sends an email if SMTP is configured. Returns whether it was sent; failures are logged, never thrown. */
@@ -168,7 +184,6 @@ export async function sendEmail(email: Email): Promise<boolean> {
   }
   try {
     const from = getFromAddress()
-    const logoPath = path.join(process.cwd(), 'public', 'logo-icon.png')
     const finalAttachments: (Omit<EmailAttachment, 'content'> & { content?: Buffer })[] = []
 
     if (email.attachments) {
@@ -183,23 +198,20 @@ export async function sendEmail(email: Email): Promise<boolean> {
       }
     }
 
-    const renderedHtml = email.html || html(email.paragraphs, email.button)
+    const renderedHtml = email.html || html(email)
 
-    // Automatically embed the website logo as an inline CID image if referenced
-    if (renderedHtml.includes('cid:cydlogo') && !finalAttachments.some((a) => a.cid === 'cydlogo')) {
-      finalAttachments.push({
-        filename: 'logo-icon.png',
-        path: logoPath,
-        cid: 'cydlogo',
-        contentType: 'image/png',
-      })
+    // The website logos travel as inline images, so they show even where remote images are blocked.
+    for (const [cid, file] of [[LOGO_CID, 'logo-icon.png'], [LOGO_WHITE_CID, 'logo-icon-white.png']] as const) {
+      if (renderedHtml.includes(`cid:${cid}"`) && !finalAttachments.some((a) => a.cid === cid)) {
+        finalAttachments.push({ filename: file, path: path.join(process.cwd(), 'public', file), cid, contentType: 'image/png' })
+      }
     }
 
     await mailer().sendMail({
       from,
       to: email.to,
       subject: email.subject,
-      text: email.paragraphs.join('\n\n') + (email.button ? `\n\n${email.button.text}: ${email.button.url}` : ''),
+      text: email.html ? email.paragraphs.join('\n\n') : text(email),
       html: renderedHtml,
       attachments: finalAttachments,
     })
@@ -216,7 +228,20 @@ export async function sendEmail(email: Email): Promise<boolean> {
   }
 }
 
-/** Sends appointment confirmation with token and booking reference */
+const STATUS_LABEL: Record<string, string> = { open: 'Open', in_progress: 'In progress', awaiting_response: 'Waiting for your reply', resolved: 'Resolved', closed: 'Closed' }
+const statusLabel = (s: string) => STATUS_LABEL[s] ?? s.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())
+
+/** Where the person who raised a ticket finds help: their own portal's Help & support, or the public page. */
+export function supportUrl(siteUrl: string, role?: string | null) {
+  const path =
+    role === 'patient' ? '/patient/support'
+    : role === 'doctor' ? '/doctor/ai'
+    : role === 'hospital_admin' || role === 'hospital' ? '/hospital/ai'
+    : role === 'diagnostic_admin' ? '/diagnostic-center/ai'
+    : '/contact'
+  return `${siteUrl}${path}`
+}
+
 /** Sends support ticket receipt confirmation to the user */
 export async function sendTicketConfirmationEmail(args: {
   to: string
@@ -225,18 +250,22 @@ export async function sendTicketConfirmationEmail(args: {
   category: string
   subject: string
   siteUrl: string
+  role?: string | null
 }) {
   return sendEmail({
     to: args.to,
-    subject: `[${args.ticketCode}] Support Request Received: ${args.subject}`,
+    subject: `[${args.ticketCode}] We've received your request: ${args.subject}`,
+    heading: 'We’ve received your request',
     paragraphs: [
       `Hello ${args.requesterName},`,
-      `We have received your support request regarding "${args.category}". Our executive team is actively investigating it.`,
-      `Ticket ID: ${args.ticketCode}`,
-      `Subject: ${args.subject}`,
-      `You will receive an update here as soon as an executive responds.`,
+      `Thank you for contacting Consult Your Doctor. Our support team is looking into your request and will reply to this email address.`,
     ],
-    button: { text: 'Track Support Ticket', url: `${args.siteUrl}/patient/support` },
+    facts: [
+      ['Ticket ID', args.ticketCode],
+      ['Topic', args.category],
+      ['Subject', args.subject],
+    ],
+    button: { text: 'Open Help & Support', url: supportUrl(args.siteUrl, args.role) },
   })
 }
 
@@ -249,17 +278,22 @@ export async function sendTicketReplyEmail(args: {
   message: string
   status: string
   siteUrl: string
+  role?: string | null
 }) {
   return sendEmail({
     to: args.to,
-    subject: `[Update - ${args.ticketCode}] Reply from Executive Support`,
+    subject: `[${args.ticketCode}] New reply from Consult Your Doctor support`,
+    heading: 'There’s an update on your request',
     paragraphs: [
       `Hello ${args.requesterName},`,
-      `${args.executiveName} from Executive Support has updated your ticket (${args.ticketCode}):`,
-      `"${args.message}"`,
-      `Current Status: ${args.status.toUpperCase().replace(/_/g, ' ')}`,
+      `${args.executiveName} from our support team updated your ticket:`,
+      `“${args.message}”`,
     ],
-    button: { text: 'View Ticket Thread', url: `${args.siteUrl}/patient/support` },
+    facts: [
+      ['Ticket ID', args.ticketCode],
+      ['Status', statusLabel(args.status)],
+    ],
+    button: { text: 'Open Help & Support', url: supportUrl(args.siteUrl, args.role) },
   })
 }
 
@@ -271,12 +305,12 @@ export async function sendDoctorRegistrationReceivedEmail(args: {
 }) {
   return sendEmail({
     to: args.to,
-    subject: 'Consult Your Doctor: Clinician Application Received',
+    subject: 'Consult Your Doctor: we’ve received your application',
+    heading: 'Application received',
     paragraphs: [
       `Dear Dr. ${args.doctorName},`,
-      `Thank you for applying to join the Consult Your Doctor clinician network as a specialist in ${args.specialty}.`,
-      `Our medical verification board is reviewing your registration documents and council credentials. Once verified by our Super Admin or Executive team, you will receive an account activation link to access the Doctor Panel.`,
-      `Expected verification turnaround: 24 to 48 hours.`,
+      `Thank you for applying to join Consult Your Doctor as a doctor in ${args.specialty}.`,
+      `Our team checks your registration number and medical council details. Once your application is approved, we’ll email you a link to set your password and open your doctor workspace.`,
     ],
   })
 }
@@ -290,14 +324,14 @@ export async function sendDoctorActivationEmail(args: {
 }) {
   return sendEmail({
     to: args.to,
-    subject: 'Welcome to Consult Your Doctor: Activate Clinician Account',
+    subject: 'Consult Your Doctor: your doctor account is ready',
+    heading: 'Your doctor account is ready',
     paragraphs: [
       `Dear Dr. ${args.doctorName},`,
-      `Your clinician account for Consult Your Doctor${args.hospitalName ? ` with ${args.hospitalName}` : ''} is approved and ready.`,
-      `Please click the button below to set your password and access your Doctor Panel.`,
-      `For security, this setup link is personalized and expires in 48 hours.`,
+      `Your doctor account on Consult Your Doctor${args.hospitalName ? ` with ${args.hospitalName}` : ''} is approved.`,
+      `Set your password with the button below to open your doctor workspace. The link is personal and works for a limited time; we never send passwords by email.`,
     ],
-    button: { text: 'Activate Doctor Account', url: args.activationLink },
+    button: { text: 'Set your password', url: args.activationLink },
   })
 }
 
@@ -314,6 +348,7 @@ export async function sendPartnerApplicationReceivedEmail(args: {
   return sendEmail({
     to: args.to,
     subject: `Consult Your Doctor: ${args.kind === 'hospital' ? 'Hospital' : 'Diagnostic centre'} application received`,
+    heading: 'Application received',
     paragraphs: [
       `Dear ${args.contactName},`,
       `Thank you for applying to list ${args.organizationName} as a partner ${noun} on Consult Your Doctor.`,
@@ -340,15 +375,72 @@ export async function sendPartnerApprovedEmail(args: {
   return sendEmail({
     to: args.to,
     subject: `Consult Your Doctor: ${args.organizationName} is approved`,
+    heading: `${args.organizationName} is approved`,
     paragraphs: [
       `Dear ${args.contactName},`,
       `${args.organizationName} is now a partner ${noun} on Consult Your Doctor.`,
       args.setPasswordLink
-        ? `Your login is ready. Your staff ID is ${args.staffId}. Set your own password with the button below, then log in with your staff ID or this email address. The link is personal and works for a limited time; we never send passwords by email.`
-        : `Your team logs in with the staff ID ${args.staffId}. Our operations team will give you the password separately; we never send passwords by email.`,
-      ...(args.setPasswordLink ? [`Staff login: ${args.signInUrl}`] : []),
+        ? `Your login is ready. Set your own password with the button below, then log in with your staff ID or this email address. The link is personal and works for a limited time; we never send passwords by email.`
+        : `Your team logs in with the staff ID below. Our operations team will give you the password separately; we never send passwords by email.`,
+    ],
+    facts: [
+      ['Staff ID', args.staffId],
+      ['Staff login', args.signInUrl],
     ],
     button: args.setPasswordLink ? { text: 'Set your password', url: args.setPasswordLink } : { text: 'Go to the staff login', url: args.signInUrl },
+  })
+}
+
+/** Sent when the team turns down a doctor's, hospital's or diagnostic centre's application to join. */
+export async function sendApplicationRejectedEmail(args: {
+  to: string
+  name: string
+  kind: 'doctor' | 'hospital' | 'diagnostic_center'
+  organizationName?: string | null
+}) {
+  const what = args.kind === 'doctor' ? 'your application to join Consult Your Doctor as a doctor' : `the application to list ${args.organizationName || `your ${partnerNoun(args.kind)}`} on Consult Your Doctor`
+  return sendEmail({
+    to: args.to,
+    subject: 'Consult Your Doctor: about your application',
+    heading: 'About your application',
+    paragraphs: [
+      args.kind === 'doctor' ? `Dear Dr. ${args.name},` : `Dear ${args.name},`,
+      `Thank you for your interest. We’ve reviewed ${what}, and we can’t approve it at the moment.`,
+      'If you think we’ve missed something, or you’d like to apply again with updated details, please contact us through Help & Support.',
+    ],
+    button: { text: 'Open Help & Support', url: `${CANONICAL_SITE_URL}/contact` },
+  })
+}
+
+/** Sent to a hospital's admins when the team pays or turns down a withdrawal from its wallet. */
+export async function sendPayoutUpdateEmail(args: {
+  to: string
+  name: string
+  hospital: string
+  amount: string
+  status: 'paid' | 'rejected'
+  reference?: string | null
+  note?: string | null
+  siteUrl: string
+}) {
+  const paid = args.status === 'paid'
+  return sendEmail({
+    to: args.to,
+    subject: paid ? `Consult Your Doctor: your withdrawal of ${args.amount} is paid` : `Consult Your Doctor: your withdrawal of ${args.amount} wasn’t paid`,
+    heading: paid ? 'Your withdrawal is paid' : 'Your withdrawal wasn’t paid',
+    paragraphs: [
+      `Dear ${args.name},`,
+      paid
+        ? `We’ve paid ${args.amount} from the ${args.hospital} wallet to your saved bank account or UPI ID.`
+        : `We couldn’t pay the withdrawal of ${args.amount} from the ${args.hospital} wallet, so the amount is back in your balance.${args.note ? ` The reason: “${args.note}”` : ''}`,
+      paid ? 'You’ll find it under payout history on the Payouts page.' : 'Once it’s sorted, you can ask for the withdrawal again from the Payouts page.',
+    ],
+    facts: [
+      ['Amount', args.amount],
+      ['Status', paid ? 'Paid' : 'Not paid'],
+      ...(paid && args.reference ? ([['Reference (UTR)', args.reference]] as [string, string][]) : []),
+    ],
+    button: { text: 'Open Payouts', url: `${args.siteUrl}/hospital/wallet` },
   })
 }
 
@@ -357,10 +449,16 @@ export async function sendExecutiveLoginEmail(args: { to: string; name: string; 
   return sendEmail({
     to: args.to,
     subject: 'Your Consult Your Doctor executive login',
+    heading: 'Your executive login',
     paragraphs: [
       `Dear ${args.name},`,
       `Welcome to the ${args.team} team at Consult Your Doctor.`,
-      `Your employee ID is ${args.staffId}. Set your own password with the button below, then log in at ${args.signInUrl} with your employee ID or this email address. The link is personal and works for a limited time; we never send passwords by email.`,
+      `Set your own password with the button below, then log in with your employee ID or this email address. The link is personal and works for a limited time; we never send passwords by email.`,
+    ],
+    facts: [
+      ['Employee ID', args.staffId],
+      ['Team', args.team],
+      ['Login page', args.signInUrl],
     ],
     button: { text: 'Set your password', url: args.setPasswordLink },
   })

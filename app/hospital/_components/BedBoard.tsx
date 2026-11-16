@@ -242,7 +242,7 @@ export function BedBoard({
                       <Meter pct={w.total ? (w.used / w.total) * 100 : 0} label={`${w.ward}: ${w.used} of ${w.total} beds in use`} />
                     </span>
                   </div>
-                  <ul className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8 gap-2 lg:gap-2.5">
+                  <ul className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-4 xl:grid-cols-6 min-[1400px]:grid-cols-8 gap-2 lg:gap-2.5">
                     {w.list.map((b) => {
                       const look = lookOf(b)
                       const ring = picked?.id === b.id ? '!shadow-[0_0_0_3px_#0B1B3F]' : deskBed?.id === b.id ? 'lg:!shadow-[0_0_0_3px_#0B1B3F]' : ''

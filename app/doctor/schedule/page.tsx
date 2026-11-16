@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { currentTime } from '@/components/patient/data'
 import { ageFrom, istDateKey } from '@/components/patient/format'
 import { getBookingFees } from '@/lib/booking-fees'
+import { bookingOptionsReady } from '@/lib/booking-options'
 import { latestVitals, loadPatientFacts, loadSlots, loadVisits, requireDoctor } from '../_lib/doctor'
 import { ScheduleBoard, type BoardPatientFacts, type BoardVisit } from '../_components/ScheduleBoard'
 import { DocBody, DocHeader } from '../_components/doc-ui'
@@ -78,6 +79,7 @@ export default async function DoctorSchedulePage(props: { searchParams?: Promise
           initialDate={date}
           windowKeys={{ from: istDateKey(windowStart), to: istDateKey(windowEnd - DAY) }}
           bookingFee={fees.consultation}
+          fastTrackFee={(await bookingOptionsReady()) ? fees.fastTrack : null}
         />
       </DocBody>
     </>

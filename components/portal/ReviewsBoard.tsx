@@ -81,18 +81,32 @@ export function ReviewsBoard({
   const extra = doctors?.find((d) => d.key === filter && !allTabs.some((t) => t.key === filter))
   if (extra) allTabs.push({ key: extra.key, label: extra.short })
 
-  const max = Math.max(1, ...Object.values(summary.distribution))
-
   return (
     <div className="grid gap-3.5 lg:gap-5 lg:grid-cols-[minmax(0,1fr)_340px] items-start">
-      <section className={`${card} p-4 lg:p-[22px] order-2 lg:order-1 min-w-0`} aria-label="Latest reviews">
+      {allTabs.length > 1 && (
+        <div role="tablist" aria-label="Show reviews for" className="order-2 lg:hidden -mx-4 px-4 flex gap-2 overflow-x-auto no-scrollbar">
+          {allTabs.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={filter === t.key}
+              onClick={() => pick(t.key)}
+              className={`shrink-0 h-9 px-3.5 rounded-full text-[13px] font-extrabold whitespace-nowrap transition-colors ${filter === t.key ? 'bg-[#2A4DD0] text-white' : 'bg-white text-[#27324A] shadow-[inset_0_0_0_1px_#D6DDE8]'}`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+      <section className={`${card} p-4 lg:p-[22px] order-3 lg:order-1 min-w-0`} aria-label="Latest reviews">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 mb-1 lg:mb-3.5">
           <div className="min-w-0">
             <h2 className="text-[16px] font-extrabold lg:tracking-[-0.01em]">Latest reviews</h2>
             <p className="mt-0.5 lg:mt-[3px] text-[12.5px] lg:text-[13px] text-[#5B667A]">Only patients with a completed visit can leave a review</p>
           </div>
           {allTabs.length > 1 && (
-            <div className="-mx-4 px-4 lg:mx-0 lg:px-0 overflow-x-auto no-scrollbar shrink-0">
+            <div className="hidden lg:block overflow-x-auto no-scrollbar shrink-0">
               <div role="tablist" aria-label="Show reviews for" className={segGroup}>
                 {allTabs.map((t) => (
                   <button key={t.key} type="button" role="tab" aria-selected={filter === t.key} onClick={() => pick(t.key)} className={segTab(filter === t.key)}>
@@ -134,8 +148,8 @@ export function ReviewsBoard({
         )}
       </section>
 
-      <div className="flex flex-col gap-3.5 lg:gap-4 order-1 lg:order-2 min-w-0">
-        <section className={`${card} p-4 lg:p-[22px]`} aria-label="Rating">
+      <div className="contents lg:flex lg:flex-col lg:gap-4 lg:order-2 min-w-0">
+        <section className={`${card} p-4 lg:p-[22px] order-1 lg:order-none`} aria-label="Rating">
           <div className="flex items-center gap-[18px]">
             <span className="text-[40px] lg:text-[48px] font-extrabold tracking-[-0.03em] leading-none tabular-nums">{summary.average != null ? summary.average.toFixed(1) : '—'}</span>
             <span className="min-w-0">
@@ -150,7 +164,7 @@ export function ReviewsBoard({
               <div key={s} className="flex items-center gap-2.5 py-1 text-[12.5px] font-bold text-[#5B667A]">
                 <span className="w-[18px]">{s}★</span>
                 <span role="img" aria-label={`${summary.distribution[s]} ${s}-star`} className="flex-1 h-1.5 rounded-full bg-[#EEF2F7] overflow-hidden">
-                  <span className="block h-full rounded-full bg-[#2A4DD0]" style={{ width: `${(summary.distribution[s] / max) * 100}%` }} />
+                  <span className="block h-full rounded-full bg-[#2A4DD0]" style={{ width: `${(summary.count ? (summary.distribution[s] / summary.count) * 100 : 0)}%` }} />
                 </span>
                 <span className="w-9 text-right tabular-nums">{summary.distribution[s].toLocaleString('en-IN')}</span>
               </div>
@@ -159,7 +173,7 @@ export function ReviewsBoard({
         </section>
 
         {doctors && doctors.length > 0 && (
-          <section className={`${card} p-4 lg:p-[22px]`} aria-label="By doctor">
+          <section className={`${card} p-4 lg:p-[22px] order-4 lg:order-none`} aria-label="By doctor">
             <h2 className="mb-2 lg:mb-3.5 text-[16px] font-extrabold lg:tracking-[-0.01em]">By doctor</h2>
             <ul>
               {doctors.map((d) => {

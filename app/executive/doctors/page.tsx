@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { doctorName, formatShortDate, istDateKey } from '@/components/patient/format'
 import { liveBadgeIds } from '@/lib/badges'
 import { currentTime, loadApplications, loadAppointments, loadDoctors, requireExecutivePage, timeAgo } from '../_lib/ops'
-import { BarList, Card, ExePage, Initials, MoreLink, Note, Stat, Stats, Status, plural } from '../_components/ui'
+import { BarList, Card, Chip, ExePage, Initials, MoreLink, Note, Stat, Stats, Status, plural } from '../_components/ui'
 import { CredentialQueue } from '../_components/CredentialQueue'
 import { DoctorRoster, type RosterRow } from '../_components/DoctorRoster'
 import { AddDoctorButton, type HospitalOption } from '../_components/NetworkForms'
@@ -25,8 +25,8 @@ export default async function ExecutiveDoctorsPage() {
     admin.from('schedules').select('doctor_id, start_time').eq('is_booked', false).gte('start_time', nowIso),
     admin.from('hospitals').select('id, name, city').order('name'),
     liveBadgeIds(admin),
-    admin.from('doctors').select('id, specialty, created_at, profiles!doctors_profile_id_fkey ( full_name ), hospitals ( name )').order('created_at', { ascending: false }).limit(5),
-    admin.from('doctors').select('id', { count: 'exact', head: true }).gte('created_at', new Date(now - 7 * 86_400_000).toISOString()),
+    admin.from('doctors').select('id, specialty, created_at, profiles!doctors_profile_id_fkey ( full_name ), hospitals ( name, status )').not('hospital_id', 'is', null).order('created_at', { ascending: false }).limit(5),
+    admin.from('doctors').select('id', { count: 'exact', head: true }).not('hospital_id', 'is', null).gte('created_at', new Date(now - 7 * 86_400_000).toISOString()),
   ])
   const hospitals = (hospitalRows ?? []) as HospitalOption[]
   const todayKey = istDateKey(now)
@@ -62,29 +62,31 @@ export default async function ExecutiveDoctorsPage() {
     .map(([label, value]) => ({ label, value, display: plural(value, 'booking') }))
   const submittedLabels = Object.fromEntries(pending.map((a) => [a.id, timeAgo(a.createdAt, now)]))
 
-  type RecentRow = { id: string; specialty: string | null; created_at: string | null; profiles: Joined<{ full_name: string | null }>; hospitals: Joined<{ name: string | null }> }
+  type RecentRow = { id: string; specialty: string | null; created_at: string | null; profiles: Joined<{ full_name: string | null }>; hospitals: Joined<{ name: string | null; status: string | null }> }
   const recent = ((recentRes.data ?? []) as unknown as RecentRow[]).filter((r) => r.created_at)
 
   return (
-    <ExePage name={profile.fullName} title="Doctors" subtitle="Every doctor on the network, and the ones who signed up on their own waiting for approval" actions={<AddDoctorButton hospitals={hospitals} />}>
+    <ExePage name={profile.fullName} title="Doctors" subtitle="Every doctor on the network. Only doctors who register on their own need approval" actions={<AddDoctorButton hospitals={hospitals} />}>
       <Stats>
-        <Stat label="Doctors on network" value={doctors.length.toLocaleString('en-IN')} note={`${withHospital} at a hospital · ${plural(specialties.length, 'specialty', 'specialties')}`} />
-        <Stat label="Doctor applications" value={pending.length} note={pending.length ? `Oldest waiting ${timeAgo(pending[0].createdAt, now)}` : 'Queue is clear'} tone={pending.length ? 'warn' : undefined} />
-        <Stat label="Joined this week" value={weekRes.count ?? 0} note="New doctor accounts, last 7 days" />
-        <Stat label="Bookable today" value={openToday.size} note="With open slots today" tone="blue" />
+        <Stat label="Doctors on network" value={doctors.length.toLocaleString('en-IN')} note={`${withHospital} via hospitals · ${doctors.length - withHospital} independent`} />
+        <Stat label="Independent registrations" value={pending.length} note={pending.length ? 'Waiting for approval' : 'Queue is clear'} tone={pending.length ? 'warn' : undefined} />
+        <Stat label="Added by hospitals" value={weekRes.count ?? 0} note="This week · live straight away" tone="blue" />
+        <Stat label="Bookable today" value={openToday.size} note="With open slots" />
       </Stats>
 
-      <Note>Doctors a hospital adds from its own workspace go live straight away; the hospital creates their login. Doctors who sign up on their own come to this queue.</Note>
+      <Note>
+        <strong>Doctors added by an approved hospital go live straight away.</strong> The hospital creates their login. Doctors who sign up on their own come to this queue.
+      </Note>
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3.5 lg:gap-5 items-start">
-        <Card id="applications" title="Doctor applications" sub="Check the registration with the medical council before approving" right={pending.length ? <Status label={`${pending.length} to review`} color="#B54708" /> : undefined}>
+        <Card id="applications" title="Independent doctor registrations" sub="Check the registration, ID and clinic before approving" right={pending.length ? <Chip tone="amber" className="!h-6 !px-[9px] !rounded-full">{pending.length} waiting</Chip> : undefined}>
           <CredentialQueue applications={pending} submittedLabels={submittedLabels} />
         </Card>
 
         <div className="flex flex-col gap-3.5 lg:gap-5 min-w-0">
-          <Card title="Recently joined" sub="The newest doctor accounts">
+          <Card title="Recently added by hospitals" sub="No approval needed">
             {recent.length === 0 ? (
-              <p className="text-[13px] text-[#5B667A]">No doctors yet.</p>
+              <p className="text-[13px] text-[#5B667A]">No doctors added by hospitals yet.</p>
             ) : (
               <ul>
                 {recent.map((r) => {
@@ -94,9 +96,12 @@ export default async function ExecutiveDoctorsPage() {
                       <Initials name={name} />
                       <span className="flex-1 min-w-0">
                         <span className="block text-[13.5px] font-extrabold truncate">{doctorName(name)}</span>
-                        <span className="block text-[12px] text-[#5B667A] truncate">{[r.specialty, one(r.hospitals)?.name].filter(Boolean).join(' · ') || '—'}</span>
+                        <span className="block text-[12px] text-[#5B667A] truncate">{[r.specialty, one(r.hospitals)?.name && `added by ${one(r.hospitals)?.name}`].filter(Boolean).join(' · ') || '—'}</span>
                       </span>
-                      <span className="shrink-0 text-[12px] text-[#5B667A]">{formatShortDate(r.created_at!)}</span>
+                      <span className="shrink-0 text-right">
+                        {one(r.hospitals)?.status === 'active' && <Status label="Live" color="#2A4DD0" />}
+                        <span className="block text-[12px] text-[#5B667A]">{formatShortDate(r.created_at!)}</span>
+                      </span>
                     </li>
                   )
                 })}

@@ -32,6 +32,10 @@ function methodLabel(gateway: string) {
   return gateway.replace(/_/g, ' ')
 }
 
+const IST = 'Asia/Kolkata'
+const istDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { timeZone: IST, day: 'numeric', month: 'short', year: 'numeric' })
+const istTime = (iso: string) => new Date(iso).toLocaleTimeString('en-US', { timeZone: IST, hour: 'numeric', minute: '2-digit', hour12: true })
+
 export function ExecutivePaymentsClient({ initialTransactions, stats, initialQuery = '' }: Props) {
   const [transactions, setTransactions] = useState<TransactionRow[]>(initialTransactions)
   const [search, setSearch] = useState(initialQuery)
@@ -53,7 +57,9 @@ export function ExecutivePaymentsClient({ initialTransactions, stats, initialQue
   // Date filtering
   const [now] = useState(() => Date.now())
   const filtered = transactions.filter((t) => {
-    if (statusFilter !== 'all' && t.status !== statusFilter) return false
+    if (statusFilter === 'due') {
+      if (!t.refundDue) return false
+    } else if (statusFilter !== 'all' && t.status !== statusFilter) return false
     if (gatewayFilter !== 'all' && (gatewayFilter === 'online' ? !isOnlineGateway(t.gateway) : t.gateway !== gatewayFilter)) return false
 
     if (dateRange !== 'all') {
@@ -96,12 +102,12 @@ export function ExecutivePaymentsClient({ initialTransactions, stats, initialQue
         setTransactions((prev) =>
           prev.map((t) =>
             t.id === selectedTxn.id
-              ? { ...t, status: 'refunded', refundAmount: amt, refundReason, refundedAt: new Date().toISOString() }
+              ? { ...t, status: amt >= t.amount ? 'refunded' : t.status, refundAmount: amt, refundReason, refundedAt: new Date().toISOString(), refundDue: null }
               : t
           )
         )
         setSelectedTxn((prev) =>
-          prev ? { ...prev, status: 'refunded', refundAmount: amt, refundReason, refundedAt: new Date().toISOString() } : null
+          prev ? { ...prev, status: amt >= prev.amount ? 'refunded' : prev.status, refundAmount: amt, refundReason, refundedAt: new Date().toISOString(), refundDue: null } : null
         )
         setActionType(null)
         setRefundReason('')
@@ -166,12 +172,13 @@ export function ExecutivePaymentsClient({ initialTransactions, stats, initialQue
 
   return (
     <div className="flex flex-col gap-3.5 lg:gap-5">
-      <Stats cols={5}>
+      <Stats cols={6}>
         <Stat label="Total collections" value={formatINR(stats.totalCollections)} note={`${stats.successfulCount.toLocaleString('en-IN')} settled payments`} />
         <Stat label="Successful" value={formatINR(stats.successfulAmount)} note={`${stats.successfulCount.toLocaleString('en-IN')} transactions`} tone="blue" />
         <Stat label="Pending" value={formatINR(stats.pendingAmount)} note={`${stats.pendingCount} awaiting gateway`} tone={stats.pendingCount ? 'warn' : undefined} />
         <Stat label="Failed" value={formatINR(stats.failedAmount)} note={`${stats.failedCount} cancelled or failed`} tone={stats.failedCount ? 'high' : undefined} />
-        <Stat label="Refunds" value={formatINR(stats.refundAmount)} note={`${stats.refundCount} refunded`} />
+        <Stat label="Refunds" value={formatINR(stats.refundAmount)} note={stats.refundDueCount ? `${stats.refundCount} refunded · ${stats.refundDueCount} due` : `${stats.refundCount} refunded`} tone={stats.refundDueCount ? 'warn' : stats.refundCount ? 'purple' : undefined} />
+        <Stat label="Volume" value={stats.monthCount.toLocaleString('en-IN')} note="This month" />
       </Stats>
 
       <Card
@@ -201,7 +208,7 @@ export function ExecutivePaymentsClient({ initialTransactions, stats, initialQue
           <div className="flex flex-wrap items-center gap-2 min-w-0">
             <div className="overflow-x-auto no-scrollbar max-w-full">
               <div role="tablist" aria-label="Status" className={segGroup}>
-                {(['all', 'success', 'pending', 'failed', 'refunded'] as const).map((k) => (
+                {(['all', 'success', 'pending', 'failed', 'refunded', 'due'] as const).map((k) => (
                   <button
                     key={k}
                     type="button"
@@ -213,7 +220,7 @@ export function ExecutivePaymentsClient({ initialTransactions, stats, initialQue
                     }}
                     className={segTab(statusFilter === k)}
                   >
-                    {k === 'all' ? 'All' : k === 'refunded' ? 'Refunds' : STATUS_BADGES[k].label}
+                    {k === 'all' ? 'All' : k === 'refunded' ? 'Refunds' : k === 'due' ? `Refund due${stats.refundDueCount ? ` (${transactions.filter((t) => t.refundDue).length})` : ''}` : STATUS_BADGES[k].label}
                   </button>
                 ))}
               </div>
@@ -294,6 +301,7 @@ export function ExecutivePaymentsClient({ initialTransactions, stats, initialQue
                     <td className={`${td} font-extrabold tabular-nums whitespace-nowrap`}>{formatINR(t.amount)}</td>
                     <td className={td}>
                       <Status label={statusCfg.label} color={statusCfg.color} />
+                      {t.refundDue && <span className="mt-1 inline-flex px-2 py-0.5 rounded-full bg-[#FEF0C7] text-[11px] font-extrabold text-[#B54708]">Refund due</span>}
                     </td>
                     <td className={`${td} text-[12.5px] text-[#5B667A] whitespace-nowrap`}>
                       {new Date(t.createdAt).toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
@@ -380,6 +388,14 @@ export function ExecutivePaymentsClient({ initialTransactions, stats, initialQue
               ))}
             </dl>
 
+            {selectedTxn.refundDue && (
+              <div className="rounded-xl bg-[#FFFAEB] shadow-[inset_0_0_0_1px_#FEDF89] px-4 py-3 text-[13px] leading-[1.5] text-[#93370D]">
+                <strong className="block">Refund due</strong>
+                The patient cancelled on {istDay(selectedTxn.refundDue.cancelledAt)}
+                {selectedTxn.refundDue.startsAt ? `, at least 2 hours before the booking at ${istTime(selectedTxn.refundDue.startsAt)}` : ', at least 2 hours before the booking'}. Refund the full {formatINR(selectedTxn.amount)} from the Razorpay dashboard, then record it here.
+              </div>
+            )}
+
             {selectedTxn.status === 'refunded' && (
               <div className="rounded-xl bg-[#F4F3FF] px-4 py-3 text-[13px] text-[#5925DC]">
                 <strong className="block">Refunded {formatINR(selectedTxn.refundAmount ?? selectedTxn.amount)}</strong>
@@ -404,6 +420,7 @@ export function ExecutivePaymentsClient({ initialTransactions, stats, initialQue
                       onClick={() => {
                         setActionType('refund')
                         setRefundAmount(String(selectedTxn.amount))
+                        setRefundReason(selectedTxn.refundDue ? 'Patient cancelled at least 2 hours before the booking' : '')
                       }}
                       className={`${btnOutline} flex-1`}
                     >

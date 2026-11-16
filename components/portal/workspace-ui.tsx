@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowDownRight, ArrowLeft, ArrowUpRight, BadgeCheck, ChevronRight } from 'lucide-react'
+import { ArrowDownRight, ArrowLeft, ArrowUpRight, BadgeCheck, ChevronLeft, ChevronRight } from 'lucide-react'
 import { initials } from '@/components/patient/format'
 import { card } from '@/components/patient/app-ui'
 
@@ -114,8 +114,11 @@ export function WorkHeader({
   subtitle,
   children,
   avatar,
+  back,
 }: {
   brand: WorkBrand
+  /** A "‹ More" link between the brand row and the title, for pages under another. */
+  back?: { href: string; label: string }
   title: string
   /** A small line above the title, e.g. "Good morning,". */
   eyebrow?: string
@@ -129,7 +132,7 @@ export function WorkHeader({
 }) {
   const heading = (
     <>
-      <h1 className={`${eyebrow ? 'mt-0.5 text-[26px] leading-[1.15]' : avatar ? 'text-[22px] leading-tight' : 'mt-5 text-[24px] leading-tight'} flex items-center gap-2 font-extrabold tracking-[-0.02em]`}>
+      <h1 className={`${eyebrow ? 'mt-0.5 text-[26px] leading-[1.15]' : avatar ? 'text-[22px] leading-tight' : back ? 'mt-1.5 text-[24px] leading-tight' : 'mt-5 text-[24px] leading-tight'} flex items-center gap-2 font-extrabold tracking-[-0.02em]`}>
         <span className="min-w-0 truncate">{title}</span>
         {titleExtra}
       </h1>
@@ -140,6 +143,12 @@ export function WorkHeader({
     <header className={headerShell}>
       <div className="md:max-w-[720px] md:mx-auto">
         <BrandRow brand={brand} />
+        {back && (
+          <Link href={back.href} className="inline-flex items-center gap-1.5 mt-[18px] text-[13px] font-extrabold text-[#DCE6FF]">
+            <ChevronLeft className="w-4 h-4" strokeWidth={2.6} />
+            {back.label}
+          </Link>
+        )}
         {eyebrow && <p className="mt-[22px] text-[13.5px] text-[#CFDCFF]">{eyebrow}</p>}
         {avatar ? (
           <div className="flex items-center gap-3.5 mt-5">
@@ -183,7 +192,7 @@ export function WorkBody({ children, className = '', bar = true }: { children: R
 }
 
 /** The desktop page title with a line under it and actions on the right (phones show the title in the blue header). */
-export function DeskHead({ eyebrow, title, titleExtra, subtitle, actions }: { eyebrow?: string; title: string; titleExtra?: ReactNode; subtitle?: ReactNode; actions?: ReactNode }) {
+export function DeskHead({ eyebrow, title, titleExtra, subtitle, actions }: { eyebrow?: ReactNode; title: string; titleExtra?: ReactNode; subtitle?: ReactNode; actions?: ReactNode }) {
   return (
     <div className="hidden lg:flex items-end justify-between gap-5 mb-[22px]">
       <div className="min-w-0">

@@ -117,9 +117,14 @@ export type HospitalDoctor = {
   qualifications: string | null
   bio: string | null
   address: string | null
+  /** Null until 20261009_beds_reviews_profiles.sql has run, or while the doctor hasn't entered them. */
+  registrationNumber: string | null
+  registrationCouncil: string | null
 }
 
 type DoctorRow = {
+  registration_number?: string | null
+  registration_council?: string | null
   id: string
   specialty: string | null
   experience_years: number | null
@@ -154,6 +159,12 @@ export async function loadVisitingDoctors(admin: Admin, hospitalId: string): Pro
 }
 
 export async function loadHospitalDoctors(admin: Admin, hospitalId: string): Promise<HospitalDoctor[]> {
+  const withRegistration = await admin
+    .from('doctors')
+    .select(`${DOCTOR_COLUMNS}, registration_number, registration_council`)
+    .eq('hospital_id', hospitalId)
+  if (!withRegistration.error) return toDoctors((withRegistration.data ?? []) as unknown as DoctorRow[])
+  // The registration columns are missing: load without them.
   const { data } = await admin
     .from('doctors')
     .select(DOCTOR_COLUMNS)
@@ -181,6 +192,8 @@ function toDoctors(rows: DoctorRow[]): HospitalDoctor[] {
         qualifications: d.qualifications,
         bio: d.bio,
         address: d.address,
+        registrationNumber: d.registration_number ?? null,
+        registrationCouncil: d.registration_council ?? null,
       }
     })
     .sort((a, b) => a.department.localeCompare(b.department) || a.name.localeCompare(b.name))

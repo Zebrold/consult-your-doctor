@@ -83,7 +83,12 @@ export default async function CheckupsPage() {
       subtitle="Packages from partner labs at the lab’s own prices, some with sample collection at home"
       phoneSubtitle="Packages from partner labs, some with home collection."
     >
-      {last && lastDate && (
+      <div className="grid gap-3.5 lg:gap-5 lg:grid-cols-[minmax(0,1fr)_360px] items-start">
+        <CheckupPicker
+          checkups={checkups}
+          percentLabel={formatPercent(fees.diagnosticPercent)}
+          footer={
+            last && lastDate ? (
         <section className={`${card} p-4 lg:p-[22px] flex flex-col md:flex-row md:items-center gap-3`}>
           <span className="flex-1 min-w-0">
             <span className="block text-[16px] font-extrabold">Your last check-up</span>
@@ -96,9 +101,9 @@ export default async function CheckupsPage() {
             View report
           </Link>
         </section>
-      )}
-      <div className="grid gap-3.5 lg:gap-5 lg:grid-cols-[minmax(0,1fr)_360px] items-start">
-        <CheckupPicker checkups={checkups} percentLabel={formatPercent(fees.diagnosticPercent)} />
+            ) : undefined
+          }
+        />
       </div>
     </AccountPage>
   )

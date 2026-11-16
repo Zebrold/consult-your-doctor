@@ -137,7 +137,7 @@ export default async function ExecutiveReviewsPage() {
         <Stat label="Average rating" value={average ?? '—'} note="Last 90 days, published" tone="blue" />
       </Stats>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] gap-3.5 lg:gap-5 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-3.5 lg:gap-5 items-start">
         <Card title="Reviews" sub="Last 90 days. Hiding takes a review off the doctor or hospital page and the home page.">
           <ReviewModeration reviews={reviews} />
         </Card>

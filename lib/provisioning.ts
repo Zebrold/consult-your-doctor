@@ -78,7 +78,22 @@ export async function createStaffLogin(
  */
 export async function provisionDoctor(
   admin: Admin,
-  input: { hospitalId: string; fullName: string; email?: string | null; specialty: string; experienceYears: number; consultationFee: number; password?: string | null; invitedBy: string },
+  input: {
+    hospitalId: string
+    fullName: string
+    email?: string | null
+    specialty: string
+    experienceYears: number
+    consultationFee: number
+    password?: string | null
+    invitedBy: string
+    /** Optional extras the hospital's Add doctor form collects (the executive portal doesn't send them). */
+    qualifications?: string | null
+    address?: string | null
+    phone?: string | null
+    registrationNumber?: string | null
+    registrationCouncil?: string | null
+  },
 ): Promise<{ success: true; doctorId: string; staffId: string; email: string | null; activationLink: string | null; invitationSent: boolean } | { error: string }> {
   const email = input.email?.trim().toLowerCase() || null
   const login = await createStaffLogin(admin, {
@@ -93,6 +108,17 @@ export async function provisionDoctor(
   const undo = async (message: string) => {
     await admin.auth.admin.deleteUser(login.userId)
     return { error: message }
+  }
+
+  const phone = input.phone?.trim() || null
+  if (phone) {
+    const { error: phoneError } = await admin.from('profiles').update({ phone_number: phone }).eq('id', login.userId)
+    if (phoneError) {
+      if (phoneError.code === '23505') {
+        return undo('This phone number is already in use.')
+      }
+      console.warn('provisionDoctor phone:', phoneError)
+    }
   }
 
   let departmentId: string | null = null
@@ -113,12 +139,24 @@ export async function provisionDoctor(
       specialty: input.specialty,
       experience_years: input.experienceYears,
       consultation_fee: input.consultationFee,
+      ...(input.qualifications?.trim() ? { qualifications: input.qualifications.trim().slice(0, 200) } : {}),
+      ...(input.address?.trim() ? { address: input.address.trim().slice(0, 200) } : {}),
     })
     .select('id')
     .single()
   if (doctorError || !doctor) {
     console.error('provisionDoctor doctor row:', doctorError)
     return undo('Could not finish registering the doctor. Nothing was created; please try again.')
+  }
+
+  // The registration columns come from 20261009_beds_reviews_profiles.sql: a missing column must not undo the doctor.
+  const registrationNumber = input.registrationNumber?.trim().slice(0, 40)
+  if (registrationNumber) {
+    const { error: registrationError } = await admin
+      .from('doctors')
+      .update({ registration_number: registrationNumber, registration_council: input.registrationCouncil?.trim().slice(0, 80) || null })
+      .eq('id', doctor.id)
+    if (registrationError) console.warn('provisionDoctor registration:', registrationError)
   }
 
   let activationLink: string | null = null

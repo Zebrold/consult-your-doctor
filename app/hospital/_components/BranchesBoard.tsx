@@ -45,15 +45,19 @@ export function BranchCards({ cards, waiting, canAdd }: { cards: BranchCard[]; w
       {error && <p className="mb-3 p-3 rounded-xl bg-[#FEF3F2] text-[13px] font-bold text-[#B42318]">{error}</p>}
       <div className="grid gap-3.5 lg:gap-4 md:grid-cols-2 lg:grid-cols-3">
         {cards.map((b) => (
-          <div key={b.id} className={`flex flex-col p-5 rounded-2xl bg-white ${b.current ? 'shadow-[0_0_0_2px_#2A4DD0]' : 'shadow-[0_0_0_1px_#E6EAF0]'}`}>
-            <div className="flex justify-between gap-2">
-              <span className="w-[42px] h-[42px] rounded-xl bg-[#F4F6FA] flex items-center justify-center shrink-0">
+          <div key={b.id} className={`flex flex-col p-4 rounded-[18px] lg:p-5 lg:rounded-2xl bg-white ${b.current ? 'shadow-[0_0_0_2px_#2A4DD0]' : 'shadow-[0_0_0_1px_#E6EAF0]'}`}>
+            <div className="flex justify-between items-start gap-2">
+              <span className="hidden lg:flex w-[42px] h-[42px] rounded-xl bg-[#F4F6FA] items-center justify-center shrink-0">
                 <Building2 className="w-5 h-5 text-[#2A4DD0]" aria-hidden />
+              </span>
+              <span className="lg:hidden min-w-0 flex-1">
+                <span className="block text-[16px] font-extrabold">{b.name}</span>
+                <span className="block text-[13px] text-[#5B667A]">{b.place || 'Address not added'}</span>
               </span>
               <span className={pill(b.live)}>{b.status}</span>
             </div>
-            <span className="block mt-3.5 text-[16px] font-extrabold">{b.name}</span>
-            <span className="block text-[13px] text-[#5B667A]">{b.place || 'Address not added'}</span>
+            <span className="hidden lg:block mt-3.5 text-[16px] font-extrabold">{b.name}</span>
+            <span className="hidden lg:block text-[13px] text-[#5B667A]">{b.place || 'Address not added'}</span>
             <span className="block mt-2.5 text-[12.5px] font-bold text-[#27324A]">
               {b.code} · {b.facts}
             </span>
@@ -97,7 +101,7 @@ export function BranchCards({ cards, waiting, canAdd }: { cards: BranchCard[]; w
         {canAdd && (
           <Link
             href="/hospital/branches/new"
-            className="hidden lg:flex flex-col items-center justify-center gap-2 min-h-[230px] rounded-2xl border-[1.5px] border-dashed border-[#C9D2E0] bg-[#F9FBFE] text-[#2A4DD0] text-[14px] font-extrabold text-center hover:bg-[#F3F7FE] transition-colors"
+            className="flex flex-col items-center justify-center gap-2 py-[22px] px-4 lg:min-h-[230px] rounded-[18px] lg:rounded-2xl border-[1.5px] border-dashed border-[#C9D2E0] bg-[#F9FBFE] text-[#2A4DD0] text-[14px] font-extrabold text-center hover:bg-[#F3F7FE] transition-colors"
           >
             <Plus className="w-6 h-6" strokeWidth={2.4} />
             Add a branch

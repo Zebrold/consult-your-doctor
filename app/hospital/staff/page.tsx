@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { currentTime } from '@/components/patient/data'
 import { doctorName, istDateKey } from '@/components/patient/format'
+import { doctorPauses } from '@/lib/doctor-pause'
 import { dayOf, isPaidVisit, loadHospitalDoctors, loadHospitalVisits, requireHospital } from '../_lib/hospital'
 import { StaffDirectory, type StaffMember } from '../_components/StaffDirectory'
 import { ROLE, type StaffRole } from '../_lib/roles'
@@ -19,6 +20,7 @@ export default async function HospitalStaffPage() {
   const month = istDateKey(now).slice(0, 7)
 
   const doctors = await loadHospitalDoctors(admin, hospital.id)
+  const pauses = await doctorPauses(admin, doctors.map((d) => d.id))
   const [{ data: profiles }, visits] = await Promise.all([
     admin
       .from('profiles')
@@ -64,6 +66,11 @@ export default async function HospitalStaffPage() {
             email: realEmail(p.email) || d.email,
             image: d.image,
             hospitalName: hospital.name,
+            registrationNumber: d.registrationNumber,
+            registrationCouncil: d.registrationCouncil,
+            paused: pauses.byId.get(d.id)?.paused ?? false,
+            pausedBy: pauses.byId.get(d.id)?.by ?? null,
+            pauseReady: pauses.ready,
           }
         : null,
     }
@@ -97,6 +104,11 @@ export default async function HospitalStaffPage() {
         email: d.email,
         image: d.image,
         hospitalName: hospital.name,
+        registrationNumber: d.registrationNumber,
+        registrationCouncil: d.registrationCouncil,
+        paused: pauses.byId.get(d.id)?.paused ?? false,
+        pausedBy: pauses.byId.get(d.id)?.by ?? null,
+        pauseReady: pauses.ready,
       },
     })
   }
@@ -132,7 +144,7 @@ export default async function HospitalStaffPage() {
         </section>
       }
     >
-      <section className="mt-3.5 lg:mt-5">
+      <>
         <Panel>
           <PanelHead title="Doctors by department" sub="How your consultants are spread" />
           {perDept.length === 0 ? (
@@ -149,7 +161,20 @@ export default async function HospitalStaffPage() {
             ))
           )}
         </Panel>
-      </section>
+        <Panel>
+          <PanelHead title="What each role can do" sub="What every login can reach in this portal" />
+          <div className="flex flex-col gap-2.5">
+            {(Object.keys(ROLE) as StaffRole[]).map((r) => (
+              <div key={r} className="rounded-xl bg-[#F7F9FC] p-3.5">
+                <p className="text-[13.5px] font-extrabold" style={{ color: ROLE[r].color }}>
+                  {ROLE[r].label}
+                </p>
+                <p className="mt-0.5 text-[13px] text-[#27324A]">{ROLE[r].access}</p>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </>
     </StaffDirectory>
   )
 }

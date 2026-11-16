@@ -4,6 +4,7 @@ import { one } from '@/components/patient/data'
 import { labTestBookingFee } from '@/lib/pricing'
 import { getBookingFees } from '@/lib/booking-fees'
 import { doctorBookingHref } from '@/lib/booking-links'
+import { pausedDoctorIds } from '@/lib/doctor-pause'
 import { PdfDocSchema, preparePdfArgs, type PdfDoc } from './pdf-doc'
 
 type Admin = ReturnType<typeof createAdminClient>
@@ -102,7 +103,9 @@ export function assistantTools({ admin, patientId, onPdf }: { admin: Admin; pati
         departments: Joined<{ name: string | null }>
         hospitals: Joined<{ id: string; name: string | null; city: string | null }>
       }
-      const all = ((data ?? []) as Row[]).map((d) => ({
+      // Doctors whose bookings are paused are not offered.
+      const paused = await pausedDoctorIds()
+      const all = ((data ?? []) as Row[]).filter((d) => !paused.has(d.id)).map((d) => ({
         id: d.id,
         name: one(d.profiles)?.full_name || 'Doctor',
         specialty: d.specialty,

@@ -109,8 +109,8 @@ export function DoctorLeave({
 
   return (
     <div className="grid gap-3.5 lg:gap-5 lg:grid-cols-[minmax(0,1fr)_360px] items-start">
-      <div className="flex flex-col gap-3.5 lg:gap-5 min-w-0">
-        <Panel>
+      <div className="contents lg:flex lg:flex-col lg:gap-5 lg:min-w-0">
+        <Panel className="order-1 lg:order-none">
           <PanelHead title="Request leave" sub="Your hospital approves it, then your open slots on those days close" />
           {!hospital ? (
             <p className="text-[13.5px] text-[#5B667A]">You aren’t linked to a hospital yet, so there are no slots to close.</p>
@@ -174,7 +174,7 @@ export function DoctorLeave({
           )}
         </Panel>
 
-        <Panel>
+        <Panel className="order-4 lg:order-none">
           <PanelHead title="Your leave" sub="Requested and upcoming" />
           {leaves.length === 0 ? (
             <p className="py-3 text-[13px] text-[#5B667A] border-t border-[#EEF2F7]">No leave yet.</p>
@@ -229,12 +229,12 @@ export function DoctorLeave({
         </Panel>
       </div>
 
-      <div className="flex flex-col gap-3.5 lg:gap-4">
-        <Panel>
+      <div className="contents lg:flex lg:flex-col lg:gap-4">
+        <Panel className="order-2 lg:order-none">
           <PanelHead title={monthName} />
           <Calendar month={calendar.month} today={today} approved={calendar.approved} pending={calendar.pending} working={calendar.working} />
         </Panel>
-        <Panel>
+        <Panel className="order-3 lg:order-none">
           <PanelHead title="This month" />
           <Row label="Days with slots">{summary.working}</Row>
           <Row label="Leave days">{summary.leaveDays}</Row>

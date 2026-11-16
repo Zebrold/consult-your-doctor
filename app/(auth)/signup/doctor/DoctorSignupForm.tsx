@@ -18,6 +18,7 @@ import {
   JoinHero,
   JoinSection,
   JoinSent,
+  PhoneSteps,
   KeepReadyCard,
   PhoneInput,
   PrefixInput,
@@ -53,7 +54,6 @@ export function DoctorSignupForm({ hospitals, uploads }: { hospitals: { id: stri
     <JoinSent
       title="Application sent"
       text="Thank you. Your application is now with our credentialing team, and we have emailed you to confirm it arrived. Once your registration is verified, we share your staff ID and password so you can sign in to the doctor portal."
-      primary={{ href: '/login/doctor', label: 'Doctor login' }}
     />
   ) : (
     <form ref={formRef} onSubmit={onSubmit} onInput={updateProgress} onChange={updateProgress} className="rounded-[20px] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.06),0_8px_24px_-16px_rgba(11,27,63,0.16)] p-5 sm:p-7 md:p-9">
@@ -61,7 +61,7 @@ export function DoctorSignupForm({ hospitals, uploads }: { hospitals: { id: stri
 
       {/* 1. Identity and contact */}
       <JoinSection n={1} section="identity" title="Identity and contact" sub="How we reach you and set up your account.">
-        <Field label="Title" htmlFor="doc-title" required>
+        <Field label="Title" htmlFor="doc-title" pair required>
           <SelectBox id="doc-title" name="title" required options={DOCTOR_TITLES} />
         </Field>
         <Field label="First name" htmlFor="first-name" required>
@@ -73,10 +73,10 @@ export function DoctorSignupForm({ hospitals, uploads }: { hospitals: { id: stri
         <Field label="Middle name" htmlFor="middle-name" optional>
           <input id="middle-name" name="middleName" maxLength={60} autoComplete="additional-name" className={inputCls} />
         </Field>
-        <Field label="Gender" htmlFor="gender" required>
+        <Field label="Gender" htmlFor="gender" pair required>
           <SelectBox id="gender" name="gender" required options={GENDERS} />
         </Field>
-        <Field label="Date of birth" htmlFor="dob" required>
+        <Field label="Date of birth" htmlFor="dob" pair required>
           <input id="dob" name="dateOfBirth" type="date" required min="1930-01-01" max={latestBirthDate()} autoComplete="bday" className={inputCls} />
         </Field>
         <Field label="Email address" htmlFor="work-email" required span={2} hint="Your doctor account is created with this email.">
@@ -97,13 +97,13 @@ export function DoctorSignupForm({ hospitals, uploads }: { hospitals: { id: stri
         <Field label="Registration number" htmlFor="registration-number" required hint="As printed on your certificate.">
           <input id="registration-number" name="registrationNumber" required minLength={2} maxLength={80} className={inputCls} />
         </Field>
-        <Field label="Year of registration" htmlFor="registration-year" required>
+        <Field label="Year of registration" htmlFor="registration-year" pair required>
           <input id="registration-year" name="registrationYear" type="number" inputMode="numeric" required min={1950} max={thisYear} className={inputCls} />
         </Field>
-        <Field label="Valid until" htmlFor="registration-valid" optional>
+        <Field label="Valid until" htmlFor="registration-valid" pair optional>
           <input id="registration-valid" name="registrationValidUntil" type="date" min={today()} className={inputCls} />
         </Field>
-        <Field label="Years of experience" htmlFor="experience" required>
+        <Field label="Years of experience" htmlFor="experience" pair required>
           <input id="experience" name="experience_years" type="number" inputMode="numeric" required min={0} max={70} className={inputCls} />
         </Field>
         <Field label="Highest qualification" htmlFor="qualifications" required hint="For example MBBS, MD or MS.">
@@ -112,7 +112,7 @@ export function DoctorSignupForm({ hospitals, uploads }: { hospitals: { id: stri
         <Field label="College or university" htmlFor="college" required>
           <input id="college" name="college" required minLength={2} maxLength={160} className={inputCls} />
         </Field>
-        <Field label="Year of passing" htmlFor="passing-year" required>
+        <Field label="Year of passing" htmlFor="passing-year" pair required>
           <input id="passing-year" name="passingYear" type="number" inputMode="numeric" required min={1950} max={thisYear} className={inputCls} />
         </Field>
         <Field label="Speciality" htmlFor="specialty" required>
@@ -129,7 +129,7 @@ export function DoctorSignupForm({ hospitals, uploads }: { hospitals: { id: stri
       </JoinSection>
 
       {/* 3. Practice and timings */}
-      <JoinSection n={3} section="practice" title="Practice and timings" sub="Where and when you see patients.">
+      <JoinSection n={3} section="practice" title="Practice and timings" sub="Where and when patients can book you.">
         <Field label="How you practise" htmlFor="practice-type" required>
           <SelectBox id="practice-type" name="practiceType" required options={PRACTICE_TYPES} />
         </Field>
@@ -149,10 +149,10 @@ export function DoctorSignupForm({ hospitals, uploads }: { hospitals: { id: stri
           <PrefixInput prefix="₹" id="fee" name="consultation_fee" type="number" inputMode="numeric" required min={0} max={100000} />
         </Field>
         <CheckGroup label="Days you consult" name="consultDays" options={WEEKDAYS} required hint="Your hospital publishes your slots from these." />
-        <Field label="From" htmlFor="consult-from" required>
+        <Field label="From" htmlFor="consult-from" pair required>
           <input id="consult-from" name="consultFrom" type="time" required className={inputCls} />
         </Field>
-        <Field label="To" htmlFor="consult-to" required>
+        <Field label="To" htmlFor="consult-to" pair required>
           <input id="consult-to" name="consultTo" type="time" required className={inputCls} />
         </Field>
         <Field label="Time per patient" htmlFor="slot-minutes" required>
@@ -201,7 +201,9 @@ export function DoctorSignupForm({ hospitals, uploads }: { hospitals: { id: stri
         icon={Stethoscope}
         title="Join as a doctor"
         intro="Create your doctor account on Consult your Doctor. Share your medical registration details and our credentialing team verifies them before your profile goes live for bookings."
-      />
+      >
+        <PhoneSteps steps={STEPS.map((title) => ({ title }))} after="Credential review" current={step} done={done} submitted={submitted} />
+      </JoinHero>
       <div className="px-4 md:px-[max(24px,10%)]">
         <StepStrip steps={STEPS.map((title) => ({ title }))} after="Credential review" current={step} done={done} submitted={submitted} />
         <JoinColumns

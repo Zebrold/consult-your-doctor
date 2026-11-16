@@ -3,7 +3,7 @@ import { currentTime } from '@/components/patient/data'
 import { loadPractices } from '@/lib/practices'
 import { loadSlots, loadVisits, requireDoctor } from '../_lib/doctor'
 import { DoctorPractice } from '../_components/DoctorPractice'
-import { PracticeLinks, type DoctorLink } from '../_components/PracticeLinks'
+import { Invitations, VisitingCards, type DoctorLink } from '../_components/PracticeLinks'
 
 export const metadata: Metadata = { title: 'Hospitals & clinics | Doctor Portal' }
 export const dynamic = 'force-dynamic'
@@ -43,5 +43,5 @@ export default async function DoctorPracticePage() {
     }
   })
 
-  return <DoctorPractice doctor={doctor} slots={own} visits={visits} now={now} others={<PracticeLinks links={links} />} />
+  return <DoctorPractice doctor={doctor} slots={own} visits={visits} now={now} visiting={<VisitingCards links={links} />} invitations={<Invitations links={links} />} />
 }

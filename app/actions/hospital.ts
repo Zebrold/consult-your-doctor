@@ -227,6 +227,11 @@ export async function createHospitalDoctor(formData: FormData) {
     consultationFee: parseFloat(formData.get('consultationFee') as string || '0') || 0,
     password: formData.get('password') as string | null,
     invitedBy: user.id,
+    qualifications: String(formData.get('qualifications') || ''),
+    address: String(formData.get('address') || ''),
+    phone: String(formData.get('phone') || ''),
+    registrationNumber: String(formData.get('registrationNumber') || ''),
+    registrationCouncil: String(formData.get('registrationCouncil') || ''),
   })
   if ('error' in result) return { error: result.error }
 
@@ -288,8 +293,17 @@ export async function updateHospitalDoctor(formData: FormData): Promise<{ succes
     return { success: false, error: 'Could not save the doctor’s details.' }
   }
 
+  // The registration columns come from 20261009_beds_reviews_profiles.sql: ignore a missing-column error.
+  if (formData.has('registrationNumber')) {
+    const { error: registrationError } = await admin
+      .from('doctors')
+      .update({ registration_number: text('registrationNumber').slice(0, 40) || null, registration_council: text('registrationCouncil').slice(0, 80) || null })
+      .eq('id', doctorId)
+    if (registrationError) console.warn('updateHospitalDoctor registration:', registrationError)
+  }
+
   const phone = text('phone')
-  const fullName = text('fullName') || text('displayName')
+  const fullName = text('fullName')
   if (fullName || phone) {
     const { error: profileError } = await admin
       .from('profiles')

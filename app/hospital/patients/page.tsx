@@ -9,7 +9,7 @@ import { bookingOptionsReady } from '@/lib/booking-options'
 import { dayOf, hospitalShare, isPaidVisit, loadHospitalDoctors, loadHospitalVisits, paymentLook, PAYMENT_METHOD, requireHospital, shiftDay, visitPatientName } from '../_lib/hospital'
 import { PatientsBoard, type BoardRow, type BoardView } from '../_components/PatientsBoard'
 import { AddPatientButton } from '../_components/PatientDesk'
-import { DeskHead, HosBody, HosHeader, PhoneStats, StatCard, btnPrimary, delta, plural } from '../_components/hos-ui'
+import { HosBody, HosHeader, PhoneStats, StatCard, btnPrimary, delta, plural } from '../_components/hos-ui'
 import { gatewayKey } from '@/lib/payment-gateways'
 
 export const metadata: Metadata = { title: 'Patients | Hospital Portal' }
@@ -97,23 +97,29 @@ export default async function HospitalPatientsPage(props: { searchParams?: Promi
         <form action="/hospital/patients" role="search" className="flex items-center gap-2.5 h-12 px-3.5 rounded-[14px] bg-white text-[#0B1B3F]">
           <Search className="w-[18px] h-[18px] text-[#5B667A] shrink-0" />
           <input type="hidden" name="view" value="all" />
-          <input name="q" type="search" defaultValue={query} aria-label="Search patients" placeholder="Name, booking ID, token or phone" className="flex-1 min-w-0 bg-transparent outline-none text-[14.5px] placeholder:text-[#7A8599]" />
+          <input name="q" type="search" defaultValue={query} aria-label="Search patients" placeholder="Search patient, booking ID, phone or doctor" className="flex-1 min-w-0 bg-transparent outline-none text-[14.5px] placeholder:text-[#7A8599]" />
         </form>
       </HosHeader>
       <HosBody>
-        <DeskHead
+        <PatientsBoard
           title="Patients & appointments"
           subtitle={subtitle}
           actions={<AddPatientButton doctors={deskDoctors} fees={deskFees} label="Add walk-in patient" defaultOpen={walkIn} className={btnPrimary} />}
-        />
-
+          key={`${initialView}:${query}`}
+          rows={rows}
+          today={today}
+          now={now}
+          initialView={initialView}
+          initialQuery={query}
+          departments={Array.from(new Set(doctors.map((d) => d.department))).sort()}
+        >
         <PhoneStats
           cols={3}
           className="mb-3"
           stats={[
-            { label: 'Patients', value: firstSeen.size, note: `+${newThisWeek} this week`, color: '#067647' },
+            { label: 'Patients', value: firstSeen.size, note: `+${newThisWeek} this week`, color: '#2A4DD0' },
             { label: 'Booked today', value: paidToday.length, note: plural(doctorsToday, 'doctor') },
-            { label: 'Checked in', value: checkedIn, note: 'at reception' },
+            { label: 'Checked in', value: checkedIn, note: 'at reception', color: '#067647' },
           ]}
         />
         <div className="lg:hidden mb-3.5">
@@ -126,16 +132,7 @@ export default async function HospitalPatientsPage(props: { searchParams?: Promi
           <StatCard label="Fast track today" value={fastToday} note="Seen ahead once checked in" />
           <StatCard label="Unpaid bookings" value={unpaid} note={unpaid ? 'Awaiting payment' : 'All bookings paid'} />
         </section>
-
-        <PatientsBoard
-          key={`${initialView}:${query}`}
-          rows={rows}
-          today={today}
-          now={now}
-          initialView={initialView}
-          initialQuery={query}
-          departments={Array.from(new Set(doctors.map((d) => d.department))).sort()}
-        />
+        </PatientsBoard>
       </HosBody>
     </>
   )

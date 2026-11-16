@@ -9,13 +9,16 @@ import { CallLink, EmptyState, Severity, Status, btnSmall, segGroup, segTab } fr
 const filters = [
   { id: 'all', label: 'All' },
   { id: 'high', label: 'Critical' },
-  { id: 'doctors', label: 'Doctor applications' },
+  { id: 'doctors', label: 'Independent doctors' },
   { id: 'partners', label: 'Hospital & lab applications' },
   { id: 'consultations', label: 'Consultations' },
   { id: 'diagnostics', label: 'Diagnostics' },
 ] as const
 
 type Filter = (typeof filters)[number]['id']
+
+// One grid for the heading row and the body rows, so the headings sit over their columns.
+const cols = 'lg:grid-cols-[130px_minmax(0,1fr)_minmax(0,2.2fr)_160px_150px]'
 
 /** The Command page's "Needs attention" after DeskExeHome: segmented filters, then severity, who, issue and status. */
 export function AttentionBoard({ items, limit = 8 }: { items: AttentionItem[]; limit?: number }) {
@@ -44,7 +47,7 @@ export function AttentionBoard({ items, limit = 8 }: { items: AttentionItem[]; l
         <EmptyState icon={CircleCheck}>Nothing needs attention here right now.</EmptyState>
       ) : (
         <>
-          <div className="hidden lg:grid grid-cols-[130px_minmax(0,1fr)_minmax(0,2.2fr)_160px_120px] gap-4 px-3.5 py-2.5 rounded-[10px] bg-[#F7F9FC] text-[11.5px] font-extrabold tracking-[0.04em] uppercase text-[#5B667A]">
+          <div className={`hidden lg:grid ${cols} gap-4 px-3.5 py-2.5 rounded-[10px] bg-[#F7F9FC] text-[11.5px] font-extrabold tracking-[0.04em] uppercase text-[#5B667A]`}>
             <span>Severity</span>
             <span>Who</span>
             <span>Issue</span>
@@ -55,7 +58,7 @@ export function AttentionBoard({ items, limit = 8 }: { items: AttentionItem[]; l
             {visible.map((item) => (
               <li
                 key={item.id}
-                className="grid grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[120px_minmax(0,1fr)_minmax(0,2.2fr)_150px_150px] gap-x-4 gap-y-1.5 items-center py-3 lg:py-[13px] lg:px-3.5 border-b border-[#EEF2F7] text-[13.5px]"
+                className={`grid grid-cols-[minmax(0,1fr)_auto] ${cols} gap-x-4 gap-y-1.5 items-center py-3 lg:py-[13px] lg:px-3.5 border-b border-[#EEF2F7] text-[13.5px]`}
               >
                 <span className="flex lg:block items-center gap-2 order-1">
                   <Severity level={item.severity} />

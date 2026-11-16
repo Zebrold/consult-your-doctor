@@ -3,7 +3,7 @@ import { istDateKey } from '@/components/patient/format'
 import { ReportDownloads, type ReportFile } from '@/components/portal/ReportDownloads'
 import { countDelta, monthName, monthSoFar, monthsEnding, noShowRate, pointsDelta, prevMonth } from '@/lib/report-stats'
 import { LAB_STATUS_LABELS, APPOINTMENT_STATUS_LABELS, currentTime, loadAppointments, loadLabBookings, requireExecutivePage } from '../_lib/ops'
-import { Card, ExePage, Line, Stat, Stats, Table, count, td, th, type Delta } from '../_components/ui'
+import { BarList, Card, ExePage, Stat, Stats, Table, count, td, th, type Delta } from '../_components/ui'
 import { MonthlyEmail } from '../_components/MonthlyEmail'
 
 export const metadata: Metadata = { title: 'Reports' }
@@ -14,7 +14,7 @@ function Change({ d, vs }: { d?: Delta; vs: string }) {
   if (!d) return <span>No {vs} to compare</span>
   return (
     <span>
-      <span className={`font-extrabold ${d.dir === 'flat' ? 'text-[#5B667A]' : d.good ? 'text-[#067647]' : 'text-[#B42318]'}`}>
+      <span className={`font-extrabold ${d.dir === 'flat' ? 'text-[#5B667A]' : d.good ? 'text-[#2A4DD0]' : 'text-[#B42318]'}`}>
         {d.dir === 'up' ? '↑' : d.dir === 'down' ? '↓' : ''} {d.text.replace(/^[+-]/, '')}
       </span>{' '}
       vs {vs}
@@ -201,19 +201,12 @@ export default async function ExecutiveReportsPage() {
           </Table>
         </Card>
 
-        <div className="flex flex-col gap-3.5 lg:gap-5 min-w-0">
-          <Card title="Growth this month" sub={`${monthName(span.month)} so far`}>
-            <ul>
-              {growth.map((g) => (
-                <li key={g.label}>
-                  <Line label={<span className="font-bold">{g.label}</span>} right={<strong className="tabular-nums">{g.value == null ? '—' : count(g.value)}</strong>} />
-                </li>
-              ))}
-            </ul>
-          </Card>
-          <ReportDownloads files={files} />
-        </div>
+        <Card title="Growth this month" sub={`${monthName(span.month)} so far`}>
+          <BarList rows={growth.map((g) => ({ label: g.label, value: g.value ?? 0, display: g.value == null ? '—' : count(g.value) }))} />
+        </Card>
       </div>
+
+      <ReportDownloads files={files} />
     </ExePage>
   )
 }

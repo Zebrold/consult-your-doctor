@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { FlaskConical, House } from "lucide-react";
 import { btnPrimary, card } from "@/components/patient/app-ui";
@@ -24,7 +24,7 @@ export type Checkup = {
 };
 
 /** Check-up packages the labs list, nearest first, and the picked one with Book. */
-export function CheckupPicker({ checkups, percentLabel }: { checkups: Checkup[]; percentLabel: string }) {
+export function CheckupPicker({ checkups, percentLabel, footer }: { checkups: Checkup[]; percentLabel: string; footer?: ReactNode }) {
   const { location } = usePatientLocation();
   const sorted = byNearness(checkups, location).map((r) => r.item);
   const [picked, setPicked] = useState<string | null>(null);
@@ -49,7 +49,7 @@ export function CheckupPicker({ checkups, percentLabel }: { checkups: Checkup[];
     <>
       <div className="flex flex-col gap-3.5 lg:gap-5 min-w-0">
         {location && <p className="text-[12.5px] text-[#5B667A]">Nearest to {placeLabel(location)} first.</p>}
-        <div className="grid gap-3 lg:gap-3.5 md:grid-cols-2">
+        <div className="grid grid-cols-2 gap-2.5 lg:gap-3.5 xl:grid-cols-3">
           {sorted.map((c) => {
             const on = current?.key === c.key;
             return (
@@ -58,32 +58,31 @@ export function CheckupPicker({ checkups, percentLabel }: { checkups: Checkup[];
                 type="button"
                 onClick={() => setPicked(c.key)}
                 aria-pressed={on}
-                className={`text-left rounded-[18px] lg:rounded-2xl p-4 lg:p-5 transition-shadow ${on ? "bg-[#F5F8FF] shadow-[0_0_0_2px_#2A4DD0]" : "bg-white shadow-[0_0_0_1px_#E6EAF0] hover:shadow-[0_0_0_1px_#C9D4EA]"}`}
+                className={`text-left flex flex-col items-start min-h-[150px] lg:min-h-[170px] rounded-2xl p-3.5 lg:p-[18px] transition-shadow ${on ? "bg-[#F5F8FF] shadow-[0_0_0_2px_#2A4DD0]" : "bg-white shadow-[0_0_0_1px_#E6EAF0] hover:shadow-[0_0_0_1px_#C9D4EA]"}`}
               >
-                <span className="inline-block px-2 py-0.5 rounded-md bg-[#EEF3FF] text-[11px] font-extrabold text-[#2A4DD0]">{c.kind}</span>
-                <span className="block mt-2 text-[15px] font-extrabold leading-snug">{c.name}</span>
-                <span className="block mt-1 text-[12.5px] text-[#5B667A]">{[c.centerName, c.city].filter(Boolean).join(" · ")}</span>
-                <span className="mt-3 flex items-end justify-between gap-2">
-                  <span className="text-[18px] font-extrabold tabular-nums">{formatINR(c.price)}</span>
-                  {c.doorstep && (
-                    <span className="inline-flex items-center gap-1 text-[11.5px] font-bold text-[#067647]">
-                      <House className="w-3.5 h-3.5" /> Home collection
-                    </span>
-                  )}
-                </span>
+                <span className="block text-[11.5px] font-extrabold text-[#2A4DD0]">{c.kind}</span>
+                <span className="block mt-1.5 text-[14.5px] lg:text-base font-extrabold leading-[1.25]">{c.name}</span>
+                <span className="block mt-1 text-[11.5px] lg:text-[12.5px] text-[#5B667A]">{[c.centerName, c.city].filter(Boolean).join(" · ")}</span>
+                {c.doorstep && (
+                  <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-[#5B667A]">
+                    <House className="w-3 h-3" /> Home collection
+                  </span>
+                )}
+                <span className="mt-auto pt-2 text-[17px] lg:text-[20px] font-extrabold tabular-nums">{formatINR(c.price)}</span>
               </button>
             );
           })}
         </div>
+        {footer}
       </div>
 
       {current && (
         <section className={`${card} p-4 lg:p-[22px] lg:sticky lg:top-[96px]`}>
           <h2 className="text-[16px] font-extrabold">Your booking</h2>
-          <p className="mt-2 text-[14.5px] font-extrabold">{current.name}</p>
+          <p className="mt-2 text-[17px] font-extrabold">{current.name}</p>
           <p className="text-[12.5px] text-[#5B667A]">{[current.centerName, current.city].filter(Boolean).join(" · ")}</p>
           {current.doorstep && (
-            <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-[#F3F6FC] px-3.5 py-3">
+            <div className="mt-3 flex items-center justify-between gap-3 py-1">
               <span className="min-w-0">
                 <span className="block text-[13.5px] font-extrabold">Home sample collection</span>
                 <span className="block text-[12px] text-[#5B667A]">{formatINR(current.doorstepFee)} extra, paid at the lab</span>

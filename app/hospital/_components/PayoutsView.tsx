@@ -3,7 +3,7 @@ import { Wallet } from 'lucide-react'
 import { IST, formatINR, formatShortDate, formatTime, istDateKey } from '@/components/patient/format'
 import { entryLabel, maskAccount, MIN_PAYOUT, type HospitalWallet, type PayoutAccount, type WalletEntry } from '@/lib/wallet'
 import { shiftDay } from '../_lib/hospital'
-import { DeskHead, EmptyLine, HosBackHeader, HosBody, Panel, btnOutline, card } from './hos-ui'
+import { DeskHead, EmptyLine, HosBody, HosHeader, Panel, btnOutline, card } from './hos-ui'
 import { PayoutAccounts, WithdrawCard, type PayoutDest } from './WalletActions'
 import { isOnlineGateway } from '@/lib/payment-gateways'
 
@@ -29,7 +29,7 @@ const STATUS = {
 } as const
 
 /** The Payouts page for one hospital's wallet (app/hospital/wallet/page.tsx loads it). */
-export function PayoutsView({ wallet, now }: { wallet: HospitalWallet; now: number }) {
+export function PayoutsView({ wallet, now, staff }: { wallet: HospitalWallet; now: number; staff: { name: string } }) {
   const today = istDateKey(now)
   const month = today.slice(0, 7)
   const monthName = new Date(now).toLocaleDateString('en-GB', { timeZone: IST, month: 'long' })
@@ -89,14 +89,13 @@ export function PayoutsView({ wallet, now }: { wallet: HospitalWallet; now: numb
 
   return (
     <>
-      <HosBackHeader backHref="/hospital/more" backLabel="Back to more" title="Payouts">
-        <p className="mt-1 mx-1.5 text-[13px] leading-[1.45] text-[#DCE6FF]">Your share of every payment, paid out to you.</p>
-        <div className="mt-4 p-4 rounded-2xl bg-white/[0.12] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]">
+      <HosHeader staff={staff} back={{ href: '/hospital/more', label: 'More' }} title="Payouts" subtitle="Your share of every payment, paid out to you.">
+        <div className="p-4 rounded-2xl bg-white/[0.12] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]">
           <span className="block text-[12.5px] font-bold text-[#CFDCFF]">{balanceLabel}</span>
           <span className="block mt-1 text-[32px] font-extrabold tracking-[-0.03em]">{balanceValue}</span>
           <span className="block mt-1.5 text-[12px] text-[#DCE6FF]">{waiting ? `${formatINR(waiting.amount)} waiting to be paid · ${lastLine}` : lastLine}</span>
         </div>
-      </HosBackHeader>
+      </HosHeader>
       <HosBody>
         <DeskHead
           title="Payouts"

@@ -50,17 +50,17 @@ export function TodaySchedule({ doses, date, label, ready }: { doses: Dose[]; da
           <h2 className="text-[16px] font-extrabold">Today · {label}</h2>
           <p className="mt-0.5 text-[12.5px] lg:text-[13px] text-[#5B667A]">Your schedule, set by the doctor&apos;s timing</p>
         </div>
-        {doses.length > 0 && (
-          <span className="shrink-0 text-right">
-            <span className="block text-[12.5px] font-bold text-[#5B667A]">{done} of {doses.length} taken</span>
-            <span className="block text-[20px] font-extrabold text-[#2A4DD0] tabular-nums">{pct}%</span>
-          </span>
-        )}
       </div>
       {doses.length > 0 && (
-        <span className="block mt-3 h-2 rounded-full bg-[#EEF2F7] overflow-hidden">
-          <span className="block h-full rounded-full bg-[#2A4DD0] transition-[width] duration-300" style={{ width: `${pct}%` }} />
-        </span>
+        <>
+          <div className="mt-3 flex items-center justify-between gap-3 text-[13px] font-extrabold">
+            <span>{done} of {doses.length} taken today</span>
+            <span className="text-[#2A4DD0] tabular-nums">{pct}%</span>
+          </div>
+          <span className="block mt-2 h-1.5 rounded-full bg-[#EEF2F7] overflow-hidden">
+            <span className="block h-full rounded-full bg-[#2A4DD0] transition-[width] duration-300" style={{ width: `${pct}%` }} />
+          </span>
+        </>
       )}
       {doses.length === 0 ? (
         <p className="mt-3 rounded-xl bg-[#F3F6FC] px-4 py-3.5 text-[13px] text-[#5B667A]">No doses due today. Medicines from your doctors&apos; prescriptions show up here with their timing.</p>
@@ -69,14 +69,15 @@ export function TodaySchedule({ doses, date, label, ready }: { doses: Dose[]; da
           {doses.map((d) => {
             const on = taken.has(d.key);
             return (
-              <div key={d.key} className="flex items-center gap-3.5 py-3.5 border-t border-[#EEF2F7] first:border-t-0">
-                <span className="shrink-0 w-[68px]">
-                  <span className="block text-[14px] font-extrabold tabular-nums">{clockTime(d.minutes)}</span>
-                  <span className="block text-[11.5px] font-bold text-[#5B667A]">{d.slot}</span>
+              <div key={d.key} className="flex items-start lg:items-center gap-3.5 py-3.5 border-t border-[#EEF2F7] first:border-t-0">
+                <span className="shrink-0 w-16 lg:w-[84px]">
+                  <span className="block text-[14px] lg:text-[15px] font-extrabold tabular-nums">{clockTime(d.minutes)}</span>
+                  <span className="block text-[12px] font-bold text-[#5B667A]">{d.slot}</span>
                 </span>
+                <span className="flex-1 min-w-0 flex flex-col lg:flex-row lg:items-center gap-2.5 lg:gap-3.5">
                 <span className="flex-1 min-w-0">
                   <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                    <span className={`text-[14px] font-extrabold ${on ? "line-through text-[#8A94A6]" : ""}`}>{d.name}</span>
+                    <span className={`text-[14px] font-extrabold `}>{d.name}</span>
                     {d.pattern && <span className="px-1.5 py-px rounded-md bg-[#EEF3FF] text-[11px] font-extrabold text-[#2A4DD0]">{d.pattern}</span>}
                   </span>
                   <span className="block text-[12.5px] text-[#4A5878]">{[d.dose, d.instructions].filter(Boolean).join(" · ")}</span>
@@ -87,11 +88,14 @@ export function TodaySchedule({ doses, date, label, ready }: { doses: Dose[]; da
                   onClick={() => toggle(d.key)}
                   disabled={!ready}
                   aria-pressed={on}
-                  className={`shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-[10px] text-[12.5px] font-extrabold border-[1.5px] transition-colors disabled:opacity-50 ${on ? "bg-[#ECFDF3] border-[#ABEFC6] text-[#067647]" : "bg-white border-[#D6DDE8] text-[#27324A] hover:bg-[#F4F6FA]"}`}
+                  className={`shrink-0 self-start lg:self-center inline-flex items-center gap-2 h-[34px] lg:h-[38px] px-3 rounded-[10px] text-[12.5px] font-extrabold border border-[#D6DDE8] bg-white transition-colors disabled:opacity-50 hover:bg-[#F4F6FA] ${on ? "text-[#2A4DD0]" : "text-[#27324A]"}`}
                 >
-                  {on && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
-                  {on ? "Taken" : "Mark taken"}
+                  <span className={`w-4 h-4 rounded-[5px] border-2 flex items-center justify-center ${on ? "bg-[#2A4DD0] border-[#2A4DD0] text-white" : "border-[#C9D2E0]"}`}>
+                    {on && <Check className="w-3 h-3" strokeWidth={3.5} />}
+                  </span>
+                  {on ? "Taken" : "Mark as taken"}
                 </button>
+                </span>
               </div>
             );
           })}

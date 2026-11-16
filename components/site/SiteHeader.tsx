@@ -24,7 +24,8 @@ export function SiteHeader({ account }: { account: HomeAccount }) {
   // The partner page scrolls with its header (the user asked for it not to stay pinned there), and its Login menu
   // lists only the partner portals.
   const partnerPage = pathname === "/corporate" || pathname.startsWith("/corporate/") || pathname.startsWith("/signup/");
-  const pinned = !(pathname === "/corporate" || pathname.startsWith("/corporate/"));
+  const corporatePage = pathname === "/corporate" || pathname.startsWith("/corporate/");
+  const pinned = !corporatePage;
 
   return (
     <header data-static-header={pinned ? undefined : ""} className={`${pinned ? "sticky top-(--strip-h)" : "relative"} z-50 bg-[#1D4ED8] text-white pt-[env(safe-area-inset-top)] print:static print:shadow-none`}>
@@ -50,7 +51,13 @@ export function SiteHeader({ account }: { account: HomeAccount }) {
         </nav>
 
         <div className="md:hidden shrink-0">
-          <PhoneAccountButton account={account} onMenu={() => setMenu(true)} />
+          {corporatePage && account.kind === "guest" ? (
+            <Link href="/corporate#login" className="flex items-center h-9 px-3.5 rounded-[10px] bg-[#0B1B3F] text-white text-[13px] font-extrabold">
+              Sign in
+            </Link>
+          ) : (
+            <PhoneAccountButton account={account} onMenu={() => setMenu(true)} />
+          )}
         </div>
       </div>
       {menu && (

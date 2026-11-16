@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import { Loader2, Search, Send, StickyNote, Ticket } from 'lucide-react'
-import { addInternalNote, assignTicket, getTicketMessages, replyToTicket, setTicketTeam, updateTicketStatus, type SupportTicket, type TicketMessage, type TicketPriority, type TicketStatus } from '@/app/actions/tickets'
+import { addInternalNote, assignTicket, getTicketMessages, replyToTicket, setTicketStep, setTicketTeam, updateTicketStatus, type SupportTicket, type TicketMessage, type TicketPriority, type TicketStatus } from '@/app/actions/tickets'
 import { timeAgo } from '@/components/patient/format'
-import { repliesFor, replyDeadline, span } from '@/lib/support-desk'
+import { repliesFor, replyDeadline, span, stepsFor } from '@/lib/support-desk'
 import { TEAMS, TEAM_LABEL, isTeam, type Team } from '../_lib/access'
 import { CallLink, EmptyState, Stat, Stats, Status, btnOutline, btnPrimary, card, segGroup, segTab } from '../_components/ui'
 import { PartnerPipeline, type Enquiry } from '../_components/PartnerPipeline'
@@ -28,12 +28,15 @@ interface Props {
   enquiries: Enquiry[]
   enquiriesReady: boolean
   initialTab?: 'tickets' | 'interest'
+  /** Ticked steps per ticket (step key to who ticked it); `stepsReady` is false before the migration. */
+  steps: Record<string, Record<string, string | null>>
+  stepsReady: boolean
 }
 
 const STATUS: Record<TicketStatus, { label: string; color: string }> = {
   open: { label: 'Open', color: '#B42318' },
   in_progress: { label: 'In progress', color: '#B54708' },
-  awaiting_response: { label: 'Waiting for them', color: '#2A4DD0' },
+  awaiting_response: { label: 'Waiting for reply', color: '#2A4DD0' },
   resolved: { label: 'Resolved', color: '#067647' },
   closed: { label: 'Closed', color: '#5B667A' },
 }
@@ -43,7 +46,7 @@ const ROLE: Record<string, string> = { patient: 'Patient', hospital_admin: 'Hosp
 const roleLabel = (r: string) => ROLE[r] ?? r.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())
 const capital = (s: string) => s.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())
 
-type View = 'open' | 'mine' | 'myteam' | 'unassigned' | 'overdue' | 'patient' | 'hospital' | 'doctor' | 'waiting' | 'done'
+type View = 'open' | 'mine' | 'myteam' | 'unassigned' | 'overdue' | 'patient' | 'hospital' | 'doctor' | 'money' | 'waiting' | 'done'
 const isRole = (t: SupportTicket, role: 'patient' | 'hospital' | 'doctor') => (role === 'hospital' ? t.requesterRole === 'hospital_admin' || t.requesterRole === 'hospital' : t.requesterRole === role)
 const istKey = (iso: string) => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
 
@@ -65,6 +68,24 @@ export function ExecutiveTicketsClient(props: Props) {
   const [error, setError] = useState<string | null>(null)
   const [isReplying, startReply] = useTransition()
   const [isUpdating, startUpdate] = useTransition()
+  const [stepState, setStepState] = useState(props.steps)
+  const [stepBusy, setStepBusy] = useState<string | null>(null)
+  const [stepError, setStepError] = useState<string | null>(null)
+
+  const toggleStep = async (ticketId: string, key: string, done: boolean) => {
+    if (stepBusy) return
+    setStepBusy(`${ticketId}:${key}`)
+    setStepError(null)
+    const res = await setTicketStep(ticketId, key, done)
+    setStepBusy(null)
+    if (!res.success) return setStepError(res.error ?? 'Could not save that step.')
+    setStepState((prev) => {
+      const next = { ...(prev[ticketId] ?? {}) }
+      if (done) next[key] = 'you'
+      else delete next[key]
+      return { ...prev, [ticketId]: next }
+    })
+  }
 
   const selected = tickets.find((t) => t.id === selectedId) ?? null
   const messages = thread && thread.id === selectedId ? thread.rows : null
@@ -85,14 +106,15 @@ export function ExecutiveTicketsClient(props: Props) {
   const overdue = active.filter((t) => deadline(t).late)
   const views: { id: View; label: string; list: SupportTicket[] }[] = [
     { id: 'open', label: 'All open', list: active },
-    { id: 'mine', label: 'Mine', list: active.filter((t) => t.assignedTo === me) },
+    { id: 'mine', label: 'Assigned to me', list: active.filter((t) => t.assignedTo === me) },
     ...(teamsReady && myTeam !== 'management' ? [{ id: 'myteam' as View, label: `${TEAM_LABEL[myTeam]} team`, list: active.filter((t) => teams[t.id] === myTeam) }] : []),
     { id: 'unassigned', label: 'Unassigned', list: active.filter((t) => !t.assignedTo) },
     { id: 'overdue', label: 'Overdue', list: overdue },
     { id: 'patient', label: 'Patients', list: active.filter((t) => isRole(t, 'patient')) },
     { id: 'hospital', label: 'Hospitals', list: active.filter((t) => isRole(t, 'hospital')) },
     { id: 'doctor', label: 'Doctors', list: active.filter((t) => isRole(t, 'doctor')) },
-    { id: 'waiting', label: 'Waiting for them', list: tickets.filter((t) => t.status === 'awaiting_response') },
+    { id: 'money', label: 'Payments and refunds', list: active.filter((t) => ['refund', 'payment', 'payout'].includes((t.category ?? '').toLowerCase())) },
+    { id: 'waiting', label: 'Waiting for reply', list: tickets.filter((t) => t.status === 'awaiting_response') },
     { id: 'done', label: 'Resolved & closed', list: tickets.filter((t) => t.status === 'resolved' || t.status === 'closed') },
   ]
   const current = views.find((v) => v.id === view) ?? views[0]
@@ -181,11 +203,12 @@ export function ExecutiveTicketsClient(props: Props) {
         <Stat
           label="Open tickets"
           value={openCount}
+          tone={openCount ? 'high' : undefined}
           note={byRole.length ? byRole.map(([r, n]) => (r === 'patient' ? plural(n, 'patient', 'patients') : r === 'hospital' ? plural(n, 'hospital', 'hospitals') : plural(n, 'doctor', 'doctors'))).join(' · ') : 'Nothing open'}
         />
         <Stat label="Overdue" value={overdue.length} note="Past the reply time" tone={overdue.length ? 'high' : undefined} />
         <Stat label="Unassigned" value={active.filter((t) => !t.assignedTo).length} note="Need an owner" tone={active.some((t) => !t.assignedTo) ? 'warn' : undefined} />
-        <Stat label="Resolved today" value={resolvedToday} note={avgReply != null ? `First reply in ${span(avgReply)} on average` : 'No replies in 30 days'} tone="ok" />
+        <Stat label="Resolved today" value={resolvedToday} note={avgReply != null ? `First reply in ${span(avgReply)} on average` : 'No replies in 30 days'} tone="blue" />
         <Stat label="Hospital interest" value={newEnquiries} note="To call and help apply" tone="blue" />
       </Stats>
 
@@ -258,7 +281,7 @@ export function ExecutiveTicketsClient(props: Props) {
                         {isTeam(teams[t.id]) ? ` · ${TEAM_LABEL[teams[t.id] as Team]}` : ''}
                       </span>
                       <span className="flex justify-between gap-2 mt-2 text-[12px] font-extrabold">
-                        <span className={`truncate ${d.late ? 'text-[#B42318]' : 'text-[#5B667A]'}`}>{d.label}</span>
+                        <span className={`truncate ${d.late ? 'text-[#B42318]' : ACTIVE.includes(t.status) ? 'text-[#B54708]' : 'text-[#5B667A]'}`}>{d.label}</span>
                         <Status label={STATUS[t.status].label} color={STATUS[t.status].color} className="!text-[12px]" />
                       </span>
                     </button>
@@ -281,6 +304,11 @@ export function ExecutiveTicketsClient(props: Props) {
                 teamsReady={teamsReady}
                 messages={messages}
                 busy={isUpdating}
+                ticked={stepState[selected.id] ?? {}}
+                stepsReady={props.stepsReady}
+                stepBusy={stepBusy}
+                stepError={stepError}
+                onStep={(key, done) => toggleStep(selected.id, key, done)}
                 onTake={takeIt}
                 onMove={moveTo}
                 onStatus={setStatus}
@@ -289,7 +317,7 @@ export function ExecutiveTicketsClient(props: Props) {
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
                       <div className={segGroup}>
                         <button type="button" onClick={() => setMode('reply')} aria-pressed={mode === 'reply'} className={segTab(mode === 'reply')}>
-                          Reply
+                          Reply to {roleLabel(selected.requesterRole).toLowerCase()}
                         </button>
                         <button type="button" onClick={() => setMode('note')} aria-pressed={mode === 'note'} className={segTab(mode === 'note')}>
                           Internal note
@@ -372,6 +400,11 @@ function TicketDetail({
   teamsReady,
   messages,
   busy,
+  ticked,
+  stepsReady,
+  stepBusy,
+  stepError,
+  onStep,
   onTake,
   onMove,
   onStatus,
@@ -385,6 +418,11 @@ function TicketDetail({
   teamsReady: boolean
   messages: TicketMessage[] | null
   busy: boolean
+  ticked: Record<string, string | null>
+  stepsReady: boolean
+  stepBusy: string | null
+  stepError: string | null
+  onStep: (key: string, done: boolean) => void
   onTake: () => void
   onMove: (team: string) => void
   onStatus: (s: TicketStatus) => void
@@ -398,7 +436,7 @@ function TicketDetail({
             {t.ticketCode} · {roleLabel(t.requesterRole)} · {capital(t.category)}
           </span>
           <span className="block mt-1 text-[19px] font-extrabold tracking-[-0.01em] leading-snug">{t.subject}</span>
-          <span className={`block mt-1 text-[12.5px] font-extrabold ${deadlineLabel.late ? 'text-[#B42318]' : 'text-[#5B667A]'}`}>
+          <span className={`block mt-1 text-[12.5px] font-extrabold ${deadlineLabel.late ? 'text-[#B42318]' : ACTIVE.includes(t.status) ? 'text-[#B54708]' : 'text-[#5B667A]'}`}>
             {deadlineLabel.label} · raised {timeAgo(t.createdAt)}
           </span>
         </span>
@@ -442,7 +480,7 @@ function TicketDetail({
         </div>
       )}
 
-      <h3 className="mt-5 mb-2 text-[12px] font-extrabold tracking-[0.06em] uppercase text-[#5B667A]">Conversation</h3>
+      <h3 className="mt-[18px] mb-2 text-[13px] font-extrabold text-[#0B1B3F]">Conversation</h3>
       <ul className="flex flex-col gap-2.5">
         <Bubble who={t.requesterName} when={timeAgo(t.createdAt)} text={t.description} />
         {messages === null ? (
@@ -465,6 +503,8 @@ function TicketDetail({
           )
         )}
       </ul>
+
+      <StepsToSolve ticketId={t.id} category={t.category} ticked={ticked} ready={stepsReady} busyKey={stepBusy} error={stepError} onStep={onStep} />
 
       {composer}
 
@@ -489,6 +529,69 @@ function TicketDetail({
   )
 }
 
+/** "Steps to solve": the category's checklist, ticked per ticket. Boxes are off until migration 20261118 has run. */
+function StepsToSolve({
+  ticketId,
+  category,
+  ticked,
+  ready,
+  busyKey,
+  error,
+  onStep,
+}: {
+  ticketId: string
+  category: string
+  ticked: Record<string, string | null>
+  ready: boolean
+  busyKey: string | null
+  error: string | null
+  onStep: (key: string, done: boolean) => void
+}) {
+  const steps = stepsFor(category)
+  const done = steps.filter((s) => s.key in ticked).length
+  return (
+    <div className="mt-4 pt-4 border-t border-[#EEF2F7]">
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <h3 className="text-[13px] font-extrabold text-[#0B1B3F]">Steps to solve</h3>
+        <span className="text-[12px] font-extrabold text-[#5B667A]">
+          {done}/{steps.length}
+        </span>
+      </div>
+      <ul className="flex flex-col gap-1.5">
+        {steps.map((s) => {
+          const on = s.key in ticked
+          const by = ticked[s.key]
+          const busy = busyKey === `${ticketId}:${s.key}`
+          return (
+            <li key={s.key}>
+              <label
+                title={on && by && by !== 'you' ? `Ticked by ${by}` : undefined}
+                className={`flex items-start gap-2.5 px-3 py-2 rounded-[10px] bg-[#F7F9FC] text-[13.5px] font-bold ${ready ? 'cursor-pointer' : 'opacity-70'}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={on}
+                  disabled={!ready || busyKey !== null}
+                  onChange={(e) => onStep(s.key, e.target.checked)}
+                  className="mt-0.5 w-4 h-4 shrink-0 accent-[#2A4DD0]"
+                />
+                <span className={`min-w-0 flex-1 ${on ? 'text-[#5B667A] line-through' : 'text-[#27324A]'}`}>{s.label}</span>
+                {busy && <Loader2 className="w-4 h-4 animate-spin text-[#5B667A] shrink-0" />}
+              </label>
+            </li>
+          )
+        })}
+      </ul>
+      {!ready && <p className="mt-2 text-[12.5px] font-bold text-[#5B667A]">Ticking steps opens after the next update.</p>}
+      {error && (
+        <p role="alert" className="mt-2 text-[12.5px] font-bold text-[#B42318]">
+          {error}
+        </p>
+      )}
+    </div>
+  )
+}
+
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="min-w-0">
@@ -499,14 +602,14 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 }
 
 function Bubble({ who, when, text, kind = 'theirs' }: { who: string; when: string; text: string; kind?: 'theirs' | 'ours' | 'note' }) {
-  const look = kind === 'ours' ? 'self-end bg-[#EEF3FF]' : kind === 'note' ? 'self-stretch bg-[#FFFAEB] shadow-[inset_0_0_0_1px_#FEDF89]' : 'self-start bg-[#F7F9FC] shadow-[inset_0_0_0_1px_#E6EAF0]'
+  const look = kind === 'ours' ? 'self-stretch ml-10 bg-[#EEF3FF]' : kind === 'note' ? 'self-stretch bg-[#FFF8EC] shadow-[inset_0_0_0_1px_#F6DFB5]' : 'self-stretch bg-[#F0F2F5]'
   return (
-    <li className={`max-w-[92%] px-3.5 py-2.5 rounded-xl ${look}`}>
-      <span className={`flex items-center justify-between gap-3 text-[12px] font-extrabold ${kind === 'note' ? 'text-[#B54708]' : 'text-[#5B667A]'}`}>
+    <li className={`px-3.5 py-2.5 rounded-xl ${look}`}>
+      <span className={`flex items-center justify-between gap-3 text-[12px] font-extrabold ${kind === 'note' ? 'text-[#7A3E00]' : kind === 'ours' ? 'text-[#2A4DD0]' : 'text-[#5B667A]'}`}>
         <span className="truncate">{who}</span>
         <span className="shrink-0 font-bold">{when}</span>
       </span>
-      <span className="block mt-1 text-[13.5px] leading-relaxed whitespace-pre-wrap break-words">{text}</span>
+      <span className={`block mt-1 text-[13.5px] leading-relaxed whitespace-pre-wrap break-words ${kind === 'note' ? 'text-[#5C3300]' : ''}`}>{text}</span>
     </li>
   )
 }

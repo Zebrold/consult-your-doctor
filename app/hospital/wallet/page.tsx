@@ -8,8 +8,8 @@ export const metadata: Metadata = { title: 'Payouts | Hospital Portal' }
 export const dynamic = 'force-dynamic'
 
 export default async function HospitalPayoutsPage() {
-  const { admin, hospital } = await requireHospital()
+  const { admin, hospital, staff } = await requireHospital()
   const now = currentTime()
   const wallet = await loadHospitalWallet(admin, hospital.id, 2000)
-  return <PayoutsView wallet={wallet} now={now} />
+  return <PayoutsView wallet={wallet} now={now} staff={staff} />
 }

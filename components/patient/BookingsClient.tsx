@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, ArrowRight, Building2, CalendarDays, CircleAlert, Clock, Download, FlaskConical, MapPin, Navigation, Plus, Share2, Stethoscope, UserRound } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Building2, CalendarDays, CircleAlert, Clock, Download, FlaskConical, MapPin, Navigation, Plus, Search, Share2, Stethoscope, UserRound } from "lucide-react";
 import { ReviewButton, type ExistingReview } from "./ReviewButton";
 import { DeskTitle, InfoRow, StatusDot, btnDanger, btnOutline, btnPrimary, card } from "./app-ui";
 import { RemoteImage } from "@/components/RemoteImage";
+import { CancelBookingButton, RescheduleButton, type RescheduleState } from "./BookingChange";
 
 export type BookingTab = "upcoming" | "completed" | "cancelled";
 
@@ -50,6 +51,14 @@ export type BookingItem = {
   rebookHref: string | null;
   supportHref: string;
   review: { doctorName: string; hospital: { id: string; name: string; city: string | null } | null; existing: ExistingReview | null } | null;
+  /** Set when the patient can cancel it now: whether the online booking fee comes back, and what was paid. */
+  cancel: { refundDue: boolean; fee: string | null } | null;
+  /** Why an upcoming booking can't be cancelled here ("Paid at the hospital desk…"). */
+  cancelNote: string | null;
+  /** What happened to the money of a cancelled booking. */
+  refund: string | null;
+  /** Doctor visits only: whether it can be moved, or why not. */
+  reschedule: RescheduleState | null;
 };
 
 
@@ -68,7 +77,15 @@ export function BookingsClient({ items, patient }: { items: BookingItem[]; patie
   const firstPaid = upcoming.find((b) => b.state === "ok") ?? null;
   const [deskPass, setDeskPass] = useState<string | null>(firstPaid?.id ?? upcoming[0]?.id ?? items[0]?.id ?? null);
   const unpaid = upcoming.find((b) => b.state === "unpaid") ?? null;
-  const shown = items.filter((b) => b.tab === tab);
+  const [searching, setSearching] = useState(false);
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const matches = q ? items.filter((b) => [b.title, b.sub, b.specialty, b.placeName, b.where, b.bookingId, b.date].some((f) => f.toLowerCase().includes(q))) : items;
+  const shown = matches.filter((b) => b.tab === tab);
+  const closeSearch = () => {
+    setQuery("");
+    setSearching(false);
+  };
   const passItem = items.find((b) => b.id === phonePass) ?? null;
   const deskItem = items.find((b) => b.id === deskPass) ?? null;
 
@@ -152,14 +169,37 @@ export function BookingsClient({ items, patient }: { items: BookingItem[]; patie
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-5 lg:items-start">
         <section aria-labelledby="list-title" className="pt-6 px-4 md:px-6 lg:p-[22px] lg:rounded-2xl lg:bg-white lg:shadow-[0_0_0_1px_#E6EAF0,0_1px_2px_rgba(11,27,63,0.04)] min-w-0">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-3.5 lg:mb-4">
-            <h2 id="list-title" className="text-[18px] lg:text-[16px] font-extrabold tracking-[-0.02em]">
-              <span className="lg:hidden">My appointments</span>
-              <span className="hidden lg:inline">Appointments</span>
-            </h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 id="list-title" className="text-[18px] lg:text-[16px] font-extrabold tracking-[-0.02em]">
+                <span className="lg:hidden">My appointments</span>
+                <span className="hidden lg:inline">Appointments</span>
+              </h2>
+              <button
+                type="button"
+                onClick={() => (searching ? closeSearch() : setSearching(true))}
+                aria-label="Search appointments"
+                aria-expanded={searching}
+                className={`shrink-0 w-[38px] h-[38px] rounded-full flex items-center justify-center shadow-[0_0_0_1px_#E1E7F0] ${searching ? "bg-[#EEF3FF] text-[#2A4DD0]" : "bg-white text-[#27324A]"}`}
+              >
+                <Search className="w-[17px] h-[17px]" />
+              </button>
+            </div>
+            {searching && (
+              <input
+                type="search"
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Escape" && closeSearch()}
+                placeholder="Doctor, hospital, test or booking ID"
+                aria-label="Search appointments"
+                className="w-full h-11 px-3.5 rounded-xl bg-white shadow-[0_0_0_1px_#E1E7F0] text-[14px] outline-none focus:shadow-[0_0_0_2px_#2A4DD0]"
+              />
+            )}
             <div role="tablist" aria-label="Booking status" className="flex gap-1 p-1 rounded-[14px] lg:rounded-xl bg-[#E9EDF4] lg:bg-[#F4F6FA] lg:shadow-[inset_0_0_0_1px_#E6EAF0]">
               {TABS.map(([key, label]) => {
                 const on = key === tab;
-                const count = items.filter((b) => b.tab === key).length;
+                const count = matches.filter((b) => b.tab === key).length;
                 return (
                   <button
                     key={key}
@@ -179,7 +219,17 @@ export function BookingsClient({ items, patient }: { items: BookingItem[]; patie
             </div>
           </div>
 
-          {shown.length === 0 ? (
+          {shown.length === 0 && q ? (
+            <div className="px-5 py-7 text-center rounded-[18px] bg-white lg:bg-[#F7F9FC] shadow-[0_0_0_1px_#E6EBF3] lg:shadow-none">
+              <span className="inline-flex w-12 h-12 rounded-full bg-white shadow-[inset_0_0_0_1px_#E1E7F0] items-center justify-center text-[#2A4DD0]">
+                <Search className="w-[22px] h-[22px]" />
+              </span>
+              <p className="mt-2.5 text-[15px] font-extrabold break-words">No bookings match “{query.trim()}”</p>
+              <button type="button" onClick={closeSearch} className="mt-1 text-[12.5px] font-extrabold text-[#2A4DD0] hover:underline">
+                Clear search
+              </button>
+            </div>
+          ) : shown.length === 0 ? (
             <div className="px-5 py-7 text-center rounded-[18px] bg-white lg:bg-[#F7F9FC] shadow-[0_0_0_1px_#E6EBF3] lg:shadow-none">
               <span className="inline-flex w-12 h-12 rounded-full bg-white shadow-[inset_0_0_0_1px_#E1E7F0] items-center justify-center text-[#2A4DD0]">
                 <CalendarDays className="w-[22px] h-[22px]" />
@@ -196,7 +246,7 @@ export function BookingsClient({ items, patient }: { items: BookingItem[]; patie
                 ) : tab === "completed" ? (
                   "Visits and tests you have had show here, with their prescriptions and reports."
                 ) : (
-                  "Cancelled bookings show here."
+                  "Cancelled bookings and refunds will show here."
                 )}
               </p>
             </div>
@@ -280,6 +330,7 @@ function BookingCard({ item: b, onPass }: { item: BookingItem; onPass: () => voi
           <span>The booking fee{b.fee ? ` of ${b.fee}` : ""} isn&apos;t paid yet, so this booking isn&apos;t confirmed.</span>
         </p>
       )}
+      {b.state === "cancelled" && b.refund && <p className="mt-2.5 text-[12.5px] leading-[1.45] font-bold text-[#475467]">{b.refund}</p>}
       <div className="grid grid-cols-[1fr_1.25fr] gap-2 mt-3">
         {first}
         {second}
@@ -353,6 +404,7 @@ function DeskTable({ items, selected, onPass }: { items: BookingItem[]; selected
                 <span className="text-[12.5px] leading-snug text-[#5B667A] line-clamp-2">
                   {b.kind === "lab" ? b.sub : b.specialty} · {unpaid || b.state === "cancelled" ? "Token after payment" : `Token ${b.token}`}
                 </span>
+                {b.state === "cancelled" && b.refund && <span className="block text-[12.5px] leading-snug font-bold text-[#475467]">{b.refund}</span>}
               </span>
             </span>
             <span className="font-bold">{[b.date, b.time].filter(Boolean).join(" · ")}</span>
@@ -481,6 +533,7 @@ function Pass({ item: b, patient }: { item: BookingItem; patient: { name: string
         <div className="px-4 pt-1.5 pb-1">
           <InfoRow label="Patient" value={patient.name} />
           <InfoRow label="Booking fee" value={b.fee ? `${b.fee} · ${b.state === "unpaid" ? "Due" : "Paid"}` : "—"} valueClass={b.state === "unpaid" ? "text-[#B42318]" : ""} />
+          {b.state === "cancelled" && b.refund && <InfoRow label="Refund" value={b.refund} />}
         </div>
 
         <div className="grid grid-cols-2 gap-2 px-4 pb-4 pt-1">
@@ -514,6 +567,8 @@ function Pass({ item: b, patient }: { item: BookingItem; patient: { name: string
           ? "Your token and QR code appear once the booking fee is paid."
           : `Show the QR code or token at the ${b.kind === "lab" ? "lab's front desk" : "front desk"} when you arrive.`}
       </p>
+      <ChangeRow item={b} className="mt-2.5" />
+
     </div>
   );
 }
@@ -672,12 +727,30 @@ function PhonePass({ item: b, patient, onClose }: { item: BookingItem; patient: 
           <CircleAlert className="w-[18px] h-[18px] text-[#2A4DD0]" /> Help
         </Link>
       </div>
-      <p className="mt-[18px] px-6 text-center text-[12.5px] text-[#5B667A]">
-        Need to change or cancel?{" "}
+      {b.state === "cancelled" && b.refund && <p className="mt-[18px] px-6 text-center text-[12.5px] font-bold text-[#475467]">{b.refund}</p>}
+      <ChangeRow item={b} className="mt-[18px] px-6" />
+      <p className="mt-2.5 px-6 text-center text-[12.5px] text-[#5B667A]">
+        Need help with this booking?{" "}
         <Link href={b.supportHref} className="font-extrabold text-[#2A4DD0]">
           Contact support
         </Link>
       </p>
+    </div>
+  );
+}
+
+/** "Reschedule · Cancel appointment" under a pass, or why this booking can't be changed here. */
+function ChangeRow({ item: b, className = "" }: { item: BookingItem; className?: string }) {
+  if (b.tab !== "upcoming" || (!b.cancel && !b.cancelNote && !b.reschedule)) return null;
+  return (
+    <div className={`flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[12.5px] ${className}`}>
+      {b.reschedule && <RescheduleButton id={b.id} reschedule={b.reschedule} place={b.placeName} />}
+      {b.reschedule && (b.cancel || b.cancelNote) && <span aria-hidden className="text-[#8A94A6]">·</span>}
+      {b.cancel ? (
+        <CancelBookingButton id={b.id} kind={b.kind} refundDue={b.cancel.refundDue} fee={b.cancel.fee} />
+      ) : (
+        b.cancelNote && <span className="text-[#5B667A]">{b.cancelNote}</span>
+      )}
     </div>
   );
 }

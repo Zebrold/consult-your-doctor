@@ -10,11 +10,21 @@ export type BadgeSubject = 'doctor' | 'hospital'
 export type BadgePlan = 'monthly' | 'yearly'
 export type BadgeStatus = 'awaiting_payment' | 'in_review' | 'active' | 'rejected' | 'cancelled'
 
-/** What each badge costs, in rupees. Hospitals buy monthly; doctors monthly or yearly. */
-export const BADGE_PRICES: Record<BadgeSubject, Partial<Record<BadgePlan, number>>> = {
-  hospital: { monthly: 1999 },
+export type BadgePrices = Record<BadgeSubject, Record<BadgePlan, number>>
+
+/**
+ * What each badge costs, in rupees, when the team hasn't set prices (or the stored ones can't be read). The live prices
+ * are in platform_settings and come from lib/badge-prices.ts.
+ */
+export const DEFAULT_BADGE_PRICES: BadgePrices = {
   doctor: { monthly: 499, yearly: 4999 },
+  hospital: { monthly: 1999, yearly: 19999 },
 }
+
+export const MIN_BADGE_PRICE = 1
+export const MAX_BADGE_PRICE = 100_000
+/** Whole rupees, from ₹1 to ₹1,00,000. */
+export const validBadgePrice = (n: unknown): n is number => typeof n === 'number' && Number.isInteger(n) && n >= MIN_BADGE_PRICE && n <= MAX_BADGE_PRICE
 
 export const PLAN_LABEL: Record<BadgePlan, string> = { monthly: 'Monthly', yearly: 'Yearly' }
 export const PLAN_PER: Record<BadgePlan, string> = { monthly: 'per month', yearly: 'per year' }

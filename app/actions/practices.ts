@@ -67,6 +67,7 @@ export async function inviteVisitingDoctor(rawStaffId: string, note: string): Pr
     await sendEmail({
       to: profile.email,
       subject: `Consult Your Doctor: ${hospital?.name ?? 'A hospital'} invites you to consult there`,
+      heading: `Invitation from ${hospital?.name ?? 'a partner hospital'}`,
       paragraphs: [
         `Dear ${doctorName(profile.full_name)},`,
         `${hospital?.name ?? 'A partner hospital'} has invited you to consult at their hospital too, on Consult Your Doctor.${row.note ? ` Their note: “${row.note}”` : ''}`,

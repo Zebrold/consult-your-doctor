@@ -165,19 +165,18 @@ export default async function HospitalDashboardPage() {
         <DeskHead
           title={hospital.name}
           titleExtra={ticked ? <Verified /> : undefined}
-          subtitle={
+          eyebrow={
             <span className="flex flex-wrap items-center gap-x-1.5">
-              <span className="font-bold">{dateLabel}</span>
+              <span>{dateLabel}</span>
               <span>·</span>
-              <span className={`inline-flex items-center gap-1.5 text-[12.5px] font-extrabold ${live ? 'text-[#067647]' : 'text-[#B54708]'}`}>
+              <span className={`inline-flex items-center gap-1.5 font-extrabold ${live ? 'text-[#067647]' : 'text-[#B54708]'}`}>
                 <span className={`w-[7px] h-[7px] rounded-full ${live ? 'bg-[#067647]' : 'bg-[#B54708]'}`} />
                 {live ? 'Live' : 'Not listed'}
               </span>
-              <span>·</span>
-              <span>{[...team, bedSummary.total ? plural(bedSummary.total, 'bed') : null, hospital.city].filter(Boolean).join(' · ')}</span>
               <LiveRefresh />
             </span>
           }
+          subtitle={[...team, bedSummary.total ? plural(bedSummary.total, 'bed') : null, hospital.city].filter(Boolean).join(' · ')}
           actions={
             <>
               <Link href="/hospital/doctors" className={btnOutline}>
@@ -186,7 +185,7 @@ export default async function HospitalDashboardPage() {
               <Link href="/hospital/patients?walkin=1" className={btnOutline}>
                 <Plus className="w-4 h-4" strokeWidth={2.4} /> Walk-in patient
               </Link>
-              <AddDoctorButton departments={departments} label="Add doctor" className={btnPrimary} />
+              <AddDoctorButton departments={departments} hospitalName={[hospital.name, hospital.city].filter(Boolean).join(', ')} label="Add doctor" className={btnPrimary} />
             </>
           }
         />
@@ -195,7 +194,7 @@ export default async function HospitalDashboardPage() {
           <Link href="/hospital/doctors" className={`${btnOutline} !h-[46px]`}>
             <CalendarDays className="w-4 h-4" /> Duty roster
           </Link>
-          <AddDoctorButton departments={departments} label="Add doctor" className={`${btnPrimary} !h-[46px] !shadow-none`} />
+          <AddDoctorButton departments={departments} hospitalName={[hospital.name, hospital.city].filter(Boolean).join(', ')} label="Add doctor" className={`${btnPrimary} !h-[46px] !shadow-none`} />
         </div>
 
         <PhoneStats

@@ -2,7 +2,7 @@
 
 import { useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { LoaderCircle, Pencil, Plus, ShieldCheck, Trash2, X } from "lucide-react";
+import { LoaderCircle, Pencil, Plus, Trash2, X } from "lucide-react";
 import { removePatientInsurance, savePatientInsurance } from "@/app/actions/patient-insurance";
 import type { InsurancePolicy } from "@/lib/insurance";
 import { formatShortDate } from "./format";
@@ -46,10 +46,10 @@ export function InsuranceCard({ policy, patientName, ready, insurers, today }: P
   if (!policy) {
     return (
       <>
-        <div className="mt-1 rounded-[16px] bg-[#F3F6FC] px-4 py-5 text-center">
+        <div className="mt-1 rounded-[16px] border-[1.5px] border-dashed border-[#C9D5F2] bg-[#F7F9FF] px-4 py-5 text-left">
           <p className="text-[14.5px] font-extrabold">Add your insurance policy</p>
           <p className="mt-1 text-[12.5px] leading-normal text-[#5B667A]">Keep it as a digital insurance card and share it with the hospital when you visit.</p>
-          <button type="button" onClick={() => setEditing(true)} disabled={!ready} className={`${btnPrimary} mt-3.5 w-full max-w-[320px]`}>
+          <button type="button" onClick={() => setEditing(true)} disabled={!ready} className={`${btnPrimary} mt-3.5 w-full`}>
             <Plus className="w-4 h-4" strokeWidth={2.6} /> Add insurance details
           </button>
           {!ready && <p className="mt-2.5 text-[12px] text-[#B54708]">Insurance details open up after the next update.</p>}
@@ -62,34 +62,15 @@ export function InsuranceCard({ policy, patientName, ready, insurers, today }: P
   const expired = !!policy.validUntil && policy.validUntil < today;
   return (
     <>
-      {/* The digital card */}
-      <div className="relative isolate overflow-hidden mt-1 rounded-[18px] p-4 lg:p-5 text-white bg-[linear-gradient(135deg,#1E3BB3_0%,#2A4DD0_55%,#3D63E6_100%)] shadow-[0_12px_26px_-14px_rgba(42,77,208,0.7)]">
-        <span aria-hidden className="absolute -z-10 -right-12 -top-16 w-48 h-48 rounded-full border-[26px] border-white/[0.07]" />
-        <div className="flex items-start justify-between gap-3">
-          <span className="min-w-0">
-            <span className="block text-[11px] font-extrabold tracking-[0.08em] text-[#C9D7FF]">HEALTH INSURANCE</span>
-            <span className="block mt-0.5 text-[17px] font-extrabold leading-tight break-words">{policy.insurer}</span>
-          </span>
-          <span className="shrink-0 w-10 h-10 rounded-full bg-white/15 flex items-center justify-center">
-            <ShieldCheck className="w-5 h-5" />
-          </span>
-        </div>
-        <span className="block mt-4 text-[11px] font-bold text-[#C9D7FF]">Policy number</span>
-        <span className="block text-[19px] font-extrabold tracking-[0.06em] tabular-nums break-all">{policy.policyNumber}</span>
-        <div className="mt-3.5 grid grid-cols-2 gap-3 text-[12.5px]">
-          <span className="min-w-0">
-            <span className="block text-[11px] font-bold text-[#C9D7FF]">Name on policy</span>
-            <span className="block font-extrabold truncate">{policy.holderName || patientName}</span>
-          </span>
-          <span className="min-w-0 text-right">
-            <span className="block text-[11px] font-bold text-[#C9D7FF]">{policy.memberId ? "Member ID" : "Valid until"}</span>
-            <span className="block font-extrabold truncate">{policy.memberId ?? (policy.validUntil ? formatShortDate(policy.validUntil) : "Not added")}</span>
-          </span>
-        </div>
-        {policy.memberId && policy.validUntil && (
-          <p className="mt-2 text-[12px] text-[#DCE6FF]">Valid until {formatShortDate(policy.validUntil)}</p>
-        )}
+      <div className="mt-1">
+        <DigitalInsuranceCard holder={policy.holderName || patientName} policyNumber={policy.policyNumber} insurer={policy.insurer} validUntil={policy.validUntil} />
       </div>
+      {policy.memberId && (
+        <p className="mt-2.5 flex items-center justify-between gap-3 text-[13px]">
+          <span className="font-bold text-[#5B667A]">Member ID</span>
+          <span className="min-w-0 truncate font-extrabold tabular-nums">{policy.memberId}</span>
+        </p>
+      )}
       {expired && (
         <p className="mt-2.5 rounded-xl bg-[#FEF3F2] px-3.5 py-2.5 text-[12.5px] font-bold text-[#B42318]">This policy&apos;s validity date has passed. Update it if you&apos;ve renewed.</p>
       )}
@@ -105,6 +86,39 @@ export function InsuranceCard({ policy, patientName, ready, insurers, today }: P
       {error && <p role="alert" className="mt-2.5 text-[12.5px] font-bold text-[#B42318]">{error}</p>}
       {editing && <InsuranceDialog policy={policy} patientName={patientName} insurers={insurers} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); router.refresh(); }} />}
     </>
+  );
+}
+
+/** The patient's insurance as a card: only what they saved (name, policy number, insurer, valid until). */
+export function DigitalInsuranceCard({ holder, policyNumber, insurer, validUntil, compact }: { holder: string; policyNumber: string; insurer: string; validUntil?: string | null; compact?: boolean }) {
+  const label = "block text-[9.5px] font-bold tracking-[0.08em] text-white/70";
+  return (
+    <div className={`flex flex-col aspect-[1.586/1] min-h-[184px] overflow-hidden rounded-2xl bg-[#2A4DD0] text-white shadow-[0_14px_28px_rgba(42,77,208,0.28)] ${compact ? "px-[18px] py-4" : "px-[18px] py-4 lg:px-[22px] lg:py-5"}`}>
+      <div className="flex items-center justify-between gap-3">
+        <span className="flex min-w-0 items-center gap-2 text-[15px] font-bold">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-icon-white.png" alt="" className="h-6 w-6 shrink-0 object-contain" />
+          <span className="truncate">Consult your Doctor</span>
+        </span>
+        <span className="shrink-0 text-[9.5px] font-bold tracking-[0.1em] text-white/75">HEALTH INSURANCE</span>
+      </div>
+      <span className={`${label} mt-3.5`}>MEMBER NAME</span>
+      <span className="block truncate text-[19px] font-extrabold leading-tight lg:text-[20px]">{holder}</span>
+      <span className={`${label} mt-2.5`}>INSURANCE NUMBER</span>
+      <span className="block break-all text-[15px] font-bold tracking-[0.08em] tabular-nums">{policyNumber}</span>
+      <div className="mt-auto flex items-end justify-between gap-3 border-t border-white/[0.22] pt-2.5">
+        <span className="min-w-0">
+          <span className={label}>INSURER</span>
+          <span className="block truncate text-[13px] font-bold">{insurer}</span>
+        </span>
+        {validUntil && (
+          <span className="shrink-0 text-right">
+            <span className={label}>VALID TILL</span>
+            <span className="block text-[13px] font-bold">{formatShortDate(validUntil)}</span>
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
 

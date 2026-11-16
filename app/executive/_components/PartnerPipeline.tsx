@@ -3,13 +3,13 @@
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { CircleCheck, Loader2, Phone } from 'lucide-react'
+import { Loader2, Phone } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { startDocumentUploads } from '@/app/actions/applicationUploads'
 import { fileApplicationForEnquiry, updateEnquiry } from '@/app/actions/partner-enquiries'
 import { APPLICATION_DOCS, DOC_BUCKET, acceptAttr } from '@/lib/application-documents'
 import { HOSPITAL_DEPARTMENTS } from '@/lib/partner-applications'
-import { EmptyState, btnOutline, btnPrimary, btnSmall, card, telHref } from './ui'
+import { EmptyState, btnOutline, btnPrimary, card, telHref } from './ui'
 
 export type Enquiry = {
   id: string
@@ -55,7 +55,7 @@ export function PartnerPipeline({ enquiries, ready }: { enquiries: Enquiry[]; re
           {COLUMNS.map((col) => {
             const list = enquiries.filter((e) => e.stage === col.stage)
             return (
-              <div key={col.stage} className="rounded-[14px] bg-[#F7F9FC] p-2.5 min-w-0">
+              <div key={col.stage} className="rounded-[14px] bg-[#F4F6FA] p-3 min-h-[160px] min-w-0">
                 <span className="flex items-center justify-between px-1.5 pb-2 text-[12.5px] font-extrabold text-[#27324A]">
                   {col.label}
                   <span className="text-[#5B667A]">{list.length}</span>
@@ -142,22 +142,22 @@ function EnquiryDetail({ e }: { e: Enquiry }) {
         </div>
       </dl>
       {e.message && (
-        <p className="mt-3 text-[13.5px]">
+        <p className="mt-3 px-3.5 py-3 rounded-xl shadow-[inset_0_0_0_1px_#E6EAF0] text-[13.5px] leading-normal">
           <strong>What they asked:</strong> {e.message}
         </p>
       )}
 
       {e.stage !== 'applied' && (
         <>
-          <h3 className="mt-5 mb-2 text-[12px] font-extrabold tracking-[0.06em] uppercase text-[#5B667A]">After the call</h3>
+          <h3 className="mt-4 mb-2 text-[13px] font-extrabold text-[#0B1B3F]">After the call</h3>
           <div className="flex flex-wrap gap-2">
-            <button type="button" disabled={pending} onClick={() => update({ stage: 'called', called: true }, 'Saved. Call them again later.')} className={btnSmall}>
+            <button type="button" disabled={pending} onClick={() => update({ stage: 'called', called: true }, 'Saved. Call them again later.')} className={btnOutline}>
               No answer, call again
             </button>
-            <button type="button" disabled={pending} onClick={() => update({ stage: 'interested', called: true }, 'Marked interested.')} className={btnSmall}>
+            <button type="button" disabled={pending} onClick={() => update({ stage: 'interested', called: true }, 'Marked interested.')} className={btnOutline}>
               Interested
             </button>
-            <button type="button" disabled={pending} onClick={() => update({ stage: 'not_interested', called: true }, 'Marked not interested.')} className={`${btnSmall} !text-[#B42318]`}>
+            <button type="button" disabled={pending} onClick={() => update({ stage: 'not_interested', called: true }, 'Marked not interested.')} className={`${btnOutline} !text-[#B42318]`}>
               Not interested
             </button>
           </div>
@@ -176,15 +176,12 @@ function EnquiryDetail({ e }: { e: Enquiry }) {
       </div>
 
       {e.stage === 'applied' ? (
-        <div className="mt-5 flex items-start gap-3 rounded-xl bg-[#ECFDF3] px-4 py-3.5 text-[13.5px] text-[#05603A]">
-          <CircleCheck className="w-5 h-5 shrink-0 mt-0.5" />
-          <span>
-            <strong className="block">Application submitted for approval</strong>
-            It is in Hospitals › Applications. Once approved, the admin gets their staff ID and a link to set their password by email.{' '}
-            <Link href="/executive/hospitals#applications" className="font-extrabold text-[#2A4DD0] hover:underline underline-offset-4">
-              Open hospital applications
-            </Link>
-          </span>
+        <div className="mt-5 rounded-[14px] bg-[#F5F8FF] shadow-[inset_0_0_0_1px_#DCE5FF] p-[18px]">
+          <strong className="block text-[15.5px] font-extrabold text-[#2A4DD0]">Application submitted for approval</strong>
+          <p className="mt-1 text-[13px] text-[#27324A]">It is in Hospitals › Applications. Once approved, the admin gets their staff ID and a link to set their password by email.</p>
+          <Link href="/executive/hospitals#applications" className={`${btnOutline} mt-3`}>
+            Open hospital applications
+          </Link>
         </div>
       ) : e.kind === 'hospital' ? (
         filing ? (
@@ -244,8 +241,8 @@ function FileApplication({ e, onDone }: { e: Enquiry; onDone: () => void }) {
     <form onSubmit={submit} className="mt-5 pt-5 border-t border-[#EEF2F7]">
       <h3 className="text-[16px] font-extrabold">Fill the application for them</h3>
       <p className="mt-[3px] mb-4 text-[13px] text-[#5B667A]">Fill it in during the call. It goes to Hospitals › Applications for approval.</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <label className="lg:col-span-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <label>
           <span className={label}>Hospital name</span>
           <input name="organizationName" required defaultValue={e.name} className={field} />
         </label>
@@ -261,7 +258,7 @@ function FileApplication({ e, onDone }: { e: Enquiry; onDone: () => void }) {
           <span className={label}>Number of beds</span>
           <input name="beds" type="number" min={0} required defaultValue={e.beds ?? ''} className={field} />
         </label>
-        <label className="sm:col-span-2 lg:col-span-3">
+        <label className="sm:col-span-2">
           <span className={label}>Full address</span>
           <input name="address" required minLength={5} className={field} />
         </label>
@@ -277,7 +274,7 @@ function FileApplication({ e, onDone }: { e: Enquiry; onDone: () => void }) {
           ))}
         </div>
       </fieldset>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3.5">
         <label>
           <span className={label}>Admin name</span>
           <input name="contactName" required defaultValue={e.contact} className={field} />

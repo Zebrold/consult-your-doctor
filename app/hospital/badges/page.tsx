@@ -1,10 +1,11 @@
 import type { Metadata } from 'next'
 import { currentTime } from '@/components/patient/data'
 import { doctorName, formatShortDate } from '@/components/patient/format'
-import { BADGE_PRICES, badgeState, doctorRequirements, loadBadges, meetsRequirements } from '@/lib/badges'
+import { badgeState, doctorRequirements, loadBadges, meetsRequirements } from '@/lib/badges'
+import { getBadgePrices } from '@/lib/badge-prices'
 import { loadHospitalDoctors, requireHospital } from '../_lib/hospital'
 import { HospitalBadges, type BadgeDoctorRow, type HospitalBadgeState } from '../_components/HospitalBadges'
-import { DeskHead, HosBackHeader, HosBody } from '../_components/hos-ui'
+import { DeskHead, HosBody, HosHeader } from '../_components/hos-ui'
 
 export const metadata: Metadata = { title: 'Verified badges | Hospital Portal' }
 export const dynamic = 'force-dynamic'
@@ -22,9 +23,9 @@ function missingNote(label: string, note?: string) {
  * the Consult your Doctor team checks each badge before the blue tick shows (lib/badges.ts).
  */
 export default async function HospitalBadgesPage() {
-  const { admin, user, hospital } = await requireHospital()
+  const { admin, user, hospital, staff } = await requireHospital()
   const now = currentTime()
-  const doctors = await loadHospitalDoctors(admin, hospital.id)
+  const [doctors, prices] = await Promise.all([loadHospitalDoctors(admin, hospital.id), getBadgePrices()])
   const [{ ready, badges }, { data: regs }, { data: me }] = await Promise.all([
     loadBadges(admin, { hospitalId: hospital.id, doctorIds: doctors.map((d) => d.id) }),
     doctors.length ? admin.from('doctors').select('*').in('id', doctors.map((d) => d.id)) : Promise.resolve({ data: [] }),
@@ -67,7 +68,7 @@ export default async function HospitalBadgesPage() {
       note,
       warn: !s.live && !s.inReview && !!missing,
       selectable: !s.inReview && !s.upcoming && renewable && meetsRequirements(reqs),
-      price: s.awaiting?.paidBy === 'hospital' ? s.awaiting.amount : BADGE_PRICES.doctor.monthly!,
+      price: s.awaiting?.paidBy === 'hospital' ? s.awaiting.amount : prices.doctor.monthly,
       askedId: s.awaiting?.paidBy === 'hospital' ? s.awaiting.id : null,
     }
   })
@@ -75,9 +76,7 @@ export default async function HospitalBadgesPage() {
   const subtitle = 'Blue ticks for your hospital and doctors, so patients know our team has checked them'
   return (
     <>
-      <HosBackHeader backHref="/hospital/more" backLabel="Back to more" title="Verified badges">
-        <p className="mt-2.5 mx-1.5 text-[13px] leading-[1.5] text-[#DCE6FF]">{subtitle}</p>
-      </HosBackHeader>
+      <HosHeader staff={staff} back={{ href: '/hospital/more', label: 'More' }} title="Verified badges" subtitle={subtitle} />
       <HosBody>
         <DeskHead title="Verified badges" subtitle={subtitle} />
         {!ready && (
@@ -85,7 +84,7 @@ export default async function HospitalBadgesPage() {
         )}
         <HospitalBadges
           ready={ready}
-          hospital={{ name: hospital.name, price: BADGE_PRICES.hospital.monthly!, state: hospitalState }}
+          hospital={{ name: hospital.name, prices: prices.hospital, doctorMonthly: prices.doctor.monthly, state: hospitalState }}
           doctors={rows}
           payer={{ name: hospital.name, email: (me?.email as string | null) ?? hospital.email, phone: (me?.phone_number as string | null) ?? hospital.phone }}
         />

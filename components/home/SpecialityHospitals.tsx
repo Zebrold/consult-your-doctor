@@ -10,6 +10,7 @@ import { specialityIcon, type SpecialityInfo } from "./specialities";
 import { VerifiedBadge } from "./ui";
 import type { HomeHospital } from "./types";
 import { RemoteImage } from "@/components/RemoteImage";
+import { placeOf } from "@/components/patient/HospitalCards";
 
 export type SpecialityHospital = HomeHospital & {
   /** Doctors at the hospital listed under this speciality. */
@@ -70,7 +71,7 @@ export function SpecialityHospitals({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={specialityIcon(s)} alt="" className="absolute right-[18px] md:right-6 -bottom-1.5 w-[150px] h-[150px] md:w-[200px] md:h-[200px]" />
           {/* In the patient workspace, wider screens have the breadcrumb above the banner instead. */}
-          <Link href="/" aria-label="Back to home" className={`${docked ? "md:hidden" : ""} absolute left-3 md:left-6 top-3.5 md:top-5 w-11 h-11 rounded-full text-white flex items-center justify-center hover:bg-white/10 transition-colors`}>
+          <Link href="/specialities" aria-label="Back to all specialities" className={`${docked ? "md:hidden" : ""} absolute left-3 md:left-6 top-3.5 md:top-5 w-11 h-11 rounded-full text-white flex items-center justify-center hover:bg-white/10 transition-colors`}>
             <ArrowLeft className="w-6 h-6" strokeWidth={2.4} />
           </Link>
         </div>
@@ -178,7 +179,7 @@ function HospitalTile({ hospital: h, km, far, slug }: { hospital: SpecialityHosp
         </span>
       </span>
       {tags && <span className="text-[13px] text-[#5B667A] truncate">{tags}</span>}
-      <span className="text-[13px] text-[#5B667A] truncate">{h.address || h.city || "Partner hospital"}</span>
+      <span className="text-[13px] text-[#5B667A] truncate">{placeOf(h)}</span>
     </Link>
   );
 }

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { ClipboardList } from 'lucide-react'
 import { ExecutiveStatusSelect } from '@/components/ExecutiveStatusSelect'
 import { IST, doctorName, formatTime, istDateKey } from '@/components/patient/format'
+import { isFastTrack } from '@/lib/pricing'
 import { LAB_STATUS_LABELS, currentTime, formatDateTime, loadAppointments, loadLabBookings, requireExecutivePage } from '../_lib/ops'
 import { Card, EmptyState, ExePage, Meter, Stat, Stats } from '../_components/ui'
 import { CheckinBoard, type CheckinRow } from '../_components/CheckinBoard'
@@ -38,6 +39,7 @@ export default async function ExecutiveCheckinsPage() {
         phone: a.patient?.phone ?? null,
         what: a.doctor ? `${doctorName(a.doctor.name)} · ${a.doctor.specialty}` : 'Doctor',
         where: [a.hospital?.name, a.hospital?.city].filter(Boolean).join(', ') || '—',
+        type: isFastTrack(a.bookingType) ? 'Fast track' : 'General',
         status: a.status,
         state,
         checkIn: profile.hospitalId && a.hospitalId === profile.hospitalId && a.status === 'confirmed' ? { doctorName: bare, department: a.doctor?.specialty ?? 'General' } : undefined,
@@ -53,6 +55,7 @@ export default async function ExecutiveCheckinsPage() {
         phone: b.patient?.phone ?? null,
         what: b.testName,
         where: b.center?.name ?? 'Lab',
+        type: 'Lab visit',
         status: LAB_STATUS_LABELS[b.status] ?? b.status,
         state: b.status === 'visited' || b.status === 'report_sent' ? 'in' : b.status === 'confirmed' ? 'expected' : 'other',
       }),
@@ -86,34 +89,32 @@ export default async function ExecutiveCheckinsPage() {
         <Stat label="Running late" value={late} note="More than 15 min past slot" tone={late ? 'warn' : undefined} />
       </Stats>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px] gap-3.5 lg:gap-5 items-start">
-        <Card
-          title="Today’s schedule"
-          sub={profile.hospitalId ? `You can check in patients at ${profile.hospitalName ?? 'your branch'}. Ask for the booking ID when they arrive.` : 'Your account isn’t linked to a branch, so you can’t check patients in.'}
-        >
-          <CheckinBoard rows={rows} />
-        </Card>
+      <Card
+        title="Today’s schedule"
+        sub={profile.hospitalId ? `You can check in patients at ${profile.hospitalName ?? 'your branch'}. Ask for the booking ID when they arrive.` : 'Your account isn’t linked to a branch, so you can’t check patients in.'}
+      >
+        <CheckinBoard rows={rows} />
+      </Card>
 
-        <Card title="Checked in by hospital" sub="So far today">
-          {hospitals.length === 0 ? (
-            <p className="text-[13px] text-[#5B667A]">No consultations today.</p>
-          ) : (
-            <ul className="flex flex-col gap-3.5">
-              {hospitals.map(([name, h]) => (
-                <li key={name}>
-                  <span className="flex items-center justify-between gap-3 mb-1.5 text-[13px]">
-                    <span className="font-bold truncate">{name}</span>
-                    <span className="shrink-0 font-extrabold tabular-nums">
-                      {h.done} of {h.total}
-                    </span>
+      <Card title="Checked in by hospital" sub="So far today">
+        {hospitals.length === 0 ? (
+          <p className="text-[13px] text-[#5B667A]">No consultations today.</p>
+        ) : (
+          <ul className="grid grid-cols-1 lg:grid-cols-2 gap-x-8">
+            {hospitals.map(([name, h]) => (
+              <li key={name} className="py-2.5 border-t border-[#EEF2F7]">
+                <span className="flex items-center justify-between gap-3 mb-1.5 text-[13px]">
+                  <span className="font-extrabold truncate">{name}</span>
+                  <span className="shrink-0 font-extrabold tabular-nums">
+                    {h.done} of {h.total}
                   </span>
-                  <Meter pct={(h.done / h.total) * 100} label={`${h.done} of ${h.total} checked in`} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </div>
+                </span>
+                <Meter pct={(h.done / h.total) * 100} label={`${h.done} of ${h.total} checked in`} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
       <Card title="Assigned to you" sub="Appointments you handled. Update them as patients move through their visit.">
         {assigned.length === 0 ? (

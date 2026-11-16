@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { Building } from 'lucide-react'
-import { currentTime, loadPartnerApplications, requireExecutivePage, timeAgo } from '../_lib/ops'
+import { currentTime, groupHospitals, loadPartnerApplications, requireExecutivePage, timeAgo } from '../_lib/ops'
 import { Card, EmptyState, ExePage, Stat, Stats, Table, plural, td, th } from '../_components/ui'
 import { PartnerQueue } from '../_components/PartnerQueue'
 import { PracticeReview } from '../_components/PracticeReview'
@@ -35,27 +35,12 @@ export default async function ExecutiveBranchesPage() {
   const doctors = new Map<string, number>()
   for (const d of (doctorRows ?? []) as { hospital_id: string | null }[]) if (d.hospital_id) doctors.set(d.hospital_id, (doctors.get(d.hospital_id) ?? 0) + 1)
 
-  // Hospitals an admin can reach: the one they're signed in to and every branch they were given.
-  const reach = new Map<string, Set<string>>()
-  for (const p of (adminRows ?? []) as { id: string; hospital_id: string | null }[]) if (p.hospital_id) reach.set(p.id, new Set([p.hospital_id]))
-  for (const r of (access.error ? [] : (access.data ?? [])) as { profile_id: string; hospital_id: string }[]) reach.set(r.profile_id, new Set([...(reach.get(r.profile_id) ?? []), r.hospital_id]))
-
-  // Groups: hospitals joined by a shared admin (union-find).
-  const parent = new Map<string, string>()
-  const find = (x: string): string => {
-    const p = parent.get(x) ?? x
-    if (p === x) return x
-    const root = find(p)
-    parent.set(x, root)
-    return root
-  }
-  for (const ids of reach.values()) {
-    const [first, ...rest] = [...ids].filter((id) => hospitals.has(id))
-    if (!first) continue
-    for (const id of rest) parent.set(find(id), find(first))
-  }
-  const groupsById = new Map<string, string[]>()
-  for (const id of hospitals.keys()) groupsById.set(find(id), [...(groupsById.get(find(id)) ?? []), id])
+  // Hospitals an admin can reach and the groups they join (shared with the Hospitals page).
+  const { reach, groupsById } = groupHospitals(
+    [...hospitals.keys()],
+    (adminRows ?? []) as { id: string; hospital_id: string | null }[],
+    (access.error ? [] : (access.data ?? [])) as { profile_id: string; hospital_id: string }[],
+  )
   const admins = (ids: string[]) => [...reach.values()].filter((set) => ids.some((id) => set.has(id))).length
   const groups = [...groupsById.values()]
     .filter((ids) => ids.length > 1)
@@ -96,6 +81,36 @@ export default async function ExecutiveBranchesPage() {
         <PartnerQueue applications={requests} submittedLabels={labels} />
       </Card>
 
+      <Card title="Doctor practice links" sub="Doctors who accepted an invitation from another hospital. Approving lets that hospital publish their slots at its address.">
+        {!practicesReady ? (
+          <EmptyState icon={Building}>Starts once supabase/migrations/20261115_executive_workspace.sql has run.</EmptyState>
+        ) : toReview.length === 0 ? (
+          <EmptyState icon={Building}>No practice links waiting.</EmptyState>
+        ) : (
+          <ul>
+            {toReview.map((p) => {
+              const d = docOf.get(p.doctorId)
+              return (
+                <li key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-3 py-3.5 border-t border-[#EEF2F7] first:border-t-0 first:pt-0">
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-[14px] font-extrabold">{docName(p.doctorId)}</span>
+                    <span className="block text-[12.5px] text-[#5B667A]">
+                      {[d?.specialty, d?.registration_number ? `Reg. ${d.registration_number}` : 'No registration number', `from ${hospitalName(d?.hospital_id)}`].filter(Boolean).join(' · ')}
+                    </span>
+                    <span className="block text-[12.5px] text-[#5B667A]">
+                      To consult at <strong className="text-[#0B1B3F]">{hospitalName(p.hospitalId)}</strong> · invited {formatShortDate(p.createdAt)}
+                      {p.respondedAt ? ` · accepted ${formatShortDate(p.respondedAt)}` : ''}
+                      {p.note ? ` · “${p.note}”` : ''}
+                    </span>
+                  </span>
+                  <PracticeReview practiceId={p.id} />
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </Card>
+
       <Card title="Hospital groups" sub="Branches that share an admin login">
         {access.error ? (
           <EmptyState icon={Building}>Run supabase/migrations/20261114_grow_and_manage.sql to start hospital branches.</EmptyState>
@@ -125,36 +140,6 @@ export default async function ExecutiveBranchesPage() {
               ))}
             </tbody>
           </Table>
-        )}
-      </Card>
-
-      <Card title="Doctor practice links" sub="Doctors who accepted an invitation from another hospital. Approving lets that hospital publish their slots at its address.">
-        {!practicesReady ? (
-          <EmptyState icon={Building}>Starts once supabase/migrations/20261115_executive_workspace.sql has run.</EmptyState>
-        ) : toReview.length === 0 ? (
-          <EmptyState icon={Building}>No practice links waiting.</EmptyState>
-        ) : (
-          <ul>
-            {toReview.map((p) => {
-              const d = docOf.get(p.doctorId)
-              return (
-                <li key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-3 py-3.5 border-t border-[#EEF2F7] first:border-t-0 first:pt-0">
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-[14px] font-extrabold">{docName(p.doctorId)}</span>
-                    <span className="block text-[12.5px] text-[#5B667A]">
-                      {[d?.specialty, d?.registration_number ? `Reg. ${d.registration_number}` : 'No registration number', `from ${hospitalName(d?.hospital_id)}`].filter(Boolean).join(' · ')}
-                    </span>
-                    <span className="block text-[12.5px] text-[#5B667A]">
-                      To consult at <strong className="text-[#0B1B3F]">{hospitalName(p.hospitalId)}</strong> · invited {formatShortDate(p.createdAt)}
-                      {p.respondedAt ? ` · accepted ${formatShortDate(p.respondedAt)}` : ''}
-                      {p.note ? ` · “${p.note}”` : ''}
-                    </span>
-                  </span>
-                  <PracticeReview practiceId={p.id} />
-                </li>
-              )
-            })}
-          </ul>
         )}
       </Card>
 

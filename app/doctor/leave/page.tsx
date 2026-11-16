@@ -4,7 +4,7 @@ import { istDateKey } from '@/components/patient/format'
 import { LEAVE_REASONS, leaveDates, leaveDays, leaveWindow, loadLeaves } from '@/lib/leave'
 import { loadSlots, requireDoctor } from '../_lib/doctor'
 import { DoctorLeave, type LeaveRow } from '../_components/DoctorLeave'
-import { DeskHead, DocBackHeader, DocBody } from '../_components/doc-ui'
+import { DeskHead, DocBody, DocHeader } from '../_components/doc-ui'
 
 export const metadata: Metadata = { title: 'Leave & availability | Doctor Portal' }
 export const dynamic = 'force-dynamic'
@@ -54,9 +54,7 @@ export default async function DoctorLeavePage() {
 
   return (
     <>
-      <DocBackHeader backHref="/doctor/profile" backLabel="Back to profile" title="Leave & availability">
-        <p className="mt-2.5 mx-1.5 text-[13px] leading-[1.5] text-[#DCE6FF]">Plan time off and keep your hospital and patients informed</p>
-      </DocBackHeader>
+      <DocHeader doctor={{ name: doctor.name, image: doctor.image }} title="Leave & availability" subtitle="Plan time off and keep your hospital and patients informed" />
       <DocBody>
         <DeskHead title="Leave & availability" subtitle="Plan time off and keep your hospital and patients informed" />
         {!ready && <p className="mb-4 p-3.5 rounded-[14px] bg-[#FFF6E8] text-[13px] text-[#7A2E0E]">Leave requests are being set up. You can ask for leave here once that’s done.</p>}

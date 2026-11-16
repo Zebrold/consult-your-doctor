@@ -9,6 +9,7 @@ import { getBookingFees } from "@/lib/booking-fees";
 import { bookingOptionsReady } from "@/lib/booking-options";
 import { isFastTrack, type BookedTest } from "@/lib/pricing";
 import { doctorBookingHref } from "@/lib/booking-links";
+import { pausedDoctorIds } from "@/lib/doctor-pause";
 
 interface BookDoctorPageProps {
   params: Promise<{ doctorId: string }>;
@@ -53,6 +54,8 @@ export default async function BookDoctorPage({ params, searchParams }: BookDocto
 
   const { data: row } = await supabase.from("doctors").select(DOCTOR_FIELDS).eq("id", doctorId).maybeSingle();
   if (!row) notFound();
+  // A paused doctor takes no new bookings; their profile still opens (with no open times).
+  if ((await pausedDoctorIds()).has(doctorId)) redirect(`/doctors/${doctorId}`);
   const d = row as unknown as DoctorRow;
   const hospital = one(d.hospitals);
   // Doctors are booked on their hospital's page, start to finish; this page is only for doctors without one.

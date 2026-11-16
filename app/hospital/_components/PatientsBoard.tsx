@@ -1,9 +1,9 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Download, FileText, Phone, Search } from 'lucide-react'
 import { formatDayLabel, formatINR, formatTime } from '@/components/patient/format'
-import { Initials, Status, btnOutline, btnPrimary, card, lineTab, segGroup, segTab } from '@/components/portal/workspace-ui'
+import { DeskHead, Initials, Status, btnOutline, btnPrimary, card, lineTab, segGroup, segTab } from '@/components/portal/workspace-ui'
 import { HealthRecordButton, TakePaymentButton } from './PatientDesk'
 
 export type BoardRow = {
@@ -84,7 +84,30 @@ function SlipLink({ row, className }: { row: BoardRow; className: string }) {
   )
 }
 
-export function PatientsBoard({ rows, today, now, initialView, initialQuery = '', departments }: { rows: BoardRow[]; today: string; now: number; initialView: BoardView; initialQuery?: string; departments: string[] }) {
+/** The page: the desktop header (Export here, so it exports the filtered rows), the cards passed as children, then the board. */
+export function PatientsBoard({
+  rows,
+  today,
+  now,
+  initialView,
+  initialQuery = '',
+  departments,
+  title,
+  subtitle,
+  actions,
+  children,
+}: {
+  rows: BoardRow[]
+  today: string
+  now: number
+  initialView: BoardView
+  initialQuery?: string
+  departments: string[]
+  title: string
+  subtitle: string
+  actions?: ReactNode
+  children?: ReactNode
+}) {
   const [view, setView] = useState<BoardView>(initialView)
   const [dept, setDept] = useState<string>('all')
   const [query, setQuery] = useState(initialQuery)
@@ -112,11 +135,25 @@ export function PatientsBoard({ rows, today, now, initialView, initialQuery = ''
 
   return (
     <>
+      <DeskHead
+        title={title}
+        subtitle={subtitle}
+        actions={
+          <>
+            <button type="button" onClick={() => exportCsv(shown)} disabled={shown.length === 0} className={`${btnOutline} disabled:opacity-50`}>
+              <Download className="w-4 h-4" /> Export
+            </button>
+            {actions}
+          </>
+        }
+      />
+      {children}
+
       {/* Phones: underlined tabs, then a card per booking */}
       <section className="lg:hidden">
-        <div role="tablist" aria-label="Appointments" className="flex border-b border-[#E1E7F0] overflow-x-auto no-scrollbar">
-          {VIEWS.map((v) => (
-            <button key={v.key} type="button" role="tab" aria-selected={view === v.key} onClick={() => setView(v.key)} className={`${lineTab(view === v.key)} !flex-none px-3`}>
+        <div role="tablist" aria-label="Appointments" className="flex border-b border-[#E1E7F0]">
+          {VIEWS.filter((v) => v.key !== 'all').map((v) => (
+            <button key={v.key} type="button" role="tab" aria-selected={view === v.key} onClick={() => setView(v.key)} className={lineTab(view === v.key)}>
               {v.label} {counts[v.key]}
             </button>
           ))}
@@ -126,7 +163,14 @@ export function PatientsBoard({ rows, today, now, initialView, initialQuery = ''
             <span className="truncate">
               Matching “<strong className="text-[#0B1B3F]">{query}</strong>”
             </span>
-            <button type="button" onClick={() => setQuery('')} className="shrink-0 font-extrabold text-[#2A4DD0]">
+            <button
+              type="button"
+              onClick={() => {
+                setQuery('')
+                if (view === 'all') setView('today')
+              }}
+              className="shrink-0 font-extrabold text-[#2A4DD0]"
+            >
               Clear
             </button>
           </p>
@@ -208,9 +252,6 @@ export function PatientsBoard({ rows, today, now, initialView, initialQuery = ''
                 </button>
               ))}
             </div>
-            <button type="button" onClick={() => exportCsv(shown)} disabled={shown.length === 0} className={`${btnOutline} disabled:opacity-50`}>
-              <Download className="w-[15px] h-[15px]" /> Export
-            </button>
           </div>
         </div>
 

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { CalendarClock } from 'lucide-react'
 import { CheckInModal } from '@/components/CheckInModal'
-import { EmptyState, Status, Table, segGroup, segTab, td, th } from './ui'
+import { Chip, EmptyState, Status, Table, segGroup, segTab, td, th } from './ui'
 
 export type CheckinRow = {
   id: string
@@ -15,6 +15,8 @@ export type CheckinRow = {
   phone: string | null
   what: string
   where: string
+  /** Fast track is shown as a blue chip; a booking whose type can't be read counts as General. */
+  type: 'Fast track' | 'General' | 'Lab visit'
   status: string
   state: 'in' | 'expected' | 'late' | 'other'
   /** Set when this executive can check the patient in (an appointment at their own branch). */
@@ -59,13 +61,14 @@ export function CheckinBoard({ rows }: { rows: CheckinRow[] }) {
         <EmptyState icon={CalendarClock}>Nothing scheduled here today.</EmptyState>
       ) : (
         <>
-          <Table min={700}>
+          <Table min={780}>
             <thead>
               <tr>
                 <th className={th}>Time</th>
                 <th className={th}>Patient</th>
                 <th className={th}>Doctor or test</th>
                 <th className={th}>Hospital or lab</th>
+                <th className={th}>Type</th>
                 <th className={th}>Status</th>
                 <th className={th}>
                   <span className="sr-only">Check in</span>
@@ -87,6 +90,9 @@ export function CheckinBoard({ rows }: { rows: CheckinRow[] }) {
                       <span className="block text-[12px] text-[#5B667A]">{r.kind === 'consultation' ? 'Consultation' : 'Lab visit'}</span>
                     </td>
                     <td className={`${td} max-w-[200px] truncate text-[#27324A]`}>{r.where}</td>
+                    <td className={td}>
+                      <Chip tone={r.type === 'Fast track' ? 'blue' : 'neutral'}>{r.type}</Chip>
+                    </td>
                     <td className={td}>
                       <Status label={s.label} color={s.color} />
                     </td>

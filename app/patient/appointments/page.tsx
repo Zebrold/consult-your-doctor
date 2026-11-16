@@ -18,6 +18,7 @@ import { currentTime, one } from '@/components/patient/data'
 import { directionsHref, doctorName, formatDayLabel, formatINR, formatTime, istDateKey, visitToken } from '@/components/patient/format'
 import { isOnlineGateway } from '@/lib/payment-gateways'
 import { familyNames } from '@/lib/patient-health'
+import { bookingStart, cancelTerms, rescheduleTerms } from '@/lib/booking-change'
 
 export const metadata: Metadata = { title: 'My bookings' }
 
@@ -31,6 +32,8 @@ type VisitRow = {
   /** Missing until 20261028_fast_track_services.sql runs. */
   booking_type?: string | null
   services?: unknown
+  /** Missing until 20261118_self_service_features.sql runs. */
+  reschedule_count?: number
   doctors: Rel<{ id: string; specialty: string | null; image_url: string | null; profiles: Rel<{ full_name: string | null }> }>
   hospitals: Rel<{ id: string; name: string; city: string | null; address: string | null; image_url: string | null }>
   schedules: Rel<{ start_time: string }>
@@ -46,7 +49,19 @@ type LabRow = {
   doorstep_fee: number | null
   diagnostic_centers: Rel<{ id: string; name: string; city: string | null; address: string | null; image_url: string | null; test_prices: Parameters<typeof matchBookedTests>[1] }>
 }
-type PaymentRow = { appointment_id: string | null; diagnostic_booking_id: string | null; amount: number | string | null; gateway: string | null }
+type PaymentRow = {
+  id: string
+  status: string
+  appointment_id: string | null
+  diagnostic_booking_id: string | null
+  amount: number | string | null
+  gateway: string | null
+  refund_amount: number | string | null
+  refunded_at: string | null
+}
+type CancellationRow = { appointment_id: string | null; diagnostic_booking_id: string | null; refund_due: boolean; paid_amount: number | string | null }
+
+const shortDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short' })
 
 const DAY_MS = 86_400_000
 /** Patients are asked to arrive this long before their slot (the pass shows it as "Report by"). */
@@ -102,14 +117,35 @@ export default async function PatientAppointments() {
   const forLabel = (id: string | null | undefined) => (id && members[id] ? `For ${members[id].name} · ` : '')
 
   // Booking fees paid online, the prescriptions doctors sent and the reports labs uploaded (private files get short-lived links).
-  const [visitPayments, labPayments, recordLinks, reportLinks] = await Promise.all([
-    visits.length ? admin.from('payments').select('appointment_id, diagnostic_booking_id, amount, gateway').in('appointment_id', visits.map((v) => v.id)).eq('status', 'success') : Promise.resolve({ data: [] as PaymentRow[] }),
-    labs.length ? admin.from('payments').select('appointment_id, diagnostic_booking_id, amount, gateway').in('diagnostic_booking_id', labs.map((b) => b.id)).eq('status', 'success') : Promise.resolve({ data: [] as PaymentRow[] }),
+  const paymentCols = 'id, status, appointment_id, diagnostic_booking_id, amount, gateway, refund_amount, refunded_at'
+  const [visitPayments, labPayments, recordLinks, reportLinks, cancellationQuery] = await Promise.all([
+    visits.length ? admin.from('payments').select(paymentCols).in('appointment_id', visits.map((v) => v.id)).in('status', ['success', 'refunded']) : Promise.resolve({ data: [] as PaymentRow[] }),
+    labs.length ? admin.from('payments').select(paymentCols).in('diagnostic_booking_id', labs.map((b) => b.id)).in('status', ['success', 'refunded']) : Promise.resolve({ data: [] as PaymentRow[] }),
     signRecordFiles(admin, visits.flatMap((v) => (v.medical_records ?? []).filter((r) => r.document_type === 'prescription').map((r) => r.file_url))),
     signReportLinks(admin, labs.filter((b) => b.status === 'report_sent' && one(b.diagnostic_centers)).map((b) => ({ id: b.id, centerId: one(b.diagnostic_centers)!.id }))),
+    // The patient's own cancellations; an error (before 20261118_self_service_features.sql) means none yet.
+    admin.from('booking_cancellations').select('appointment_id, diagnostic_booking_id, refund_due, paid_amount').eq('patient_id', user.id),
   ])
   const payments = [...((visitPayments.data ?? []) as PaymentRow[]), ...((labPayments.data ?? []) as PaymentRow[])]
-  const paidOnline = (id: string) => payments.find((p) => (p.appointment_id ?? p.diagnostic_booking_id) === id && isOnlineGateway(p.gateway))
+  const paymentsOf = (id: string) => payments.filter((p) => (p.appointment_id ?? p.diagnostic_booking_id) === id)
+  const paidOnline = (id: string) => paymentsOf(id).find((p) => p.status === 'success' && isOnlineGateway(p.gateway))
+  const deskPaidOf = (id: string) => paymentsOf(id).some((p) => p.status === 'success' && !isOnlineGateway(p.gateway))
+  const cancellations = new Map(
+    (cancellationQuery.error ? [] : ((cancellationQuery.data ?? []) as CancellationRow[])).map((c) => [(c.appointment_id ?? c.diagnostic_booking_id) as string, c]),
+  )
+
+  /** What a cancelled booking's money did, for the Cancelled tab. */
+  const refundLine = (id: string): string | null => {
+    const online = paymentsOf(id).find((p) => isOnlineGateway(p.gateway)) ?? null
+    const row = cancellations.get(id)
+    if (online?.refund_amount) return `Refunded ${formatINR(Number(online.refund_amount) || 0)}${online.refunded_at ? ` on ${shortDate(online.refunded_at)}` : ''}`
+    if (row) {
+      if (row.refund_due) return `Refund of ${formatINR(Number(row.paid_amount) || Number(online?.amount) || 0)} due · we’ll email you when it’s sent`
+      return Number(row.paid_amount) > 0 ? 'Booking fee kept · cancelled less than 2 hours before' : 'Nothing was paid'
+    }
+    if (online) return 'Ask support about a refund'
+    return paymentsOf(id).length ? null : 'Nothing was paid'
+  }
 
   const reviews: Record<string, ExistingReview> = Object.fromEntries(
     ((myReviews ?? []) as { appointment_id: string; rating: number; comment: string | null }[]).map((r) => [r.appointment_id, { rating: r.rating, comment: r.comment }]),
@@ -131,6 +167,9 @@ export default async function PatientAppointments() {
     const paid = paidOnline(v.id)
     const rx = (v.medical_records ?? []).find((r) => r.document_type === 'prescription' && r.file_url && recordLinks[r.file_url])
     const name = doctorName(one(doctor?.profiles)?.full_name)
+    const startsAt = bookingStart({ kind: 'visit', slotStart: at })
+    const terms = cancelTerms({ status: v.status, startsAt, now, online: !!paid, deskPaid: deskPaidOf(v.id) })
+    const move = rescheduleTerms({ kind: 'visit', status: v.status, startsAt, now, count: 'reschedule_count' in v ? Number(v.reschedule_count) || 0 : undefined })
     items.push({
       id: v.id,
       kind: 'visit',
@@ -164,6 +203,10 @@ export default async function PatientAppointments() {
       rebookHref: v.doctor_id ? `/book/${v.doctor_id}` : null,
       supportHref: `/patient/support?bookingId=${v.id.slice(0, 8).toUpperCase()}`,
       review: done ? { doctorName: name, hospital: hospital ? { id: hospital.id, name: hospital.name, city: hospital.city } : null, existing: reviews[v.id] ?? null } : null,
+      cancel: tab === 'upcoming' && terms.allowed ? { refundDue: terms.refundDue, fee: paid ? formatINR(Number(paid.amount) || 0) : null } : null,
+      cancelNote: tab === 'upcoming' && !terms.allowed ? terms.reason : null,
+      refund: cancelled ? refundLine(v.id) : null,
+      reschedule: state === 'ok' ? { allowed: move.allowed, reason: move.allowed ? null : move.reason, notReady: !move.allowed && !!move.notReady } : null,
     })
   }
 
@@ -180,10 +223,12 @@ export default async function PatientAppointments() {
     const due = tests ? onlinePayable(labBookingFee(tests, fees.diagnosticPercent), fees.conveniencePercent).total : null
     const at = day ? `${day}T09:00:00+05:30` : null
     const doorstep = b.booking_type === 'doorstep'
+    const labTab: BookingTab = cancelled ? 'cancelled' : upcoming ? 'upcoming' : 'completed'
+    const terms = cancelTerms({ status: b.status, startsAt: bookingStart({ kind: 'lab', day }), now, online: !!paid, deskPaid: deskPaidOf(b.id), lab: true })
     items.push({
       id: b.id,
       kind: 'lab',
-      tab: cancelled ? 'cancelled' : upcoming ? 'upcoming' : 'completed',
+      tab: labTab,
       state,
       statusLabel:
         { ok: 'Confirmed', unpaid: 'Awaiting payment', past: 'Date passed', cancelled: 'Cancelled', done: b.status === 'report_sent' ? 'Report ready' : b.status === 'visited' ? 'Sample collected' : 'Report on the way' }[state],
@@ -214,6 +259,10 @@ export default async function PatientAppointments() {
       rebookHref: center ? `/book/diagnostic/${center.id}` : null,
       supportHref: `/patient/support?bookingId=${b.id.slice(0, 8).toUpperCase()}`,
       review: null,
+      cancel: labTab === 'upcoming' && terms.allowed ? { refundDue: terms.refundDue, fee: paid ? formatINR(Number(paid.amount) || 0) : null } : null,
+      cancelNote: labTab === 'upcoming' && !terms.allowed ? terms.reason : null,
+      refund: cancelled ? refundLine(b.id) : null,
+      reschedule: null,
     })
   }
 

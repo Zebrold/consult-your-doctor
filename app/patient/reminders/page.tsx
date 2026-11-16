@@ -118,12 +118,14 @@ export default async function RemindersPage() {
         </section>
       )}
 
-      <div className="grid gap-3.5 lg:gap-5 lg:grid-cols-[minmax(0,1fr)_380px] items-start">
-        <div className="flex flex-col gap-3.5 lg:gap-5 min-w-0">
-          <TodaySchedule doses={doses} date={today} label={label} ready={dosesReady} />
+      <div className="flex flex-col gap-3.5 lg:grid lg:gap-5 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+        <div className="contents lg:flex lg:flex-col lg:gap-5 lg:min-w-0">
+          <div className="order-1 lg:order-none">
+            <TodaySchedule doses={doses} date={today} label={label} ready={dosesReady} />
+          </div>
 
           {asNeeded.length > 0 && (
-            <section className={`${card} p-4 lg:p-[22px]`}>
+            <section className={`${card} p-4 lg:p-[22px] order-4 lg:order-none`}>
               <h2 className="text-[16px] font-extrabold">Only when needed</h2>
               <p className="mt-0.5 text-[12.5px] lg:text-[13px] text-[#5B667A]">No set time. Take them as the doctor wrote.</p>
               {asNeeded.map((m) => (
@@ -135,7 +137,7 @@ export default async function RemindersPage() {
             </section>
           )}
 
-          <div className="grid gap-3.5 lg:gap-5 xl:grid-cols-2 items-start">
+          <div className="order-5 lg:order-none grid gap-3.5 lg:gap-5 xl:grid-cols-2 items-start">
             <section className={`${card} p-4 lg:p-[22px]`}>
               <h2 className="text-[16px] font-extrabold">Coming up</h2>
               <p className="mt-0.5 text-[12.5px] lg:text-[13px] text-[#5B667A]">Follow-ups, tests your doctor advised and booked visits</p>
@@ -169,7 +171,7 @@ export default async function RemindersPage() {
                         <span className="block text-[13.5px] font-extrabold truncate">{m.name}</span>
                         <span className="block text-[12px] text-[#5B667A] truncate">{[m.doctor, m.frequency, m.timing?.toLowerCase(), m.duration].filter(Boolean).join(' · ')}</span>
                       </span>
-                      <span className="shrink-0 text-[12px] font-bold text-[#067647]">Finished {formatShortDate(dateOf(endDate(m)))}</span>
+                      <span className="shrink-0 text-[12px] font-extrabold text-[#5B667A]">Finished {formatShortDate(dateOf(endDate(m)))}</span>
                     </div>
                   ))}
                 </div>
@@ -178,9 +180,9 @@ export default async function RemindersPage() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3.5 lg:gap-5 min-w-0">
+        <div className="contents lg:flex lg:flex-col lg:gap-5 lg:min-w-0">
           {current && (
-            <section className={`${card} p-4 lg:p-[22px]`}>
+            <section className={`${card} p-4 lg:p-[22px] order-3 lg:order-none`}>
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-[16px] font-extrabold">Active prescription</h2>
                 <Link href="/patient/records?type=rx" className="text-[13px] font-extrabold text-[#2A4DD0] hover:underline">
@@ -210,8 +212,10 @@ export default async function RemindersPage() {
               <p className="mt-2 text-[12px] text-[#5B667A]">1-0-1 means morning, afternoon, night. Only your doctor can change a prescription; ask them before you stop or change a medicine.</p>
             </section>
           )}
-          <MealTimes meals={details.meals} ready={details.extended} />
-          <section className={`${card} p-4 lg:p-[22px]`}>
+          <div className="order-2 lg:order-none">
+            <MealTimes meals={details.meals} ready={details.extended} />
+          </div>
+          <section className={`${card} p-4 lg:p-[22px] order-6 lg:order-none`}>
             <h2 className="text-[16px] font-extrabold">Remind me</h2>
             <p className="mt-0.5 text-[12.5px] lg:text-[13px] text-[#5B667A]">Add today&apos;s medicines to your phone&apos;s calendar, with an alert at each dose time until the course ends.</p>
             {active.length > 0 ? (

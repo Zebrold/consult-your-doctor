@@ -57,10 +57,14 @@ export function AccessMatrix({ grid, canEdit }: { grid: Grid; canEdit: boolean }
         <thead>
           <tr>
             <th className={th}>Page</th>
-            <th className={`${th} text-center`}>Management {PAGES.length}</th>
+            <th className={`${th} text-center`}>
+              Management
+              <span className="block mt-0.5 text-[11px] font-bold normal-case tracking-normal">{PAGES.length} pages</span>
+            </th>
             {teams.map((t) => (
               <th key={t.id} className={`${th} text-center`}>
-                {t.label} {state[t.id].length}
+                {t.label}
+                <span className="block mt-0.5 text-[11px] font-bold normal-case tracking-normal">{state[t.id].length} pages</span>
               </th>
             ))}
           </tr>

@@ -2,9 +2,9 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Download, Eye, FileText, Lock } from 'lucide-react'
 import { AccountPage } from '@/components/patient/AccountPage'
-import { card } from '@/components/patient/app-ui'
+import { btnOutline, card } from '@/components/patient/app-ui'
 import { doctorName, formatShortDate, initials } from '@/components/patient/format'
-import { RemoveRecordButton, UploadRecordButton } from '@/components/patient/health/records'
+import { RemoveAccessButton, RemoveRecordButton, ShareRecordButton, UploadRecordButton } from '@/components/patient/health/records'
 import { patientAccount } from '@/lib/patient-account'
 import { loadFamily, loadUploads, RECORD_KINDS, type RecordKind } from '@/lib/patient-health'
 import { loadPatientLabs, loadPatientVisits, rangeCheck } from '@/lib/patient-visits'
@@ -29,6 +29,8 @@ type Entry = {
   notes: string | null
   member: string | null
   uploadId?: string
+  /** Which kind of file `id` points at, for sharing a link. */
+  source: 'visit' | 'lab' | 'upload'
 }
 
 const IST = 'Asia/Kolkata'
@@ -42,12 +44,16 @@ export default async function RecordsPage({ searchParams }: { searchParams: Prom
   const { type } = await searchParams
   const filter = type && type in FILTERS ? (type as Filter) : null
   const { user, admin, profile } = await patientAccount('/patient/records')
-  const [visits, labs, uploads, family] = await Promise.all([
+  const [visits, labs, uploads, family, blocksRes] = await Promise.all([
     loadPatientVisits(admin, user.id),
     loadPatientLabs(admin, user.id),
     loadUploads(admin, user.id),
     loadFamily(admin, user.id),
+    admin.from('record_access_blocks').select('doctor_id, blocked_at').eq('patient_id', user.id),
   ])
+  // Doctors the patient has removed (20261118). An error, such as a missing table, means Remove isn't ready yet.
+  const blocksReady = !blocksRes.error
+  const blockedAt = new Map(((blocksRes.data ?? []) as { doctor_id: string; blocked_at: string }[]).map((b) => [b.doctor_id, Date.parse(b.blocked_at)]))
   const memberName = new Map(family.members.map((m) => [m.id, m.name]))
 
   // Every file is private: short-lived signed links, made for this patient's own records only.
@@ -67,8 +73,8 @@ export default async function RecordsPage({ searchParams }: { searchParams: Prom
       v.records.map((r): Entry => {
         const by = [v.doctor ? doctorName(v.doctor.name) : null, v.hospital?.name].filter(Boolean).join(' · ')
         return r.kind === 'health'
-          ? { id: r.id, date: v.date, filter: 'other', type: 'Health record', title: 'Health details recorded at the visit', by: v.hospital?.name ?? by, href: (r.fileUrl && recordLinks[r.fileUrl]) || null, notes: withoutVitals(r.notes) || null, member: v.familyMemberId }
-          : { id: r.id, date: v.date, filter: 'rx', type: 'Prescription', title: v.doctor?.specialty ? `${v.doctor.specialty} consultation` : 'Consultation', by, href: (r.fileUrl && recordLinks[r.fileUrl]) || null, notes: r.fileUrl ? null : withoutVitals(r.notes) || null, member: v.familyMemberId }
+          ? { id: r.id, date: v.date, filter: 'other', type: 'Health record', title: 'Health details recorded at the visit', by: v.hospital?.name ?? by, href: (r.fileUrl && recordLinks[r.fileUrl]) || null, notes: withoutVitals(r.notes) || null, member: v.familyMemberId, source: 'visit' }
+          : { id: r.id, date: v.date, filter: 'rx', type: 'Prescription', title: v.doctor?.specialty ? `${v.doctor.specialty} consultation` : 'Consultation', by, href: (r.fileUrl && recordLinks[r.fileUrl]) || null, notes: r.fileUrl ? null : withoutVitals(r.notes) || null, member: v.familyMemberId, source: 'visit' }
       }),
     ),
     ...labs
@@ -83,6 +89,7 @@ export default async function RecordsPage({ searchParams }: { searchParams: Prom
         href: reportLinks[b.id] ?? null,
         notes: null,
         member: b.familyMemberId,
+        source: 'lab',
       })),
     ...uploads.records.map((r): Entry => ({
       id: r.id,
@@ -95,6 +102,7 @@ export default async function RecordsPage({ searchParams }: { searchParams: Prom
       notes: null,
       member: r.familyMemberId,
       uploadId: r.id,
+      source: 'upload',
     })),
   ].sort((a, b) => b.date.localeCompare(a.date))
 
@@ -108,10 +116,15 @@ export default async function RecordsPage({ searchParams }: { searchParams: Prom
   const latestLab = labs.filter((b) => b.results).sort((a, b) => (b.results!.reportedAt ?? b.createdAt).localeCompare(a.results!.reportedAt ?? a.createdAt))[0]
 
   // Who sees what: each doctor and hospital sees the records of the visits booked with them; each lab its own reports.
-  const viewers = new Map<string, { name: string; sub: string }>()
+  const viewers = new Map<string, { name: string; sub: string; doctorId?: string; removed?: boolean }>()
   for (const v of visits) {
     if (v.status === 'cancelled' || v.status === 'refunded' || v.status === 'pending_payment') continue
-    if (v.doctor && !viewers.has(v.doctor.id)) viewers.set(v.doctor.id, { name: doctorName(v.doctor.name), sub: [v.hospital?.name, `last visit ${formatShortDate(`${v.date}T12:00:00+05:30`)}`].filter(Boolean).join(' · ') })
+    if (v.doctor && !viewers.has(v.doctor.id)) viewers.set(v.doctor.id, { name: doctorName(v.doctor.name), doctorId: v.doctor.id, sub: [v.hospital?.name, `last visit ${formatShortDate(`${v.date}T12:00:00+05:30`)}`].filter(Boolean).join(' · ') })
+  }
+  // A removed doctor sees nothing, unless a visit booked with them later has started or is still ahead of the removal.
+  for (const [doctorId, at] of blockedAt) {
+    const viewer = viewers.get(doctorId)
+    if (viewer && !visits.some((v) => v.doctor?.id === doctorId && v.status !== 'cancelled' && v.status !== 'pending_payment' && v.at && Date.parse(v.at) >= at)) viewer.removed = true
   }
   for (const b of labs) {
     if (b.center && b.status !== 'cancelled' && b.status !== 'pending_payment' && !viewers.has(b.center.id)) viewers.set(b.center.id, { name: b.center.name, sub: 'Lab · your reports from them' })
@@ -149,6 +162,23 @@ export default async function RecordsPage({ searchParams }: { searchParams: Prom
         })}
       </nav>
 
+      <div className="lg:hidden flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4" aria-label="Filter records" role="group">
+        {([null, 'rx', 'lab', 'scan', 'vac'] as (Filter | null)[]).map((f) => {
+          const on = filter === f
+          return (
+            <Link
+              key={f ?? 'all'}
+              href={f ? `/patient/records?type=${f}` : '/patient/records'}
+              scroll={false}
+              aria-current={on ? 'true' : undefined}
+              className={`shrink-0 inline-flex items-center h-[38px] px-3.5 rounded-full text-[13px] font-extrabold ${on ? 'bg-[#2A4DD0] text-white' : 'bg-white border border-[#D6DDE8] text-[#27324A]'}`}
+            >
+              {f ? FILTERS[f] : 'All records'}
+            </Link>
+          )
+        })}
+      </div>
+
       <div className="grid gap-3.5 lg:gap-5 lg:grid-cols-[minmax(0,1fr)_360px] items-start">
         <section className={`${card} p-4 lg:p-[22px] min-w-0`}>
           <div className="flex items-start justify-between gap-3">
@@ -179,32 +209,43 @@ export default async function RecordsPage({ searchParams }: { searchParams: Prom
                     <p className="pt-4 pb-1.5 text-[11.5px] font-extrabold tracking-[0.06em] text-[#8A94A6] uppercase">{month(e.date)}</p>
                   )}
                   <div className="flex gap-3.5 py-3 border-t border-[#EEF2F7]">
-                    <span className="shrink-0 w-12 h-12 rounded-xl bg-[#F3F6FC] flex flex-col items-center justify-center leading-none">
-                      <span className="text-[16px] font-extrabold">{day(e.date)}</span>
-                      <span className="mt-0.5 text-[10px] font-extrabold text-[#5B667A]">{mon(e.date)}</span>
+                    <span className="shrink-0 w-[52px] h-14 rounded-xl bg-[#F4F6FA] shadow-[inset_0_0_0_1px_#E6EAF0] flex flex-col items-center justify-center leading-none">
+                      <span className="text-[18px] font-extrabold">{day(e.date)}</span>
+                      <span className="mt-0.5 text-[10.5px] font-extrabold tracking-[0.06em] text-[#5B667A]">{mon(e.date)}</span>
                     </span>
                     <span className="flex-1 min-w-0">
-                      <span className="block text-[11.5px] font-extrabold text-[#2A4DD0]">
-                        {e.type}
-                        {e.member && memberName.has(e.member) ? <span className="text-[#5B667A]"> · for {memberName.get(e.member)}</span> : null}
-                      </span>
-                      <span className="block text-[14px] font-extrabold first-letter:uppercase break-words">{e.title}</span>
+                      <span className="block text-[14px] lg:text-[15px] font-extrabold first-letter:uppercase break-words">{e.title}</span>
                       <span className="block text-[12.5px] text-[#5B667A] truncate">{e.by}</span>
-                      {e.notes && <span className="block mt-1 text-[12.5px] text-[#4A5878] line-clamp-3">{e.notes}</span>}
-                      <span className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
-                        {e.href && (
-                          <>
-                            <a href={e.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[12.5px] font-extrabold text-[#2A4DD0] hover:underline">
-                              <Eye className="w-3.5 h-3.5" /> View
-                            </a>
-                            <a href={e.href} download className="inline-flex items-center gap-1 text-[12.5px] font-extrabold text-[#2A4DD0] hover:underline">
-                              <Download className="w-3.5 h-3.5" /> Download
-                            </a>
-                          </>
-                        )}
-                        {e.uploadId && <RemoveRecordButton id={e.uploadId} title={e.title} />}
+                      <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="inline-flex items-center h-[22px] px-2 rounded-full bg-[#F1F4F9] text-[11px] font-extrabold text-[#27324A]">{e.type}</span>
+                        {e.member && memberName.has(e.member) ? <span className="text-[12px] text-[#5B667A]">for {memberName.get(e.member)}</span> : null}
                       </span>
+                      {e.notes && <span className="block mt-1 text-[12.5px] text-[#4A5878] line-clamp-3">{e.notes}</span>}
+                      {e.uploadId && (
+                        <span className="mt-1.5 flex">
+                          <RemoveRecordButton id={e.uploadId} title={e.title} />
+                        </span>
+                      )}
                     </span>
+                    {e.href && (
+                      <span className="shrink-0 self-center">
+                        <span className="lg:hidden flex items-start gap-3.5">
+                          <a href={e.href} target="_blank" rel="noreferrer" className="text-[13px] font-extrabold text-[#2A4DD0] hover:underline">
+                            View
+                          </a>
+                          <ShareRecordButton source={e.source} id={e.uploadId ?? e.id} title={e.title} />
+                        </span>
+                        <span className="hidden lg:flex items-start gap-2">
+                          <a href={e.href} target="_blank" rel="noreferrer" className={`${btnOutline} h-9! px-3.5!`}>
+                            <Eye className="w-4 h-4" /> View
+                          </a>
+                          <a href={e.href} download className={`${btnOutline} h-9! px-3.5!`}>
+                            <Download className="w-4 h-4" /> Download
+                          </a>
+                          <ShareRecordButton source={e.source} id={e.uploadId ?? e.id} title={e.title} variant="outline" />
+                        </span>
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -267,17 +308,18 @@ export default async function RecordsPage({ searchParams }: { searchParams: Prom
                 {[...viewers.values()].slice(0, 6).map((v) => (
                   <div key={v.name + v.sub} className="flex items-center gap-3 py-2.5 border-t border-[#EEF2F7] first:border-t-0">
                     <span className="shrink-0 w-9 h-9 rounded-full bg-[#EEF3FF] text-[#2A4DD0] flex items-center justify-center text-[11.5px] font-extrabold">{initials(v.name)}</span>
-                    <span className="min-w-0">
+                    <span className="min-w-0 flex-1">
                       <span className="block text-[13.5px] font-extrabold truncate">{v.name}</span>
                       <span className="block text-[12px] text-[#5B667A] truncate">{v.sub}</span>
                     </span>
+                    {v.doctorId && (v.removed ? <span className="shrink-0 text-[12px] font-extrabold text-[#5B667A]">Access removed</span> : <RemoveAccessButton doctorId={v.doctorId} name={v.name} ready={blocksReady} />)}
                   </div>
                 ))}
               </div>
             )}
             <p className="mt-2.5 flex gap-2 text-[12px] leading-normal text-[#5B667A]">
               <Lock className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-              Doctors, hospitals and labs see only the records from the bookings you made with them. Files you upload are visible only to you.
+              Doctors see the records from visits you booked with them. Remove a doctor and they stop seeing your past visits with them; a visit you book with them later is shared again. Labs see only their own reports. Files you upload are visible only to you.
             </p>
           </section>
         </div>

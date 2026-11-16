@@ -1,13 +1,14 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { Phone } from 'lucide-react'
+import Link from 'next/link'
+import { ChevronLeft, FileText, Phone } from 'lucide-react'
 import { currentTime } from '@/components/patient/data'
-import { ageFrom, formatShortDate, formatSlot, formatTime, istDateKey, visitToken } from '@/components/patient/format'
+import { ageFrom, formatShortDate, formatSlot, formatTime, initials, istDateKey, visitToken } from '@/components/patient/format'
 import { vitalsList } from '@/lib/vitals'
 import { latestVitals, loadPatientFacts, loadVisits, patientCode, requireDoctor, visitName, type Visit } from '../../_lib/doctor'
 import { latestAllergy, readNotes } from '../../_lib/notes'
 import { CallLink, CheckInButton, PrescriptionButton, type VisitRef } from '../../_components/VisitControls'
-import { DocBackHeader, DocBody, EmptyLine, Initials, Panel, PanelHead, Row, Status, visitStatus } from '../../_components/doc-ui'
+import { DocBackHeader, DocBody, EmptyLine, Panel, PanelHead, Row, Status, card, visitStatus } from '../../_components/doc-ui'
 
 export const metadata: Metadata = { title: 'Patient record | Doctor Portal' }
 export const dynamic = 'force-dynamic'
@@ -21,7 +22,7 @@ export default async function DoctorPatientRecord(props: { params: Promise<{ id:
   const { admin, doctor } = await requireDoctor()
   const now = currentTime()
   // Only patients who booked and paid for a visit with this doctor have a record here.
-  const visits = (await loadVisits(admin, doctor.id)).filter((v) => v.patient?.id === id && PAID.includes(v.status))
+  const visits = (await loadVisits(admin, doctor.id)).filter((v) => v.patient?.id === id && PAID.includes(v.status) && !v.recordsHidden)
   if (!visits.length) notFound()
 
   const patient = visits[0].patient!
@@ -46,14 +47,16 @@ export default async function DoctorPatientRecord(props: { params: Promise<{ id:
     v.records.filter((r) => r.fileUrl).map((r) => ({ id: r.id, url: r.fileUrl!, title: r.type === 'health_record' ? 'Health record' : /attachment/i.test(r.notes ?? '') ? 'Attachment from you' : 'Prescription PDF', date: v.start })),
   )
 
+  // The writer shows the patient's known allergy in its header.
+  const vref = (v: Visit): VisitRef => ({ ...ref(v), allergy })
   const prescribe = active ?? lastCompleted
   const rxButton = (size?: string) =>
     prescribe ? (
-      <PrescriptionButton visit={ref(prescribe)} kind="primary" label={prescribe.status === 'completed' ? 'Update prescription' : 'Write prescription'} size={size} />
+      <PrescriptionButton visit={vref(prescribe)} kind="primary" label={prescribe.status === 'completed' ? 'Update prescription' : 'Write prescription'} size={size} />
     ) : null
   const hasLeft = active?.status === 'confirmed' || !!patient.phone
   const leftButton = (size?: string) =>
-    active?.status === 'confirmed' ? <CheckInButton visit={ref(active)} kind="outline" label="Check in" size={size} /> : <CallLink phone={patient.phone} name={patient.name} size={size} />
+    active?.status === 'confirmed' ? <CheckInButton visit={vref(active)} kind="outline" label="Check in" size={size} /> : <CallLink phone={patient.phone} name={patient.name} size={size} />
 
   return (
     <>
@@ -82,19 +85,27 @@ export default async function DoctorPatientRecord(props: { params: Promise<{ id:
       </DocBackHeader>
 
       <DocBody bar={false}>
-        <div className="hidden lg:flex items-center justify-between gap-5 mb-[22px]">
-          <div className="flex items-center gap-4 min-w-0">
-            <Initials name={patient.name} className="w-16 h-16 text-[20px]" />
-            <div className="min-w-0">
-              <h1 className="text-[26px] font-extrabold tracking-[-0.02em] leading-tight truncate">{patient.name}</h1>
-              <p className="mt-1 text-[14px] text-[#5B667A]">
-                {identity}
-                {activeLine && <span className="font-bold" style={{ color: visitStatus(active!.status).color }}>{` · ${activeLine}`}</span>}
-              </p>
-            </div>
+        <Link href="/doctor/patients" className="hidden lg:inline-flex items-center gap-1.5 mb-3.5 text-[13.5px] font-extrabold text-[#2A4DD0] hover:underline underline-offset-4">
+          <ChevronLeft className="w-4 h-4" strokeWidth={2.6} />
+          All patients
+        </Link>
+        <div className={`hidden lg:flex ${card} p-[22px] mb-5 items-center gap-5`}>
+          <span aria-hidden className="shrink-0 w-[68px] h-[68px] rounded-full bg-[#EEF3FF] text-[#2A4DD0] text-[22px] font-extrabold flex items-center justify-center">
+            {initials(patient.name)}
+          </span>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-[26px] font-extrabold tracking-[-0.02em] leading-tight truncate">{patient.name}</h1>
+            <p className="mt-1 text-[14px] text-[#5B667A]">{[identity, facts?.bloodGroup ? `Blood group ${facts.bloodGroup}` : null].filter(Boolean).join(' · ')}</p>
+            {(activeLine || allergy) && (
+              <div className="mt-2 flex flex-wrap items-center gap-x-[18px] gap-y-1">
+                {activeLine && active && <Status color={visitStatus(active.status).color} label={activeLine} />}
+                {allergy && <span className="text-[12.5px] font-extrabold text-[#B42318]">Allergy: {allergy}</span>}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2.5 shrink-0">
-            {hasLeft && leftButton()}
+            <CallLink phone={patient.phone} name={patient.name} />
+            {active?.status === 'confirmed' && <CheckInButton visit={vref(active)} kind="outline" label="Check in" />}
             {rxButton()}
           </div>
         </div>
@@ -130,11 +141,11 @@ export default async function DoctorPatientRecord(props: { params: Promise<{ id:
             <Panel>
               <PanelHead title="Vitals" sub={vitals ? `Recorded ${vitals.date ? formatSlot(vitals.date, now) : 'at a visit'}` : 'Nothing recorded yet. Add vitals when you write a prescription.'} />
               {vitals && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-5 lg:gap-3">
                   {vitalsList(vitals).map((r) => (
-                    <div key={r.label} className="py-2.5 border-b border-[#EEF2F7]">
-                      <span className="block text-[11.5px] font-bold text-[#5B667A]">{r.label}</span>
-                      <span className="block mt-0.5 text-[15px] font-extrabold">{r.value}</span>
+                    <div key={r.label} className="py-2.5 border-b border-[#EEF2F7] lg:px-4 lg:py-3.5 lg:rounded-xl lg:bg-[#F7F9FC] lg:shadow-[inset_0_0_0_1px_#EEF2F7] lg:border-b-0">
+                      <span className="block text-[11.5px] lg:text-[12px] font-bold text-[#5B667A]">{r.label}</span>
+                      <span className="block mt-0.5 text-[15px] font-extrabold lg:mt-1 lg:text-[18px]">{r.value}</span>
                     </div>
                   ))}
                 </div>
@@ -143,16 +154,24 @@ export default async function DoctorPatientRecord(props: { params: Promise<{ id:
 
             <Panel>
               <PanelHead title="Visits with you" sub={`${visits.length} ${visits.length === 1 ? 'visit' : 'visits'}`} />
+              <div className="hidden lg:grid grid-cols-[120px_minmax(0,1.2fr)_minmax(0,1.2fr)_90px] gap-4 px-3.5 py-2.5 -mx-3.5 rounded-[10px] bg-[#F7F9FC] text-[11.5px] font-extrabold tracking-[0.04em] uppercase text-[#5B667A]">
+                <span>Date</span>
+                <span>Diagnosis</span>
+                <span>Treatment</span>
+                <span>View</span>
+              </div>
               <ul>
                 {newestFirst.map((v) => {
                   const n = v.records.map((r) => readNotes(r.notes)).find((x) => x.diagnosis || x.complaints || x.rx)
                   const file = v.records.find((r) => r.fileUrl)
+                  const title = n?.diagnosis || n?.complaints || (v.status === 'completed' ? 'No notes recorded' : visitStatus(v.status).label)
+                  const sub = n?.rx ?? (v.start ? `${formatTime(v.start)} · Token ${visitToken(v.id)}` : `Token ${visitToken(v.id)}`)
                   return (
-                    <li key={v.id} className="flex items-center gap-3 py-[11px] border-t border-[#EEF2F7]">
-                      <span className="shrink-0 w-[84px] text-[12.5px] font-extrabold">{v.start ? formatShortDate(v.start) : '—'}</span>
-                      <span className="flex-1 min-w-0">
-                        <span className="block text-[13.5px] font-extrabold truncate">{n?.diagnosis || n?.complaints || (v.status === 'completed' ? 'No notes recorded' : visitStatus(v.status).label)}</span>
-                        <span className="block text-[12px] text-[#5B667A] truncate">{n?.rx ?? (v.start ? `${formatTime(v.start)} · Token ${visitToken(v.id)}` : `Token ${visitToken(v.id)}`)}</span>
+                    <li key={v.id} className="flex items-center gap-3 py-[11px] border-t border-[#EEF2F7] lg:grid lg:grid-cols-[120px_minmax(0,1.2fr)_minmax(0,1.2fr)_90px] lg:gap-4 lg:py-[13px]">
+                      <span className="shrink-0 w-[84px] lg:w-auto text-[12.5px] lg:text-[13.5px] font-extrabold">{v.start ? formatShortDate(v.start) : '—'}</span>
+                      <span className="flex-1 min-w-0 lg:contents">
+                        <span className="block text-[13.5px] font-extrabold truncate">{title}</span>
+                        <span className="block text-[12px] lg:text-[13.5px] text-[#5B667A] truncate">{sub}</span>
                       </span>
                       {file?.fileUrl ? (
                         <a href={file.fileUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 text-[12.5px] font-extrabold text-[#2A4DD0] hover:underline">
@@ -192,6 +211,9 @@ export default async function DoctorPatientRecord(props: { params: Promise<{ id:
                 <ul>
                   {files.map((f) => (
                     <li key={f.id} className="flex items-center gap-3 py-[11px] border-t border-[#EEF2F7]">
+                      <span aria-hidden className="hidden lg:flex shrink-0 w-[38px] h-[38px] rounded-[10px] bg-[#EEF3FF] text-[#2A4DD0] items-center justify-center">
+                        <FileText className="w-[18px] h-[18px]" />
+                      </span>
                       <span className="flex-1 min-w-0">
                         <span className="block text-[13.5px] font-extrabold truncate">{f.title}</span>
                         <span className="block text-[12px] text-[#5B667A]">{f.date ? formatShortDate(f.date) : 'Date not recorded'}</span>

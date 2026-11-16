@@ -46,7 +46,7 @@ export async function raiseSupportTicket(input: { topic: string; bookingId: stri
   ].filter((l): l is string => l !== null)
 
   const to = process.env.SUPPORT_EMAIL || COMPANY.email
-  const sent = emailConfigured() ? await sendEmail({ to, subject, paragraphs: lines }) : false
+  const sent = emailConfigured() ? await sendEmail({ to, subject, heading: 'New support request', paragraphs: lines }) : false
   const mailto = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`
   return { ok: true, sent, mailto, ticketCode }
 }

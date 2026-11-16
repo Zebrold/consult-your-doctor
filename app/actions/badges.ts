@@ -1,11 +1,13 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/lib/supabase/server'
 import { executiveFor } from '@/app/executive/_lib/ops'
-import { BADGE_COLUMNS, BADGE_PRICES, badgeState, doctorRequirements, meetsRequirements, periodEnd, toBadge, type Badge, type BadgePlan } from '@/lib/badges'
+import { emailBadgeDecision } from '@/lib/notify/badges'
+import { BADGE_PRICES_TAG, loadBadgePrices, saveBadgePrices } from '@/lib/badge-prices'
+import { BADGE_COLUMNS, MAX_BADGE_PRICE, validBadgePrice, badgeState, doctorRequirements, meetsRequirements, periodEnd, toBadge, type Badge, type BadgePlan } from '@/lib/badges'
 
 // Verified badges. A doctor (or their hospital) buys a badge: a badge_payments row with the price fixed here, and a
 // verified_badges row waiting for that payment. Paying (lib/purchase-client.ts → lib/purchases.ts) sends it to the team,
@@ -16,6 +18,8 @@ type Result = { ok: true } | { ok: false; error: string }
 const NOT_SET_UP = 'Verified badges are being set up. Please try again later.'
 const uuid = z.string().uuid()
 const DAY = 86_400_000
+const PRICE_UNAVAILABLE = 'We couldn’t load the badge price. Please try again in a moment.'
+const planSchema = z.enum(['monthly', 'yearly'])
 
 type Admin = ReturnType<typeof createAdminClient>
 
@@ -53,8 +57,15 @@ export async function startDoctorBadge(plan: BadgePlan, payBy: 'self' | 'hospita
   if (!row) return { ok: false, error: 'Please log in with your doctor account.' }
   const d = await doctorFacts(admin, row.id)
   if (!d) return { ok: false, error: 'Please log in with your doctor account.' }
-  const price = BADGE_PRICES.doctor[plan]
-  if (!price) return { ok: false, error: 'Choose a plan.' }
+  if (!planSchema.safeParse(plan).success) return { ok: false, error: 'Choose a plan.' }
+  // The price is read here, on the server, and stored on the request; the browser never sends an amount.
+  let price: number
+  try {
+    price = (await loadBadgePrices()).doctor[plan]
+  } catch (err) {
+    console.error(err)
+    return { ok: false, error: PRICE_UNAVAILABLE }
+  }
   const now = Date.now()
   if (!meetsRequirements(doctorRequirements(d, now))) return { ok: false, error: 'Your profile doesn’t meet the requirements yet.' }
   if (payBy === 'hospital' && !d.hospitalId) return { ok: false, error: 'You aren’t linked to a hospital.' }
@@ -107,7 +118,7 @@ export async function cancelBadgeRequest(badgeId: string): Promise<Result> {
 }
 
 /** The hospital pays, in one payment, for its own badge and/or badges for some of its doctors. */
-export async function startHospitalBadges(input: { hospital: boolean; doctorIds: string[] }): Promise<Started> {
+export async function startHospitalBadges(input: { hospital: boolean; doctorIds: string[]; plan?: BadgePlan }): Promise<Started> {
   const user = await getCurrentUser()
   if (!user) return { ok: false, error: 'Please log in.' }
   const admin = createAdminClient()
@@ -116,8 +127,18 @@ export async function startHospitalBadges(input: { hospital: boolean; doctorIds:
   const hospitalId = profile.hospital_id as string
   const doctorIds = [...new Set(input.doctorIds)].filter((id) => uuid.safeParse(id).success).slice(0, 100)
   if (!input.hospital && !doctorIds.length) return { ok: false, error: 'Choose what to verify.' }
+  const hospitalPlan = input.plan === undefined ? 'monthly' : planSchema.safeParse(input.plan).success ? input.plan : null
+  if (!hospitalPlan) return { ok: false, error: 'Choose a plan.' }
   const now = Date.now()
-  const lines: { subject: 'doctor' | 'hospital'; doctorId: string | null; amount: number; reuse: string | null }[] = []
+  const lines: { subject: 'doctor' | 'hospital'; doctorId: string | null; plan: BadgePlan; amount: number; reuse: string | null }[] = []
+  // Prices are read here, on the server, and stored on each line; the browser never sends an amount.
+  let prices
+  try {
+    prices = await loadBadgePrices()
+  } catch (err) {
+    console.error(err)
+    return { ok: false, error: PRICE_UNAVAILABLE }
+  }
 
   if (input.hospital) {
     const { data: h } = await admin.from('hospitals').select('status, created_at').eq('id', hospitalId).maybeSingle()
@@ -126,7 +147,7 @@ export async function startHospitalBadges(input: { hospital: boolean; doctorIds:
     if (!badges) return { ok: false, error: NOT_SET_UP }
     const blocked = blocker(badges, now)
     if (blocked) return { ok: false, error: `Hospital badge: ${blocked}` }
-    lines.push({ subject: 'hospital', doctorId: null, amount: BADGE_PRICES.hospital.monthly!, reuse: null })
+    lines.push({ subject: 'hospital', doctorId: null, plan: hospitalPlan, amount: prices.hospital[hospitalPlan], reuse: null })
   }
 
   for (const id of doctorIds) {
@@ -139,7 +160,7 @@ export async function startHospitalBadges(input: { hospital: boolean; doctorIds:
     if (blocked) return { ok: false, error: blocked }
     // A doctor's own "ask my hospital to pay" request is paid as asked (their plan); otherwise monthly.
     const asked = badges.find((b) => b.status === 'awaiting_payment' && b.paidBy === 'hospital') ?? null
-    lines.push({ subject: 'doctor', doctorId: id, amount: asked?.amount ?? BADGE_PRICES.doctor.monthly!, reuse: asked?.id ?? null })
+    lines.push({ subject: 'doctor', doctorId: id, plan: asked?.plan ?? 'monthly', amount: asked?.amount ?? prices.doctor.monthly, reuse: asked?.id ?? null })
   }
 
   const total = lines.reduce((s, l) => s + l.amount, 0)
@@ -162,7 +183,7 @@ export async function startHospitalBadges(input: { hospital: boolean; doctorIds:
       subject: l.subject,
       doctor_id: l.doctorId,
       hospital_id: l.subject === 'hospital' ? hospitalId : null,
-      plan: 'monthly',
+      plan: l.plan,
       amount: l.amount,
       paid_by: 'hospital',
       requested_by: user.id,
@@ -174,6 +195,35 @@ export async function startHospitalBadges(input: { hospital: boolean; doctorIds:
 }
 
 // --- The team (/executive/badges) ---------------------------------------------------------------------------------
+
+/** Sets the badge prices. Requests already made keep the price they were made at. */
+export async function saveBadgePricesAction(input: { doctor: { monthly: number; yearly: number }; hospital: { monthly: number; yearly: number } }): Promise<Result> {
+  // Team access is checked here, not only when the page renders; this never redirects.
+  if (!(await executiveFor('badges'))) return { ok: false, error: 'Only the team that reviews badges can change prices.' }
+  // Server actions take any value from the browser, so every amount is checked here and not only in the form.
+  const fields: [string, unknown][] = [
+    ['Doctor monthly', input?.doctor?.monthly],
+    ['Doctor yearly', input?.doctor?.yearly],
+    ['Hospital monthly', input?.hospital?.monthly],
+    ['Hospital yearly', input?.hospital?.yearly],
+  ]
+  for (const [label, value] of fields) {
+    if (!validBadgePrice(value)) return { ok: false, error: `${label} must be a whole number of rupees from ₹1 to ₹${MAX_BADGE_PRICE.toLocaleString('en-IN')}.` }
+  }
+  try {
+    await saveBadgePrices({
+      doctor: { monthly: input.doctor.monthly, yearly: input.doctor.yearly },
+      hospital: { monthly: input.hospital.monthly, yearly: input.hospital.yearly },
+    })
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Could not save the prices.' }
+  }
+  updateTag(BADGE_PRICES_TAG)
+  revalidatePath('/executive/badges')
+  revalidatePath('/doctor/badge')
+  revalidatePath('/hospital/badges')
+  return { ok: true }
+}
 
 async function executive() {
   return executiveFor('badges')
@@ -193,12 +243,14 @@ export async function approveBadge(badgeId: string): Promise<Result> {
   const now = new Date()
   const lastEnd = others.filter((b) => b.status === 'active' && b.endsAt && Date.parse(b.endsAt) > now.getTime()).map((b) => b.endsAt!).sort().pop()
   const startsAt = lastEnd ?? now.toISOString()
-  const { error } = await ctx.admin
+  const { data: approved, error } = await ctx.admin
     .from('verified_badges')
     .update({ status: 'active', starts_at: startsAt, ends_at: periodEnd(startsAt, badge.plan), reviewed_by: ctx.user.id, reviewed_at: now.toISOString(), review_note: null })
     .eq('id', badgeId)
     .eq('status', 'in_review')
+    .select('id')
   if (error) return { ok: false, error: 'Could not approve it. Please try again.' }
+  if (approved?.length) await emailBadgeDecision(ctx.admin, badgeId, 'approved')
   revalidatePath('/executive/badges')
   return { ok: true }
 }
@@ -210,12 +262,14 @@ export async function rejectBadge(badgeId: string, note: string): Promise<Result
   const reason = note.trim().slice(0, 300)
   if (!uuid.safeParse(badgeId).success) return { ok: false, error: 'Not found.' }
   if (reason.length < 5) return { ok: false, error: 'Say why, so the doctor or hospital knows what to fix.' }
-  const { error } = await ctx.admin
+  const { data: rejected, error } = await ctx.admin
     .from('verified_badges')
     .update({ status: 'rejected', review_note: reason, reviewed_by: ctx.user.id, reviewed_at: new Date().toISOString() })
     .eq('id', badgeId)
     .eq('status', 'in_review')
+    .select('id')
   if (error) return { ok: false, error: 'Could not reject it. Please try again.' }
+  if (rejected?.length) await emailBadgeDecision(ctx.admin, badgeId, 'rejected')
   revalidatePath('/executive/badges')
   return { ok: true }
 }

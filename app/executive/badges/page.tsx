@@ -1,11 +1,14 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { BadgeCheck, Check, Hourglass, X } from 'lucide-react'
 import { currentTime } from '@/components/patient/data'
 import { doctorName, formatINR, formatShortDate } from '@/components/patient/format'
-import { ACTIVE_DAYS_NEEDED, BADGE_COLUMNS, BADGE_PRICES, PLAN_LABEL, doctorRequirements, toBadge, type Badge, type BadgePlan } from '@/lib/badges'
+import { ACTIVE_DAYS_NEEDED, BADGE_COLUMNS, PLAN_LABEL, doctorRequirements, toBadge, type Badge } from '@/lib/badges'
+import { getBadgePrices } from '@/lib/badge-prices'
 import { requireExecutivePage } from '../_lib/ops'
-import { Card, EmptyState, ExePage, Initials, Line, Stat, Stats, Status, Table, Verified, plural, td, th } from '../_components/ui'
+import { Card, EmptyState, ExePage, Initials, Stat, Stats, Status, Table, Verified, plural, segGroup, segTab, td, th } from '../_components/ui'
 import { BadgeReview } from '../_components/BadgeReview'
+import { BadgePriceEditor } from '../_components/BadgePriceEditor'
 
 export const metadata: Metadata = { title: 'Verified badges' }
 export const dynamic = 'force-dynamic'
@@ -17,8 +20,10 @@ const DAY = 86_400_000
  * the medical council and their photo ID, or the hospital's listing, then approves so the blue tick shows, or rejects and
  * refunds from Razorpay), and the badges showing now.
  */
-export default async function ExecutiveBadgesPage() {
+export default async function ExecutiveBadgesPage(props: { searchParams?: Promise<{ kind?: string }> }) {
   const { admin, profile } = await requireExecutivePage('badges')
+  const kindParam = (await props.searchParams)?.kind
+  const kind: 'all' | 'doctor' | 'hospital' = kindParam === 'doctor' || kindParam === 'hospital' ? kindParam : 'all'
   const now = currentTime()
   const monthStart = new Date(`${new Date(now).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }).slice(0, 7)}-01T00:00:00+05:30`).toISOString()
   const [review, active, month] = await Promise.all([
@@ -37,6 +42,7 @@ export default async function ExecutiveBadgesPage() {
   }
   const waiting = ((review.data ?? []) as Parameters<typeof toBadge>[0][]).map(toBadge)
   const live = ((active.data ?? []) as Parameters<typeof toBadge>[0][]).map(toBadge)
+  const shown = kind === 'all' ? waiting : waiting.filter((b) => b.subject === kind)
   const all = [...waiting, ...live]
   const monthRevenue = ((month.data ?? []) as { amount: number | string }[]).reduce((s, b) => s + (Number(b.amount) || 0), 0)
   // Renewals: a badge in its last 7 days is renewed when another paid one for the same doctor or hospital is waiting
@@ -73,9 +79,7 @@ export default async function ExecutiveBadgesPage() {
     }
   }
 
-  const prices = (Object.entries(BADGE_PRICES) as [Badge['subject'], Partial<Record<BadgePlan, number>>][]).flatMap(([subject, plans]) =>
-    (Object.entries(plans) as [BadgePlan, number][]).map(([plan, price]) => ({ label: `${subject === 'doctor' ? 'Doctor' : 'Hospital'}, ${PLAN_LABEL[plan].toLowerCase()}`, price })),
-  )
+  const prices = await getBadgePrices()
 
   return (
     <ExePage name={profile.fullName} title="Verified badges" subtitle="Check paid badge requests from doctors and hospitals, and see the badges showing now">
@@ -86,17 +90,35 @@ export default async function ExecutiveBadgesPage() {
         <Stat label="Renewals in 7 days" value={endingSoon.length} note={endingSoon.length ? `${notRenewed.length} not renewed yet` : 'Badges don’t renew by themselves'} tone={notRenewed.length ? 'warn' : undefined} />
       </Stats>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] gap-3.5 lg:gap-5 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-3.5 lg:gap-5 items-start">
         <div className="flex flex-col gap-3.5 lg:gap-5 min-w-0">
-          <Card title="Requests to verify" sub="Badges go live only after these checks. Oldest first.">
-            {waiting.length === 0 ? (
+          <Card
+            title="Requests to verify"
+            sub="Badges go live only after these checks. Oldest first."
+            right={
+              <div role="tablist" aria-label="Requests" className={segGroup}>
+                {(
+                  [
+                    ['all', 'All requests', waiting.length],
+                    ['doctor', 'Doctors', waiting.filter((b) => b.subject === 'doctor').length],
+                    ['hospital', 'Hospitals', waiting.filter((b) => b.subject === 'hospital').length],
+                  ] as const
+                ).map(([k, label, n]) => (
+                  <Link key={k} href={k === 'all' ? '/executive/badges' : `/executive/badges?kind=${k}`} role="tab" aria-selected={kind === k} className={`${segTab(kind === k)} inline-flex items-center`}>
+                    {label} {n}
+                  </Link>
+                ))}
+              </div>
+            }
+          >
+            {shown.length === 0 ? (
               <EmptyState icon={Hourglass}>Nothing waiting.</EmptyState>
             ) : (
               <ul>
-                {waiting.map((b) => {
+                {shown.map((b) => {
                   const d = describe(b)
                   return (
-                    <li key={b.id} className="flex flex-col gap-3 py-4 border-t border-[#EEF2F7] first:border-t-0 first:pt-0">
+                    <li key={b.id} className="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-3.5 py-4 border-t border-[#EEF2F7] first:border-t-0 first:pt-0">
                       <div className="flex items-start gap-3 min-w-0 flex-1">
                         <Initials name={d.title} image={d.image} className="w-10 h-10 text-[13px]" />
                         <div className="min-w-0">
@@ -156,7 +178,7 @@ export default async function ExecutiveBadgesPage() {
                             </span>
                           </span>
                         </td>
-                        <td className={`${td} whitespace-nowrap`}>
+                        <td className={`${td} whitespace-nowrap font-extrabold`}>
                           {PLAN_LABEL[b.plan]} {formatINR(b.amount)}
                         </td>
                         <td className={`${td} whitespace-nowrap`}>{soon ? <Status label={`Ends ${formatShortDate(b.endsAt!)}`} color="#B54708" /> : `Ends ${formatShortDate(b.endsAt!)}`}</td>
@@ -180,13 +202,7 @@ export default async function ExecutiveBadgesPage() {
 
         <div className="flex flex-col gap-3.5 lg:gap-5 min-w-0">
           <Card title="Prices" sub="Shown to doctors and hospitals">
-            <ul>
-              {prices.map((p) => (
-                <li key={p.label}>
-                  <Line label={<span className="font-bold">{p.label}</span>} right={<strong className="tabular-nums">{formatINR(p.price)}</strong>} />
-                </li>
-              ))}
-            </ul>
+            <BadgePriceEditor prices={prices} />
           </Card>
           <Card title="What we check">
             <ul className="flex flex-col gap-2.5 text-[13px]">

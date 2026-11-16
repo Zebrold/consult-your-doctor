@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { APPOINTMENT_STATUS_LABELS, LAB_STATUS_LABELS, buildAttentionItems, currentTime, loadAppointments, loadLabBookings, loadNetworkCounts, requireExecutivePage, timeAgo } from '../_lib/ops'
-import { Card, ExePage, Line, Stat, Stats, count, plural } from '../_components/ui'
+import { BarList, Card, ExePage, Line, Stat, Stats, count, plural } from '../_components/ui'
 import { PatientCareQueue } from '../_components/PatientCareQueue'
 import { PatientDirectory, type DirectoryRow } from '../_components/PatientDirectory'
 
@@ -24,11 +24,11 @@ export default async function ExecutivePatientsPage() {
   const pct = (n: number) => (recent.length ? `${Math.round((n / recent.length) * 100)}%` : '—')
 
   const breakdown = [
-    { label: 'Appointment not checked in', value: queue.filter((i) => i.status === 'Not checked in').length },
-    { label: 'Consultation unpaid', value: queue.filter((i) => i.category === 'consultations' && i.status === 'Awaiting payment').length },
-    { label: 'Lab visit overdue', value: queue.filter((i) => i.status === 'Visit overdue').length },
-    { label: 'Lab test unpaid', value: queue.filter((i) => i.category === 'diagnostics' && i.status === 'Awaiting payment').length },
-    { label: 'Lab report pending', value: queue.filter((i) => i.status === 'Report pending').length },
+    { label: 'Appointment not checked in', value: queue.filter((i) => i.status === 'Not checked in').length, color: '#B42318' },
+    { label: 'Consultation unpaid', value: queue.filter((i) => i.category === 'consultations' && i.status === 'Awaiting payment').length, color: '#B54708' },
+    { label: 'Lab visit overdue', value: queue.filter((i) => i.status === 'Visit overdue').length, color: '#B42318' },
+    { label: 'Lab test unpaid', value: queue.filter((i) => i.category === 'diagnostics' && i.status === 'Awaiting payment').length, color: '#B54708' },
+    { label: 'Lab report pending', value: queue.filter((i) => i.status === 'Report pending').length, color: '#B42318' },
   ]
 
   // One row per patient who has booked anything, most recently active first.
@@ -58,7 +58,7 @@ export default async function ExecutivePatientsPage() {
       <Stats>
         <Stat label="Registered patients" value={count(network.patients)} note={`${count(patients.length)} have booked care`} />
         <Stat label="Urgent follow-ups" value={urgent} note="Missed visits and overdue reports" tone={urgent ? 'high' : undefined} />
-        <Stat label="Open follow-ups" value={queue.length} note="Consultations and labs" />
+        <Stat label="Open follow-ups" value={queue.length} note="Consultations and labs" tone={queue.length ? 'warn' : undefined} />
         <Stat label="Cancelled (30 days)" value={count(cancelled)} note={`Of ${plural(recent.length, 'consultation')}`} />
       </Stats>
 
@@ -84,13 +84,7 @@ export default async function ExecutivePatientsPage() {
           </Card>
 
           <Card title="Follow-up breakdown" sub="Open cases by reason">
-            <ul>
-              {breakdown.map((r) => (
-                <li key={r.label}>
-                  <Line label={<span className="font-bold">{r.label}</span>} right={<strong className="tabular-nums">{plural(r.value, 'case')}</strong>} />
-                </li>
-              ))}
-            </ul>
+            <BarList rows={breakdown.map((r) => ({ ...r, display: plural(r.value, 'case') }))} />
           </Card>
         </div>
       </div>

@@ -8,12 +8,13 @@ import {
 } from 'lucide-react'
 import { addPrescription } from '@/app/actions/doctor'
 import { bmiCategory, bmiOf } from '@/lib/vitals'
+import { FOLLOW_UP_DAYS } from '@/lib/follow-up'
 import {
   ADVICE_CHIPS, COMPLAINT_CHIPS, DURATION_UNITS, FOLLOW_UPS, FORM_NAMES, FREQUENCIES, MED_FORMS, TEST_CHIPS, TIMINGS, blankMedicine, filledMedicines,
   frequencyWords, listItems, type Medicine, type RxData,
 } from '@/lib/rx'
 
-export type WriterVisit = { id: string; status: string; patientName: string }
+export type WriterVisit = { id: string; status: string; patientName: string; allergy?: string | null }
 
 // Common medicines offered as suggestions while typing (the doctor can write any name).
 const COMMON_MEDICINES = [
@@ -171,6 +172,7 @@ export function PrescriptionWriter({ visit, onClose }: { visit: WriterVisit; onC
               For <strong className="text-white">{visit.patientName}</strong> · Booking #{booking} · the PDF goes to the patient on WhatsApp and email
               {completing ? ' and completes the visit' : ''}
             </span>
+            {visit.allergy && <span className="hidden lg:block mt-0.5 text-[12.5px] font-bold truncate">Allergy: {visit.allergy}</span>}
           </span>
           {!sent && (
             <div className="hidden lg:flex items-center gap-2 shrink-0">
@@ -190,6 +192,7 @@ export function PrescriptionWriter({ visit, onClose }: { visit: WriterVisit; onC
         <p className="lg:hidden mt-2.5 mx-1.5 text-[13px] text-[#DCE6FF]">
           For <strong className="text-white">{visit.patientName}</strong> · Booking #{booking}
         </p>
+        {visit.allergy && <p className="lg:hidden mt-1 mx-1.5 text-[12.5px] font-bold">Allergy: {visit.allergy}</p>}
         <p className="lg:hidden mt-1 mx-1.5 text-[12.5px] font-bold">The PDF goes to the patient on WhatsApp and email{completing ? ' and completes the visit' : ''}.</p>
       </header>
 
@@ -352,6 +355,7 @@ export function PrescriptionWriter({ visit, onClose }: { visit: WriterVisit; onC
                       })}
                     </div>
                     <input type="date" min={istToday()} value={draft.followUp} onChange={(e) => set('followUp', e.target.value)} aria-label="Follow-up date" className={field} />
+                    <p className="mt-2 text-[11.5px] text-[#5B667A]">Follow-ups booked within {FOLLOW_UP_DAYS} days have no booking fee.</p>
                   </Block>
                   <Block icon={Paperclip} title="Referral & attachment" hint="Optional">
                     <input value={draft.referral} onChange={(e) => set('referral', e.target.value)} maxLength={300} placeholder="Refer to, e.g. Cardiologist for 2D Echo review" className={field} />

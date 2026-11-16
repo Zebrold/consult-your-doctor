@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, LoaderCircle, Pencil, Star, Trash2 } from "lucide-react";
-import { btnPrimary, card } from "@/components/patient/app-ui";
+import { LoaderCircle, Pencil, Star, Trash2 } from "lucide-react";
+import { btnOutline, btnPrimary, card } from "@/components/patient/app-ui";
 import { initials } from "@/components/patient/format";
 import { deleteMyReview, saveMyReview } from "@/app/actions/reviews";
 import { REVIEW_TAGS } from "@/lib/reviews";
@@ -98,24 +98,24 @@ export function ReviewQueue({ visits }: { visits: PendingVisit[] }) {
         <p className="mt-3 rounded-xl bg-[#F3F6FC] px-4 py-3.5 text-[13px] text-[#5B667A]">After a consultation you can rate it here. Reviews help other patients choose.</p>
       ) : (
         <>
-          <div className="mt-3 flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
+          <div className="mt-3 grid gap-2 lg:grid-cols-2">
             {visits.map((v) => {
               const on = v.id === open;
               const reviewed = done.includes(v.id);
               return (
-                <button key={v.id} type="button" onClick={() => setOpen(v.id)} aria-pressed={on} className={`shrink-0 w-[240px] text-left flex items-center gap-3 rounded-2xl p-3 transition-shadow ${on ? "bg-[#F5F8FF] shadow-[0_0_0_2px_#2A4DD0]" : "bg-white shadow-[0_0_0_1px_#E6EAF0]"}`}>
+                <button key={v.id} type="button" onClick={() => setOpen(v.id)} aria-pressed={on} className={`w-full text-left flex items-center gap-3 rounded-[14px] px-3.5 py-3 transition-shadow ${on ? "bg-[#F5F8FF] shadow-[0_0_0_2px_#2A4DD0]" : "bg-white shadow-[0_0_0_1px_#E6EAF0]"}`}>
                   <span className="shrink-0 w-10 h-10 rounded-full bg-[#EEF3FF] text-[#2A4DD0] flex items-center justify-center text-[12px] font-extrabold">{initials(v.name)}</span>
-                  <span className="min-w-0">
-                    <span className="block text-[13.5px] font-extrabold truncate">{v.name}</span>
-                    <span className="block text-[11.5px] text-[#5B667A] truncate">{v.date}</span>
-                    <span className={`block text-[11.5px] font-extrabold ${reviewed ? "text-[#067647]" : "text-[#B54708]"}`}>{reviewed ? "Reviewed" : "To review"}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-extrabold truncate">{v.name}</span>
+                    <span className="block text-[12px] text-[#5B667A] truncate">{v.date}</span>
                   </span>
+                  <span className={`shrink-0 text-[12px] font-extrabold ${reviewed ? "text-[#2A4DD0]" : "text-[#5B667A]"}`}>{reviewed ? "Reviewed" : "To review"}</span>
                 </button>
               );
             })}
           </div>
           {current && !done.includes(current.id) && (
-            <div className="mt-4 pt-4 border-t border-[#EEF2F7]">
+            <div className="mt-3.5 rounded-2xl bg-[#F7F9FC] shadow-[inset_0_0_0_1px_#E6EAF0] p-4">
               <p className="text-[16px] font-extrabold">How was your visit with {current.name}?</p>
               <p className="mt-0.5 mb-3 text-[12.5px] text-[#5B667A]">{current.sub}</p>
               <ReviewForm
@@ -127,13 +127,11 @@ export function ReviewQueue({ visits }: { visits: PendingVisit[] }) {
             </div>
           )}
           {current && done.includes(current.id) && (
-            <div className="mt-4 rounded-2xl bg-[#ECFDF3] p-4">
-              <p className="flex items-center gap-2 text-[14px] font-extrabold text-[#067647]">
-                <CheckCircle2 className="w-[18px] h-[18px]" /> Thank you for your review
-              </p>
-              <p className="mt-1 text-[12.5px] text-[#27324A]">It now shows on {current.name}&apos;s page.</p>
+            <div className="mt-3.5 rounded-2xl bg-[#F5F8FF] shadow-[inset_0_0_0_1px_#DCE5FF] p-4">
+              <p className="text-[15.5px] font-extrabold text-[#2A4DD0]">Thank you for your review</p>
+              <p className="mt-1 text-[13px] text-[#27324A]">It now shows on {current.name}&apos;s page.</p>
               {left.length > 0 && (
-                <button type="button" onClick={() => setOpen(left[0].id)} className="mt-2 text-[13px] font-extrabold text-[#2A4DD0] hover:underline">
+                <button type="button" onClick={() => setOpen(left[0].id)} className={`${btnOutline} w-full mt-3`}>
                   Review your next visit
                 </button>
               )}

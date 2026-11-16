@@ -13,6 +13,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { OnlineDoctorRoster, type RosterDoctor } from "@/components/OnlineDoctorRoster";
 import { getBookingFees } from "@/lib/booking-fees";
+import { pausedDoctorIds } from "@/lib/doctor-pause";
 import { convenienceClause } from "@/lib/pricing";
 import { doctorName, formatINR } from "@/components/patient/format";
 import { FeatureCard, IconTile, PageHero, Section, SitePage, TextLink, btnBlue, btnGhost, btnWhite, card } from "@/components/site/ui";
@@ -54,7 +55,9 @@ export default async function OnlineDoctorPage() {
   const fees = await getBookingFees();
   const bookingFee = formatINR(fees.consultation);
   // Only doctors patients can actually book: a fee is set and their hospital is listed.
-  const { data: dbDoctors } = await supabase
+  // Doctors whose bookings are paused are left out.
+  const paused = [...(await pausedDoctorIds())];
+  let doctorQuery = supabase
     .from("doctors")
     .select(`
       id,
@@ -66,9 +69,9 @@ export default async function OnlineDoctorPage() {
       hospitals!inner ( id, name, city, status )
     `)
     .eq("hospitals.status", "active")
-    .gt("consultation_fee", 0)
-    .order("image_url", { ascending: false, nullsFirst: false })
-    .limit(8);
+    .gt("consultation_fee", 0);
+  if (paused.length > 0) doctorQuery = doctorQuery.not("id", "in", `(${paused.join(",")})`);
+  const { data: dbDoctors } = await doctorQuery.order("image_url", { ascending: false, nullsFirst: false }).limit(8);
 
   type Joined<T> = T | T[] | null;
   type DoctorRow = {

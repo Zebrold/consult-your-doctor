@@ -84,8 +84,8 @@ export function ReviewModeration({ reviews }: { reviews: ModReview[] }) {
                 </span>
                 <Stars rating={r.rating} />
               </div>
-              {r.comment?.trim() ? <p className="mt-2 text-[13.5px] leading-relaxed whitespace-pre-wrap break-words">{r.comment}</p> : <p className="mt-2 text-[13px] text-[#98A2B3]">No written comment.</p>}
-              {r.flags.length > 0 && r.published && <p className="mt-1.5 text-[12.5px] font-extrabold text-[#B54708]">Flagged: {r.flags.join(', ')}</p>}
+              {r.comment?.trim() ? <p className="mt-2 text-[14px] leading-[1.6] text-[#27324A] whitespace-pre-wrap break-words">{r.comment}</p> : <p className="mt-2 text-[13px] text-[#98A2B3]">No written comment.</p>}
+              {r.flags.length > 0 && r.published && <span className="inline-flex mt-2 px-[9px] py-[3px] rounded-full bg-[#FFF6E8] text-[#B54708] text-[11.5px] font-extrabold">Flagged: {r.flags.join(', ')}</span>}
               <div className="flex flex-wrap items-center justify-end gap-2 mt-2.5">
                 {r.published ? (
                   <>

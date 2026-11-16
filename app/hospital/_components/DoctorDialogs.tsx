@@ -1,15 +1,12 @@
 'use client'
 
-import { useState, useTransition, type FormEvent } from 'react'
+import { useRef, useState, useTransition, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
-import {
-  CalendarDays, CheckCircle2, ChevronDown, GraduationCap,
-  Hospital, Info, KeyRound, LoaderCircle, Lock, Mail, MapPin, Monitor,
-  Pencil, Phone, Plus, RefreshCw, Send, Stethoscope, Trash2,
-  Upload, User, X, Briefcase, FileText
-} from 'lucide-react'
+import { Check, CircleCheck, ExternalLink, LoaderCircle, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { createHospitalDoctor, updateHospitalDoctor, deleteHospitalDoctor } from '@/app/actions/hospital'
+import { setHospitalDoctorPaused } from '@/app/actions/doctor-pause'
+import { sendDoctorPasswordLink, uploadDoctorPhoto } from '@/app/actions/hospital-doctor-account'
 import { WelcomeLetterButton } from '@/components/portal/WelcomeLetterButton'
 
 export type EditableDoctor = {
@@ -26,10 +23,33 @@ export type EditableDoctor = {
   email?: string | null
   image?: string | null
   hospitalName?: string | null
+  registrationNumber?: string | null
+  registrationCouncil?: string | null
+  /** Bookings paused (undefined hides the switch; the Staff page doesn't pass it). */
+  paused?: boolean
+  pausedBy?: 'doctor' | 'hospital' | null
+  /** False until migration 20261118 has run. */
+  pauseReady?: boolean
 }
 
-const inputClass =
-  'w-full rounded-xl bg-gray-50/80 hover:bg-gray-50 border border-gray-200/90 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0066ff]/20 focus:border-[#0066ff] transition-all'
+// The Add doctor and Edit doctor dialogs, after the user's DeskHosAddDoctor and DeskHosEditDoctor designs, in the same
+// workspace style as the Add patient dialog. Only fields the product stores are shown.
+
+const label = 'block mb-1.5 text-[13px] font-extrabold text-[#27324A]'
+const input =
+  'block w-full h-[46px] px-3.5 rounded-xl border border-[#D6DDE8] bg-white text-[14.5px] text-[#0B1B3F] placeholder:text-[#8A94A6] outline-none focus:border-[#2A4DD0] focus:ring-2 focus:ring-[#2A4DD0]/15 read-only:bg-[#F7F9FC] transition-shadow'
+const hint = 'block mt-1.5 text-[12.5px] leading-[1.45] text-[#5B667A]'
+const btn = 'inline-flex items-center justify-center gap-2 h-[42px] px-4 rounded-[11px] text-[13.5px] font-extrabold whitespace-nowrap transition-colors disabled:opacity-60'
+const btnBlue = `${btn} bg-[#2A4DD0] text-white shadow-[0_6px_14px_rgba(42,77,208,0.25)] hover:bg-[#2443B8]`
+const btnLine = `${btn} border border-[#D6DDE8] bg-white text-[#27324A] hover:bg-[#F4F6FA]`
+const overlay = 'fixed inset-0 z-[100] overflow-y-auto bg-[rgba(11,27,63,0.55)] backdrop-blur-[3px] font-(family-name:--font-manrope) text-[#0B1B3F]'
+const shell = 'relative min-h-full sm:min-h-0 w-full sm:my-10 sm:mx-auto sm:rounded-[20px] bg-white shadow-[0_24px_60px_rgba(11,27,63,0.28),0_0_0_1px_rgba(11,27,63,0.06)] overflow-hidden'
+const closeBtn = 'shrink-0 w-[38px] h-[38px] rounded-[11px] bg-[#F4F6FA] shadow-[inset_0_0_0_1px_#E6EAF0] flex items-center justify-center text-[#27324A] hover:bg-[#EEF2F8]'
+
+const chip = (on: boolean) =>
+  `inline-flex items-center justify-center gap-1.5 min-h-[46px] px-3.5 py-2 rounded-[10px] border text-[13.5px] font-extrabold text-center transition-colors ${
+    on ? 'border-[#2A4DD0] bg-[#2A4DD0] text-white' : 'border-[#D6DDE8] bg-white text-[#27324A] hover:border-[#A9BCEF]'
+  }`
 
 const councilsList = [
   'National Medical Commission (NMC)',
@@ -44,18 +64,67 @@ const councilsList = [
   'Kerala Medical Council',
 ]
 
-/** Registers a new doctor at this hospital with the layout matching Image 5 */
+function Req() {
+  return <span className="text-[#B42318]"> *</span>
+}
+
+function Section({ n, title, sub, children }: { n: number; title: string; sub: string; children: ReactNode }) {
+  return (
+    <section className="px-4 py-[18px] sm:px-6 sm:py-[22px] rounded-2xl bg-white shadow-[0_0_0_1px_#E6EAF0]">
+      <div className="flex gap-3 items-start mb-[18px]">
+        <span className="shrink-0 w-7 h-7 rounded-full bg-[#EEF3FF] text-[#2A4DD0] flex items-center justify-center text-[13px] font-extrabold">{n}</span>
+        <div>
+          <h3 className="text-[15.5px] font-extrabold">{title}</h3>
+          <p className="mt-0.5 text-[13px] text-[#5B667A]">{sub}</p>
+        </div>
+      </div>
+      {children}
+    </section>
+  )
+}
+
+function CouncilSelect({ defaultValue }: { defaultValue?: string | null }) {
+  const options = defaultValue && !councilsList.includes(defaultValue) ? [defaultValue, ...councilsList] : councilsList
+  return (
+    <select name="registrationCouncil" defaultValue={defaultValue ?? ''} className={`${input} cursor-pointer`}>
+      <option value="">Choose the council</option>
+      {options.map((c) => (
+        <option key={c} value={c}>
+          {c}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+function Rupee({ children }: { children: ReactNode }) {
+  return (
+    <span className="flex h-[46px] rounded-xl border border-[#D6DDE8] overflow-hidden focus-within:border-[#2A4DD0] focus-within:ring-2 focus-within:ring-[#2A4DD0]/15">
+      <span className="shrink-0 flex items-center px-3 bg-[#F7F9FC] border-r border-[#D6DDE8] text-[14px] font-extrabold text-[#27324A]">₹</span>
+      {children}
+    </span>
+  )
+}
+
+const bareInput = 'flex-1 min-w-0 border-0 outline-none px-3.5 text-[14.5px] text-[#0B1B3F] placeholder:text-[#8A94A6]'
+
+/** Registers a new doctor at this hospital. */
 export function AddDoctorButton({
   departments,
   className,
-  label = 'Add Doctor',
+  label: text = 'Add Doctor',
+  hospitalName,
 }: {
   departments: string[]
   className: string
   label?: string
+  /** Shown read-only in the form; hidden when not given. */
+  hospitalName?: string | null
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
+  const [round, setRound] = useState(0)
+  const [mode, setMode] = useState<'invite' | 'manual'>('invite')
   const [error, setError] = useState<string | null>(null)
   const [created, setCreated] = useState<string | null>(null)
   const [activationLink, setActivationLink] = useState<string | null>(null)
@@ -64,24 +133,30 @@ export function AddDoctorButton({
   const [password, setPassword] = useState('')
   const [pending, start] = useTransition()
 
-  const close = () => {
-    setOpen(false)
+  const reset = () => {
     setError(null)
     setCreated(null)
     setActivationLink(null)
     setInviteEmail(null)
     setPassword('')
     setCopiedLink(false)
+    setMode('invite')
+  }
+  const close = () => {
+    setOpen(false)
+    reset()
+  }
+  const another = () => {
+    reset()
+    setRound((r) => r + 1)
   }
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const form = new FormData(e.currentTarget)
-    const chosen = String(form.get('password') || '').trim()
-    const email = String(form.get('email') || '').trim()
-    if (!email && (!chosen || chosen.length < 8)) {
-      return setError('Provide the doctor’s email for an account invitation, or set a password of at least 8 characters.')
-    }
+    const chosen = mode === 'manual' ? String(form.get('password') || '').trim() : ''
+    if (mode === 'manual' && chosen.length < 8) return setError('Set a password of at least 8 characters, or choose the email link.')
+    if (mode === 'invite') form.delete('password')
     start(async () => {
       const res = await createHospitalDoctor(form)
       if ('error' in res && res.error) return setError(res.error)
@@ -103,416 +178,230 @@ export function AddDoctorButton({
     }
   }
 
+  const steps = [
+    { n: 1, label: 'Doctor profile', sub: 'Name and registration' },
+    { n: 2, label: 'Clinic details', sub: 'Fee and room' },
+    { n: 3, label: 'Account access', sub: 'Sign-in' },
+  ]
+  const done = created !== null
+
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className={className}>
-        <Plus className="w-[18px] h-[18px]" /> {label}
+        <Plus className="w-[18px] h-[18px]" /> {text}
       </button>
 
       {open && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
-          role="dialog"
-          aria-modal="true"
-        >
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity"
-            onClick={close}
-          />
-
-          {/* Modal Container (Matches Image 5) */}
-          <div className="relative w-full max-w-3xl my-auto bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col max-h-[92dvh]">
-            
-            {/* Header */}
-            <div className="p-6 sm:p-7 border-b border-gray-100 flex items-start justify-between gap-4 bg-white sticky top-0 z-10">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-2xl bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100/60">
-                  <Image
-                    src="/logo-icon.png"
-                    alt="Logo"
-                    width={26}
-                    height={26}
-                    className="w-6.5 h-6.5 object-contain"
-                  />
-                </div>
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-                    Add Doctor
-                  </h2>
-                  <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-                    Create a doctor profile, assign access, and send a secure invitation.
-                  </p>
-                </div>
+        <div role="dialog" aria-modal="true" aria-label="Add doctor" className={overlay}>
+          <div className={`${shell} sm:w-[min(920px,calc(100%-32px))]`}>
+            <div className="flex items-start justify-between gap-4 px-4 sm:px-7 pt-[22px] sm:pt-[26px] pb-5">
+              <div>
+                <h2 className="text-[20px] sm:text-[22px] font-extrabold tracking-[-0.02em]">Add doctor</h2>
+                <p className="mt-[5px] text-[13.5px] sm:text-[14px] text-[#5B667A]">Create the doctor’s profile, set their fee, and invite them to the doctor portal.</p>
               </div>
-
-              <button
-                type="button"
-                onClick={close}
-                aria-label="Close"
-                className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors shrink-0"
-              >
-                <X className="w-4 h-4" />
+              <button type="button" onClick={close} aria-label="Close" className={closeBtn}>
+                <X className="w-[18px] h-[18px]" strokeWidth={2.4} />
               </button>
             </div>
 
-            {/* Stepper Progress Bar */}
-            <div className="bg-gray-50/70 border-b border-gray-100 px-6 sm:px-8 py-3.5">
-              <div className="flex items-center justify-center gap-2 sm:gap-4 max-w-lg mx-auto">
-                <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-[#0066ff] text-white text-xs font-bold flex items-center justify-center shrink-0 shadow-sm">
-                    1
+            <ol aria-label="Progress" className="flex items-center justify-center gap-3 sm:gap-3.5 px-4 sm:px-7 py-4 bg-[#F7F9FC] border-y border-[#EEF2F7]">
+              {steps.map((s) => (
+                <li key={s.n} className="flex items-center gap-2.5">
+                  <span
+                    className={`shrink-0 w-[30px] h-[30px] rounded-full border-[1.5px] flex items-center justify-center text-[13px] font-extrabold ${
+                      done || s.n === 1 ? 'border-[#2A4DD0] bg-[#2A4DD0] text-white' : 'border-[#C9D2E0] bg-white text-[#5B667A]'
+                    }`}
+                  >
+                    {done ? <Check className="w-[15px] h-[15px]" strokeWidth={3} /> : s.n}
                   </span>
-                  <span className="text-xs font-bold text-[#0066ff] whitespace-nowrap">
-                    Doctor profile
+                  <span className="hidden sm:block">
+                    <span className={`block text-[13.5px] font-extrabold ${done || s.n === 1 ? 'text-[#0B1B3F]' : 'text-[#5B667A]'}`}>{s.label}</span>
+                    <span className="block text-[11.5px] text-[#5B667A]">{s.sub}</span>
                   </span>
-                </div>
-                <div className="h-[2px] w-8 sm:w-16 bg-gray-200" />
-                <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-gray-200 text-gray-600 text-xs font-bold flex items-center justify-center shrink-0">
-                    2
-                  </span>
-                  <span className="text-xs font-medium text-gray-500 whitespace-nowrap">
-                    Clinic details
-                  </span>
-                </div>
-                <div className="h-[2px] w-8 sm:w-16 bg-gray-200" />
-                <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-gray-200 text-gray-600 text-xs font-bold flex items-center justify-center shrink-0">
-                    3
-                  </span>
-                  <span className="text-xs font-medium text-gray-500 whitespace-nowrap">
-                    Account access
-                  </span>
+                  {s.n < 3 && <span aria-hidden className="w-6 sm:w-16 h-0.5 ml-1 rounded-sm bg-[#D6DDE8]" />}
+                </li>
+              ))}
+            </ol>
+
+            {done ? (
+              <div className="flex flex-col items-center gap-4 px-4 sm:px-7 py-9 text-center">
+                <span className="w-14 h-14 rounded-full bg-[#2A4DD0] text-white flex items-center justify-center">
+                  <Check className="w-7 h-7" strokeWidth={3} />
+                </span>
+                <h3 className="text-[20px] font-extrabold">Doctor added</h3>
+                <p className="text-[14px] text-[#5B667A]">
+                  Staff ID <span className="font-mono font-extrabold text-[#2A4DD0] bg-[#EEF3FF] px-2 py-0.5 rounded-md">{created}</span>
+                  {inviteEmail ? (
+                    <>
+                      {' '}
+                      · a link to set their password was emailed to <strong className="text-[#0B1B3F]">{inviteEmail}</strong>
+                    </>
+                  ) : null}
+                </p>
+
+                {activationLink && (
+                  <div className="w-full max-w-[560px] p-4 rounded-2xl bg-[#F5F8FF] shadow-[0_0_0_1px_#DCE6FF] flex flex-col gap-2 text-left">
+                    <span className="text-[13px] font-extrabold text-[#27324A]">Activation link</span>
+                    <div className="flex items-center gap-2">
+                      <input readOnly value={activationLink} aria-label="Activation link" className={`${input} !h-[42px] text-[12.5px] font-mono truncate`} />
+                      <button type="button" onClick={copyLink} className={`${btnBlue} shrink-0`}>
+                        {copiedLink ? 'Copied' : 'Copy link'}
+                      </button>
+                    </div>
+                    <span className={hint}>The doctor can open this link any time to set their password.</span>
+                  </div>
+                )}
+
+                {created && password && <WelcomeLetterButton username={created} password={password} className={`${btnLine} w-full max-w-[560px]`} />}
+
+                <div className="flex gap-2.5 pt-1">
+                  <button type="button" onClick={another} className={btnLine}>
+                    <Plus className="w-4 h-4" strokeWidth={2.6} /> Add another doctor
+                  </button>
+                  <button type="button" onClick={close} className={btnBlue}>
+                    Done
+                  </button>
                 </div>
               </div>
-            </div>
+            ) : (
+              <form key={round} onSubmit={submit}>
+                <div className="flex flex-col gap-[18px] px-3 sm:px-7 py-5 sm:py-6">
+                  <Section n={1} title="Doctor profile" sub="What patients see when they book this doctor.">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-[18px] items-start">
+                      <label className="block min-w-0">
+                        <span className={label}>
+                          Full name
+                          <Req />
+                        </span>
+                        <input name="fullName" required minLength={2} maxLength={120} autoComplete="off" className={input} />
+                        <span className={hint}>As on the medical registration certificate.</span>
+                      </label>
+                      <label className="block min-w-0">
+                        <span className={label}>
+                          Speciality
+                          <Req />
+                        </span>
+                        <input name="specialty" required list="hospital-departments" maxLength={80} autoComplete="off" className={input} />
+                        <datalist id="hospital-departments">
+                          {departments.map((d) => (
+                            <option key={d} value={d} />
+                          ))}
+                        </datalist>
+                      </label>
+                      <label className="block min-w-0">
+                        <span className={label}>
+                          Years of experience
+                          <Req />
+                        </span>
+                        <input name="experienceYears" type="number" inputMode="numeric" min={0} max={70} required className={input} />
+                      </label>
+                      <label className="block min-w-0">
+                        <span className={label}>Mobile number</span>
+                        <input name="phone" type="tel" inputMode="tel" maxLength={30} autoComplete="off" className={input} />
+                      </label>
+                      <label className="block min-w-0">
+                        <span className={label}>
+                          Qualifications
+                          <Req />
+                        </span>
+                        <input name="qualifications" required maxLength={200} className={input} />
+                        <span className={hint}>For example MBBS, MS (Ortho).</span>
+                      </label>
+                      <label className="block min-w-0">
+                        <span className={label}>Medical registration number</span>
+                        <input name="registrationNumber" maxLength={40} autoComplete="off" className={input} />
+                        <span className={hint}>Needed for the Verified badge.</span>
+                      </label>
+                      <label className="block min-w-0">
+                        <span className={label}>Medical council</span>
+                        <CouncilSelect />
+                      </label>
+                    </div>
+                  </Section>
 
-            {/* Form Body (Scrollable) */}
-            <div className="p-6 sm:p-8 overflow-y-auto flex-1">
-              {created !== null ? (
-                <div className="flex flex-col gap-5 py-4">
-                  <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-start gap-4">
-                    <CheckCircle2 className="w-6 h-6 shrink-0 text-emerald-600 mt-0.5" />
-                    <div>
-                      <h4 className="font-bold text-base">Doctor Profile &amp; Credentials Created</h4>
-                      <p className="text-sm mt-1">
-                        Doctor Staff ID: <span className="font-mono font-bold text-[#0066ff] bg-white px-2 py-0.5 rounded border border-emerald-200">{created}</span>
-                      </p>
-                      {inviteEmail && (
-                        <p className="mt-2 text-xs text-emerald-800">
-                          An official setup &amp; activation email was sent to <span className="font-bold">{inviteEmail}</span>.
-                        </p>
+                  <Section n={2} title="Clinic and consultation" sub="Where and when patients can book this doctor.">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-[18px] items-start">
+                      {hospitalName && (
+                        <label className="block min-w-0 sm:col-span-2">
+                          <span className={label}>Hospital</span>
+                          <input readOnly value={hospitalName} className={input} />
+                        </label>
+                      )}
+                      <label className="block min-w-0">
+                        <span className={label}>
+                          Consultation fee
+                          <Req />
+                        </span>
+                        <Rupee>
+                          <input name="consultationFee" type="number" inputMode="numeric" min={1} required aria-label="Consultation fee in rupees" className={bareInput} />
+                        </Rupee>
+                        <span className={hint}>Collected at your counter for each visit. Publish the doctor’s slots from Doctors &amp; roster after adding them.</span>
+                      </label>
+                      <label className="block min-w-0">
+                        <span className={label}>Room or cabin</span>
+                        <input name="address" maxLength={200} className={input} />
+                        <span className={hint}>Shown on the confirmation slip.</span>
+                      </label>
+                    </div>
+                  </Section>
+
+                  <Section n={3} title="Account access" sub="How the doctor signs in to the doctor portal.">
+                    <div role="radiogroup" aria-label="Account access" className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-[18px]">
+                      <button type="button" role="radio" aria-checked={mode === 'invite'} onClick={() => setMode('invite')} className={chip(mode === 'invite')}>
+                        Email a link to set their password
+                      </button>
+                      <button type="button" role="radio" aria-checked={mode === 'manual'} onClick={() => setMode('manual')} className={chip(mode === 'manual')}>
+                        Set a password myself
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-[18px] items-start">
+                      <label className="block min-w-0">
+                        <span className={label}>
+                          Doctor’s email
+                          <Req />
+                        </span>
+                        <input name="email" type="email" required autoComplete="off" maxLength={200} className={input} />
+                        <span className={hint}>{mode === 'invite' ? 'We email a link so the doctor sets their own password.' : 'The doctor can also sign in with this email.'}</span>
+                      </label>
+                      {mode === 'manual' && (
+                        <label className="block min-w-0">
+                          <span className={label}>
+                            Password
+                            <Req />
+                          </span>
+                          <input name="password" type="password" required minLength={8} autoComplete="new-password" className={input} />
+                          <span className={hint}>At least 8 characters. Share it with the doctor yourself.</span>
+                        </label>
                       )}
                     </div>
-                  </div>
-
-                  {activationLink && (
-                    <div className="p-4 rounded-2xl bg-[#f0f7ff] border border-blue-200 flex flex-col gap-2">
-                      <span className="text-xs font-bold text-blue-900">Direct Activation Link:</span>
-                      <div className="flex items-center gap-2">
-                        <input
-                          readOnly
-                          value={activationLink}
-                          className="flex-1 text-xs bg-white px-3 py-2 rounded-xl border border-blue-200 font-mono text-gray-700 truncate"
-                        />
-                        <button
-                          type="button"
-                          onClick={copyLink}
-                          className="px-4 py-2 rounded-xl bg-[#0066ff] text-white text-xs font-bold hover:bg-[#0050cb] transition-colors shrink-0"
-                        >
-                          {copiedLink ? 'Copied!' : 'Copy Link'}
-                        </button>
-                      </div>
-                      <span className="text-[11px] text-blue-700">The clinician can click this link anytime to set their password.</span>
-                    </div>
-                  )}
-
-                  {created && password && (
-                    <WelcomeLetterButton
-                      username={created}
-                      password={password}
-                      className="w-full py-3 rounded-2xl bg-blue-50 hover:bg-blue-100 text-[#0066ff] text-sm font-bold inline-flex items-center justify-center gap-2 border border-blue-200 transition-colors"
-                    />
-                  )}
-
-                  <div className="flex justify-end pt-2">
-                    <button
-                      type="button"
-                      onClick={close}
-                      className="px-6 py-2.5 rounded-xl bg-[#0066ff] text-white text-sm font-bold hover:bg-[#0050cb]"
-                    >
-                      Done
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <form onSubmit={submit} className="flex flex-col gap-6">
-                  
-                  {/* Card 1: 1. DOCTOR PROFILE */}
-                  <div className="rounded-2xl border border-gray-200/90 bg-white p-5 sm:p-6 shadow-sm">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-8 h-8 rounded-full bg-blue-50 text-[#0066ff] flex items-center justify-center shrink-0 border border-blue-100">
-                        <User className="w-4 h-4 text-[#0066ff]" />
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-black uppercase tracking-wider text-gray-900">
-                          1. Doctor Profile
-                        </h3>
-                        <p className="text-[11.5px] text-gray-500">
-                          Basic details about the doctor.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Full name <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <User className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-                          <input
-                            name="fullName"
-                            required
-                            minLength={2}
-                            placeholder="Dr. Ananya Rao"
-                            className={`${inputClass} pl-9`}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Specialty / department <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <Stethoscope className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
-                          <input
-                            name="specialty"
-                            required
-                            list="hospital-departments"
-                            defaultValue="Cardiology"
-                            placeholder="Cardiology"
-                            className={`${inputClass} pl-9`}
-                          />
-                          <datalist id="hospital-departments">
-                            {departments.map((d) => (
-                              <option key={d} value={d} />
-                            ))}
-                          </datalist>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Years of experience <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <Briefcase className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
-                          <input
-                            name="experienceYears"
-                            type="number"
-                            min={0}
-                            max={70}
-                            defaultValue={0}
-                            className={`${inputClass} pl-9`}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Medical registration number
-                        </label>
-                        <div className="relative">
-                          <FileText className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
-                          <input
-                            name="registrationNumber"
-                            placeholder="Enter registration number"
-                            className={`${inputClass} pl-9`}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card 2: 2. CLINIC & CONSULTATION */}
-                  <div className="rounded-2xl border border-gray-200/90 bg-white p-5 sm:p-6 shadow-sm">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-8 h-8 rounded-full bg-blue-50 text-[#0066ff] flex items-center justify-center shrink-0 border border-blue-100">
-                        <Hospital className="w-4 h-4 text-[#0066ff]" />
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-black uppercase tracking-wider text-gray-900">
-                          2. Clinic &amp; Consultation
-                        </h3>
-                        <p className="text-[11.5px] text-gray-500">
-                          Assign the doctor to a clinic and set consultation details.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Clinic / hospital <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <Hospital className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
-                          <input
-                            name="hospitalName"
-                            defaultValue="ABC Hospital"
-                            placeholder="ABC Hospital"
-                            className={`${inputClass} pl-9`}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Consultation fee (₹) <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <span className="text-gray-500 font-bold absolute left-3.5 top-2.5">₹</span>
-                          <input
-                            name="consultationFee"
-                            type="number"
-                            min={1}
-                            required
-                            defaultValue={500}
-                            placeholder="Enter amount"
-                            className={`${inputClass} pl-8`}
-                          />
-                        </div>
-                        <span className="text-[10.5px] text-gray-400 mt-1 block">
-                          Per booked doctor consultation.
-                        </span>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Availability
-                        </label>
-                        <div className="relative">
-                          <CalendarDays className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
-                          <select
-                            name="availability"
-                            defaultValue="set_after"
-                            className={`${inputClass} pl-9 appearance-none pr-8 cursor-pointer`}
-                          >
-                            <option value="set_after">Set after invitation</option>
-                            <option value="full_time">Full Time (Mon - Sat)</option>
-                            <option value="morning">Morning Shift (9 AM - 1 PM)</option>
-                            <option value="evening">Evening Shift (4 PM - 8 PM)</option>
-                          </select>
-                          <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-3 pointer-events-none" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card 3: 3. ACCOUNT ACCESS */}
-                  <div className="rounded-2xl border border-gray-200/90 bg-white p-5 sm:p-6 shadow-sm">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-8 h-8 rounded-full bg-blue-50 text-[#0066ff] flex items-center justify-center shrink-0 border border-blue-100">
-                        <Lock className="w-4 h-4 text-[#0066ff]" />
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-black uppercase tracking-wider text-gray-900">
-                          3. Account Access
-                        </h3>
-                        <p className="text-[11.5px] text-gray-500">
-                          Send an invitation to the doctor or set a password manually.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Doctor&apos;s email (Account Invitation) <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
-                          <input
-                            name="email"
-                            type="email"
-                            required
-                            placeholder="doctor@example.com"
-                            className={`${inputClass} pl-9`}
-                          />
-                        </div>
-                        <span className="text-[10.5px] text-gray-400 mt-1 block">
-                          A secure activation link will be sent to this address; the doctor creates their own password.
-                        </span>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Manual password (optional)
-                        </label>
-                        <div className="relative">
-                          <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
-                          <input
-                            name="password"
-                            type="password"
-                            minLength={8}
-                            autoComplete="new-password"
-                            placeholder="Leave blank for email invitation"
-                            className={`${inputClass} pl-9`}
-                          />
-                        </div>
-                        <span className="text-[10.5px] text-gray-400 mt-1 block">
-                          Use at least 8 characters if setting a password manually.
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Blue check banner */}
-                    <div className="mt-4 p-3 rounded-xl bg-blue-50/70 border border-blue-100/80 flex items-center gap-3">
-                      <div className="w-5 h-5 rounded-full bg-[#0066ff] text-white flex items-center justify-center shrink-0">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                      </div>
-                      <span className="text-xs text-blue-950 font-medium">
-                        A unique staff ID will be generated automatically. Invitation status will appear in the doctor directory.
-                      </span>
-                    </div>
-                  </div>
+                    <p className="mt-[18px] flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-[#F5F8FF] text-[13px] leading-[1.45] text-[#27324A]">
+                      <CircleCheck className="w-[18px] h-[18px] shrink-0 text-[#2A4DD0] mt-px" />A Doctor ID is created automatically. Patients can book the doctor once their slots are published.
+                    </p>
+                  </Section>
 
                   {error && (
-                    <p role="alert" className="p-3.5 rounded-xl bg-red-50 text-red-700 border border-red-200 text-xs font-medium">
+                    <p role="alert" className="p-3.5 rounded-xl bg-[#FEF3F2] text-[#B42318] text-[13.5px] font-bold">
                       {error}
                     </p>
                   )}
+                </div>
 
-                  {/* Footer buttons */}
-                  <div className="flex items-center justify-end gap-3 pt-3">
-                    <button
-                      type="button"
-                      onClick={close}
-                      className="px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
-                    >
+                <div className="sticky bottom-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 px-4 sm:px-7 py-4 bg-white border-t border-[#E6EAF0]">
+                  <span className="text-[12.5px] font-bold text-[#5B667A]">
+                    Fields marked <span className="text-[#B42318]">*</span> are required
+                  </span>
+                  <span className="flex gap-2.5 ml-auto">
+                    <button type="button" onClick={close} className={btnLine}>
                       Cancel
                     </button>
-                    <button
-                      type="submit"
-                      disabled={pending}
-                      className="px-6 py-2.5 rounded-xl bg-[#0066ff] hover:bg-[#0050cb] text-white text-sm font-bold flex items-center gap-2 shadow-md hover:shadow-lg transition-all disabled:opacity-60"
-                    >
-                      {pending ? (
-                        <LoaderCircle className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Send className="w-4 h-4" />
-                      )}
-                      Add Doctor &amp; Send Invite
+                    <button type="submit" disabled={pending} className={btnBlue}>
+                      {pending ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" strokeWidth={2.6} />}
+                      {mode === 'invite' ? 'Add doctor and send invite' : 'Add doctor'}
                     </button>
-                  </div>
-
-                </form>
-              )}
-            </div>
-
+                  </span>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
@@ -520,7 +409,7 @@ export function AddDoctorButton({
   )
 }
 
-/** Edits doctor profile with layout matching Image 3 */
+/** Edits one doctor's profile: the details patients see when booking. */
 export function EditDoctorButton({
   doctor,
   departments,
@@ -536,18 +425,66 @@ export function EditDoctorButton({
   const [open, setOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<string>('basic')
   const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
   const [pending, start] = useTransition()
-  const [languages, setLanguages] = useState<string[]>(['English', 'Hindi'])
   const [bioText, setBioText] = useState(doctor.bio || '')
+  // The pause switch acts at once; it isn't part of Save.
+  const [paused, setPaused] = useState(!!doctor.paused)
+  const [pauseError, setPauseError] = useState<string | null>(null)
+  const [pausePending, startPause] = useTransition()
 
-  const removeLang = (lang: string) => {
-    setLanguages((prev) => prev.filter((l) => l !== lang))
+  const title = doctor.name.startsWith('Dr') ? doctor.name : `Dr. ${doctor.name}`
+
+  // Profile photo: uploads as soon as a file is chosen; it isn't part of Save.
+  const photoInput = useRef<HTMLInputElement>(null)
+  const [photo, setPhoto] = useState<string | null>(doctor.image ?? null)
+  const [photoError, setPhotoError] = useState<string | null>(null)
+  const [photoPending, startPhoto] = useTransition()
+  const onPhoto = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return setPhotoError('Use a JPG, PNG or WebP photo.')
+    if (file.size > 5 * 1024 * 1024) return setPhotoError('The photo must be under 5 MB.')
+    setPhotoError(null)
+    const preview = URL.createObjectURL(file)
+    const data = new FormData()
+    data.append('doctorId', doctor.id)
+    data.append('image', file)
+    startPhoto(async () => {
+      const res = await uploadDoctorPhoto(data)
+      if (!res.ok) {
+        URL.revokeObjectURL(preview)
+        return setPhotoError(res.error)
+      }
+      setPhoto(preview)
+      router.refresh()
+    })
   }
 
-  const addLang = (lang: string) => {
-    if (lang && !languages.includes(lang)) {
-      setLanguages((prev) => [...prev, lang])
-    }
+  // Password reset link: emailed to the doctor only; the link never reaches this page.
+  const [resetSent, setResetSent] = useState<string | null>(null)
+  const [resetError, setResetError] = useState<string | null>(null)
+  const [resetPending, startReset] = useTransition()
+  const sendReset = () => {
+    setResetSent(null)
+    setResetError(null)
+    startReset(async () => {
+      const res = await sendDoctorPasswordLink(doctor.id)
+      if (!res.ok) return setResetError(res.error)
+      setResetSent(res.sentTo)
+    })
+  }
+
+  const togglePause = () => {
+    const next = !paused
+    setPauseError(null)
+    startPause(async () => {
+      const res = await setHospitalDoctorPaused(doctor.id, next)
+      if (!res.ok) return setPauseError(res.error)
+      setPaused(res.paused)
+      router.refresh()
+    })
   }
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
@@ -555,22 +492,23 @@ export function EditDoctorButton({
     const form = new FormData(e.currentTarget)
     start(async () => {
       const res = await updateHospitalDoctor(form)
-      if (!res.success) return setError(res.error)
-      setOpen(false)
+      if (!res.success) {
+        setSaved(false)
+        return setError(res.error)
+      }
       setError(null)
+      setSaved(true)
       router.refresh()
     })
   }
 
   const handleDelete = () => {
-    if (!window.confirm(`Are you sure you want to remove Dr. ${doctor.name} from the hospital directory?`)) {
-      return
-    }
+    if (!window.confirm(`Are you sure you want to remove ${title} from the hospital directory?`)) return
     const form = new FormData()
     form.append('doctorId', doctor.id)
     start(async () => {
       const res = await deleteHospitalDoctor(form)
-      if (!res.success) return setError(res.error || 'Failed to delete')
+      if (!res.success) return setError(res.error || 'Could not remove the doctor.')
       setOpen(false)
       setError(null)
       router.refresh()
@@ -578,19 +516,25 @@ export function EditDoctorButton({
   }
 
   const tabs = [
-    { id: 'basic', label: 'Basic Information', sub: 'Profile details', icon: User },
-    { id: 'clinic', label: 'Clinic & Consultation', sub: 'Practice details', icon: Briefcase },
-    { id: 'qualifications', label: 'Qualifications', sub: 'Education & certifications', icon: FileText },
-    { id: 'schedule', label: 'Schedule', sub: 'Availability & working hours', icon: CalendarDays },
-    { id: 'account', label: 'Account Access', sub: 'Doctor ID, email & security', icon: KeyRound },
-    { id: 'about', label: 'About', sub: 'Bio, languages and more', icon: Info },
+    { id: 'basic', label: 'Basic information', sub: 'Name and contact' },
+    { id: 'clinic', label: 'Clinic and consultation', sub: 'Speciality, experience and fee' },
+    { id: 'qualifications', label: 'Qualifications', sub: 'Education and registration' },
+    { id: 'schedule', label: 'Schedule', sub: 'Slots and leave' },
+    { id: 'account', label: 'Account access', sub: 'Staff ID and sign-in email' },
+    { id: 'about', label: 'About', sub: 'What patients read' },
   ]
+  const current = tabs.find((t) => t.id === activeTab) ?? tabs[0]
+  const panel = (id: string) => (activeTab === id ? 'flex flex-col gap-[18px]' : 'hidden')
 
   return (
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setSaved(false)
+          setError(null)
+          setOpen(true)
+        }}
         className={className}
         title={`Edit ${doctor.name}`}
         aria-label={iconOnly ? `Edit ${doctor.name}` : undefined}
@@ -600,574 +544,281 @@ export function EditDoctorButton({
       </button>
 
       {open && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
-          role="dialog"
-          aria-modal="true"
-        >
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity"
-            onClick={() => setOpen(false)}
-          />
-
-          {/* Modal Card (Matches Image 3) */}
-          <div className="relative w-full max-w-4xl my-auto bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col max-h-[92dvh]">
-            
-            {/* Header */}
-            <div className="p-6 sm:p-7 border-b border-gray-100 flex items-start justify-between gap-4 bg-white sticky top-0 z-10">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-2xl bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100/60">
-                  <Image
-                    src="/logo-icon.png"
-                    alt="Logo"
-                    width={26}
-                    height={26}
-                    className="w-6.5 h-6.5 object-contain"
-                  />
-                </div>
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-                    Edit {doctor.name.startsWith('Dr') ? doctor.name : `Dr. ${doctor.name}`}
-                  </h2>
-                  <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-                    Update the doctor&apos;s details, clinic information and account settings.
-                  </p>
-                </div>
+        <div role="dialog" aria-modal="true" aria-label={`Edit ${title}`} className={overlay}>
+          <div className={`${shell} sm:w-[min(1040px,calc(100%-32px))]`}>
+            <div className="flex items-start justify-between gap-4 px-4 sm:px-7 pt-[22px] sm:pt-[26px] pb-5">
+              <div>
+                <h2 className="text-[20px] sm:text-[22px] font-extrabold tracking-[-0.02em]">Edit {title}</h2>
+                <p className="mt-[5px] text-[13.5px] sm:text-[14px] text-[#5B667A]">Update the doctor’s details, clinic information and account access.</p>
               </div>
-
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label="Close"
-                className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors shrink-0"
-              >
-                <X className="w-4 h-4" />
+              <button type="button" onClick={() => setOpen(false)} aria-label="Close" className={closeBtn}>
+                <X className="w-[18px] h-[18px]" strokeWidth={2.4} />
               </button>
             </div>
 
-            {/* Main Form Content with Sidebar and Form Panels */}
-            <form onSubmit={submit} className="flex-1 overflow-y-auto flex flex-col">
+            <form
+              onSubmit={submit}
+              onChange={() => setSaved(false)}
+              onInvalidCapture={(e) => {
+                // A required field on a hidden tab: open that tab so the message can show.
+                const tab = (e.target as HTMLElement).closest('[data-tab]')?.getAttribute('data-tab')
+                if (tab) setActiveTab(tab)
+              }}
+            >
               <input type="hidden" name="doctorId" value={doctor.id} />
+              <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] border-t border-[#EEF2F7]">
+                <nav aria-label="Doctor details" className="bg-[#F7F9FC] lg:border-r border-b lg:border-b-0 border-[#EEF2F7] py-3 lg:py-[18px]">
+                  <p className="hidden lg:block px-6 pb-2.5 text-[11.5px] font-extrabold tracking-[0.08em] text-[#8A94A6]">DOCTOR DETAILS</p>
+                  <div className="flex lg:flex-col overflow-x-auto lg:overflow-visible">
+                    {tabs.map((t) => {
+                      const on = t.id === activeTab
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => setActiveTab(t.id)}
+                          aria-current={on ? 'page' : undefined}
+                          className={`shrink-0 text-left px-5 lg:px-6 py-3 lg:py-[13px] transition-colors ${on ? 'bg-white shadow-[inset_3px_0_0_#2A4DD0]' : 'hover:bg-[#F0F3F9]'}`}
+                        >
+                          <span className={`block text-[14.5px] ${on ? 'font-extrabold text-[#2A4DD0]' : 'font-bold text-[#27324A]'}`}>{t.label}</span>
+                          <span className="hidden lg:block mt-0.5 text-[12.5px] text-[#5B667A]">{t.sub}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </nav>
 
-              <div className="grid grid-cols-1 md:grid-cols-12 flex-1">
-                
-                {/* Left Sidebar Navigation Tabs */}
-                <div className="md:col-span-4 border-r border-gray-100 p-4 sm:p-5 bg-gray-50/50 flex flex-col gap-1.5">
-                  {tabs.map((tab) => {
-                    const Icon = tab.icon
-                    const active = activeTab === tab.id
-                    return (
-                      <button
-                        type="button"
-                        key={tab.id}
-                        onClick={() => {
-                          setActiveTab(tab.id)
-                          const el = document.getElementById(`section-${tab.id}`)
-                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                        }}
-                        className={`flex items-start gap-3 p-3 rounded-2xl text-left transition-all ${
-                          active
-                            ? 'bg-white text-[#0066ff] shadow-sm border border-blue-100'
-                            : 'text-gray-600 hover:bg-gray-100/70 hover:text-gray-900'
-                        }`}
-                      >
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
-                          active ? 'bg-blue-50 text-[#0066ff]' : 'bg-gray-100 text-gray-500'
-                        }`}>
-                          <Icon className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className={`block text-xs font-bold leading-tight ${active ? 'text-[#0066ff]' : 'text-gray-900'}`}>
-                            {tab.label}
-                          </span>
-                          <span className="block text-[11px] text-gray-400 mt-0.5 leading-tight truncate">
-                            {tab.sub}
-                          </span>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
+                <div className="px-4 sm:px-[30px] py-[26px] lg:min-h-[560px] min-w-0">
+                  <h3 className="text-[18px] font-extrabold">{current.label}</h3>
+                  <p className="mt-1 mb-[22px] text-[13.5px] text-[#5B667A]">
+                    {current.sub} for {title}.
+                  </p>
 
-                {/* Right Form Fields Area */}
-                <div className="md:col-span-8 p-6 sm:p-8 flex flex-col gap-8">
-                  
-                  {/* Section 1: Profile Information */}
-                  <div id="section-basic" className="flex flex-col gap-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-100">
-                      <div>
-                        <h3 className="text-base font-bold text-gray-900">
-                          Profile Information
-                        </h3>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          These details are visible to patients when they book an appointment.
-                        </p>
-                      </div>
-
-                      {/* Photo Upload Widget */}
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-[#0066ff] shrink-0 font-bold text-sm">
-                          {doctor.name.slice(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                          <button
-                            type="button"
-                            className="px-3 py-1.5 rounded-xl border border-blue-200 text-[#0066ff] bg-blue-50/60 hover:bg-blue-100 text-xs font-bold flex items-center gap-1.5 transition-colors"
-                          >
-                            <Upload className="w-3.5 h-3.5" /> Upload Photo
-                          </button>
-                          <span className="text-[10px] text-gray-400 block mt-0.5">
-                            JPG, PNG (Max 2 MB)
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Full name <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <User className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
-                          <input
-                            name="fullName"
-                            required
-                            defaultValue={doctor.name}
-                            className={`${inputClass} pl-9`}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Display name (as shown to patients) <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <User className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
-                          <input
-                            name="displayName"
-                            required
-                            defaultValue={doctor.name.startsWith('Dr') ? doctor.name : `Dr. ${doctor.name}`}
-                            className={`${inputClass} pl-9`}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Gender
-                        </label>
-                        <div className="relative">
-                          <select
-                            name="gender"
-                            defaultValue="female"
-                            className={`${inputClass} appearance-none pr-8 cursor-pointer`}
-                          >
-                            <option value="female">Female</option>
-                            <option value="male">Male</option>
-                            <option value="other">Other</option>
-                          </select>
-                          <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-3 pointer-events-none" />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Mobile number
-                        </label>
-                        <div className="relative">
-                          <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
-                          <input
-                            name="phone"
-                            type="tel"
-                            defaultValue={doctor.phone ?? ''}
-                            placeholder="+91 98765 43210"
-                            className={`${inputClass} pl-9`}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Email address
-                        </label>
-                        <div className="relative">
-                          <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
-                          <input
-                            name="email"
-                            type="email"
-                            defaultValue={doctor.email ?? ''}
-                            placeholder="ananya.pandey@hospital.com"
-                            className={`${inputClass} pl-9`}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Doctor ID (Staff ID) <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <input
-                            readOnly
-                            defaultValue={doctor.staffId || `DR${doctor.id.slice(0, 5).toUpperCase()}`}
-                            className={`${inputClass} font-mono bg-gray-100 pr-9`}
-                          />
-                          <button
-                            type="button"
-                            title="Auto-generated unique ID"
-                            className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                          >
-                            <RefreshCw className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        <span className="text-[10.5px] text-gray-400 mt-1 block">
-                          Unique ID used for login and internal reference.
+                  <div data-tab="basic" className={panel('basic')}>
+                    <div className="flex items-center gap-3.5">
+                      {photo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={photo} alt="" className="w-14 h-14 shrink-0 rounded-full object-cover bg-[#EEF3FF]" />
+                      ) : (
+                        <span aria-hidden className="w-14 h-14 shrink-0 rounded-full bg-[#EEF3FF] text-[#2A4DD0] flex items-center justify-center text-[18px] font-extrabold">
+                          {doctor.name.replace(/^Dr\.?\s*/i, '').slice(0, 2).toUpperCase() || 'DR'}
                         </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Section 2: Specialization & Experience */}
-                  <div id="section-clinic" className="flex flex-col gap-4">
-                    <h3 className="text-base font-bold text-gray-900 pb-2 border-b border-gray-100">
-                      Specialization &amp; Experience
-                    </h3>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Speciality / department <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <Stethoscope className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
-                          <input
-                            name="specialty"
-                            required
-                            list="hospital-departments-edit"
-                            defaultValue={doctor.specialty ?? 'Pediatrics'}
-                            className={`${inputClass} pl-9`}
-                          />
-                          <datalist id="hospital-departments-edit">
-                            {departments.map((d) => (
-                              <option key={d} value={d} />
-                            ))}
-                          </datalist>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Years of experience <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <Briefcase className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
-                          <input
-                            name="experience"
-                            type="number"
-                            min={0}
-                            max={70}
-                            required
-                            defaultValue={doctor.experience ?? 4}
-                            className={`${inputClass} pl-9`}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Consultation fee (₹) <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <span className="text-gray-500 font-bold absolute left-3.5 top-2.5">₹</span>
-                          <input
-                            name="fee"
-                            type="number"
-                            min={1}
-                            required
-                            defaultValue={doctor.fee ?? 500}
-                            className={`${inputClass} pl-8`}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Section 3: Qualifications & Registration */}
-                  <div id="section-qualifications" className="flex flex-col gap-4">
-                    <h3 className="text-base font-bold text-gray-900 pb-2 border-b border-gray-100">
-                      Qualifications &amp; Registration
-                    </h3>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Qualifications <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <GraduationCap className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
-                          <input
-                            name="qualifications"
-                            defaultValue={doctor.qualifications ?? 'MBBS, MD'}
-                            placeholder="MBBS, MD"
-                            className={`${inputClass} pl-9`}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Medical registration number
-                        </label>
-                        <div className="relative">
-                          <FileText className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
-                          <input
-                            name="registrationNumber"
-                            defaultValue="APMC12345"
-                            placeholder="APMC12345"
-                            className={`${inputClass} pl-9`}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Registration council
-                        </label>
-                        <div className="relative">
-                          <select
-                            name="registrationCouncil"
-                            defaultValue="Andhra Pradesh Medical Council"
-                            className={`${inputClass} appearance-none pr-8 cursor-pointer`}
-                          >
-                            {councilsList.map((c) => (
-                              <option key={c} value={c}>{c}</option>
-                            ))}
-                          </select>
-                          <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-3 pointer-events-none" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Section 4: Clinic & Room Details */}
-                  <div className="flex flex-col gap-4">
-                    <h3 className="text-base font-bold text-gray-900 pb-2 border-b border-gray-100">
-                      Clinic &amp; Room Details
-                    </h3>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Clinic / hospital <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <Hospital className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
-                          <input
-                            name="clinic"
-                            defaultValue={doctor.hospitalName || 'ABC Hospital'}
-                            className={`${inputClass} pl-9`}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Room / location
-                        </label>
-                        <div className="relative">
-                          <MapPin className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
-                          <input
-                            name="address"
-                            defaultValue={doctor.address ?? 'OPD Block B, Room 204'}
-                            placeholder="OPD Block B, Room 204"
-                            className={`${inputClass} pl-9`}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                          Consultation type
-                        </label>
-                        <div className="relative">
-                          <Monitor className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
-                          <select
-                            name="consultationType"
-                            defaultValue="both"
-                            className={`${inputClass} pl-9 appearance-none pr-8 cursor-pointer`}
-                          >
-                            <option value="both">Both (Online &amp; In-person)</option>
-                            <option value="in_person">In-person only</option>
-                            <option value="online">Online consultation only</option>
-                          </select>
-                          <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-3 pointer-events-none" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Section 5: Account Access & Additional Information (2 Columns) */}
-                  <div id="section-account" className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    
-                    {/* Left Box: Account Access */}
-                    <div className="rounded-2xl border border-gray-200/90 p-4.5 bg-gray-50/40 flex flex-col gap-3">
-                      <div>
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900">
-                          Account Access
-                        </h4>
-                        <p className="text-[11px] text-gray-500 mt-0.5">
-                          Manage login access for the doctor.
-                        </p>
-                      </div>
-
-                      <div className="flex flex-col gap-2.5 mt-1">
-                        <div>
-                          <span className="text-[11px] font-semibold text-gray-500 block mb-1">
-                            Account email
+                      )}
+                      <div className="min-w-0">
+                        <span className={`${label} !mb-0`}>Profile photo</span>
+                        <span className={hint}>JPG, PNG or WebP, up to 5 MB. Patients see this when they book, and the Verified badge needs it.</span>
+                        <button type="button" onClick={() => photoInput.current?.click()} disabled={photoPending} className={`${btnLine} mt-2.5`}>
+                          {photoPending && <LoaderCircle className="w-4 h-4 animate-spin" />}
+                          {photoPending ? 'Uploading…' : 'Upload photo'}
+                        </button>
+                        {/* No name: the Save form never sends it. */}
+                        <input ref={photoInput} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={onPhoto} />
+                        {photoError && (
+                          <span role="alert" className="block mt-1.5 text-[12.5px] font-bold text-[#B42318]">
+                            {photoError}
                           </span>
-                          <div className="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-xl border border-gray-200 text-xs">
-                            <span className="truncate font-medium text-gray-700">
-                              {doctor.email || 'ananya.pandey@hospital.com'}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => alert(`Email change link dispatched for ${doctor.email}`)}
-                              className="text-xs font-bold text-[#0066ff] hover:underline shrink-0"
-                            >
-                              Change Email
-                            </button>
-                          </div>
-                        </div>
-
-                        <div>
-                          <span className="text-[11px] font-semibold text-gray-500 block mb-1">
-                            Password
-                          </span>
-                          <div className="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-xl border border-gray-200 text-xs">
-                            <span className="font-mono text-gray-500 tracking-widest">
-                              ••••••••
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => alert(`Password reset instructions sent to ${doctor.email || 'registered doctor email'}`)}
-                              className="px-2.5 py-1 rounded-lg bg-blue-50 text-[#0066ff] text-[11px] font-bold hover:bg-blue-100 transition-colors shrink-0"
-                            >
-                              Reset Password
-                            </button>
-                          </div>
-                        </div>
+                        )}
                       </div>
                     </div>
-
-                    {/* Right Box: Additional Information */}
-                    <div id="section-about" className="rounded-2xl border border-gray-200/90 p-4.5 bg-gray-50/40 flex flex-col gap-3">
-                      <div>
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900">
-                          Additional Information
-                        </h4>
-                        <p className="text-[11px] text-gray-500 mt-0.5">
-                          Languages spoken and patient biography.
-                        </p>
-                      </div>
-
-                      <div>
-                        <span className="text-[11px] font-semibold text-gray-500 block mb-1">
-                          Languages spoken
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-[18px] items-start">
+                      <label className="block min-w-0">
+                        <span className={label}>
+                          Full name
+                          <Req />
                         </span>
-                        <div className="flex flex-wrap items-center gap-1.5 p-2 bg-white rounded-xl border border-gray-200 min-h-[38px]">
-                          {languages.map((lang) => (
-                            <span
-                              key={lang}
-                              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50 text-[#0066ff] text-xs font-semibold"
-                            >
-                              {lang}
-                              <button
-                                type="button"
-                                onClick={() => removeLang(lang)}
-                                className="hover:text-blue-900"
-                              >
-                                &times;
-                              </button>
-                            </span>
+                        <input name="fullName" required minLength={2} maxLength={120} defaultValue={doctor.name} className={input} />
+                      </label>
+                      <label className="block min-w-0">
+                        <span className={label}>Mobile number</span>
+                        <input name="phone" type="tel" inputMode="tel" maxLength={30} defaultValue={doctor.phone ?? ''} className={input} />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div data-tab="clinic" className={panel('clinic')}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-[18px] items-start">
+                      <label className="block min-w-0">
+                        <span className={label}>
+                          Speciality
+                          <Req />
+                        </span>
+                        <input name="specialty" required list="hospital-departments-edit" maxLength={80} defaultValue={doctor.specialty ?? ''} className={input} />
+                        <datalist id="hospital-departments-edit">
+                          {departments.map((d) => (
+                            <option key={d} value={d} />
                           ))}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const next = prompt('Enter language to add (e.g. Telugu, Tamil, Marathi):')
-                              if (next) addLang(next.trim())
-                            }}
-                            className="text-[11px] font-bold text-gray-400 hover:text-[#0066ff] px-2 py-0.5"
-                          >
-                            + Add
-                          </button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[11px] font-semibold text-gray-500">
-                            About (visible to patients)
-                          </span>
-                          <span className="text-[10px] text-gray-400 font-mono">
-                            {bioText.length}/500
-                          </span>
-                        </div>
-                        <textarea
-                          name="bio"
-                          rows={2}
-                          maxLength={500}
-                          value={bioText}
-                          onChange={(e) => setBioText(e.target.value)}
-                          placeholder="Experienced Pediatrician with 4+ years of experience in child healthcare, growth and development..."
-                          className={`${inputClass} text-xs resize-none`}
-                        />
-                      </div>
+                        </datalist>
+                      </label>
+                      <label className="block min-w-0">
+                        <span className={label}>
+                          Years of experience
+                          <Req />
+                        </span>
+                        <input name="experience" type="number" inputMode="numeric" min={0} max={70} required defaultValue={doctor.experience ?? ''} className={input} />
+                      </label>
+                      <label className="block min-w-0">
+                        <span className={label}>
+                          Consultation fee
+                          <Req />
+                        </span>
+                        <Rupee>
+                          <input name="fee" type="number" inputMode="numeric" min={1} required defaultValue={doctor.fee ?? ''} aria-label="Consultation fee in rupees" className={bareInput} />
+                        </Rupee>
+                        <span className={hint}>Collected at your counter for each visit.</span>
+                      </label>
+                      <label className="block min-w-0">
+                        <span className={label}>Room or cabin</span>
+                        <input name="address" maxLength={200} defaultValue={doctor.address ?? ''} className={input} />
+                        <span className={hint}>Shown on the confirmation slip.</span>
+                      </label>
                     </div>
+                  </div>
 
+                  <div data-tab="qualifications" className={panel('qualifications')}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-[18px] items-start">
+                      <label className="block min-w-0 sm:col-span-2">
+                        <span className={label}>Qualifications</span>
+                        <input name="qualifications" maxLength={200} defaultValue={doctor.qualifications ?? ''} className={input} />
+                        <span className={hint}>For example MBBS, MS (Ortho).</span>
+                      </label>
+                      <label className="block min-w-0">
+                        <span className={label}>Medical registration number</span>
+                        <input name="registrationNumber" maxLength={40} defaultValue={doctor.registrationNumber ?? ''} autoComplete="off" className={input} />
+                        <span className={hint}>Needed for the Verified badge.</span>
+                      </label>
+                      <label className="block min-w-0">
+                        <span className={label}>Medical council</span>
+                        <CouncilSelect defaultValue={doctor.registrationCouncil} />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div data-tab="schedule" className={panel('schedule')}>
+                    <p className="text-[14px] leading-[1.5] text-[#27324A]">Patients can book only the slots you publish. Add or remove slots for this doctor on their schedule page, and answer their leave requests.</p>
+                    <div className="flex flex-wrap gap-2.5">
+                      <Link href={`/hospital/doctors/${doctor.id}/schedule`} className={btnBlue}>
+                        Open schedule <ExternalLink className="w-4 h-4" />
+                      </Link>
+                      <Link href="/hospital/doctors/leave" className={btnLine}>
+                        Leave requests
+                      </Link>
+                    </div>
+                  </div>
+
+                  <div data-tab="account" className={panel('account')}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-[18px] items-start">
+                      <label className="block min-w-0">
+                        <span className={label}>Staff ID</span>
+                        <input readOnly value={doctor.staffId || '—'} className={`${input} font-mono`} />
+                        <span className={hint}>Used to sign in to the doctor portal. It can’t be changed.</span>
+                      </label>
+                      <label className="block min-w-0">
+                        <span className={label}>Sign-in email</span>
+                        <input readOnly value={doctor.email || '—'} className={input} />
+                      </label>
+                    </div>
+                    <div className="flex items-center justify-between gap-4 pt-[18px] border-t border-[#EEF2F7]">
+                      <div className="min-w-0">
+                        <span className={`${label} !mb-0`}>Password</span>
+                        <span className={hint}>We email the doctor a link to set a new password. You never see the link.</span>
+                        {resetSent && (
+                          <span role="status" className="block mt-1.5 text-[12.5px] font-extrabold text-[#067647]">
+                            Sent to {resetSent}
+                          </span>
+                        )}
+                        {resetError && (
+                          <span role="alert" className="block mt-1.5 text-[12.5px] font-bold text-[#B42318]">
+                            {resetError}
+                          </span>
+                        )}
+                      </div>
+                      <button type="button" onClick={sendReset} disabled={resetPending} className={`${btnLine} shrink-0`}>
+                        {resetPending && <LoaderCircle className="w-4 h-4 animate-spin" />}
+                        Send password reset link
+                      </button>
+                    </div>
+                    {doctor.paused !== undefined && (
+                      <div className="flex items-center justify-between gap-4 pt-[18px] border-t border-[#EEF2F7]">
+                        <div className="min-w-0">
+                          <span className={`${label} !mb-0`}>Account status</span>
+                          <span className="block mt-1 text-[14px] font-extrabold" style={{ color: paused ? '#B54708' : '#067647' }}>
+                            {paused ? 'Paused · hidden from patients' : 'Active · listed for booking'}
+                          </span>
+                          <span className={hint}>
+                            Paused doctors don’t show in search or on your hospital page and can’t be booked. Bookings already made stay.
+                            {paused && doctor.pausedBy === 'doctor' ? ' Paused by the doctor.' : ''}
+                            {!doctor.pauseReady ? ' Opens after the next update.' : ''}
+                          </span>
+                          {pauseError && (
+                            <span role="alert" className="block mt-1.5 text-[12.5px] font-bold text-[#B42318]">
+                              {pauseError}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={!paused}
+                          aria-label="Taking bookings"
+                          disabled={!doctor.pauseReady || pausePending}
+                          onClick={togglePause}
+                          className="relative shrink-0 w-11 h-[26px] rounded-full transition-colors disabled:opacity-60"
+                          style={{ background: paused ? '#C9D2E0' : '#2A4DD0' }}
+                        >
+                          <span className="absolute top-0.5 w-[22px] h-[22px] rounded-full bg-white shadow-[0_1px_3px_rgba(11,27,63,0.25)] transition-all" style={{ left: paused ? 2 : 18 }} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div data-tab="about" className={panel('about')}>
+                    <label className="block">
+                      <span className="flex items-center justify-between">
+                        <span className={label}>About the doctor</span>
+                        <span className="mb-1.5 text-[12px] text-[#8A94A6]">{bioText.length}/500</span>
+                      </span>
+                      <textarea
+                        name="bio"
+                        rows={5}
+                        maxLength={500}
+                        value={bioText}
+                        onChange={(e) => setBioText(e.target.value)}
+                        placeholder="What patients should know about this doctor"
+                        className={`${input} !h-auto py-3 resize-none`}
+                      />
+                    </label>
+                    <Link href={`/doctors/${doctor.id}`} className="inline-flex items-center gap-1.5 text-[13.5px] font-extrabold text-[#2A4DD0] hover:underline">
+                      View public profile <ExternalLink className="w-4 h-4" />
+                    </Link>
                   </div>
 
                   {error && (
-                    <p role="alert" className="p-3.5 rounded-xl bg-red-50 text-red-700 border border-red-200 text-xs font-medium">
+                    <p role="alert" className="mt-[18px] p-3.5 rounded-xl bg-[#FEF3F2] text-[#B42318] text-[13.5px] font-bold">
                       {error}
                     </p>
                   )}
-
                 </div>
               </div>
 
-              {/* Modal Footer (Matches Image 3) */}
-              <div className="p-5 sm:p-6 border-t border-gray-100 flex items-center justify-between gap-4 bg-white sticky bottom-0 z-10">
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={pending}
-                  className="px-4 py-2.5 rounded-xl bg-red-50/70 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
-                >
-                  <Trash2 className="w-3.5 h-3.5" /> Delete Doctor
+              <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 sm:gap-4 px-4 sm:px-7 py-4 bg-white border-t border-[#E6EAF0]">
+                <button type="button" onClick={handleDelete} disabled={pending} className="inline-flex items-center gap-1.5 text-[13.5px] font-extrabold text-[#B42318] hover:underline disabled:opacity-60">
+                  <Trash2 className="w-4 h-4" /> Remove doctor
                 </button>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setOpen(false)}
-                    className="px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
-                  >
-                    Cancel
+                <span className="flex flex-wrap items-center gap-2.5 ml-auto">
+                  {saved && (
+                    <span role="status" className="inline-flex items-center gap-1.5 text-[13px] font-extrabold text-[#067647]">
+                      <Check className="w-4 h-4" strokeWidth={3} /> Changes saved
+                    </span>
+                  )}
+                  <button type="button" onClick={() => setOpen(false)} className={btnLine}>
+                    {saved ? 'Close' : 'Cancel'}
                   </button>
-                  <button
-                    type="submit"
-                    disabled={pending}
-                    className="px-6 py-2.5 rounded-xl bg-[#0066ff] hover:bg-[#0050cb] text-white text-sm font-bold flex items-center gap-2 shadow-md hover:shadow-lg transition-all disabled:opacity-60"
-                  >
+                  <button type="submit" disabled={pending} className={btnBlue}>
                     {pending && <LoaderCircle className="w-4 h-4 animate-spin" />}
-                    Save Changes
+                    Save changes
                   </button>
-                </div>
+                </span>
               </div>
-
             </form>
           </div>
         </div>

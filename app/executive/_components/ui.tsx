@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Info, Phone, type LucideIcon } from 'lucide-react'
-import { DeskHead, WorkBody, WorkHeader, btnSmallBlue, card } from '@/components/portal/workspace-ui'
+import { DeskHead, WorkBody, WorkHeader, btnSmall, card } from '@/components/portal/workspace-ui'
 
 // The executive workspace's pieces, after the DeskExe* design exports: the shared staff workspace kit
 // (components/portal/workspace-ui.tsx) plus the page frame, stat cards, titled cards, tables and small labels the
@@ -54,14 +54,14 @@ export function ExePage({
 }
 
 /** A row of stat cards: two to a row on phones, `cols` on desktops. */
-export function Stats({ children, cols = 4 }: { children: ReactNode; cols?: 3 | 4 | 5 }) {
-  const grid = { 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-3 xl:grid-cols-5' }[cols]
+export function Stats({ children, cols = 4 }: { children: ReactNode; cols?: 3 | 4 | 5 | 6 }) {
+  const grid = { 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-3 xl:grid-cols-5', 6: 'lg:grid-cols-3 xl:grid-cols-6' }[cols]
   return <section className={`grid grid-cols-2 ${grid} gap-2.5 lg:gap-4`}>{children}</section>
 }
 
 /** A stat card: label, number and a note under it (coloured when it needs attention). */
-export function Stat({ label, value, note, tone, change }: { label: string; value: ReactNode; note?: ReactNode; tone?: 'ok' | 'warn' | 'high' | 'blue'; change?: ReactNode }) {
-  const color = { ok: '#067647', warn: '#B54708', high: '#B42318', blue: '#2A4DD0' }[tone ?? 'ok']
+export function Stat({ label, value, note, tone, change }: { label: string; value: ReactNode; note?: ReactNode; tone?: 'ok' | 'warn' | 'high' | 'blue' | 'purple'; change?: ReactNode }) {
+  const color = { ok: '#067647', warn: '#B54708', high: '#B42318', blue: '#2A4DD0', purple: '#7A5AF8' }[tone ?? 'ok']
   return (
     <div className={`${card} px-4 py-3.5 lg:px-5 lg:py-[18px] min-w-0`}>
       <span className="block text-[12px] lg:text-[13px] font-bold text-[#5B667A] truncate">{label}</span>
@@ -172,7 +172,7 @@ export function Note({ children, icon: Icon = Info, tone = 'blue' }: { children:
 /** A small "Call" button for a phone number. */
 export function CallLink({ phone, label = 'Call' }: { phone: string; label?: string }) {
   return (
-    <a href={telHref(phone)} className={btnSmallBlue}>
+    <a href={telHref(phone)} className={btnSmall}>
       <Phone className="w-3.5 h-3.5" strokeWidth={2.4} aria-hidden />
       {label}
     </a>
@@ -180,18 +180,18 @@ export function CallLink({ phone, label = 'Call' }: { phone: string; label?: str
 }
 
 /** Horizontal bars for small breakdowns (label, count, share of the largest). */
-export function BarList({ rows }: { rows: { label: string; value: number; display?: string }[] }) {
+export function BarList({ rows }: { rows: { label: string; value: number; display?: string; color?: string }[] }) {
   const max = Math.max(1, ...rows.map((r) => r.value))
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col">
       {rows.map((row) => (
-        <div key={row.label} className="flex flex-col gap-1.5">
-          <div className="flex justify-between gap-3 text-[13px]">
-            <span className="text-[#27324A] truncate">{row.label}</span>
-            <span className="font-extrabold whitespace-nowrap tabular-nums">{row.display ?? row.value}</span>
+        <div key={row.label} className="flex flex-col gap-1.5 py-2.5 border-t border-[#EEF2F7] first:border-t-0 first:pt-0">
+          <div className="flex justify-between gap-3 text-[13.5px] font-extrabold text-[#0B1B3F]">
+            <span className="truncate">{row.label}</span>
+            <span className="whitespace-nowrap tabular-nums">{row.display ?? row.value}</span>
           </div>
-          <div className="w-full h-2 rounded-full bg-[#EEF2F7] overflow-hidden">
-            <div className="h-full rounded-full bg-[#2A4DD0]" style={{ width: `${(row.value / max) * 100}%` }} />
+          <div className="w-full h-1.5 rounded-full bg-[#EEF2F7] overflow-hidden">
+            <div className="h-full rounded-full" style={{ width: `${(row.value / max) * 100}%`, background: row.color ?? '#2A4DD0' }} />
           </div>
         </div>
       ))}

@@ -4,6 +4,7 @@ import { getExecutiveTickets } from '@/app/actions/tickets'
 import { currentTime, requireExecutivePage, timeAgo } from '../_lib/ops'
 import { ExePage } from '../_components/ui'
 import type { Enquiry } from '../_components/PartnerPipeline'
+import { NewTicketButton } from '../_components/NewTicketButton'
 import { ExecutiveTicketsClient } from './ExecutiveTicketsClient'
 
 export const metadata: Metadata = { title: 'Support' }
@@ -57,6 +58,20 @@ export default async function ExecutiveSupportPage(props: { searchParams?: Promi
     }
   }
 
+  // Ticked "Steps to solve" per ticket; before migration 20261118 (section 5) the table is missing and the boxes stay off.
+  const steps: Record<string, Record<string, string | null>> = {}
+  let stepsReady = true
+  for (let i = 0; i < ids.length && stepsReady; i += 200) {
+    const { data, error } = await admin.from('ticket_steps').select('ticket_id, step_key, done_by_name').in('ticket_id', ids.slice(i, i + 200)).limit(5000)
+    if (error) {
+      stepsReady = false
+      break
+    }
+    for (const s of (data ?? []) as { ticket_id: string; step_key: string; done_by_name: string | null }[]) {
+      ;(steps[s.ticket_id] ??= {})[s.step_key] = s.done_by_name
+    }
+  }
+
   const ticketTeams = Object.fromEntries(((teamsRes.error ? [] : teamsRes.data) ?? []).map((r) => [(r as { id: string }).id, (r as { team: string }).team]))
   const enquiries: Enquiry[] = ((enquiriesRes.error ? [] : enquiriesRes.data) as EnquiryRow[] | null ?? []).map((e) => ({
     id: e.id,
@@ -77,8 +92,10 @@ export default async function ExecutiveSupportPage(props: { searchParams?: Promi
   const tab = (await props.searchParams)?.tab === 'interest' ? 'interest' : 'tickets'
 
   return (
-    <ExePage name={profile.fullName} title="Support" subtitle="Solve every ticket from patients, hospitals and doctors, and help interested hospitals join">
+    <ExePage name={profile.fullName} title="Support" subtitle="Solve every ticket from patients, hospitals and doctors, and help interested hospitals join" actions={<NewTicketButton />}>
       <ExecutiveTicketsClient
+        steps={steps}
+        stepsReady={stepsReady}
         initialTickets={tickets}
         stats={stats}
         me={user.id}

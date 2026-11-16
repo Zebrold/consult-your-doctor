@@ -31,6 +31,7 @@ import {
   JoinHero,
   JoinSection,
   JoinSent,
+  PhoneSteps,
   KeepReadyCard,
   PhoneInput,
   RadioGroup,
@@ -122,7 +123,6 @@ export function PartnerSignupForm({ kind, uploads }: { kind: PartnerKind; upload
     <JoinSent
       title="Application sent"
       text={`Thank you. We have emailed you to confirm it arrived. Our operations team will check your details and contact you. Once your ${copy.noun} is approved, we set up the staff login your team uses to manage the listing, bookings and payments.`}
-      primary={{ href: '/legal', label: 'Read our policies' }}
     />
   ) : (
     <form ref={formRef} onSubmit={onSubmit} onInput={updateProgress} onChange={updateProgress} className="rounded-[20px] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.06),0_8px_24px_-16px_rgba(11,27,63,0.16)] p-5 sm:p-7 md:p-9">
@@ -139,11 +139,11 @@ export function PartnerSignupForm({ kind, uploads }: { kind: PartnerKind; upload
         <Field label="Ownership" htmlFor="ownership" required>
           <SelectBox id="ownership" name="ownership" required options={OWNERSHIP_TYPES} />
         </Field>
-        <Field label="Year established" htmlFor="year-established" optional>
+        <Field label="Year established" htmlFor="year-established" pair optional>
           <input id="year-established" name="yearEstablished" type="number" inputMode="numeric" min={1800} max={thisYear} className={inputCls} />
         </Field>
         {hospital ? (
-          <Field label="Doctors on staff" htmlFor="doctors-on-staff" required>
+          <Field label="Doctors on staff" htmlFor="doctors-on-staff" pair required>
             <input id="doctors-on-staff" name="doctorsOnStaff" type="number" inputMode="numeric" required min={1} max={5000} className={inputCls} />
           </Field>
         ) : (
@@ -158,13 +158,13 @@ export function PartnerSignupForm({ kind, uploads }: { kind: PartnerKind; upload
         <Field label="Landmark" htmlFor="landmark" optional span={3}>
           <input id="landmark" name="landmark" maxLength={120} className={inputCls} />
         </Field>
-        <Field label="City" htmlFor="org-city" required>
+        <Field label="City" htmlFor="org-city" pair required>
           <input id="org-city" name="city" required minLength={2} maxLength={80} autoComplete="address-level2" className={inputCls} />
         </Field>
-        <Field label="State" htmlFor="org-state" required>
+        <Field label="State" htmlFor="org-state" pair required>
           <SelectBox id="org-state" name="state" required options={INDIAN_STATES} autoComplete="address-level1" />
         </Field>
-        <Field label="PIN code" htmlFor="org-pincode" required>
+        <Field label="PIN code" htmlFor="org-pincode" pair required>
           <input id="org-pincode" name="pincode" required inputMode="numeric" maxLength={6} pattern="[1-9][0-9]{5}" title="The 6-digit PIN code." autoComplete="postal-code" className={inputCls} />
         </Field>
         <Field label={hospital ? 'Reception phone' : 'Centre phone'} htmlFor="org-phone" required>
@@ -189,7 +189,7 @@ export function PartnerSignupForm({ kind, uploads }: { kind: PartnerKind; upload
         <Field label="Registration or licence number" htmlFor="reg-number" required span={2} hint="Your clinical establishment registration, or the licence your state requires.">
           <input id="reg-number" name="registrationNumber" required minLength={2} maxLength={80} className={inputCls} />
         </Field>
-        <Field label="Valid until" htmlFor="reg-valid" required>
+        <Field label="Valid until" htmlFor="reg-valid" pair required>
           <input id="reg-valid" name="registrationValidUntil" type="date" required min={today()} className={inputCls} />
         </Field>
         <Field label="Issuing authority" htmlFor="reg-authority" required span={3} hint={hospital ? 'For example the District Registering Authority.' : undefined}>
@@ -204,7 +204,7 @@ export function PartnerSignupForm({ kind, uploads }: { kind: PartnerKind; upload
             <Field label="Accreditation certificate number" htmlFor="accreditation-number" optional>
               <input id="accreditation-number" name="accreditationNumber" maxLength={80} className={inputCls} />
             </Field>
-            <Field label="Valid until" htmlFor="accreditation-valid" optional>
+            <Field label="Valid until" htmlFor="accreditation-valid" pair optional>
               <input id="accreditation-valid" name="accreditationValidUntil" type="date" min={today()} className={inputCls} />
             </Field>
             <Field label="Fire safety NOC number" htmlFor="fire-noc" optional>
@@ -219,7 +219,7 @@ export function PartnerSignupForm({ kind, uploads }: { kind: PartnerKind; upload
             <Field label="NABL accreditation number" htmlFor="nabl" optional span={2} hint="If your lab is accredited to ISO 15189.">
               <input id="nabl" name="nablNumber" maxLength={80} className={inputCls} />
             </Field>
-            <Field label="Valid until" htmlFor="nabl-valid" optional>
+            <Field label="Valid until" htmlFor="nabl-valid" pair optional>
               <input id="nabl-valid" name="nablValidUntil" type="date" min={today()} className={inputCls} />
             </Field>
             <Field label="Pathologist who signs reports" htmlFor="responsible-name" required span={2}>
@@ -237,7 +237,7 @@ export function PartnerSignupForm({ kind, uploads }: { kind: PartnerKind; upload
             <Field label="PCPNDT registration" htmlFor="pcpndt" required={ultrasound} optional={!ultrasound} span={2} hint="Needed if you perform ultrasound.">
               <input id="pcpndt" name="pcpndtNumber" required={ultrasound} maxLength={80} className={inputCls} />
             </Field>
-            <Field label="Valid until" htmlFor="pcpndt-valid" optional>
+            <Field label="Valid until" htmlFor="pcpndt-valid" pair optional>
               <input id="pcpndt-valid" name="pcpndtValidUntil" type="date" min={today()} className={inputCls} />
             </Field>
             <Field label="AERB licence number" htmlFor="aerb" optional span={2} hint="Needed for X-ray and CT equipment.">
@@ -262,10 +262,10 @@ export function PartnerSignupForm({ kind, uploads }: { kind: PartnerKind; upload
       {/* 3. What the hospital or centre offers */}
       {hospital ? (
         <JoinSection n={3} section="offer" title="Facilities and specialities" sub="What your hospital offers patients.">
-          <Field label="Number of beds" htmlFor="beds" required>
+          <Field label="Number of beds" htmlFor="beds" pair required>
             <input id="beds" name="beds" type="number" inputMode="numeric" required min={0} max={20000} className={inputCls} />
           </Field>
-          <Field label="ICU beds" htmlFor="icu-beds" optional>
+          <Field label="ICU beds" htmlFor="icu-beds" pair optional>
             <input id="icu-beds" name="icuBeds" type="number" inputMode="numeric" min={0} max={5000} className={inputCls} />
           </Field>
           <RadioGroup label="24-hour emergency" name="emergency24h" required options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]} />
@@ -301,7 +301,7 @@ export function PartnerSignupForm({ kind, uploads }: { kind: PartnerKind; upload
         <Field label="IFSC code" htmlFor="bank-ifsc" required>
           <input id="bank-ifsc" name="bankIfsc" required maxLength={11} pattern="[A-Za-z]{4}0[A-Za-z0-9]{6}" title="11 characters, like HDFC0001234." className={`${inputCls} uppercase`} />
         </Field>
-        <Field label="UPI ID" htmlFor="upi" optional span={2} hint="If you would rather be paid by UPI.">
+        <Field label="UPI ID" htmlFor="upi" optional span={2} hint="Used if you choose UPI for payouts.">
           <input id="upi" name="upiId" maxLength={120} pattern="[A-Za-z0-9.\-_]{2,}@[A-Za-z0-9]{2,}" title="Like name@bank." className={inputCls} />
         </Field>
         <FileField doc={docs.bankProof} uploads={uploads} />
@@ -354,7 +354,9 @@ export function PartnerSignupForm({ kind, uploads }: { kind: PartnerKind; upload
 
   return (
     <>
-      <JoinHero crumb={copy.crumb} icon={copy.icon} title={copy.title} intro={copy.intro} />
+      <JoinHero crumb={copy.crumb} icon={copy.icon} title={copy.title} intro={copy.intro}>
+        <PhoneSteps steps={copy.steps.map((title) => ({ title }))} after="Review by our team" current={step} done={done} submitted={submitted} />
+      </JoinHero>
       <div className="px-4 md:px-[max(24px,10%)]">
         <StepStrip steps={copy.steps.map((title) => ({ title }))} after="Review by our team" current={step} done={done} submitted={submitted} />
         <JoinColumns
@@ -385,10 +387,10 @@ function OpeningHours({ label, children }: { label: string; children?: React.Rea
   return (
     <>
       <CheckGroup label={label} name="openDays" options={WEEKDAYS} required />
-      <Field label="From" htmlFor="open-from" required>
+      <Field label="From" htmlFor="open-from" pair required>
         <input id="open-from" name="openFrom" type="time" required className={inputCls} />
       </Field>
-      <Field label="To" htmlFor="open-to" required>
+      <Field label="To" htmlFor="open-to" pair required>
         <input id="open-to" name="openTo" type="time" required className={inputCls} />
       </Field>
       {children}

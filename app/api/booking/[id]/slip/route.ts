@@ -2,36 +2,21 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { generateAppointmentSlipPdf } from '@/lib/pdf/appointment-slip'
-import { doctorName, formatLongDate, formatTime } from '@/components/patient/format'
-import { labBookingFee, matchBookedTests } from '@/lib/pricing'
-import { appointmentBookingFee } from '@/lib/wallet'
-import { getBookingFees } from '@/lib/booking-fees'
-import { isOnlineGateway } from '@/lib/payment-gateways'
+import { loadBookingCard } from '@/lib/booking-card'
 
 type Joined<T> = T | T[] | null
 const one = <T,>(v: Joined<T> | undefined) => (Array.isArray(v) ? v[0] : v) ?? null
 
-type PersonRow = { full_name: string | null; phone_number: string | null; email: string | null }
 type AppointmentRow = {
   patient_id: string | null
   status: string
-  created_at?: string | null
-  booking_fee?: number | string | null
-  booking_type?: string | null
-  patient: Joined<PersonRow>
-  doctor: Joined<{ id: string; specialty: string | null; hospital_id: string | null; profiles: Joined<{ full_name: string | null }> }>
-  hospital: Joined<{ id: string; name: string | null; city: string | null; address: string | null }>
-  schedule: Joined<{ start_time: string | null }>
+  doctor: Joined<{ hospital_id: string | null }>
+  hospital: Joined<{ id: string }>
 }
 type DiagnosticRow = {
-  id: string
   status: string
-  test_name: string | null
-  preferred_date: string | null
-  created_at: string | null
   patient_id: string | null
-  patient: Joined<PersonRow>
-  center: Joined<{ id: string; name: string | null; city: string | null; address: string | null; test_prices: Record<string, number | string> | null }>
+  center: Joined<{ id: string }>
 }
 
 // The slip is a payment receipt, so it is only issued once the booking is paid.
@@ -40,8 +25,11 @@ const PAID = ['confirmed', 'visited', 'completed', 'report_sent']
 // It carries the patient's name and phone number: never let a shared cache keep a copy.
 const PDF_HEADERS = { 'Content-Type': 'application/pdf', 'Cache-Control': 'private, no-store' }
 
-// The booking reference printed on the slip: the code the patient is shown, not a queue position.
-const referenceFor = (id: string) => id.slice(0, 8).toUpperCase()
+/** The slip, drawn from the same booking card as the booking page and the booking email. */
+async function slipFor(admin: ReturnType<typeof createAdminClient>, id: string) {
+  const card = await loadBookingCard(admin, id)
+  return card ? generateAppointmentSlipPdf(card) : null
+}
 
 type Viewer = { id: string; role: string | null; hospitalId: string | null; centerId: string | null }
 
@@ -66,16 +54,7 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
     // 1. Try finding in appointments
     const { data: aptData } = await admin
       .from('appointments')
-      .select(`
-        *,
-        patient:profiles!appointments_patient_id_fkey ( full_name, phone_number, email ),
-        doctor:doctors (
-          id, specialty, hospital_id,
-          profiles!doctors_profile_id_fkey ( full_name )
-        ),
-        hospital:hospitals ( id, name, city, address ),
-        schedule:schedules ( start_time )
-      `)
+      .select('patient_id, status, doctor:doctors ( hospital_id ), hospital:hospitals ( id )')
       .eq('id', id)
       .maybeSingle()
 
@@ -83,8 +62,6 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
       const apt = aptData as unknown as AppointmentRow
       const doc = one(apt.doctor)
       const hosp = one(apt.hospital)
-      const schedule = one(apt.schedule)
-      const patient = one(apt.patient)
       if (!canSee(viewer, apt.patient_id, { hospitalId: hosp?.id ?? doc?.hospital_id })) {
         return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
       }
@@ -92,56 +69,8 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
         return NextResponse.json({ error: 'The slip is available once this booking is paid.' }, { status: 409 })
       }
 
-      const docProfile = one(doc?.profiles)
-      const docFull = docProfile?.full_name ? doctorName(docProfile.full_name) : 'Medical Specialist'
-      const dateStr = schedule?.start_time
-        ? `${formatLongDate(schedule.start_time)}, ${formatTime(schedule.start_time)}`
-        : 'Scheduled Visit'
-
-      const { data: paymentRow } = await admin
-        .from('payments')
-        .select('amount, transaction_id, gateway, created_at')
-        .eq('appointment_id', id)
-        .eq('status', 'success')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      // An online payment is the booking fee and the convenience fee on it. A desk payment (cash or UPI) is what the counter
-      // took, which the slip doesn't show.
-      const online = !paymentRow || isOnlineGateway(paymentRow.gateway)
-      const fee = appointmentBookingFee(apt, await getBookingFees())
-      const bookingFee = paymentRow ? Number(paymentRow.amount) || 0 : fee
-      const convenienceFee = online && paymentRow ? Math.max(0, Math.round((bookingFee - fee) * 100) / 100) : 0
-
-      const pdfBytes = await generateAppointmentSlipPdf({
-        bookingId: id,
-        tokenNumber: referenceFor(id),
-        isConsultation: true,
-        patient: {
-          name: patient?.full_name || 'Patient',
-          phone: patient?.phone_number || null,
-          email: patient?.email || null,
-        },
-        provider: {
-          name: docFull,
-          specialty: doc?.specialty || 'Specialist Consultation',
-          hospitalName: hosp?.name || 'Partner Hospital',
-          address: hosp?.address || null,
-          city: hosp?.city || null,
-        },
-        schedule: {
-          dateTimeStr: dateStr,
-        },
-        payment: {
-          online,
-          amount: online ? bookingFee : 0,
-          convenienceFee,
-          transactionId: paymentRow?.transaction_id || id,
-          status: 'PAID',
-          gateway: online ? 'Online (Paid)' : 'Hospital desk',
-          paidAt: new Date(paymentRow?.created_at ?? apt.created_at ?? Date.now()),
-        },
-      })
+      const pdfBytes = await slipFor(admin, id)
+      if (!pdfBytes) return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
 
       return new NextResponse(pdfBytes as unknown as BodyInit, {
         headers: { ...PDF_HEADERS, 'Content-Disposition': `inline; filename="appointment_slip_${id.slice(0, 8).toUpperCase()}.pdf"` },
@@ -151,69 +80,21 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
     // 2. Try diagnostic bookings
     const { data: diagData } = await admin
       .from('diagnostic_bookings')
-      .select(`
-        id, status, test_name, preferred_date, created_at, patient_id,
-        patient:profiles!diagnostic_bookings_patient_id_fkey ( full_name, phone_number, email ),
-        center:diagnostic_centers ( id, name, city, address, test_prices )
-      `)
+      .select('status, patient_id, center:diagnostic_centers ( id )')
       .eq('id', id)
       .maybeSingle()
 
     if (diagData) {
       const diag = diagData as unknown as DiagnosticRow
       const center = one(diag.center)
-      const patient = one(diag.patient)
       if (!canSee(viewer, diag.patient_id, { centerId: center?.id })) {
         return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
       }
       if (!PAID.includes(diag.status)) {
         return NextResponse.json({ error: 'The slip is available once this booking is paid.' }, { status: 409 })
       }
-      const dateStr = diag.preferred_date ? `Visit on ${diag.preferred_date}` : 'Scheduled Visit'
-
-      const { data: paymentRow } = await admin
-        .from('payments')
-        .select('amount, transaction_id, gateway, created_at')
-        .eq('diagnostic_booking_id', id)
-        .eq('status', 'success')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      const online = !paymentRow || isOnlineGateway(paymentRow.gateway)
-      const tests = matchBookedTests(diag.test_name || '', center?.test_prices)
-      const fee = tests ? labBookingFee(tests, (await getBookingFees()).diagnosticPercent) : null
-      const bookingFee = paymentRow ? Number(paymentRow.amount) || 0 : fee ?? 0
-      const convenienceFee = online && paymentRow && fee != null ? Math.max(0, Math.round((bookingFee - fee) * 100) / 100) : 0
-
-      const pdfBytes = await generateAppointmentSlipPdf({
-        bookingId: id,
-        tokenNumber: referenceFor(id),
-        isConsultation: false,
-        patient: {
-          name: patient?.full_name || 'Patient',
-          phone: patient?.phone_number || null,
-          email: patient?.email || null,
-        },
-        provider: {
-          name: diag.test_name ?? '',
-          specialty: 'Diagnostic Laboratory Testing',
-          hospitalName: center?.name || 'Diagnostic Centre',
-          address: center?.address || null,
-          city: center?.city || null,
-        },
-        schedule: {
-          dateTimeStr: dateStr,
-        },
-        payment: {
-          online,
-          amount: online ? bookingFee : 0,
-          convenienceFee,
-          transactionId: paymentRow?.transaction_id || id,
-          status: 'PAID',
-          gateway: online ? 'Online (Paid)' : 'Centre desk',
-          paidAt: new Date(paymentRow?.created_at ?? diag.created_at ?? Date.now()),
-        },
-      })
+      const pdfBytes = await slipFor(admin, id)
+      if (!pdfBytes) return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
 
       return new NextResponse(pdfBytes as unknown as BodyInit, {
         headers: { ...PDF_HEADERS, 'Content-Disposition': `inline; filename="diagnostic_slip_${id.slice(0, 8).toUpperCase()}.pdf"` },

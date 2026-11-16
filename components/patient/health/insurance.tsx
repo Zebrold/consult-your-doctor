@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, ChevronDown, FileText, Paperclip, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { ChevronDown, Download, FileText, LoaderCircle, Paperclip, Pencil, Plus, Share2, ShieldCheck, Trash2 } from "lucide-react";
 import { btnOutline, btnPrimary, card } from "@/components/patient/app-ui";
 import { formatINR, formatShortDate } from "@/components/patient/format";
 import { byNearness, placeLabel, usePatientLocation } from "@/components/patient/location";
@@ -19,6 +19,41 @@ export function PolicyCard({ policy, members, patientName, insurers, today }: { 
   const [showing, setShowing] = useState(false);
   const [editing, setEditing] = useState(false);
   const expired = !!policy.validUntil && policy.validUntil < today;
+  const [sharing, setSharing] = useState(false);
+  const [shareNote, setShareNote] = useState<{ text: string; bad?: boolean } | null>(null);
+  // Shares the PDF where the phone can share files, else the card details as text, else copies those details.
+  const share = async () => {
+    if (sharing) return;
+    setSharing(true);
+    setShareNote(null);
+    const title = "Health insurance card";
+    const text = [
+      `Insurer: ${policy.insurer}`,
+      `Policy number: ${policy.policyNumber}`,
+      `Name on policy: ${policy.holderName || patientName}`,
+      policy.memberId ? `Member ID: ${policy.memberId}` : null,
+      policy.validUntil ? `Valid till: ${formatShortDate(policy.validUntil)}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    try {
+      let file: File | null = null;
+      if (typeof navigator.canShare === "function") {
+        const res = await fetch("/api/patient/insurance-card", { cache: "no-store" });
+        if (res.ok) file = new File([await res.blob()], "Insurance_Card.pdf", { type: "application/pdf" });
+      }
+      if (file && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title });
+      else if (typeof navigator.share === "function") await navigator.share({ title, text });
+      else {
+        await navigator.clipboard.writeText(text);
+        setShareNote({ text: "Card details copied" });
+      }
+    } catch (e) {
+      if (!(e instanceof DOMException && e.name === "AbortError")) setShareNote({ text: "Couldn’t share. Download the card instead.", bad: true });
+    } finally {
+      setSharing(false);
+    }
+  };
   return (
     <div className="flex flex-col gap-3">
       <div className="relative isolate overflow-hidden rounded-[20px] p-5 lg:p-6 text-white bg-[linear-gradient(135deg,#1E3BB3_0%,#2A4DD0_55%,#3D63E6_100%)] shadow-[0_14px_30px_-16px_rgba(42,77,208,0.8)]">
@@ -47,10 +82,21 @@ export function PolicyCard({ policy, members, patientName, insurers, today }: { 
       {expired && <p className="rounded-xl bg-[#FEF3F2] px-3.5 py-2.5 text-[12.5px] font-bold text-[#B42318]">This policy&apos;s validity date has passed. Update it if you&apos;ve renewed.</p>}
       <div className="grid grid-cols-2 gap-2.5">
         <button type="button" onClick={() => setShowing(true)} className={btnPrimary}>Show at hospital</button>
+        <a href="/api/patient/insurance-card" download className={btnOutline}>
+          <Download className="w-4 h-4" /> Download card
+        </a>
+        <button type="button" onClick={share} disabled={sharing} className={`${btnOutline} disabled:opacity-60`}>
+          {sharing ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />} {sharing ? "Preparing…" : "Share card"}
+        </button>
         <button type="button" onClick={() => setEditing(true)} className={btnOutline}>
           <Pencil className="w-4 h-4" /> Edit card
         </button>
       </div>
+      {shareNote && (
+        <p role={shareNote.bad ? "alert" : "status"} className={`text-[12.5px] font-bold ${shareNote.bad ? "text-[#B42318]" : "text-[#067647]"}`}>
+          {shareNote.text}
+        </p>
+      )}
       {showing && (
         <Dialog title="Show this at the hospital desk" sub="Hand over your phone, or read out the details." onClose={() => setShowing(false)}>
           <div className="rounded-2xl bg-[#0B1B3F] text-white p-5">
@@ -232,10 +278,19 @@ export function ClaimsList({ claims, ready }: { claims: Claim[]; ready: boolean 
           {claims.map((c) => (
             <div key={c.id} className="border-t lg:border-t-0 lg:border-b border-[#EEF2F7] first:border-t-0">
               <button type="button" onClick={() => setOpen(open === c.id ? null : c.id)} aria-expanded={open === c.id} className="w-full text-left grid grid-cols-[1fr_auto] lg:grid-cols-[1fr_110px_minmax(0,1.4fr)_120px_110px_150px_70px] gap-x-4 gap-y-0.5 py-3 lg:px-3.5 text-[13.5px] items-center">
-                <span className="font-extrabold truncate">{c.number ?? "No claim number yet"}</span>
-                <span className="lg:hidden text-right"><StatusPill status={c.status} /></span>
-                <span className="text-[12.5px] lg:text-[13.5px] text-[#5B667A] lg:text-[#0B1B3F]">{formatShortDate(c.treatedOn ? `${c.treatedOn}T12:00:00+05:30` : c.createdAt)}</span>
-                <span className="col-span-2 lg:col-span-1 text-[12.5px] lg:text-[13.5px] text-[#5B667A] lg:text-[#0B1B3F] truncate">{c.hospital}</span>
+                <span className="lg:hidden min-w-0">
+                  <span className="block text-[14px] font-extrabold truncate">{c.hospital}</span>
+                  <span className="block text-[12px] text-[#5B667A] truncate">
+                    {[c.number, c.type === "cashless" ? "Cashless" : "Reimbursement", formatShortDate(c.treatedOn ? `${c.treatedOn}T12:00:00+05:30` : c.createdAt)].filter(Boolean).join(" · ")}
+                  </span>
+                </span>
+                <span className="lg:hidden flex flex-col items-end gap-1">
+                  <span className="text-[14px] font-extrabold tabular-nums">{c.amount != null ? formatINR(c.amount) : "–"}</span>
+                  <StatusPill status={c.status} />
+                </span>
+                <span className="hidden lg:block font-extrabold truncate">{c.number ?? "No claim number yet"}</span>
+                <span className="hidden lg:block text-[13.5px]">{formatShortDate(c.treatedOn ? `${c.treatedOn}T12:00:00+05:30` : c.createdAt)}</span>
+                <span className="hidden lg:block text-[13.5px] truncate">{c.hospital}</span>
                 <span className="hidden lg:block">{c.type === "cashless" ? "Cashless" : "Reimbursement"}</span>
                 <span className="hidden lg:block font-extrabold tabular-nums">{c.amount != null ? formatINR(c.amount) : "–"}</span>
                 <span className="hidden lg:block"><StatusPill status={c.status} /></span>
@@ -381,12 +436,10 @@ export function StartClaim({ ready, tpa }: { ready: boolean; tpa: string | null 
       <h2 className="text-[16px] font-extrabold">Start a claim</h2>
       <p className="mt-0.5 text-[12.5px] lg:text-[13px] text-[#5B667A]">How were you treated?</p>
       {started ? (
-        <div className="mt-3 rounded-2xl bg-[#ECFDF3] p-4">
-          <p className="flex items-center gap-2 text-[14px] font-extrabold text-[#067647]">
-            <CheckCircle2 className="w-[18px] h-[18px]" /> Claim saved
-          </p>
-          <p className="mt-1 text-[12.5px] text-[#27324A]">Send the papers to {tpa ?? "your insurer or TPA"}, then update the status here as they reply.</p>
-          <button type="button" onClick={() => setStarted(false)} className="mt-2 text-[13px] font-extrabold text-[#2A4DD0] hover:underline">
+        <div className="mt-3 rounded-2xl bg-[#F5F8FF] shadow-[inset_0_0_0_1px_#DCE5FF] p-4">
+          <p className="text-[15px] font-extrabold text-[#2A4DD0]">Claim saved</p>
+          <p className="mt-1 text-[13px] text-[#27324A]">Send the papers to {tpa ?? "your insurer or TPA"}, then update the status here as they reply.</p>
+          <button type="button" onClick={() => setStarted(false)} className={`${btnOutline} w-full mt-3`}>
             Start another claim
           </button>
         </div>
@@ -469,7 +522,7 @@ export function CashlessNearby({ hospitals, insurer }: { hospitals: CashlessHosp
                 <span className="block text-[13.5px] font-extrabold truncate">{h.name}</span>
                 <span className="block text-[12px] text-[#5B667A] truncate">{[h.city, km != null ? formatDistance(km) : null].filter(Boolean).join(" · ")}</span>
               </span>
-              <span className="shrink-0 px-2 py-0.5 rounded-md bg-[#ECFDF3] text-[11.5px] font-extrabold text-[#067647]">Accepts</span>
+              <span className="shrink-0 inline-flex items-center h-6 px-[9px] rounded-full bg-[#EEF3FF] text-[11.5px] font-extrabold text-[#2A4DD0]">Accepts</span>
             </Link>
           ))}
         </div>

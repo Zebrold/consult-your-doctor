@@ -29,7 +29,7 @@ export function replyDeadline(t: { priority: string; status: string; createdAt: 
   const due = created + hours * HOUR
   if (firstReplyAt) return { label: `Replied in ${span(Date.parse(firstReplyAt) - created)}`, late: Date.parse(firstReplyAt) > due, due: null }
   if (t.status === 'resolved' || t.status === 'closed') return { label: 'Closed without a reply', late: false, due: null }
-  if (t.status === 'awaiting_response') return { label: 'Waiting for them', late: false, due: null }
+  if (t.status === 'awaiting_response') return { label: 'Waiting for reply', late: false, due: null }
   return now > due ? { label: `Overdue by ${span(now - due)}`, late: true, due } : { label: `Reply due in ${span(due - now)}`, late: false, due }
 }
 
@@ -76,4 +76,89 @@ export const SUGGESTED_REPLIES: { category: string; label: string; text: string 
 export function repliesFor(category: string) {
   const c = category.toLowerCase()
   return [...SUGGESTED_REPLIES.filter((r) => c.includes(r.category)), ...SUGGESTED_REPLIES.filter((r) => r.category === 'other')]
+}
+
+/** The categories a ticket raised for a caller can have. `label` is what's stored on the ticket. */
+export const TICKET_CATEGORIES: { key: string; label: string }[] = [
+  { key: 'booking', label: 'Booking' },
+  { key: 'payment', label: 'Payment' },
+  { key: 'refund', label: 'Refund' },
+  { key: 'lab report', label: 'Lab report' },
+  { key: 'prescription', label: 'Prescription' },
+  { key: 'login', label: 'Login' },
+  { key: 'payout', label: 'Payout' },
+  { key: 'badge', label: 'Badge' },
+  { key: 'equipment', label: 'Equipment' },
+  { key: 'other', label: 'Other' },
+]
+
+/** "Steps to solve" by category key. Only what the team really does in this product. */
+export const SOLVE_STEPS: Record<string, string[]> = {
+  refund: [
+    'Find the payment on Payments',
+    'Check the booking was cancelled or the visit did not happen',
+    'Refund it from the Razorpay dashboard (online) or at the desk (cash or UPI)',
+    'Record the refund on Payments (the patient gets the refund email)',
+  ],
+  payment: [
+    'Find the payment on Payments',
+    'Check its status in Razorpay',
+    'Confirm the booking or record a refund',
+    'Reply with what happened',
+  ],
+  booking: [
+    'Find the booking by its booking ID',
+    'Check its payment and status',
+    'Ask the hospital or lab to fix or move it',
+    'Confirm with the requester',
+  ],
+  payout: [
+    'Open the withdrawal on Wallets',
+    'Check the bank account or UPI ID',
+    'Pay it, or reject it with a reason',
+    'Share the transfer reference (UTR)',
+  ],
+  login: [
+    'Check the staff ID and branch',
+    'Send a set-password link (never a password)',
+    'Confirm they can sign in',
+  ],
+  badge: [
+    'Confirm the payment',
+    'Run the checks on Verified badges',
+    'Approve, or reject and refund',
+    'Tell them the outcome',
+  ],
+  'lab report': [
+    'Find the booking',
+    'Ask the lab to upload the corrected file',
+    'Confirm the patient sees it in Health records',
+  ],
+  prescription: [
+    'Find the booking',
+    'Ask the doctor to upload the corrected file',
+    'Confirm the patient sees it in Health records',
+  ],
+  equipment: [
+    'Open the order',
+    'Get photos of the problem',
+    'Arrange a replacement with the supplier',
+    'Confirm delivery',
+  ],
+  other: [
+    'Understand the request',
+    'Fix it, or hand it to the right team',
+    'Reply and resolve',
+  ],
+}
+
+/** The steps for a ticket's category (matched like `repliesFor`, longest key first), each with a stable key. */
+export function stepsFor(category: string): { key: string; label: string }[] {
+  const c = category.toLowerCase()
+  const match = Object.keys(SOLVE_STEPS)
+    .filter((k) => k !== 'other')
+    .sort((a, b) => b.length - a.length)
+    .find((k) => c.includes(k))
+  const cat = match ?? 'other'
+  return SOLVE_STEPS[cat].map((label, i) => ({ key: `${cat}:${i}`, label }))
 }

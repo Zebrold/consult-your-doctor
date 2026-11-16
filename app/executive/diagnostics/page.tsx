@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { CircleCheck, FlaskConical, Receipt } from 'lucide-react'
 import { istDateKey } from '@/components/patient/format'
 import { LAB_STATUS_LABELS, buildAttentionItems, currentTime, loadLabBookings, loadLabs, loadPartnerApplications, requireExecutivePage, timeAgo } from '../_lib/ops'
-import { Card, CallLink, EmptyState, ExePage, Line, Stat, Stats, Status, Table, count, plural, td, th } from '../_components/ui'
+import { BarList, Card, CallLink, Chip, EmptyState, ExePage, Line, Stat, Stats, Status, Table, count, plural, td, th } from '../_components/ui'
 import { AddDiagnosticCenterButton, AddLoginButton } from '../_components/NetworkForms'
 import { PartnerQueue } from '../_components/PartnerQueue'
 
@@ -78,7 +78,7 @@ export default async function ExecutiveDiagnosticsPage() {
     <ExePage name={profile.fullName} title="Diagnostics" subtitle="Partner labs, today’s lab visits, bookings that need follow-up and test prices" actions={<AddDiagnosticCenterButton />}>
       <Stats>
         <Stat label="Partner labs" value={activeLabs.length} note={`In ${plural(cities.size, 'city', 'cities')}`} />
-        <Stat label="Lab visits today" value={visitsToday.length} note={`${count(bookings.length)} bookings all time`} />
+        <Stat label="Lab visits today" value={visitsToday.length} note={`${count(bookings.length)} bookings all time`} tone="blue" />
         <Stat label="Awaiting payment" value={awaitingPayment.length} note={`${attention.filter((a) => a.status === 'Awaiting payment').length} unpaid for over a day`} tone={awaitingPayment.length ? 'warn' : undefined} />
         <Stat label="Reports sent" value={count(reportsSent.length)} note={`Of ${count(collected.length)} samples collected`} />
       </Stats>
@@ -104,7 +104,11 @@ export default async function ExecutiveDiagnosticsPage() {
       <Card
         title="Bookings needing follow-up"
         sub="Unpaid for over a day, visit date passed, or report not sent two days after collection"
-        right={<Status label={`${attention.length} open`} color={attention.length ? '#B42318' : '#067647'} />}
+        right={
+          <Chip tone={attention.length ? 'coral' : 'teal'} className="!h-6 !px-[9px] !rounded-full">
+            {attention.length} open
+          </Chip>
+        }
       >
         {attention.length === 0 ? (
           <EmptyState icon={CircleCheck}>All lab bookings are on track.</EmptyState>
@@ -156,7 +160,9 @@ export default async function ExecutiveDiagnosticsPage() {
                     </span>
                   </span>
                   <span className="shrink-0 text-right">
-                    <span className="block text-[14px] font-extrabold">{plural(lab.total, 'booking')}</span>
+                    <Chip tone="blue" className="!h-6 !px-[9px] !rounded-full">
+                      {plural(lab.total, 'booking')}
+                    </Chip>
                     <span className="block text-[12px] text-[#5B667A]">
                       {lab.pending} in progress · {lab.reports} reports sent
                     </span>
@@ -171,13 +177,7 @@ export default async function ExecutiveDiagnosticsPage() {
           {pipeline.length === 0 ? (
             <p className="text-[13px] text-[#5B667A]">No bookings yet.</p>
           ) : (
-            <ul>
-              {pipeline.map((row) => (
-                <li key={row.label}>
-                  <Line label={<span className="font-bold">{row.label}</span>} right={<span className="font-extrabold tabular-nums">{count(row.value)}</span>} />
-                </li>
-              ))}
-            </ul>
+            <BarList rows={pipeline.map((row) => ({ ...row, display: count(row.value) }))} />
           )}
         </Card>
       </div>
@@ -207,7 +207,11 @@ export default async function ExecutiveDiagnosticsPage() {
                   <td className={`${td} tabular-nums`}>{inr(t.median)}</td>
                   <td className={`${td} tabular-nums`}>{inr(t.max)}</td>
                   <td className={td}>
-                    {t.labs < 2 ? <Status label="Single lab" color="#5B667A" /> : t.spreadPct > 25 ? <Status label={`Wide (${Math.round(t.spreadPct)}%)`} color="#B54708" /> : <Status label="Normal" color="#2A4DD0" />}
+                    {t.labs < 2 || t.spreadPct <= 25 ? (
+                      <Chip className="!h-6 !px-[9px] !rounded-full !bg-[#F1F4F9] !text-[#5B667A]">{t.labs < 2 ? 'Single lab' : 'Normal'}</Chip>
+                    ) : (
+                      <Chip className="!h-6 !px-[9px] !rounded-full !bg-[#FFF6E8] !text-[#B54708]">{`Wide (${Math.round(t.spreadPct)}%)`}</Chip>
+                    )}
                   </td>
                   <td className={`${td} tabular-nums`}>{count(t.booked)}</td>
                 </tr>

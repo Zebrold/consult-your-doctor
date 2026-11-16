@@ -3,7 +3,7 @@ import { Wallet } from 'lucide-react'
 import { formatINR, formatShortDate } from '@/components/patient/format'
 import { loadWalletBalances, toAccount } from '@/lib/wallet'
 import { requireExecutivePage } from '../_lib/ops'
-import { Card, Chip, EmptyState, ExePage, Stat, Stats, Status, plural } from '../_components/ui'
+import { Card, Chip, EmptyState, ExePage, Stat, Stats, Status } from '../_components/ui'
 import { AdjustmentForm, PayoutReview } from '../_components/WalletDesk'
 
 export const metadata: Metadata = { title: 'Wallets' }
@@ -11,6 +11,7 @@ export const dynamic = 'force-dynamic'
 
 type HospitalRow = { id: string; name: string | null; city: string | null }
 type PayoutRow = { id: string; hospital_id: string; amount: number | string; status: string; account: unknown; reference: string | null; note: string | null; created_at: string; processed_at: string | null }
+type AdjustmentRow = { id: string; hospital_id: string; amount: number | string; note: string | null; created_at: string }
 
 /**
  * Wallets after DeskExeWallets: what Consult your Doctor holds for each hospital (UPI taken at their desks) and what
@@ -18,18 +19,43 @@ type PayoutRow = { id: string; hospital_id: string; amount: number | string; sta
  */
 export default async function ExecutiveWalletsPage() {
   const { admin, profile } = await requireExecutivePage('wallets')
-  const [{ data: hospitals }, balances, waitingRes, recentRes] = await Promise.all([
+  const [{ data: hospitals }, balances, waitingRes, recentRes, adjustRes] = await Promise.all([
     admin.from('hospitals').select('id, name, city').order('name'),
     loadWalletBalances(admin),
     admin.from('hospital_payouts').select('*').eq('status', 'requested').order('created_at', { ascending: true }),
     admin.from('hospital_payouts').select('*').neq('status', 'requested').order('processed_at', { ascending: false }).limit(20),
+    admin.from('hospital_wallet_adjustments').select('id, hospital_id, amount, note, created_at').order('created_at', { ascending: false }).limit(20),
   ])
 
   const byId = new Map(((hospitals ?? []) as HospitalRow[]).map((h) => [h.id, h]))
   const nameOf = (id: string) => byId.get(id)?.name || 'Hospital'
   const cityOf = (id: string) => byId.get(id)?.city || ''
   const waiting = (waitingRes.data ?? []) as PayoutRow[]
-  const recent = (recentRes.data ?? []) as PayoutRow[]
+  // Paid or rejected withdrawals and payments in or corrections, newest first. Adjustments are left out if they can't be read.
+  const adjustments = (adjustRes.error ? [] : adjustRes.data ?? []) as AdjustmentRow[]
+  const recent = [
+    ...((recentRes.data ?? []) as PayoutRow[]).map((p) => ({
+      id: `p-${p.id}`,
+      hospitalId: p.hospital_id,
+      at: p.processed_at ?? p.created_at,
+      sub: [p.status === 'paid' ? 'Paid' : 'Rejected', p.processed_at ? formatShortDate(p.processed_at) : null, p.reference ? `ref ${p.reference}` : null, p.note].filter(Boolean).join(' · '),
+      amount: formatINR(Number(p.amount) || 0),
+      struck: p.status !== 'paid',
+    })),
+    ...adjustments.map((a) => {
+      const value = Number(a.amount) || 0
+      return {
+        id: `a-${a.id}`,
+        hospitalId: a.hospital_id,
+        at: a.created_at,
+        sub: [value > 0 ? 'Received' : 'Correction', formatShortDate(a.created_at), a.note].filter(Boolean).join(' · '),
+        amount: value > 0 ? `${formatINR(value)} · paid in` : `− ${formatINR(-value)}`,
+        struck: false,
+      }
+    }),
+  ]
+    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+    .slice(0, 20)
 
   const rows = ((hospitals ?? []) as HospitalRow[])
     .map((h) => ({ ...h, ...(balances?.get(h.id) ?? { balance: 0, waiting: 0 }) }))
@@ -47,7 +73,7 @@ export default async function ExecutiveWalletsPage() {
       ) : (
         <>
           <Stats cols={3}>
-            <Stat label="Held for hospitals" value={formatINR(held)} note="Ready to withdraw" />
+            <Stat label="Held for hospitals" value={formatINR(held)} note="Ready to withdraw" tone="blue" />
             <Stat label="Owed by hospitals" value={formatINR(owed)} note="Booking fees on cash payments" tone={owed ? 'high' : undefined} />
             <Stat label="Withdrawals waiting" value={formatINR(waitingTotal)} note={`${waiting.length} to pay`} tone={waiting.length ? 'warn' : undefined} />
           </Stats>
@@ -55,7 +81,7 @@ export default async function ExecutiveWalletsPage() {
           <Card
             title="Withdrawals to pay"
             sub="Send the money, then mark it paid with the transfer reference"
-            right={waiting.length ? <Chip tone="amber">{plural(waiting.length, 'left', 'left')}</Chip> : undefined}
+            right={waiting.length ? <Chip tone="amber" className="!h-6 !px-[9px] !rounded-full">{waiting.length} to pay</Chip> : undefined}
           >
             {waiting.length === 0 ? (
               <EmptyState icon={Wallet}>No withdrawals waiting.</EmptyState>
@@ -89,7 +115,7 @@ export default async function ExecutiveWalletsPage() {
             <Card title="Balances" sub="Below zero means the hospital owes Consult your Doctor">
               <div className="hidden sm:grid grid-cols-[minmax(0,1.6fr)_140px_minmax(0,1fr)] gap-4 px-3.5 py-2.5 rounded-[10px] bg-[#F7F9FC] text-[11.5px] font-extrabold tracking-[0.04em] uppercase text-[#5B667A]">
                 <span>Hospital</span>
-                <span className="text-right">Balance</span>
+                <span>Balance</span>
                 <span>Status</span>
               </div>
               {rows.length === 0 ? (
@@ -97,12 +123,12 @@ export default async function ExecutiveWalletsPage() {
               ) : (
                 <ul>
                   {rows.map((r) => (
-                    <li key={r.id} className="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1.3fr)_110px_minmax(0,1.3fr)] gap-x-4 gap-y-1 items-center py-3 sm:px-3.5 border-b border-[#EEF2F7] text-[13.5px]">
+                    <li key={r.id} className="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1.6fr)_140px_minmax(0,1fr)] gap-x-4 gap-y-1 items-center py-3 sm:px-3.5 border-b border-[#EEF2F7] text-[13.5px]">
                       <span className="min-w-0">
                         <span className="block font-extrabold truncate">{r.name || 'Hospital'}</span>
                         {r.city && <span className="block text-[12px] text-[#5B667A] truncate">{r.city}</span>}
                       </span>
-                      <span className={`text-right font-extrabold tabular-nums ${r.balance < 0 ? 'text-[#B42318]' : ''}`}>{r.balance < 0 ? `− ${formatINR(-r.balance)}` : formatINR(r.balance)}</span>
+                      <span className={`text-right sm:text-left font-extrabold tabular-nums ${r.balance < 0 ? 'text-[#B42318]' : ''}`}>{r.balance < 0 ? `− ${formatINR(-r.balance)}` : formatINR(r.balance)}</span>
                       <span className="col-span-2 sm:col-span-1">
                         {r.waiting ? (
                           <Status label="Withdrawal requested" color="#B54708" />
@@ -119,7 +145,7 @@ export default async function ExecutiveWalletsPage() {
             </Card>
 
             <div className="flex flex-col gap-3.5 lg:gap-5 min-w-0">
-              <Card title="Recently paid or rejected">
+              <Card title="Recently paid or received">
                 {recent.length === 0 ? (
                   <EmptyState icon={Wallet}>Nothing yet.</EmptyState>
                 ) : (
@@ -127,12 +153,10 @@ export default async function ExecutiveWalletsPage() {
                     {recent.map((p) => (
                       <li key={p.id} className="flex items-start justify-between gap-3 py-3 border-t border-[#EEF2F7] first:border-t-0 first:pt-0 text-[13.5px]">
                         <span className="min-w-0">
-                          <span className="block font-extrabold truncate">{nameOf(p.hospital_id)}</span>
-                          <span className="block text-[12px] text-[#5B667A] break-words">
-                            {[p.status === 'paid' ? 'Paid' : 'Rejected', p.processed_at ? formatShortDate(p.processed_at) : null, p.reference ? `ref ${p.reference}` : null, p.note].filter(Boolean).join(' · ')}
-                          </span>
+                          <span className="block font-extrabold truncate">{nameOf(p.hospitalId)}</span>
+                          <span className="block text-[12px] text-[#5B667A] break-words">{p.sub}</span>
                         </span>
-                        <span className={`shrink-0 font-extrabold tabular-nums ${p.status === 'paid' ? '' : 'text-[#98A2B3] line-through'}`}>{formatINR(Number(p.amount) || 0)}</span>
+                        <span className={`shrink-0 font-extrabold tabular-nums ${p.struck ? 'text-[#98A2B3] line-through' : ''}`}>{p.amount}</span>
                       </li>
                     ))}
                   </ul>

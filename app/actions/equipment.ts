@@ -7,6 +7,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/lib/supabase/server'
 import { executiveFor } from '@/app/executive/_lib/ops'
 import { CATEGORIES, deliveryFor, type OrderStatus } from '@/lib/equipment'
+import { emailOrderUpdate } from '@/lib/notify/hospital'
 
 // Order equipment. A hospital places an order from the team's catalogue: prices and delivery are worked out here from
 // the catalogue, never taken from the browser, and the order waits for its online payment (lib/purchase-client.ts).
@@ -202,12 +203,15 @@ export async function setOrderStatus(orderId: string, status: OrderStatus, teamN
   const { data: order } = await ctx.admin.from('equipment_orders').select('status').eq('id', orderId).maybeSingle()
   if (!order) return { ok: false, error: 'Order not found.' }
   if (!NEXT[order.status as OrderStatus]?.includes(status)) return { ok: false, error: 'That step isn’t possible for this order.' }
-  const { error } = await ctx.admin
+  const note = teamNote.trim().slice(0, 500) || null
+  const { data: moved, error } = await ctx.admin
     .from('equipment_orders')
-    .update({ status, team_note: teamNote.trim().slice(0, 500) || null, updated_at: new Date().toISOString() })
+    .update({ status, team_note: note, updated_at: new Date().toISOString() })
     .eq('id', orderId)
     .eq('status', order.status)
+    .select('id')
   if (error) return { ok: false, error: 'Could not update the order. Please try again.' }
+  if (moved?.length) await emailOrderUpdate(ctx.admin, orderId, status, note)
   revalidatePath('/executive/equipment')
   return { ok: true }
 }

@@ -13,6 +13,8 @@ type Portal = {
   name: string;
   sub: string;
   chip: string;
+  idLabel: string;
+  hint: string;
   role: "hospital_admin" | "diagnostic_admin" | "doctor";
   login: string;
   image: { src: string; width: number; height: number };
@@ -22,7 +24,9 @@ const PORTALS: Portal[] = [
   {
     name: "Hospital",
     sub: "Doctors, slots, beds, walk-ins and finance",
-    chip: "Admin & desk",
+    chip: "Admin & front desk",
+    idLabel: "Staff ID or work email",
+    hint: "Staff ID or work email",
     role: "hospital_admin",
     login: "/login/hospital",
     image: { src: "/images/home/hospital-building.webp", width: 787, height: 357 },
@@ -31,6 +35,8 @@ const PORTALS: Portal[] = [
     name: "Diagnostic centre",
     sub: "Test bookings, home collection and reports",
     chip: "Lab & collections",
+    idLabel: "Centre Admin ID or work email",
+    hint: "Centre Admin ID or work email",
     role: "diagnostic_admin",
     login: "/login/diagnostic",
     image: { src: "/images/home/lab-microscope.webp", width: 419, height: 395 },
@@ -39,6 +45,8 @@ const PORTALS: Portal[] = [
     name: "Doctor",
     sub: "Appointments, prescriptions and patients",
     chip: "Schedule & prescriptions",
+    idLabel: "Staff ID",
+    hint: "Staff ID",
     role: "doctor",
     login: "/login/doctor",
     image: { src: "/images/home/doctor.webp", width: 376, height: 518 },
@@ -86,7 +94,7 @@ export function PartnerSignIn() {
 
       <div className="px-[18px] py-6 lg:px-9 lg:py-[34px] rounded-[20px] bg-white shadow-[0_0_0_1px_#E6EBF3,0_12px_30px_rgba(11,27,63,0.06)]">
         <h3 className="text-[21px] lg:text-[24px] font-extrabold tracking-[-0.02em]">{portal.name} sign in</h3>
-        <p className="mt-1.5 mb-[22px] text-[14px] leading-[1.5] text-[#5B667A]">Use the Staff ID and password our team shared with you.</p>
+        <p className="mt-1.5 mb-[22px] text-[14px] leading-[1.5] text-[#5B667A]">Use the {portal.hint} from your welcome email.</p>
 
         <form action={action}>
           <input type="hidden" name="role" value={portal.role} />
@@ -96,15 +104,16 @@ export function PartnerSignIn() {
             </p>
           )}
           <label className="block">
-            <span className={label}>Staff ID</span>
+            <span className={label}>{portal.idLabel}</span>
             <span className={field}>
               <input
                 name="staffId"
                 type="text"
                 required
                 autoComplete="username"
-                placeholder="e.g. CYDAB1234"
-                className="flex-1 min-w-0 bg-transparent border-0 outline-none text-[15px] text-[#0B1B3F] uppercase placeholder:normal-case placeholder:text-[#8A94A6]"
+                autoCapitalize="none"
+                spellCheck={false}
+                className="flex-1 min-w-0 bg-transparent border-0 outline-none text-[15px] text-[#0B1B3F]"
               />
             </span>
           </label>

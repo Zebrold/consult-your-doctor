@@ -2,8 +2,10 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
-import { ONLINE_GATEWAY } from '@/lib/payment-gateways'
+import { ONLINE_GATEWAY, isOnlineGateway } from '@/lib/payment-gateways'
+import { notifyRefund } from '@/lib/notify/patient'
 import { executiveFor } from '@/app/executive/_lib/ops'
+import { istDateKey } from '@/components/patient/format'
 
 export type PaymentStatus = 'success' | 'failed' | 'pending' | 'refunded'
 
@@ -28,6 +30,8 @@ export type TransactionRow = {
   refundReason: string | null
   refundedAt: string | null
   createdAt: string
+  /** The patient cancelled at least 2 hours before the booking: the whole payment is to be refunded and recorded here. */
+  refundDue?: { cancelledAt: string; startsAt: string | null } | null
   audits?: PaymentAuditRow[]
 }
 
@@ -104,6 +108,11 @@ export type PaymentStats = {
   refundCount: number
   refundAmount: number
   totalTransactions: number
+  /** Cancelled by the patient in time and not yet refunded (zero until 20261118_self_service_features.sql runs). */
+  refundDueCount?: number
+  refundDueAmount?: number
+  /** Transactions created this calendar month (IST). */
+  monthCount: number
 }
 
 /** Verifies that the signed-in user is an executive whose team may use Payments. */
@@ -139,7 +148,7 @@ export async function getExecutivePayments(): Promise<{
       transactions: [],
       stats: {
         totalCollections: 0, successfulCount: 0, successfulAmount: 0, pendingCount: 0, pendingAmount: 0,
-        failedCount: 0, failedAmount: 0, refundCount: 0, refundAmount: 0, totalTransactions: 0,
+        failedCount: 0, failedAmount: 0, refundCount: 0, refundAmount: 0, totalTransactions: 0, monthCount: 0,
       },
       loadError: 'Could not load payments. Please refresh the page.',
     }
@@ -179,6 +188,20 @@ export async function getExecutivePayments(): Promise<{
   const diagMap = new Map(((diagBookings ?? []) as unknown as DiagnosticRef[]).map((d) => [d.id, d]))
   const hospMap = new Map(((allHospitals ?? []) as unknown as HospitalRef[]).map((h) => [h.id, h]))
   const centerMap = new Map(((allCenters ?? []) as unknown as CenterRef[]).map((c) => [c.id, c]))
+
+  // Cancellations that owe the patient a refund. An error (the table doesn't exist yet) just means none.
+  const { data: dueRows, error: dueError } = await admin
+    .from('booking_cancellations')
+    .select('payment_id, cancelled_at, starts_at')
+    .eq('refund_due', true)
+    .not('payment_id', 'is', null)
+    .limit(5000)
+  const dueMap = new Map<string, { cancelledAt: string; startsAt: string | null }>()
+  if (!dueError) {
+    for (const r of (dueRows ?? []) as { payment_id: string; cancelled_at: string; starts_at: string | null }[]) {
+      dueMap.set(r.payment_id, { cancelledAt: r.cancelled_at, startsAt: r.starts_at })
+    }
+  }
 
   // 3. Map into structured TransactionRows
   const transactions: TransactionRow[] = payments.map((p) => {
@@ -250,6 +273,7 @@ export async function getExecutivePayments(): Promise<{
       refundReason: p.refund_reason ?? null,
       refundedAt: p.refunded_at ?? null,
       createdAt: p.created_at || new Date().toISOString(),
+      refundDue: normStatus === 'success' && !p.refund_amount ? (dueMap.get(p.id) ?? null) : null,
     }
   })
 
@@ -258,6 +282,7 @@ export async function getExecutivePayments(): Promise<{
   const pendingT = transactions.filter((t) => t.status === 'pending')
   const failedT = transactions.filter((t) => t.status === 'failed')
 
+  const thisMonth = istDateKey(Date.now()).slice(0, 7)
   const stats: PaymentStats = {
     totalCollections: successT.reduce((acc, t) => acc + t.amount, 0),
     successfulCount: successT.length,
@@ -270,6 +295,9 @@ export async function getExecutivePayments(): Promise<{
     // Partial refunds keep status 'success' and carry a refund amount, so count every row that has one.
     refundAmount: transactions.reduce((acc, t) => acc + (t.status === 'refunded' ? (t.refundAmount ?? t.amount) : (t.refundAmount ?? 0)), 0),
     totalTransactions: transactions.length,
+    monthCount: transactions.filter((t) => istDateKey(t.createdAt).slice(0, 7) === thisMonth).length,
+    refundDueCount: transactions.filter((t) => t.refundDue).length,
+    refundDueAmount: transactions.reduce((acc, t) => acc + (t.refundDue ? t.amount : 0), 0),
   }
 
   return { transactions, stats }
@@ -329,7 +357,7 @@ export async function processPaymentRefund(
   const admin = createAdminClient()
   const { data: currentPayment, error: fetchErr } = await admin
     .from('payments')
-    .select('id, amount, status, appointment_id, diagnostic_booking_id')
+    .select('id, amount, status, gateway, appointment_id, diagnostic_booking_id')
     .eq('id', paymentId)
     .single()
 
@@ -370,6 +398,10 @@ export async function processPaymentRefund(
 
   // 1b. A full refund ends the booking.
   const note = full ? await cancelRefundedBooking(admin, currentPayment) : 'Partial refund recorded; the booking stays as it is.'
+
+  // 1c. Tell the patient (after the response; the email shows whether the booking was cancelled).
+  const bookingId = currentPayment.appointment_id ?? currentPayment.diagnostic_booking_id
+  if (bookingId) notifyRefund({ bookingId, amount: refundAmt, full, online: isOnlineGateway(currentPayment.gateway) })
 
   // 2. Insert into payment_audits table (traceable financial history)
   try {

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/notify/email'
-import { siteUrl } from '@/lib/site-url'
-import { doctorName, formatShortDate } from '@/components/patient/format'
+import { badgeAudience } from '@/lib/notify/badges'
+import { formatShortDate } from '@/components/patient/format'
 
 // Reminds doctors and hospitals that a verified badge is about to end. Badges don't renew by themselves; they can be
 // renewed in their last 7 days (app/actions/badges.ts). One reminder 7 days before the end and one the day before,
@@ -47,25 +47,14 @@ export async function GET(request: Request) {
     const { data: next } = await admin.from('verified_badges').select('id').eq('subject', b.subject).eq(key, id).neq('id', b.id).in('status', ['in_review', 'active']).limit(1)
     if (next?.length) continue
 
-    const recipients: { email: string; name: string }[] = []
-    let who = 'your hospital'
-    let renewUrl = `${siteUrl()}/hospital/badges`
-    if (b.subject === 'doctor' && b.doctor_id) {
-      const { data: d } = await admin.from('doctors').select('hospital_id, profiles!doctors_profile_id_fkey ( full_name, email )').eq('id', b.doctor_id).maybeSingle()
-      const p = (Array.isArray(d?.profiles) ? d?.profiles[0] : d?.profiles) as { full_name: string | null; email: string | null } | null
-      who = doctorName(p?.full_name)
-      renewUrl = `${siteUrl()}/doctor/badge`
-      if (p?.email && !p.email.endsWith('.internal')) recipients.push({ email: p.email, name: who })
-      if (b.paid_by === 'hospital' && d?.hospital_id) recipients.push(...(await hospitalAdmins(admin, d.hospital_id as string)))
-    } else if (b.hospital_id) {
-      recipients.push(...(await hospitalAdmins(admin, b.hospital_id)))
-    }
+    const { who, url: renewUrl, recipients } = await badgeAudience(admin, b)
 
     let any = false
     for (const r of recipients) {
       const ok = await sendEmail({
         to: r.email,
         subject: `Consult Your Doctor: the verified badge for ${who} ends ${formatShortDate(b.ends_at)}`,
+        heading: 'Your verified badge ends soon',
         paragraphs: [
           `Dear ${r.name},`,
           `The verified badge (the blue tick) for ${who} ends on ${formatShortDate(b.ends_at)}. Badges don’t renew by themselves, so the tick comes off public pages that day unless it is renewed.`,
@@ -81,11 +70,4 @@ export async function GET(request: Request) {
     }
   }
   return NextResponse.json({ sent })
-}
-
-async function hospitalAdmins(admin: ReturnType<typeof createAdminClient>, hospitalId: string) {
-  const { data } = await admin.from('profiles').select('full_name, email').eq('role', 'hospital_admin').eq('hospital_id', hospitalId).limit(10)
-  return ((data ?? []) as { full_name: string | null; email: string | null }[])
-    .filter((p) => p.email && !p.email.endsWith('.internal'))
-    .map((p) => ({ email: p.email!, name: p.full_name ?? 'there' }))
 }

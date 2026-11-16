@@ -66,23 +66,23 @@ export function PatientCareQueue({ items }: { items: AttentionItem[] }) {
           {filtered.slice(0, limit).map((item) => {
             const high = item.severity === 'high'
             return (
-              <li key={item.id} className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-4 py-3.5 border-t border-[#EEF2F7]">
-                <span className="flex items-center gap-3 min-w-0 flex-1">
-                  <Initials name={item.who} />
-                  <span className="min-w-0">
-                    <span className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[14px] font-extrabold">{item.who}</span>
-                      {high && <span className="inline-flex h-5 items-center px-1.5 rounded bg-[#FEF3F2] text-[#B42318] text-[10.5px] font-extrabold tracking-[0.04em]">URGENT</span>}
-                    </span>
-                    <span className="block text-[12px] text-[#5B667A] truncate">{[item.phone, item.portal].filter(Boolean).join(' · ')}</span>
+              <li
+                key={item.id}
+                className="mt-3 p-4 rounded-[14px] flex flex-col sm:flex-row sm:items-stretch gap-3 sm:gap-4"
+                style={{ boxShadow: `inset 4px 0 0 ${high ? '#B42318' : '#E6EAF0'}, inset 0 0 0 1px #E6EAF0` }}
+              >
+                <Initials name={item.who} />
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[15px] font-extrabold">{item.who}</span>
+                    {high && <span className="inline-flex h-6 items-center px-[9px] rounded-full bg-[#FEF3F2] text-[#B42318] text-[11.5px] font-extrabold tracking-[0.04em]">URGENT</span>}
                   </span>
+                  <span className="block text-[12.5px] text-[#5B667A] truncate">{[item.phone, item.portal].filter(Boolean).join(' · ')}</span>
+                  <span className="block mt-2.5 text-[13.5px] font-extrabold">{item.title}</span>
+                  <span className="block text-[13px] text-[#27324A]">{item.detail || '—'}</span>
                 </span>
-                <span className="min-w-0 sm:flex-[1.4] sm:pl-0 pl-12">
-                  <span className="block text-[13.5px] font-extrabold truncate">{item.title}</span>
-                  <span className="block text-[12px] text-[#5B667A] truncate">{item.detail || '—'}</span>
-                </span>
-                <span className="flex items-center justify-between sm:justify-end gap-3 pl-12 sm:pl-0 sm:w-[260px] shrink-0">
-                  <span className="text-right">
+                <span className="flex flex-row sm:flex-col items-center sm:items-end justify-between gap-2.5 shrink-0">
+                  <span className="sm:text-right">
                     <Status label={item.status} color={high ? '#B42318' : '#B54708'} />
                     <span className="block text-[12px] text-[#5B667A]">{item.sinceLabel}</span>
                   </span>

@@ -68,11 +68,13 @@ export function notifyReportReady(args: { patientId: string; what: string; from:
       await sendEmail({
         to: contact.email,
         subject: `Your ${args.what} from ${args.from}`,
+        heading: `Your ${args.what} is ready`,
         paragraphs: [
           `Hello ${firstName(contact.name)},`,
           `Your ${args.what} from ${args.from} is ${file ? 'attached to this email' : 'ready'}.`,
-          `You can also open it any time in your Consult Your Doctor account: ${SITE_URL}/patient/profile`,
+          'You can also open it any time from Health records in your Consult Your Doctor account.',
         ],
+        button: { text: 'Open health records', url: `${SITE_URL}/patient/records` },
         attachments: file ? [{ filename: args.filename, content: file, contentType: args.contentType }] : undefined,
       })
     }
@@ -118,27 +120,10 @@ export function notifyBookingConfirmed(bookingId: string) {
     const isConsultation = card.kind === 'consultation'
     const what = isConsultation ? `consultation with ${card.title}` : `lab tests (${card.title})`
     const dateTimeStr = card.when ?? 'Scheduled visit'
-    const { data: details } = await admin.from('patient_details').select('gender, date_of_birth').eq('id', card.patientId).maybeSingle()
 
     let pdfBytes: Uint8Array | null = null
     try {
-      pdfBytes = await generateAppointmentSlipPdf({
-        bookingId: card.id,
-        tokenNumber: card.token ?? card.code,
-        isConsultation,
-        patient: { name: contact.name, phone: contact.phone, email: contact.email, gender: details?.gender, dateOfBirth: details?.date_of_birth },
-        provider: { name: card.title, specialty: card.subtitle, hospitalName: card.place, address: card.placeLines[0] ?? null, city: card.placeLines[1] ?? null },
-        schedule: { dateTimeStr },
-        payment: {
-          online: card.bookingFeeLines.some((l) => l.label === 'Collected by' && l.value === 'Consult your Doctor'),
-          amount: card.bookingFee + card.convenienceFee,
-          convenienceFee: card.convenienceFee,
-          transactionId: card.transactionId ?? card.id,
-          status: 'PAID',
-          gateway: card.paymentType ?? 'Online',
-          paidAt: new Date(),
-        },
-      })
+      pdfBytes = await generateAppointmentSlipPdf(card)
     } catch (pdfErr) {
       console.error('Failed to generate appointment slip PDF:', pdfErr)
     }
@@ -186,6 +171,76 @@ export function notifyPaymentPending(bookingId: string, reason: string | null) {
   })
 }
 
+/**
+ * The team recorded a refund on a booking's payment (the money itself goes back from Razorpay or the desk). A full
+ * refund also cancels the booking. Email only.
+ */
+export function notifyRefund(args: { bookingId: string; amount: number; full: boolean; online: boolean }) {
+  later('refund', async (admin) => {
+    const card = await loadBookingCard(admin, args.bookingId)
+    if (!card) return
+    const contact = await patientContact(admin, card.patientId)
+    if (!contact?.email) return
+    const amount = formatINR(args.amount)
+    const what = card.kind === 'consultation' ? `your appointment with ${card.title}` : `your lab booking at ${card.place}`
+    const cancelled = args.full && card.state === 'cancelled'
+    await sendEmail({
+      to: contact.email,
+      subject: `Refund of ${amount} for booking ${card.code}`,
+      heading: `Refund of ${amount}`,
+      paragraphs: [
+        `Hello ${firstName(contact.name)},`,
+        `We’ve refunded ${amount} for ${what}.${cancelled ? ' The booking is now cancelled.' : ''}`,
+        args.online
+          ? 'The money goes back to the card, UPI or bank account you paid with. Banks usually take 5 to 7 working days to show it.'
+          : 'You paid this at the desk, so the refund is given back to you there.',
+      ],
+      facts: [
+        ['Booking ID', card.code],
+        ['Refund', amount],
+        ['Booking', cancelled ? 'Cancelled' : 'Still booked'],
+      ],
+      button: { text: 'See your bookings', url: `${SITE_URL}/patient/appointments` },
+    })
+  })
+}
+
+/**
+ * The patient cancelled their own booking (My bookings). Email only. `refundDue`: cancelled at least 2 hours before, so
+ * the online fee is refunded once the team records it; `amount` is what was paid online (0 when nothing was paid).
+ */
+export function notifyBookingCancelled(args: { bookingId: string; refundDue: boolean; amount: number }) {
+  later('cancelled', async (admin) => {
+    const card = await loadBookingCard(admin, args.bookingId)
+    if (!card) return
+    const contact = await patientContact(admin, card.patientId)
+    if (!contact?.email) return
+    const money = formatINR(args.amount)
+    const what = card.kind === 'consultation' ? `your appointment with ${card.title}` : `your lab booking at ${card.place}`
+    const refundLine = args.refundDue
+      ? `Your booking fee and payment convenience fee of ${money} will be refunded to the card, UPI or bank account you paid with. We’ll email you when it’s sent; banks usually take 5 to 7 working days to show it.`
+      : args.amount > 0
+        ? `As this was less than 2 hours before your booking, the booking fee of ${money} isn’t refunded.`
+        : 'Nothing was charged for this booking.'
+    await sendEmail({
+      to: contact.email,
+      subject: `Booking ${card.code} cancelled`,
+      heading: 'Your booking is cancelled',
+      paragraphs: [
+        `Hello ${firstName(contact.name)},`,
+        `You cancelled ${what}${card.when ? `, booked for ${card.when}` : ''}. The slot is now free for someone else.`,
+        refundLine,
+      ],
+      facts: [
+        ['Booking ID', card.code],
+        ['Cancelled', new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })],
+        ['Refund', args.refundDue ? `${money} to be refunded` : args.amount > 0 ? 'Booking fee kept' : 'Nothing was paid'],
+      ],
+      button: { text: 'See your bookings', url: `${SITE_URL}/patient/appointments` },
+    })
+  })
+}
+
 /** Hospital staff added health details (vitals, notes or documents) to the patient's visit. */
 export function notifyHealthUpdate(args: { patientId: string; hospital: string }) {
   later('health', async (admin) => {
@@ -196,11 +251,12 @@ export function notifyHealthUpdate(args: { patientId: string; hospital: string }
       await sendEmail({
         to: contact.email,
         subject: `${args.hospital} added your health details`,
+        heading: 'New health details from your visit',
         paragraphs: [
           `Hello ${firstName(contact.name)},`,
           `${args.hospital} added your health details from today's visit to your Consult Your Doctor account. Your doctor can see them too.`,
-          `View them at ${SITE_URL}/patient/profile`,
         ],
+        button: { text: 'View your health details', url: `${SITE_URL}/patient/profile` },
       })
     }
   })
@@ -223,7 +279,10 @@ export function notifyDoctorLeave(args: { patientId: string; bookingCode: string
       await sendEmail({
         to: contact.email,
         subject: `${args.doctor} is on leave on ${args.when}`,
-        paragraphs: [`Hello ${firstName(contact.name)},`, line, `See your bookings at ${SITE_URL}/patient/appointments`],
+        heading: 'Your visit will be moved',
+        paragraphs: [`Hello ${firstName(contact.name)},`, line],
+        facts: [['Booking ID', args.bookingCode], ['Doctor', args.doctor], ['Hospital', args.hospital]],
+        button: { text: 'See your bookings', url: `${SITE_URL}/patient/appointments` },
       })
     }
   })
@@ -247,11 +306,13 @@ export function notifyAccountCreated(args: { patientId: string; patientCode: str
       await sendEmail({
         to: contact.email,
         subject: 'Your Consult Your Doctor account',
+        heading: 'Your account is ready',
         paragraphs: [
           `Hello ${firstName(contact.name)},`,
-          `Your Consult Your Doctor account is ready. Patient ID: ${args.patientCode}. Password: ${args.password}`,
-          `Log in at ${signIn} with your Patient ID and password, or with your mobile number and a one-time code. Keep these details private.`,
+          'Your Consult Your Doctor account is ready. Log in with your Patient ID and password, or with your mobile number and a one-time code. Keep these details private.',
         ],
+        facts: [['Patient ID', args.patientCode], ['Password', args.password]],
+        button: { text: 'Log in', url: signIn },
       })
     }
   })

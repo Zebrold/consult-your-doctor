@@ -56,6 +56,7 @@ function crumb(pathname: string): string[] {
   const item = [...MENU, ...GROW].find((m) => isActive(pathname, m.href))
   if (item) return [item.label]
   if (pathname.startsWith('/hospital/ai')) return ['Help & support']
+  if (pathname === '/hospital/more') return ['Account & settings']
   if (isSettings(pathname)) return ['Settings']
   return ['Dashboard']
 }

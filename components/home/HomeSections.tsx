@@ -121,7 +121,7 @@ function HospitalCard({ hospital: h, km }: { hospital: HomeHospital; km: number 
 export function HospitalsSection({ hospitals, place }: { hospitals: Near<HomeHospital>[]; place: Place }) {
   const row = useRef<HTMLDivElement>(null);
   return (
-    <section aria-labelledby="hosp-title" className="bg-[#F6F8FC] border-t border-[#EEF2F7] pt-[26px] pb-7 md:pt-12 md:pb-14">
+    <section aria-labelledby="hosp-title" className="bg-[#F6F8FC] border-t border-[#EEF2F7] md:bg-white md:border-t-0 pt-[26px] pb-7 md:pt-12 md:pb-14">
       <div className={`${SIDES} flex items-center justify-between gap-2.5 md:gap-4`}>
         <h2 id="hosp-title" className="text-[17px] md:text-[28px] leading-[1.25] md:leading-[1.15] font-extrabold tracking-[-0.02em]">
           Discover the best <span className="text-[#2A4DD0]">hospitals {place.location ? "near you" : "in your city"}</span>

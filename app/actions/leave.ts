@@ -7,7 +7,9 @@ import { getCurrentUser } from '@/lib/supabase/server'
 import { doctorName, istDateKey } from '@/components/patient/format'
 import { BOOKED_CHOICES, LEAVE_REASONS, leaveDates, leaveWindow, type BookedPatients, type LeaveReason } from '@/lib/leave'
 import { notifyBookingConfirmed, notifyDoctorLeave } from '@/lib/notify/patient'
+import { emailLeaveDecision } from '@/lib/notify/hospital'
 import { slotHospitalId } from '@/lib/practices'
+import { moveAppointmentSlot } from '@/lib/booking-move'
 
 // Doctors' leave. The doctor asks (/doctor/leave); their hospital approves or declines (/hospital/doctors/leave).
 // Approving closes the doctor's open slots on those days and tells each patient already booked that the hospital will
@@ -105,15 +107,20 @@ export async function reviewLeave(leaveId: string, approve: boolean, reason = ''
   if (!ctx || !uuid.safeParse(leaveId).success) return { ok: false, error: 'Not found.' }
   const { data: leave } = await ctx.admin.from('doctor_leaves').select('id, doctor_id, starts_on, ends_on, status, booked_patients').eq('id', leaveId).maybeSingle()
   if (!leave || leave.status !== 'pending') return { ok: false, error: 'This request has already been answered.' }
-  const { data: doctor } = await ctx.admin.from('doctors').select('id, hospital_id, profiles!doctors_profile_id_fkey ( full_name )').eq('id', leave.doctor_id).maybeSingle()
+  const { data: doctor } = await ctx.admin.from('doctors').select('id, hospital_id, profiles!doctors_profile_id_fkey ( full_name, email )').eq('id', leave.doctor_id).maybeSingle()
   if (!doctor || doctor.hospital_id !== ctx.hospitalId) return { ok: false, error: 'Not found.' }
   const now = new Date().toISOString()
+  const profile = (Array.isArray(doctor.profiles) ? doctor.profiles[0] : doctor.profiles) as { full_name: string | null; email: string | null } | null
+  const { data: hospital } = await ctx.admin.from('hospitals').select('name').eq('id', ctx.hospitalId).maybeSingle()
+  const tellDoctor = (approved: boolean, why?: string) =>
+    emailLeaveDecision({ to: profile?.email, doctor: doctorName(profile?.full_name ?? 'Doctor'), hospital: hospital?.name ?? 'Your hospital', dates: leaveDates({ startsOn: leave.starts_on, endsOn: leave.ends_on }), approved, reason: why })
 
   if (!approve) {
     const why = reason.trim().slice(0, 300)
     if (why.length < 3) return { ok: false, error: 'Say why, so the doctor knows.' }
-    const { error } = await ctx.admin.from('doctor_leaves').update({ status: 'declined', decline_reason: why, reviewed_by: ctx.user.id, reviewed_at: now }).eq('id', leaveId).eq('status', 'pending')
+    const { data: declined, error } = await ctx.admin.from('doctor_leaves').update({ status: 'declined', decline_reason: why, reviewed_by: ctx.user.id, reviewed_at: now }).eq('id', leaveId).eq('status', 'pending').select('id')
     if (error) return { ok: false, error: 'Could not decline it. Please try again.' }
+    if (declined?.length) await tellDoctor(false, why)
     revalidatePath('/hospital/doctors/leave')
     revalidatePath('/doctor/leave')
     return { ok: true }
@@ -137,10 +144,9 @@ export async function reviewLeave(leaveId: string, approve: boolean, reason = ''
     .eq('id', leaveId)
     .eq('status', 'pending')
   if (error) return { ok: false, error: 'Could not approve it. Please try again.' }
+  await tellDoctor(true)
 
   // Tell the patients already booked on those days.
-  const { data: hospital } = await ctx.admin.from('hospitals').select('name').eq('id', ctx.hospitalId).maybeSingle()
-  const profile = (Array.isArray(doctor.profiles) ? doctor.profiles[0] : doctor.profiles) as { full_name: string | null } | null
   const booked = await bookedDuring(ctx.admin, leave.doctor_id, span)
   const plan = leave.booked_patients === 'other_doctor' ? 'to another doctor at the hospital' : 'to a new time with the same doctor'
   for (const b of booked) {
@@ -195,32 +201,15 @@ export async function moveBooking(appointmentId: string, scheduleId: string): Pr
   if ((doctors ?? []).length !== new Set([appt.doctor_id, slot.doctor_id]).size) return { ok: false, error: 'Not found.' }
   if ((await slotHospitalId(ctx.admin, scheduleId, ctx.hospitalId)) !== ctx.hospitalId) return { ok: false, error: 'Not found.' }
 
-  // Claim the new slot first, so two desks can't give it to two patients.
-  const { data: claimed } = await ctx.admin.from('schedules').update({ is_booked: true }).eq('id', scheduleId).eq('is_booked', false).select('id')
-  if (!claimed?.length) return { ok: false, error: 'That slot has just been taken. Pick another.' }
-  const { data: moved, error } = await ctx.admin
-    .from('appointments')
-    .update({ schedule_id: scheduleId, doctor_id: slot.doctor_id })
-    .eq('id', appointmentId)
-    .eq('status', 'confirmed')
-    .select('id')
-  if (error || !moved?.length) {
-    // Nothing moved (the booking changed under us): give the new slot back and leave the old one alone.
-    await ctx.admin.from('schedules').update({ is_booked: false }).eq('id', scheduleId)
-    if (error) console.error('moveBooking:', error)
-    return { ok: false, error: error ? 'Could not move the booking. Please try again.' : 'This booking has changed and can’t be moved. Please refresh.' }
-  }
-
-  // The old slot: closed if it falls in the doctor's approved leave, otherwise open again.
-  if (appt.schedule_id) {
-    const { data: old } = await ctx.admin.from('schedules').select('start_time').eq('id', appt.schedule_id).maybeSingle()
-    const oldDay = old ? istDateKey(old.start_time) : null
-    const { data: onLeave } = oldDay
-      ? await ctx.admin.from('doctor_leaves').select('id').eq('doctor_id', appt.doctor_id).eq('status', 'approved').lte('starts_on', oldDay).gte('ends_on', oldDay).limit(1)
-      : { data: null }
-    if (onLeave?.length) await ctx.admin.from('schedules').delete().eq('id', appt.schedule_id).eq('is_booked', true)
-    else await ctx.admin.from('schedules').update({ is_booked: false }).eq('id', appt.schedule_id)
-  }
+  // Claim the new slot, update the booking and free the old slot (shared with the patient's own reschedule).
+  const result = await moveAppointmentSlot(ctx.admin, {
+    appointmentId,
+    fromScheduleId: (appt.schedule_id as string | null) ?? null,
+    fromDoctorId: appt.doctor_id as string,
+    toScheduleId: scheduleId,
+    toDoctorId: slot.doctor_id as string,
+  })
+  if (!result.ok) return result
 
   notifyBookingConfirmed(appointmentId)
   revalidatePath('/hospital/doctors/leave')

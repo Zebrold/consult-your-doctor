@@ -100,7 +100,7 @@ const TITLE = 'Care Assistant'
  * so searches in one panel never appear in another. Staff portals get the full-width chat from the user's hospital
  * design; patients keep the chat with the "what it can do" cards beside it.
  */
-export function AssistantPage({ role, viewer, name }: { role: string | null; viewer: string | null; name?: string | null }) {
+export function AssistantPage({ role, viewer, name, titled = false }: { role: string | null; viewer: string | null; name?: string | null; titled?: boolean }) {
   const key = role ?? 'visitor'
   const [language, setLanguage] = useLanguage()
   const chat = useChat(chatKey('ai', key, viewer), 'assistant', language)
@@ -141,7 +141,7 @@ export function AssistantPage({ role, viewer, name }: { role: string | null; vie
     return (
       <section
         aria-label={TITLE}
-        className="flex flex-col bg-white overflow-hidden min-h-[440px] rounded-[20px] border border-[#E6EAF0] shadow-[0_1px_2px_rgba(11,27,63,0.04)] h-[calc(100dvh-13.5rem-var(--strip-h)-env(safe-area-inset-top)-env(safe-area-inset-bottom))] md:h-[calc(100dvh-9rem)] max-h-[960px] font-(family-name:--font-manrope)"
+        className={`flex flex-col bg-white overflow-hidden min-h-[440px] rounded-[20px] border border-[#E6EAF0] shadow-[0_1px_2px_rgba(11,27,63,0.04)] h-[calc(100dvh-13.5rem-var(--strip-h)-env(safe-area-inset-top)-env(safe-area-inset-bottom))] md:h-[calc(100dvh-9rem)] ${titled ? 'lg:h-[calc(100dvh-230px)] lg:min-h-[620px]' : ''} max-h-[960px] font-(family-name:--font-manrope)`}
       >
         <header className="shrink-0 flex items-center gap-3 pl-4 md:pl-5 pr-3 md:pr-4 py-3 border-b border-[#E8EAEE]">
           <span aria-hidden className="shrink-0 w-10 h-10 rounded-full bg-[#2A4DD0] text-white flex items-center justify-center">

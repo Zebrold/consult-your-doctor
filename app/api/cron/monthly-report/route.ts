@@ -35,7 +35,10 @@ export async function GET(request: Request) {
     const ok = await sendEmail({
       to: s.email,
       subject: `Consult Your Doctor: platform report for ${report.title}`,
-      paragraphs: [`Dear ${names.get(s.profile_id)},`, `Here is how the platform did in ${report.title}.`, ...report.summary.map(([k, v]) => `${k}: ${v}`), 'The bookings, payments and tickets for the month are attached as spreadsheets.', `Stop these emails from Reports in the executive workspace: ${siteUrl()}/executive/reports`],
+      heading: `Platform report for ${report.title}`,
+      paragraphs: [`Dear ${names.get(s.profile_id)},`, `Here is how the platform did in ${report.title}. The bookings, payments and tickets for the month are attached as spreadsheets.`],
+      facts: report.summary.map(([k, v]) => [String(k), String(v)] as [string, string]),
+      button: { text: 'Open Reports', url: `${siteUrl()}/executive/reports` },
       attachments: report.files.map((f) => ({ filename: f.filename, content: f.content, contentType: 'text/csv; charset=utf-8' })),
     }).catch(() => false)
     if (ok) {

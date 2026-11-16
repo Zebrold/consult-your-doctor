@@ -1,13 +1,13 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Plus } from 'lucide-react'
+import { ChevronRight, Plus } from 'lucide-react'
 import { currentTime } from '@/components/patient/data'
 import { istDateKey } from '@/components/patient/format'
 import { accessibleHospitals, branchPeople } from '@/lib/branches'
 import { displayOrgCode } from '@/lib/organization-ids'
 import { requireHospital } from '../_lib/hospital'
 import { BranchCards, BranchPeople, type BranchCard } from '../_components/BranchesBoard'
-import { DeskHead, HosBackHeader, HosBody, Panel, PanelHead, Row, btnOutline, btnPrimary } from '../_components/hos-ui'
+import { DeskHead, HosBody, HosHeader, Panel, PanelHead, Row, btnOutline, btnPrimary } from '../_components/hos-ui'
 
 export const metadata: Metadata = { title: 'Accounts & branches | Hospital Portal' }
 export const dynamic = 'force-dynamic'
@@ -20,7 +20,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString
  * and how money works across branches (each branch has its own payouts).
  */
 export default async function HospitalBranchesPage() {
-  const { admin, user, hospital } = await requireHospital()
+  const { admin, user, hospital, staff } = await requireHospital()
   const { ready, ids } = await accessibleHospitals(admin, user.id, hospital.id)
   const monthStart = new Date(`${istDateKey(currentTime()).slice(0, 7)}-01T00:00:00+05:30`).toISOString()
 
@@ -77,9 +77,13 @@ export default async function HospitalBranchesPage() {
 
   return (
     <>
-      <HosBackHeader backHref="/hospital/more" backLabel="Back to more" title="Accounts & branches">
-        <p className="mt-2.5 mx-1.5 text-[13px] leading-[1.5] text-[#DCE6FF]">{subtitle}</p>
-      </HosBackHeader>
+      <HosHeader staff={staff} back={{ href: '/hospital/more', label: 'More' }} title="Accounts & branches" subtitle={subtitle}>
+        <div className="p-4 rounded-2xl bg-white/[0.12] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]">
+          <span className="block text-[12.5px] font-bold text-[#CFDCFF]">You are signed in to</span>
+          <span className="block mt-1 text-[19px] font-extrabold tracking-[-0.01em]">{names[hospital.id] ?? hospital.name}</span>
+          <span className="block mt-1.5 text-[12px] text-[#DCE6FF]">Switching keeps you signed in. Bookings, beds and finance change to that branch.</span>
+        </div>
+      </HosHeader>
       <HosBody>
         <DeskHead title="Accounts & branches" subtitle={subtitle} actions={addBranch} />
         {!ready && (
@@ -88,7 +92,7 @@ export default async function HospitalBranchesPage() {
           </p>
         )}
 
-        <div className="flex flex-col lg:flex-row lg:items-center gap-1 lg:gap-3 mb-4 px-4 lg:px-[18px] py-3.5 rounded-[14px] bg-white shadow-[0_0_0_1px_#E6EAF0]">
+        <div className="hidden lg:flex flex-row items-center gap-3 mb-4 px-[18px] py-3.5 rounded-[14px] bg-white shadow-[0_0_0_1px_#E6EAF0]">
           <span className="text-[13.5px] text-[#5B667A]">You are signed in to</span>
           <strong className="text-[14.5px]">{names[hospital.id] ?? hospital.name}</strong>
           <span className="flex-1" />
@@ -96,11 +100,16 @@ export default async function HospitalBranchesPage() {
         </div>
 
         <BranchCards cards={cards} waiting={waiting} canAdd={ready} />
-        <div className="lg:hidden mt-3.5">{ready && addBranch}</div>
 
         <div className="grid gap-3.5 lg:gap-5 lg:grid-cols-2 mt-3.5 lg:mt-5 items-start">
           <Panel>
-            <PanelHead title="Who can reach which branch" sub="Hospital admins in your branches. Tick a branch to let them switch to it." />
+            <PanelHead title="Who can reach which branch" sub="Hospital admins in your branches. Tick a branch to let them switch to it."
+              right={
+                <Link href="/hospital/staff" className="shrink-0 inline-flex items-center gap-1 text-[13px] font-extrabold text-[#2A4DD0] hover:underline">
+                  Staff &amp; access <ChevronRight className="w-4 h-4" />
+                </Link>
+              }
+            />
             {ready ? <BranchPeople people={people} branches={cards.map((c) => ({ id: c.id, name: names[c.id] }))} me={user.id} /> : <p className="py-3 text-[13px] text-[#5B667A] border-t border-[#EEF2F7]">Available once branches are set up.</p>}
           </Panel>
           <Panel>
@@ -109,7 +118,7 @@ export default async function HospitalBranchesPage() {
             <Row label="Payout account">Set on each branch’s Payouts page</Row>
             <Row label="Booking fees and desk payments">Recorded under the branch that took them</Row>
             <Row label="Verified badges">Bought by each branch</Row>
-            <Link href="/hospital/wallet" className={`${btnOutline} lg:border mt-4`}>
+            <Link href="/hospital/wallet" className={`${btnOutline} lg:border mt-4 w-full lg:w-auto`}>
               Open payouts
             </Link>
           </Panel>

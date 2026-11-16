@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Ban, ChevronLeft, ChevronRight, LoaderCircle } from 'lucide-react'
 import { blockScheduleSlot } from '@/app/actions/doctor'
 import { formatINR, formatTime, istDateKey, visitToken } from '@/components/patient/format'
+import { FOLLOW_UP_DAYS } from '@/lib/follow-up'
 import { CallLink, CheckInButton, PrescriptionButton, SIZE, type VisitRef } from './VisitControls'
 import { ProfileEditor, type EditableProfile } from './ProfileEditor'
 import { DeskHead, Donut, EmptyLine, Meter, Panel, PanelHead, Row, StatCard, btnOutline, card, delta, lineTab, segGroup, segTab } from './doc-ui'
@@ -62,7 +63,10 @@ const KIND: Record<Kind, { label: string; color: string; bg: string; dashed?: bo
   open: { label: 'Open', color: '#D0D5DD', bg: '#FFFFFF', dashed: true },
 }
 
-const matches = (filter: Filter, kind: Kind) =>
+/** A fast-track booking in the week grid. */
+const FAST = { color: '#E04F16', bg: '#FFF6ED', sub: '#B93815' }
+
+const matches =(filter: Filter, kind: Kind) =>
   filter === 'all' || (filter === 'open' ? kind === 'open' : filter === 'in' ? kind === 'in' : kind === 'booked' || kind === 'unpaid' || kind === 'done')
 
 const FILTERS: [Filter, string][] = [
@@ -81,6 +85,7 @@ export function ScheduleBoard({
   initialDate,
   windowKeys,
   bookingFee,
+  fastTrackFee = null,
 }: {
   doctor: { hospital: { name: string; city: string | null } | null; fee: number | null; editable: EditableProfile }
   slots: Slot[]
@@ -91,6 +96,8 @@ export function ScheduleBoard({
   windowKeys: { from: string; to: string }
   /** The booking fee patients pay in the app per appointment. */
   bookingFee: number
+  /** The fast-track booking fee, when fast track is set up; null leaves it out. */
+  fastTrackFee?: number | null
 }) {
   const router = useRouter()
   const today = istDateKey(now)
@@ -139,6 +146,7 @@ export function ScheduleBoard({
   const isOpenAhead = (i: Item) => kindOf(i) === 'open' && Date.parse(i.start) > now
   const isOpenAny = (i: Item) => kindOf(i) === 'open'
   const isDone = (i: Item) => kindOf(i) === 'done'
+  const isFast = (i: Item) => !!i.visit?.fastTrack
   // A no-show: a booking whose slot has ended without the patient being checked in.
   const isNoShow = (i: Item) => kindOf(i) === 'booked' && Date.parse(i.end ?? i.start) < now
   const weekItems = weekKeys.flatMap(items)
@@ -168,13 +176,15 @@ export function ScheduleBoard({
       <div className="flex items-center justify-between gap-3 pt-3 border-t border-[#EEF2F7] lg:border-0 lg:pt-0">
         <span className="min-w-0">
           <span className="block text-[14px] font-extrabold">In-person visit</span>
-          <span className="block text-[12px] text-[#5B667A]">Per booked slot</span>
+          <span className="block text-[12px] text-[#5B667A]">Per booked slot · {FOLLOW_UP_DAYS}-day free follow-up</span>
         </span>
         <span className="text-[17px] lg:text-[22px] font-extrabold">{doctor.fee ? formatINR(doctor.fee) : 'Not set'}</span>
       </div>
       <ProfileEditor profile={doctor.editable} label="Update consultation fee" className={`${btnOutline} lg:border w-full mt-3 [&_svg]:w-[15px] [&_svg]:h-[15px]`} />
       <p className="mt-2.5 text-[11.5px] lg:text-[12px] leading-normal text-[#5B667A]">
-        The {formatINR(bookingFee)} booking fee is collected in the app and is separate from your fee.
+        {fastTrackFee != null
+          ? `Booking fees (${formatINR(bookingFee)} general, ${formatINR(fastTrackFee)} fast track) are collected in the app and are separate from your fee.`
+          : `The ${formatINR(bookingFee)} booking fee is collected in the app and is separate from your fee.`}
       </p>
     </Panel>
   )
@@ -291,7 +301,7 @@ export function ScheduleBoard({
             note="vs last week"
             series={perDay(weekKeys, isOpenAny)}
           />
-          <StatCard label="Completed" value={weekItems.filter(isDone).length} change={delta(weekItems.filter(isDone).length, sum(perDay(lastWeekKeys, isDone)))} note="vs last week" series={perDay(weekKeys, isDone)} />
+          <StatCard label="Fast track" value={weekItems.filter(isFast).length} change={delta(weekItems.filter(isFast).length, sum(perDay(lastWeekKeys, isFast)))} note="vs last week" series={perDay(weekKeys, isFast)} />
           <StatCard label="No-shows" value={weekItems.filter(isNoShow).length} change={delta(weekItems.filter(isNoShow).length, sum(perDay(lastWeekKeys, isNoShow)), { higherIsGood: false })} note="vs last week" series={perDay(weekKeys, isNoShow)} />
         </section>
 
@@ -393,13 +403,13 @@ function WaitingRoom({ waiting }: { waiting: Item[] }) {
 }
 
 function Legend() {
-  const keys: Kind[] = ['in', 'booked', 'unpaid', 'done', 'open']
+  const keys: (Kind | 'fast')[] = ['in', 'booked', 'fast', 'unpaid', 'done', 'open']
   return (
     <div className="flex flex-wrap gap-4 mb-3.5 ml-1">
       {keys.map((k) => (
         <span key={k} className="inline-flex items-center gap-1.5 text-[12.5px] font-bold text-[#5B667A]">
-          <span className="w-2.5 h-2.5 rounded-[3px]" style={{ background: k === 'open' ? '#D0D5DD' : KIND[k].color }} />
-          {KIND[k].label}
+          <span className="w-2.5 h-2.5 rounded-[3px]" style={{ background: k === 'fast' ? FAST.color : k === 'open' ? '#D0D5DD' : KIND[k].color }} />
+          {k === 'fast' ? 'Fast track' : KIND[k].label}
         </span>
       ))}
     </div>
@@ -488,7 +498,7 @@ function BlockSlotButton({ slotId, time }: { slotId: string; time: string }) {
   )
 }
 
-type Block = { key: string; start: string; end: string; kind: Kind; title: string; sub: string; href: string | null; count: number }
+type Block = { key: string; start: string; end: string; kind: Kind; title: string; sub: string; href: string | null; count: number; fast: boolean }
 
 /** A day's slots as calendar blocks: each visit on its own, and each run of back-to-back open slots as one block. */
 function blocksOf(list: Item[]): Block[] {
@@ -502,15 +512,17 @@ function blocksOf(list: Item[]): Block[] {
       continue
     }
     const v = item.visit
+    const fast = !!v?.fastTrack && (kind === 'booked' || kind === 'unpaid')
     blocks.push({
       key: item.key,
       start: item.start,
       end,
       kind,
       title: v ? v.patient?.name ?? 'Patient' : kind === 'reserved' ? 'Reserved' : 'Open',
-      sub: v ? KIND[kind].label : kind === 'open' ? `${lengthOf(item)} min` : 'Held',
+      sub: v ? (fast ? 'Fast track' : KIND[kind].label) : kind === 'open' ? `${lengthOf(item)} min` : 'Held',
       href: v?.patient ? `/doctor/patients/${v.patient.id}` : null,
       count: 1,
+      fast,
     })
   }
   return blocks
@@ -563,14 +575,14 @@ function WeekGrid({ keys, itemsFor, today, onDay }: { keys: string[]; itemsFor: 
                   <>
                     <span className={`block text-[12px] font-extrabold truncate ${b.kind === 'open' || b.kind === 'reserved' ? 'text-[#98A2B3]' : ''}`}>{b.title}</span>
                     {h >= 44 && (
-                      <span className="block text-[11px] font-bold truncate" style={{ color: b.kind === 'open' || b.kind === 'reserved' || b.kind === 'done' ? '#98A2B3' : s.color }}>
+                      <span className="block text-[11px] font-bold truncate" style={{ color: b.fast ? FAST.sub : b.kind === 'open' || b.kind === 'reserved' || b.kind === 'done' ? '#98A2B3' : s.color }}>
                         {b.sub}
                       </span>
                     )}
                   </>
                 )
                 const cls = `absolute left-1 right-1 px-2 py-1.5 rounded-[9px] overflow-hidden z-[1] ${s.dashed ? 'border-[1.5px] border-dashed border-[#D0D5DD]' : ''}`
-                const style = { top: top + 3, height: h, background: s.bg, boxShadow: `inset 3px 0 0 ${b.kind === 'done' ? '#98A2B3' : s.color}` }
+                const style = { top: top + 3, height: h, background: b.fast ? FAST.bg : s.bg, boxShadow: `inset 3px 0 0 ${b.fast ? FAST.color : b.kind === 'done' ? '#98A2B3' : s.color}` }
                 return b.href ? (
                   <Link key={b.key} href={b.href} title={`${formatTime(b.start)} · ${b.title}`} className={`${cls} hover:brightness-[0.98]`} style={style}>
                     {body}

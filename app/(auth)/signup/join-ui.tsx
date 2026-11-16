@@ -2,7 +2,7 @@
 
 import { startTransition, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Check, ChevronDown, CircleCheck, File as FileIcon, Loader2, Upload, X, type LucideIcon } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, File as FileIcon, Loader2, Upload, X, type LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { COUNTRY_CODES } from '@/lib/countryCodes'
 import { startDocumentUploads } from '@/app/actions/applicationUploads'
@@ -21,24 +21,25 @@ const selectCls = `${inputCls} appearance-none pr-10 cursor-pointer invalid:text
 // ---------- Page ----------
 
 /** The blue band under the site header: breadcrumb, icon, title and what the page is for. */
-export function JoinHero({ crumb, icon: Icon, title, intro }: { crumb: string; icon: LucideIcon; title: string; intro: string }) {
+export function JoinHero({ crumb, icon: Icon, title, intro, children }: { crumb: string; icon: LucideIcon; title: string; intro: string; children?: ReactNode }) {
   return (
-    <div className="bg-[#1D4ED8] text-white px-4 md:px-[max(24px,10%)] pt-6 md:pt-11 pb-[76px] md:pb-[100px]">
-      <nav aria-label="Breadcrumb" className="text-[13.5px] md:text-[14px]">
+    <div className="bg-[#1D4ED8] text-white px-4 md:px-[max(24px,10%)] pt-6 md:pt-11 pb-[26px] md:pb-[100px]">
+      <nav aria-label="Breadcrumb" className="text-[13.5px] md:text-[14px] font-bold">
         <Link href="/corporate" className="font-extrabold hover:underline underline-offset-4">
           Partner with us
         </Link>
-        <span className="text-[#C7D6FF]"> / {crumb}</span>
+        <span className="text-[#C7D6FF]"> <span className="opacity-60">/</span> {crumb}</span>
       </nav>
-      <div className="mt-4 md:mt-5 flex items-start gap-3.5 md:gap-[18px]">
-        <span className="shrink-0 w-12 h-12 md:w-14 md:h-14 rounded-[13px] md:rounded-[14px] bg-white text-[#1D4ED8] flex items-center justify-center shadow-[0_6px_16px_rgba(4,16,70,0.18)]">
+      <div className="mt-4 md:mt-5 flex flex-col md:flex-row items-start gap-3.5 md:gap-[18px]">
+        <span className="shrink-0 w-12 h-12 md:w-14 md:h-14 rounded-[14px] bg-white text-[#1D4ED8] flex items-center justify-center shadow-[0_6px_16px_rgba(4,16,70,0.18)]">
           <Icon className="w-6 h-6 md:w-7 md:h-7" strokeWidth={2.2} />
         </span>
         <div className="min-w-0">
-          <h1 className="text-[27px] md:text-[36px] leading-[1.15] font-extrabold tracking-[-0.02em] md:mt-0.5">{title}</h1>
+          <h1 className="text-[27px] md:text-[36px] leading-[1.2] md:leading-[1.15] font-extrabold tracking-[-0.02em] md:mt-0.5">{title}</h1>
           <p className="mt-2 md:mt-2.5 max-w-[700px] text-[14.5px] md:text-[16.5px] leading-[1.6] text-[#DCE6FF]">{intro}</p>
         </div>
       </div>
+      {children}
     </div>
   )
 }
@@ -51,7 +52,7 @@ export function StepStrip({ steps, after, current, done, submitted }: { steps: J
   return (
     <ol
       aria-label="Application steps"
-      className="relative -mt-[52px] md:-mt-[57px] flex xl:grid overflow-x-auto xl:overflow-visible snap-x snap-mandatory [scrollbar-width:none] p-2 rounded-[18px] md:rounded-[20px] bg-white shadow-[0_10px_30px_-12px_rgba(11,27,63,0.22)] border border-[#EEF2F7]"
+      className="relative -mt-[52px] md:-mt-[57px] hidden md:flex xl:grid overflow-x-auto xl:overflow-visible snap-x snap-mandatory [scrollbar-width:none] p-2 rounded-[18px] md:rounded-[20px] bg-white shadow-[0_10px_30px_-12px_rgba(11,27,63,0.22)] border border-[#EEF2F7]"
       style={{ gridTemplateColumns: `repeat(${all.length}, minmax(0, 1fr))` }}
     >
       {all.map((title, i) => {
@@ -68,7 +69,7 @@ export function StepStrip({ steps, after, current, done, submitted }: { steps: J
           >
             <span
               className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[13.5px] font-extrabold ${
-                isCurrent ? 'bg-[#1D4ED8] text-white' : isDone ? 'bg-[#E3EBFF] text-[#1D4ED8]' : 'bg-white text-[#3B475E] shadow-[inset_0_0_0_1.5px_#D5DCE6]'
+                isCurrent ? 'bg-[#1D4ED8] text-white' : isDone ? 'bg-[#E3EBFF] text-[#1D4ED8]' : 'bg-white text-[#5B667A] shadow-[inset_0_0_0_1.5px_#C9D2E0]'
               }`}
             >
               {isDone ? <Check className="w-4 h-4" strokeWidth={3} /> : i + 1}
@@ -79,7 +80,7 @@ export function StepStrip({ steps, after, current, done, submitted }: { steps: J
                 {isAfter && ' · After you send'}
                 <span className="sr-only">{isDone ? ', done' : isCurrent ? ', in progress' : ''}</span>
               </span>
-              <span className={`block text-[14px] lg:text-[14.5px] leading-snug font-bold ${isCurrent ? 'text-[#0B1B3F]' : 'text-[#27324A]'}`}>{title}</span>
+              <span className={`block text-[14px] lg:text-[14.5px] leading-snug font-extrabold ${isCurrent ? 'text-[#0B1B3F]' : 'text-[#4A5878]'}`}>{title}</span>
             </span>
           </li>
         )
@@ -88,10 +89,31 @@ export function StepStrip({ steps, after, current, done, submitted }: { steps: J
   )
 }
 
+/** The phone's progress card inside the blue band (the step strip below takes over from tablet width). */
+export function PhoneSteps({ steps, after, current, submitted }: { steps: JoinStep[]; after: string; current: number; done: boolean[]; submitted: boolean }) {
+  const all = [...steps.map((s) => s.title), after]
+  const at = submitted ? all.length - 1 : current
+  const next = submitted ? '' : all.slice(at + 1, at + 3).join(' · ')
+  return (
+    <div className="md:hidden mt-[18px] p-3.5 rounded-[14px] bg-white/[0.12] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]">
+      <p className="text-[12px] font-extrabold tracking-[0.06em] uppercase text-[#CFDCFF]">
+        Step {at + 1} of {all.length}
+      </p>
+      <p className="mt-0.5 text-[15px] font-extrabold text-white">{all[at]}</p>
+      <div aria-hidden className="mt-2.5 flex gap-1.5">
+        {all.map((title, i) => (
+          <span key={title} className={`flex-1 h-1 rounded-[4px] ${submitted || i <= at ? 'bg-white' : 'bg-white/30'}`} />
+        ))}
+      </div>
+      {next && <p className="mt-2 text-[12px] text-[#DCE7FF]">Next: {next}</p>}
+    </div>
+  )
+}
+
 /** The form beside its cards; the cards go under the form below 1280px. */
 export function JoinColumns({ form, aside }: { form: ReactNode; aside: ReactNode }) {
   return (
-    <div className="mt-5 md:mt-6 grid gap-5 md:gap-6 xl:grid-cols-[minmax(0,1fr)_360px] items-start">
+    <div className="mt-4 md:mt-6 grid gap-5 md:gap-6 xl:grid-cols-[minmax(0,1fr)_360px] items-start">
       <div className="min-w-0">{form}</div>
       <aside className="grid gap-5 md:grid-cols-2 xl:grid-cols-1 xl:gap-4 items-start">{aside}</aside>
     </div>
@@ -119,7 +141,7 @@ export function JoinSection({ n, section, title, sub, badge, children }: { n: nu
         </div>
         {badge && <span className="ml-[42px] sm:ml-0 px-2.5 py-1 rounded-full bg-[#EEF3FF] text-[#1D4ED8] text-[12px] font-extrabold">Required for verification</span>}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-[18px] gap-y-5">{children}</div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-[18px] gap-y-5">{children}</div>
     </fieldset>
   )
 }
@@ -134,9 +156,9 @@ function LabelText({ label, required, optional }: { label: string; required?: bo
   )
 }
 
-const labelCls = 'block mb-2 text-[14px] leading-snug font-bold text-[#0B1B3F]'
+const labelCls = 'block mb-2 text-[13px] leading-snug font-extrabold text-[#27324A]'
 const hintCls = 'mt-1.5 text-[12.5px] leading-snug text-[#7A8599]'
-const spanCls = { 1: '', 2: 'sm:col-span-2', 3: 'sm:col-span-3' } as const
+const spanCls = { 1: 'sm:col-span-1', 2: 'sm:col-span-2', 3: 'sm:col-span-3' } as const
 
 /** A labelled control. `span` is how many of the three columns it takes. */
 export function Field({
@@ -146,6 +168,7 @@ export function Field({
   optional,
   hint,
   span = 1,
+  pair,
   children,
 }: {
   label: string
@@ -154,10 +177,12 @@ export function Field({
   optional?: boolean
   hint?: ReactNode
   span?: 1 | 2 | 3
+  /** Half width on the phone (two to a row). */
+  pair?: boolean
   children: ReactNode
 }) {
   return (
-    <div className={`min-w-0 flex flex-col ${spanCls[span]}`}>
+    <div className={`min-w-0 flex flex-col ${pair ? 'col-span-1' : 'col-span-2'} ${spanCls[span]}`}>
       <label htmlFor={htmlFor} className={`${labelCls} sm:min-h-[19px]`}>
         <LabelText label={label} required={required} optional={optional} />
       </label>
@@ -278,11 +303,11 @@ export function CheckGroup({
   useEffect(() => mark(values), [mark, values])
 
   return (
-    <div role="group" aria-labelledby={labelId} className="min-w-0 sm:col-span-3">
+    <div role="group" aria-labelledby={labelId} className="min-w-0 col-span-2 sm:col-span-3">
       <span id={labelId} className={labelCls}>
         <LabelText label={label} required={required} optional={optional} />
       </span>
-      <div ref={ref} className={variant === 'pill' ? 'flex flex-wrap gap-2.5' : 'grid grid-cols-1 sm:grid-cols-3 gap-2.5'}>
+      <div ref={ref} className={variant === 'pill' ? 'flex flex-wrap gap-2.5' : 'grid grid-cols-2 sm:grid-cols-3 gap-2.5'}>
         {options.map((option) => (
           <label
             key={option}
@@ -322,6 +347,7 @@ export function RadioGroup({
   options,
   required,
   span = 1,
+  pair,
   stack,
 }: {
   label: string
@@ -329,11 +355,12 @@ export function RadioGroup({
   options: { value: string; label: string }[]
   required?: boolean
   span?: 1 | 2 | 3
+  pair?: boolean
   stack?: boolean
 }) {
   const labelId = `${name}-label`
   return (
-    <div role="radiogroup" aria-labelledby={labelId} className={`min-w-0 ${spanCls[span]}`}>
+    <div role="radiogroup" aria-labelledby={labelId} className={`min-w-0 ${pair ? 'col-span-1' : 'col-span-2'} ${spanCls[span]}`}>
       <span id={labelId} className={`${labelCls} sm:min-h-[19px]`}>
         <LabelText label={label} required={required} />
       </span>
@@ -381,7 +408,7 @@ export function FileField({ doc, uploads, span = 3 }: { doc: ApplicationDoc; upl
   }
 
   return (
-    <div className={`min-w-0 ${spanCls[span]}`}>
+    <div className={`min-w-0 col-span-2 ${spanCls[span]}`}>
       <label htmlFor={id} className={labelCls}>
         <LabelText label={doc.label} required={doc.required && uploads} optional={!doc.required} />
       </label>
@@ -492,22 +519,17 @@ export function SendRow({ busy }: { busy: string | null }) {
 }
 
 /** What replaces the form once the application is sent. */
-export function JoinSent({ title, text, primary }: { title: string; text: string; primary: { href: string; label: string } }) {
+export function JoinSent({ title, text }: { title: string; text: string }) {
   return (
     <div className={`${joinCard} p-8 md:p-12 flex flex-col items-center text-center gap-4`}>
-      <span className="w-16 h-16 rounded-full bg-[#E3EBFF] text-[#1D4ED8] flex items-center justify-center">
-        <CircleCheck className="w-9 h-9" />
+      <span className="w-14 h-14 rounded-full bg-[#1D4ED8] text-white flex items-center justify-center">
+        <Check className="w-7 h-7" strokeWidth={3} />
       </span>
-      <h2 className="text-[26px] font-extrabold tracking-[-0.02em] text-[#0B1B3F]">{title}</h2>
+      <h2 className="text-[22px] font-extrabold tracking-[-0.02em] text-[#0B1B3F]">{title}</h2>
       <p className="max-w-[520px] text-[15.5px] leading-[1.65] text-[#5B667A]">{text}</p>
-      <div className="flex flex-col sm:flex-row gap-3 pt-2 w-full sm:w-auto">
-        <Link href="/" className="h-12 px-6 rounded-[12px] border border-[#D5DCE6] text-[#0B1B3F] font-bold flex items-center justify-center hover:bg-[#F7F9FC]">
-          Back to home
-        </Link>
-        <Link href={primary.href} className="h-12 px-6 rounded-[12px] bg-[#1D4ED8] text-white font-extrabold flex items-center justify-center hover:bg-[#1A44C2]">
-          {primary.label}
-        </Link>
-      </div>
+      <Link href="/corporate" className="mt-2 h-[46px] px-6 rounded-[12px] border border-[#D6DDE8] text-[#27324A] text-[14px] font-extrabold flex items-center justify-center hover:bg-[#F7F9FC]">
+        Back to Partner with us
+      </Link>
     </div>
   )
 }

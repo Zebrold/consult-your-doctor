@@ -2,7 +2,7 @@ import { IST, istDateKey } from '@/components/patient/format'
 import { ReportDownloads, type ReportFile } from '@/components/portal/ReportDownloads'
 import { complaintsIn, count, countDelta, monthName, monthSoFar, monthsEnding, noShowRate, pointsDelta, topComplaints } from '@/lib/report-stats'
 import { bookingCode, patientCode, type Visit } from '../_lib/doctor'
-import { BarChart, DeskHead, DocBackHeader, DocBody, EmptyLine, Meter, Panel, PanelHead, Row, Sparkline, StatCard, card, visitStatus } from './doc-ui'
+import { BarChart, DeskHead, DocBody, DocHeader, EmptyLine, Meter, Panel, PanelHead, Row, Sparkline, StatCard, card, visitStatus } from './doc-ui'
 
 const DAY = 86_400_000
 const plural = (n: number, one: string) => `${n.toLocaleString('en-IN')} ${n === 1 ? one : `${one}s`}`
@@ -15,7 +15,7 @@ const time = (iso: string) => new Date(iso).toLocaleTimeString('en-IN', { timeZo
  * against the same days last month; consultations by month; the commonest complaints; new and returning patients;
  * and CSV downloads. Visits count on their slot's day.
  */
-export function DoctorReports({ doctor, visits: all, now }: { doctor: { hospital: { name: string } | null }; visits: Visit[]; now: number }) {
+export function DoctorReports({ doctor, visits: all, now }: { doctor: { name: string; image: string | null; hospital: { name: string } | null }; visits: Visit[]; now: number }) {
   const today = istDateKey(now)
   const { month, last, lastSpan, inThis, inLastSoFar } = monthSoFar(today)
 
@@ -89,18 +89,23 @@ export function DoctorReports({ doctor, visits: all, now }: { doctor: { hospital
   const subtitle = 'How your practice is doing on Consult your Doctor'
   const bars = perMonth(consults)
 
+  // The phone tile note: "↑ 10% vs 1–15 Oct" when there is a last month to compare, else the plain count.
+  const trend = (d: ReturnType<typeof countDelta>, plain: string) =>
+    d ? { text: `${d.dir === 'up' ? '↑ ' : d.dir === 'down' ? '↓ ' : ''}${d.text.replace(/^[+-]/, '')} ${vs}`, trend: true } : { text: plain, trend: false }
   const phoneStats = [
-    { label: 'Consultations', value: count(thisMonth.length), note: `vs ${count(lastSoFar.length)} on ${lastSpan}` },
-    { label: 'New patients', value: count(newThis), note: `vs ${count(newLast)} on ${lastSpan}` },
-    { label: 'Prescriptions', value: count(rxThis), note: `vs ${count(rxLast)} on ${lastSpan}` },
-    { label: 'No-show rate', value: noShowThis.rate == null ? '—' : `${noShowThis.rate.toFixed(1)}%`, note: plural(noShowThis.missed, 'missed visit') },
+    { label: 'Consultations', value: count(thisMonth.length), note: trend(countDelta(thisMonth.length, lastSoFar.length), `vs ${count(lastSoFar.length)} on ${lastSpan}`) },
+    { label: 'New patients', value: count(newThis), note: trend(countDelta(newThis, newLast), `vs ${count(newLast)} on ${lastSpan}`) },
+    { label: 'Prescriptions', value: count(rxThis), note: trend(countDelta(rxThis, rxLast), `vs ${count(rxLast)} on ${lastSpan}`) },
+    {
+      label: 'No-show rate',
+      value: noShowThis.rate == null ? '—' : `${noShowThis.rate.toFixed(1)}%`,
+      note: trend(pointsDelta(noShowThis.rate, noShowLast.rate, { unit: '%', higherIsGood: false }), plural(noShowThis.missed, 'missed visit')),
+    },
   ]
 
   return (
     <>
-      <DocBackHeader backHref="/doctor/profile" backLabel="Back to profile" title="Reports">
-        <p className="mt-2.5 mx-1.5 text-[13px] leading-[1.5] text-[#DCE6FF]">{subtitle} · {monthName(month)} so far</p>
-      </DocBackHeader>
+      <DocHeader doctor={{ name: doctor.name, image: doctor.image }} title="Reports" subtitle={`${subtitle} · ${monthName(month)} so far`} />
       <DocBody>
         <DeskHead title="Reports" subtitle={subtitle} />
 
@@ -109,7 +114,7 @@ export function DoctorReports({ doctor, visits: all, now }: { doctor: { hospital
             <div key={s.label} className={`${card} px-3.5 py-3 min-w-0`}>
               <span className="block text-[12px] font-bold text-[#5B667A] truncate">{s.label}</span>
               <span className="block mt-0.5 text-[22px] font-extrabold tracking-[-0.02em] tabular-nums">{s.value}</span>
-              <span className="block text-[11.5px] text-[#5B667A] truncate">{s.note}</span>
+              <span className={`block text-[11.5px] truncate ${s.note.trend ? 'font-bold text-[#2A4DD0]' : 'text-[#5B667A]'}`}>{s.note.text}</span>
             </div>
           ))}
         </section>

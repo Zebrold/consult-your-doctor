@@ -7,6 +7,7 @@ import { IST, doctorName, formatINR, formatShortDate, formatTime, initials, istD
 import { getBookingFees } from '@/lib/booking-fees'
 import { loadDoctorReviews } from '@/lib/reviews'
 import { RECORD_BUCKET } from '@/lib/records'
+import { FOLLOW_UP_DAYS } from '@/lib/follow-up'
 import { signaturePath } from '@/lib/prescriptions'
 import { loadSlots, loadVisits, requireDoctor } from '../_lib/doctor'
 import { ProfileEditor, type EditableProfile } from '../_components/ProfileEditor'
@@ -118,7 +119,11 @@ export default async function DoctorProfilePage() {
 
   const about = (
     <Panel>
-      <PanelHead title="About" sub="What patients see when they book you" right={<span className="text-[12px] font-extrabold text-[#067647] whitespace-nowrap">{completeness}% complete</span>} />
+      {(['Public profile', 'About'] as const).map((t) => (
+        <div key={t} className={t === 'About' ? 'hidden lg:block' : 'lg:hidden'}>
+          <PanelHead title={t} sub="What patients see when they book you" right={<span className="text-[12px] font-extrabold text-[#067647] whitespace-nowrap">{completeness}% complete</span>} />
+        </div>
+      ))}
       <p className={`text-[13.5px] lg:text-[14px] leading-relaxed ${doctor.bio ? 'text-[#27324A]' : 'text-[#98A2B3]'}`}>
         {doctor.bio || 'Add a short introduction so patients know your experience and areas of focus.'}
       </p>
@@ -156,7 +161,7 @@ export default async function DoctorProfilePage() {
       <PanelHead title="Fees" sub="Your consultation fee is paid at the hospital counter" />
       <Row label="In-person consultation">{doctor.fee ? formatINR(doctor.fee) : <span className="text-[#98A2B3]">Not set</span>}</Row>
       <Row label="Booking fee (paid in the app)">{formatINR(fees.consultation)}</Row>
-      <Row label="Upcoming bookings">{upcoming.length}</Row>
+      <Row label="Free follow-up window">{FOLLOW_UP_DAYS} days</Row>
       <ProfileEditor profile={editable} label="Update fee" className={`${btnOutline} lg:border w-full mt-3 [&_svg]:w-[15px] [&_svg]:h-[15px]`} />
     </Panel>
   )
@@ -242,14 +247,33 @@ export default async function DoctorProfilePage() {
     </Panel>
   )
 
+  // Phones: the Grow & manage links (desktops have them in the sidebar), two lines each.
+  const grow = (
+    <>
+      <h2 className="mt-1.5 px-1 text-[12px] font-extrabold tracking-[0.04em] text-[#5B667A]">GROW &amp; MANAGE</h2>
+      <section className={`${card} overflow-hidden`}>
+        {[
+          { href: '/doctor/practice', label: 'Hospitals & clinics', sub: 'Where you consult, timings and invitations' },
+          { href: '/doctor/badge', label: 'Verified badge', sub: 'Get a blue tick on your profile' },
+          { href: '/doctor/leave', label: 'Leave & availability', sub: 'Plan time off with your hospital' },
+          { href: '/doctor/reviews', label: 'Reviews', sub: 'What patients say about you' },
+          { href: '/doctor/reports', label: 'Reports', sub: 'Consultations, patients and downloads' },
+        ].map((l) => (
+          <Link key={l.href} href={l.href} className="flex items-center gap-3 px-4 py-3.5 border-b border-[#EEF2F7] last:border-b-0 hover:bg-[#F7F9FC]">
+            <span className="flex-1 min-w-0">
+              <span className="block text-[14.5px] font-extrabold">{l.label}</span>
+              <span className="block text-[12px] text-[#5B667A]">{l.sub}</span>
+            </span>
+            <ChevronRight className="w-4 h-4 text-[#9AA4B5]" strokeWidth={2.4} />
+          </Link>
+        ))}
+      </section>
+    </>
+  )
+
   const links = (
     <section className={`${card} overflow-hidden`}>
       {[
-        { href: '/doctor/practice', label: 'Hospitals & clinics' },
-        { href: '/doctor/badge', label: 'Verified badge' },
-        { href: '/doctor/leave', label: 'Leave & availability' },
-        { href: '/doctor/reviews', label: 'Reviews' },
-        { href: '/doctor/reports', label: 'Reports' },
         { href: `/doctors/${doctor.id}`, label: 'Public profile' },
         { href: '/doctor/ai', label: 'Help & support' },
         { href: '/terms-of-use', label: 'Terms & conditions' },
@@ -314,6 +338,7 @@ export default async function DoctorProfilePage() {
           {education}
           <PrescriptionTemplate signatureUrl={signature.data?.signedUrl ?? null} registration={license.registration} />
           {insurance}
+          {grow}
           {links}
         </div>
 

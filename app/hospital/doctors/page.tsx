@@ -7,6 +7,8 @@ import { dayOf, dayStartIso, istHour, loadHospitalDoctors, loadHospitalSlots, re
 import { AddDoctorButton } from '../_components/DoctorDialogs'
 import { VisitingDoctors, type VisitingLink } from '../_components/VisitingDoctors'
 import { loadPractices } from '@/lib/practices'
+import { liveBadgeIds } from '@/lib/badges'
+import { doctorPauses } from '@/lib/doctor-pause'
 import { DutySheetButton, RosterList, type RosterDoctor, type RosterState } from '../_components/RosterList'
 import { BarChart, DeskHead, EmptyLine, HosBody, HosHeader, Meter, Panel, PanelHead, PhoneStats, StatCard, btnOutline, btnPrimary, plural } from '../_components/hos-ui'
 
@@ -74,6 +76,8 @@ export default async function HospitalRosterPage(props: { searchParams?: Promise
 
   const doctors = await loadHospitalDoctors(admin, hospital.id)
   const ids = doctors.map((d) => d.id)
+  const badgeIds = await liveBadgeIds(admin)
+  const pauses = await doctorPauses(admin, ids)
 
   // Doctors from other hospitals invited to, or confirmed to, consult here (lib/practices.ts).
   const { ready: practicesReady, practices } = await loadPractices(admin, { hospitalId: hospital.id })
@@ -113,6 +117,7 @@ export default async function HospitalRosterPage(props: { searchParams?: Promise
       credentials: [d.department, d.experience ? `${d.experience} yrs` : null].filter(Boolean).join(' · '),
       shift: mine.length ? `${formatTime(mine[0].start)} – ${formatTime(new Date(endOf(last)).toISOString())}` : null,
       slots: mine.length,
+      verified: badgeIds.doctors.includes(d.id),
       booked: mine.filter((s) => s.booked).length,
       state,
       stateNote: note,
@@ -132,6 +137,15 @@ export default async function HospitalRosterPage(props: { searchParams?: Promise
         qualifications: d.qualifications,
         address: d.address,
         bio: d.bio,
+        email: d.email,
+        staffId: d.staffId,
+        image: d.image,
+        hospitalName: hospital.name,
+        registrationNumber: d.registrationNumber,
+        registrationCouncil: d.registrationCouncil,
+        paused: pauses.byId.get(d.id)?.paused ?? false,
+        pausedBy: pauses.byId.get(d.id)?.by ?? null,
+        pauseReady: pauses.ready,
       },
     }
   })
@@ -194,7 +208,7 @@ export default async function HospitalRosterPage(props: { searchParams?: Promise
                 </Link>
               )}
               <DutySheetButton doctors={roster} day={day} className={btnOutline} />
-              <AddDoctorButton departments={departments} label="Add doctor" className={btnPrimary} />
+              <AddDoctorButton departments={departments} hospitalName={[hospital.name, hospital.city].filter(Boolean).join(', ')} label="Add doctor" className={btnPrimary} />
             </>
           }
         />

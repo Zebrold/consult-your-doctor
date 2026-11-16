@@ -55,6 +55,18 @@ export default async function ReviewsPage() {
       wide
       title="My reviews"
       subtitle="Rate your visits and help other patients choose the right care"
+      hero={
+        <div className="grid grid-cols-2 gap-3 rounded-2xl bg-white/12 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)] p-4 text-white">
+          <span>
+            <span className="block text-[12px] font-bold text-[#CFDCFF]">Reviews written</span>
+            <span className="block mt-1 text-[24px] font-extrabold tabular-nums">{mine.length}</span>
+          </span>
+          <span>
+            <span className="block text-[12px] font-bold text-[#CFDCFF]">Average you gave</span>
+            <span className="block mt-1 text-[24px] font-extrabold tabular-nums">{average != null ? `★ ${average.toFixed(1)}` : '–'}</span>
+          </span>
+        </div>
+      }
       phoneSubtitle={pending.length ? `${pending.length} ${pending.length === 1 ? 'visit' : 'visits'} waiting for your review` : 'Rate your visits and help others choose.'}
     >
       <div className="grid gap-3.5 lg:gap-5 lg:grid-cols-[minmax(0,1fr)_360px] items-start">
@@ -73,7 +85,7 @@ export default async function ReviewsPage() {
           </section>
         </div>
         <div className="flex flex-col gap-3.5 lg:gap-5 min-w-0">
-          <section className={`${card} p-4 lg:p-[22px] grid grid-cols-2 gap-3`}>
+          <section className={`${card} p-4 lg:p-[22px] hidden lg:grid grid-cols-2 gap-3`}>
             <span>
               <span className="block text-[12.5px] font-bold text-[#5B667A]">Reviews written</span>
               <span className="block mt-1 text-[26px] font-extrabold tabular-nums">{mine.length}</span>

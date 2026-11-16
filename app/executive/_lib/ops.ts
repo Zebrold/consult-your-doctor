@@ -151,6 +151,8 @@ type RawAppointment = {
   created_at: string
   hospital_id: string | null
   executive_id: string | null
+  /** Read with `*`, so it is simply absent where the column doesn't exist. */
+  booking_type?: string | null
   patient: Joined<{ id: string; full_name: string | null; phone_number: string | null }>
   doctor: Joined<{ id: string; specialty: string | null; consultation_fee: number | null; profiles: Joined<{ full_name: string | null }> }>
   hospital: Joined<{ name: string; city: string | null }>
@@ -165,7 +167,14 @@ type RawLabBooking = {
   profiles: Joined<{ id: string; full_name: string | null; phone_number: string | null }>
   diagnostic_centers: Joined<{ id: string; name: string; city: string | null; test_prices: Record<string, number> | null }>
 }
-type RawPayment = { appointment_id: string | null; amount: number | string | null; gateway: string | null; status: string | null }
+type RawPayment = {
+  appointment_id: string | null
+  diagnostic_booking_id: string | null
+  amount: number | string | null
+  refund_amount: number | string | null
+  gateway: string | null
+  status: string | null
+}
 type RawApplication = {
   id: string
   full_name: string
@@ -203,6 +212,8 @@ export type Appointment = {
   createdAt: string
   hospitalId: string | null
   executiveId: string | null
+  /** 'fast_track' or 'general'; null where the column can't be read. */
+  bookingType: string | null
   patient: { id: string; name: string; phone: string | null } | null
   doctor: { id: string; name: string; specialty: string; fee: number } | null
   hospital: { name: string; city: string | null } | null
@@ -213,7 +224,7 @@ export async function loadAppointments(admin: Admin): Promise<Appointment[]> {
   const { data } = await admin
     .from('appointments')
     .select(`
-      id, status, created_at, hospital_id, executive_id,
+      *,
       patient:profiles!appointments_patient_id_fkey ( id, full_name, phone_number ),
       doctor:doctors ( id, specialty, consultation_fee, profiles!doctors_profile_id_fkey ( full_name ) ),
       hospital:hospitals ( name, city ),
@@ -231,6 +242,7 @@ export async function loadAppointments(admin: Admin): Promise<Appointment[]> {
       createdAt: row.created_at,
       hospitalId: row.hospital_id ?? null,
       executiveId: row.executive_id ?? null,
+      bookingType: row.booking_type ?? null,
       patient: patient ? { id: patient.id, name: patient.full_name || 'Unknown patient', phone: patient.phone_number ?? null } : null,
       doctor: doctor
         ? {
@@ -297,14 +309,19 @@ export async function loadLabBookings(admin: Admin): Promise<LabBooking[]> {
 
 export type Payment = { amount: number; gateway: string | null }
 
-/** Successful payments keyed by the appointment or diagnostic booking id they settle. */
+/**
+ * Money actually received, keyed by the appointment or diagnostic booking id it settles: successful payments only,
+ * net of any refund recorded on them (a fully refunded payment has status 'refunded', so it isn't here at all).
+ */
 export async function loadPayments(admin: Admin): Promise<Map<string, Payment>> {
-  const { data } = await admin.from('payments').select('appointment_id, amount, gateway, status')
+  const { data } = await admin.from('payments').select('appointment_id, diagnostic_booking_id, amount, refund_amount, gateway, status').eq('status', 'success').limit(50000)
   const map = new Map<string, Payment>()
   for (const row of (data ?? []) as RawPayment[]) {
-    if (row.status === 'success' && row.appointment_id) {
-      map.set(row.appointment_id, { amount: Number(row.amount) || 0, gateway: row.gateway ?? null })
-    }
+    const key = row.appointment_id ?? row.diagnostic_booking_id
+    if (row.status !== 'success' || !key) continue
+    const net = (Number(row.amount) || 0) - (Number(row.refund_amount) || 0)
+    const seen = map.get(key)
+    map.set(key, { amount: (seen?.amount ?? 0) + net, gateway: seen?.gateway ?? row.gateway ?? null })
   }
   return map
 }
@@ -667,12 +684,17 @@ export type LedgerRow = {
   createdAt: string
 }
 
-/** Paid consultations and lab tests, valued at the recorded payment or, if none, the listed fee. */
+/**
+ * Paid consultations and lab tests, valued at the money actually received (successful payments, net of recorded
+ * refunds). A booking with no recorded payment (a free follow-up, say) adds nothing; it is no longer valued at the
+ * doctor's fee or the test price.
+ */
 export function buildLedger(appointments: Appointment[], labBookings: LabBooking[], payments: Map<string, Payment>): LedgerRow[] {
   const rows: LedgerRow[] = []
   for (const apt of appointments) {
     if (!PAID_APPOINTMENT_STATUSES.includes(apt.status)) continue
     const payment = payments.get(apt.id)
+    if (!payment || payment.amount <= 0) continue
     rows.push({
       id: apt.id,
       kind: 'consultation',
@@ -681,13 +703,14 @@ export function buildLedger(appointments: Appointment[], labBookings: LabBooking
       provider: [apt.doctor ? `Dr. ${apt.doctor.name}` : null, apt.hospital?.name].filter(Boolean).join(' · '),
       status: APPOINTMENT_STATUS_LABELS[apt.status] ?? apt.status,
       method: payment?.gateway ? PAYMENT_METHOD_LABELS[gatewayKey(payment.gateway)] ?? payment.gateway : 'Not recorded',
-      amount: payment?.amount ?? apt.doctor?.fee ?? 0,
+      amount: payment.amount,
       createdAt: apt.createdAt,
     })
   }
   for (const booking of labBookings) {
     if (!isPaidLabStatus(booking.status)) continue
     const payment = payments.get(booking.id)
+    if (!payment || payment.amount <= 0) continue
     rows.push({
       id: booking.id,
       kind: 'diagnostic',
@@ -696,7 +719,7 @@ export function buildLedger(appointments: Appointment[], labBookings: LabBooking
       provider: booking.center?.name ?? 'Diagnostic lab',
       status: LAB_STATUS_LABELS[booking.status] ?? booking.status,
       method: payment?.gateway ? PAYMENT_METHOD_LABELS[gatewayKey(payment.gateway)] ?? payment.gateway : 'Not recorded',
-      amount: payment?.amount ?? booking.price ?? 0,
+      amount: payment.amount,
       createdAt: booking.createdAt,
     })
   }
@@ -705,4 +728,40 @@ export function buildLedger(appointments: Appointment[], labBookings: LabBooking
 
 export function currentTime() {
   return Date.now()
+}
+
+/**
+ * Hospital groups: branches that share an admin login (hospital_admin_access, 20261114_grow_and_manage.sql). `reach` is
+ * the hospitals each admin can reach; `groupsById` maps a group's root hospital to every hospital in it; `groupOf` gives
+ * a hospital's group (just itself when it has no branches).
+ */
+export function groupHospitals(
+  hospitalIds: string[],
+  adminRows: { id: string; hospital_id: string | null }[],
+  accessRows: { profile_id: string; hospital_id: string }[],
+) {
+  const known = new Set(hospitalIds)
+  // Hospitals an admin can reach: the one they're signed in to and every branch they were given.
+  const reach = new Map<string, Set<string>>()
+  for (const p of adminRows) if (p.hospital_id) reach.set(p.id, new Set([p.hospital_id]))
+  for (const r of accessRows) reach.set(r.profile_id, new Set([...(reach.get(r.profile_id) ?? []), r.hospital_id]))
+
+  // Groups: hospitals joined by a shared admin (union-find).
+  const parent = new Map<string, string>()
+  const find = (x: string): string => {
+    const p = parent.get(x) ?? x
+    if (p === x) return x
+    const root = find(p)
+    parent.set(x, root)
+    return root
+  }
+  for (const ids of reach.values()) {
+    const [first, ...rest] = [...ids].filter((id) => known.has(id))
+    if (!first) continue
+    for (const id of rest) parent.set(find(id), find(first))
+  }
+  const groupsById = new Map<string, string[]>()
+  for (const id of hospitalIds) groupsById.set(find(id), [...(groupsById.get(find(id)) ?? []), id])
+  const groupOf = (id: string) => groupsById.get(find(id)) ?? [id]
+  return { reach, groupsById, groupOf }
 }

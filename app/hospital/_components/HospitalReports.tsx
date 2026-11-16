@@ -4,7 +4,8 @@ import { ReportDownloads, type ReportFile } from '@/components/portal/ReportDown
 import { count, countDelta, monthName, monthSoFar, monthsEnding, noShowRate, pointsDelta } from '@/lib/report-stats'
 import { summarize, type Review } from '@/lib/reviews'
 import type { HospitalDoctor, HospitalVisit } from '../_lib/hospital'
-import { BarChart, DeskHead, EmptyLine, HosBackHeader, HosBody, Meter, Panel, PanelHead, PhoneStats, Sparkline, StatCard, plural, visitStatus } from './hos-ui'
+import type { Delta } from '@/components/portal/workspace-ui'
+import { BarChart, DeskHead, EmptyLine, HosBody, HosHeader, Meter, Panel, PanelHead, Sparkline, StatCard, plural, visitStatus } from './hos-ui'
 
 const DAY = 86_400_000
 export const RANGES = [3, 6, 12] as const
@@ -33,7 +34,7 @@ function sourceOf(v: HospitalVisit): Source {
  * days last month; bookings by month; where bookings come from; each doctor's last 90 days; and CSV downloads.
  * A booking counts once it's confirmed (paid or booked at the desk), on the day it was made.
  */
-export function HospitalReports({ hospital, doctors, visits, reviews, now, range }: { hospital: { name: string }; doctors: HospitalDoctor[]; visits: HospitalVisit[]; reviews: Review[]; now: number; range: number }) {
+export function HospitalReports({ hospital, staff, doctors, visits, reviews, now, range }: { hospital: { name: string }; staff: { name: string }; doctors: HospitalDoctor[]; visits: HospitalVisit[]; reviews: Review[]; now: number; range: number }) {
   const today = istDateKey(now)
   const { month, last, lastSpan, inThis, inLastSoFar } = monthSoFar(today)
   const doctorById = new Map(doctors.map((d) => [d.id, d]))
@@ -118,13 +119,57 @@ export function HospitalReports({ hospital, doctors, visits, reviews, now, range
   const totalThis = thisMonth.length
   const chartCounts = perMonth(chartMonths, booked)
 
+  // The phone's four cards: a blue change line when there is a month to compare with, else the plain note.
+  const arrow = (d: Delta) => (d.dir === 'down' ? '↓' : d.dir === 'up' ? '↑' : '→')
+  const change = (d: Delta | undefined, base: string, fallback: string, fallbackColor?: string) =>
+    d ? { note: `${arrow(d)} ${d.text.replace(/^[+-]/, '')} ${base}`, color: '#2A4DD0' } : { note: fallback, color: fallbackColor ?? '#5B667A' }
+  const phoneKpis = [
+    { label: 'Bookings this month', value: count(totalThis), ...change(countDelta(totalThis, lastSoFar.length), vs, `vs ${count(lastSoFar.length)} on ${lastSpan}`) },
+    { label: 'New patients', value: count(newThis), ...change(countDelta(newThis, newLast), vs, `vs ${count(newLast)} on ${lastSpan}`, '#2A4DD0') },
+    {
+      label: 'No-show rate',
+      value: noShowThis.rate == null ? '—' : `${noShowThis.rate.toFixed(1)}%`,
+      ...change(pointsDelta(noShowThis.rate, noShowLast.rate, { unit: '%', higherIsGood: false }), vs, `${plural(noShowThis.missed, 'missed visit')} this month`, '#B54708'),
+    },
+    {
+      label: 'Average rating',
+      value: rating.average != null ? rating.average.toFixed(1) : '—',
+      ...change(pointsDelta(rating.average, ratingBefore.average), `since 1 ${monthName(month, 'short')}`, plural(rating.count, 'review')),
+    },
+  ]
+  const chartMax = Math.max(1, ...chartCounts)
+
   const chart = (
     <Panel>
       <PanelHead title="Bookings by month" sub={`Last ${range} months · by the day the booking was made`} right={<span className="lg:hidden">{rangeMenu}</span>} />
       {chartCounts.every((n) => n === 0) ? (
         <EmptyLine>No bookings in the last {range} months.</EmptyLine>
       ) : (
-        <BarChart bars={chartMonths.map((k, i) => ({ label: monthName(k, 'short'), value: chartCounts[i], active: k === month }))} label={`Bookings each month, last ${range} months`} width={620} height={200} />
+        <>
+          <div className="lg:hidden" role="img" aria-label={`Bookings each month, last ${range} months`}>
+            <div className="flex items-end gap-2 h-[140px] bg-[repeating-linear-gradient(to_top,#EEF2F7_0_1px,transparent_1px_35px)]">
+              {chartMonths.map((k, i) => (
+                <span key={k} className="flex-1 min-w-0 h-full flex flex-col justify-end items-center gap-1">
+                  <span className="text-[11px] font-extrabold text-[#27324A] tabular-nums">{chartCounts[i]}</span>
+                  <span
+                    className="block w-full rounded-[5px_5px_2px_2px]"
+                    style={{ height: `${Math.max(chartCounts[i] ? 4 : 1, Math.round((chartCounts[i] / chartMax) * 82))}%`, background: k === month ? '#2A4DD0' : '#C7D5FB' }}
+                  />
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2 pt-1.5">
+              {chartMonths.map((k) => (
+                <span key={k} className="flex-1 min-w-0 text-center text-[10.5px] font-bold text-[#5B667A] whitespace-nowrap">
+                  {monthName(k, 'short')}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="hidden lg:block">
+            <BarChart bars={chartMonths.map((k, i) => ({ label: monthName(k, 'short'), value: chartCounts[i], active: k === month }))} label={`Bookings each month, last ${range} months`} width={620} height={200} />
+          </div>
+        </>
       )}
     </Panel>
   )
@@ -205,21 +250,21 @@ export function HospitalReports({ hospital, doctors, visits, reviews, now, range
 
   return (
     <>
-      <HosBackHeader backHref="/hospital/more" backLabel="Back to more" title="Reports">
-        <p className="mt-2.5 mx-1.5 text-[13px] leading-[1.5] text-[#DCE6FF]">{subtitle}</p>
-      </HosBackHeader>
+      <HosHeader staff={staff} back={{ href: '/hospital/more', label: 'More' }} title="Reports" subtitle={subtitle} />
       <HosBody>
         <DeskHead title="Reports" subtitle={subtitle} actions={rangeMenu} />
 
-        <PhoneStats
-          className="mb-3.5"
-          stats={[
-            { label: 'Bookings this month', value: count(totalThis), note: `vs ${count(lastSoFar.length)} on ${lastSpan}` },
-            { label: 'New patients', value: count(newThis), note: `vs ${count(newLast)} on ${lastSpan}`, color: '#2A4DD0' },
-            { label: 'No-show rate', value: noShowThis.rate == null ? '—' : `${noShowThis.rate.toFixed(1)}%`, note: `${plural(noShowThis.missed, 'missed visit')} this month`, color: '#B54708' },
-            { label: 'Average rating', value: rating.average != null ? rating.average.toFixed(1) : '—', note: plural(rating.count, 'review') },
-          ]}
-        />
+        <section className="lg:hidden grid grid-cols-2 gap-2.5 mb-3.5">
+          {phoneKpis.map((k) => (
+            <div key={k.label} className="p-3.5 rounded-2xl bg-white shadow-[0_0_0_1px_#E6EBF3] min-w-0">
+              <span className="block text-[11.5px] font-bold text-[#5B667A] truncate">{k.label}</span>
+              <span className="block mt-1 text-[20px] font-extrabold tracking-[-0.02em] tabular-nums truncate">{k.value}</span>
+              <span className="block mt-0.5 text-[11.5px] font-bold truncate" style={{ color: k.color }}>
+                {k.note}
+              </span>
+            </div>
+          ))}
+        </section>
 
         <section className="hidden lg:grid grid-cols-4 gap-4 mb-5">
           <StatCard label="Bookings this month" value={count(totalThis)} change={countDelta(totalThis, lastSoFar.length)} note={vs} extra={<Sparkline values={perMonth(sparkMonths, booked)} width={80} />} />

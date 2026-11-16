@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { CalendarPlus, ChevronDown, Download, Phone } from 'lucide-react'
-import { EmptyLine, Initials, Panel, PanelHead, btnOutline, btnPrimary, card, plural, telHref } from './hos-ui'
+import { EmptyLine, Initials, Panel, PanelHead, Verified, btnOutline, btnPrimary, card, plural, telHref } from './hos-ui'
 import { EditDoctorButton, type EditableDoctor } from './DoctorDialogs'
 import { DoctorFeeButton } from './DoctorFee'
 
@@ -19,6 +19,8 @@ export type RosterDoctor = {
   credentials: string
   shift: string | null
   slots: number
+  /** A live, approved Verified badge (never from payment alone). */
+  verified: boolean
   booked: number
   state: RosterState
   stateNote: string | null
@@ -90,7 +92,7 @@ export function RosterList({ doctors, departments, day }: { doctors: RosterDocto
               <button type="button" onClick={() => setOpen(isOpen ? null : d.id)} aria-expanded={isOpen} className="w-full flex items-center gap-3 text-left">
                 <Initials name={d.name} image={d.image} className="w-11 h-11 text-[13px]" />
                 <span className="flex-1 min-w-0">
-                  <span className="block text-[15px] font-extrabold truncate">{d.name}</span>
+                  <span className="flex items-center gap-[5px] text-[15px] font-extrabold"><span className="truncate">{d.name}</span>{d.verified && <Verified size={16} />}</span>
                   <span className="block text-[12px] text-[#5B667A] truncate">{d.credentials}</span>
                 </span>
                 <span className="shrink-0 text-right">
@@ -171,7 +173,7 @@ export function RosterList({ doctors, departments, day }: { doctors: RosterDocto
                   <span role="cell" className="flex items-center gap-2.5 min-w-0">
                     <Initials name={d.name} image={d.image} />
                     <span className="min-w-0">
-                      <span className="block text-[14px] font-extrabold truncate">{d.name}</span>
+                      <span className="flex items-center gap-[5px] text-[14px] font-extrabold"><span className="truncate">{d.name}</span>{d.verified && <Verified size={16} />}</span>
                       <span className="block text-[12px] text-[#5B667A] truncate">
                         {d.department} ·{' '}
                         <span className="font-extrabold" style={{ color: state.color }}>
@@ -195,7 +197,7 @@ export function RosterList({ doctors, departments, day }: { doctors: RosterDocto
                         Clinic · {plural(b.slots, 'slot')}
                       </span>
                     ))}
-                    {d.blocks.length === 0 && <span className="absolute inset-y-0 left-2 flex items-center text-[12px] font-bold text-[#98A2B3]">No slots this day</span>}
+                    {d.blocks.length === 0 && <span className="absolute inset-x-0 top-[9px] bottom-[9px] rounded-lg border-[1.5px] border-dashed border-[#D0D5DD] flex items-center justify-center text-[12px] font-extrabold text-[#98A2B3]">No slots published</span>}
                   </span>
                   <span role="cell" className="flex items-center justify-end gap-2">
                     <span className="text-[13px] font-extrabold whitespace-nowrap">{d.slots ? `${d.booked} / ${d.slots}` : '—'}</span>
@@ -216,7 +218,7 @@ export function RosterList({ doctors, departments, day }: { doctors: RosterDocto
                       className="w-[34px] h-[34px] rounded-[10px] border border-[#D6DDE8] bg-white flex items-center justify-center text-[#27324A] hover:bg-[#F4F6FA] shrink-0"
                     />
                     <Link href={slotsHref(d)} className={`${btnOutline} !h-[34px] !px-3 !text-[12.5px]`}>
-                      Slots
+                      {d.slots ? 'Slots' : 'Publish'}
                     </Link>
                   </span>
                 </div>

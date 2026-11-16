@@ -2,6 +2,7 @@ import { MetadataRoute } from 'next';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { PUBLIC_DOCS, docHref } from '@/lib/legal-docs';
 import { SPECIALITIES } from '@/components/home/specialities';
+import { pausedDoctorIds } from '@/lib/doctor-pause';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://consultyourdoctor.de';
@@ -19,7 +20,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .select('id')
     .eq('status', 'active');
 
-  const doctorUrls: MetadataRoute.Sitemap = (doctors || []).map((doc) => ({
+  // Paused doctors are left out of the sitemap.
+  const paused = await pausedDoctorIds();
+  const doctorUrls: MetadataRoute.Sitemap = (doctors || []).filter((doc) => !paused.has(doc.id)).map((doc) => ({
     url: `${baseUrl}/doctors/${doc.id}`,
     lastModified: new Date(),
     changeFrequency: 'weekly',

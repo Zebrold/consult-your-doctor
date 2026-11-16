@@ -6,6 +6,35 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { formatINR } from '@/components/patient/format'
 import { executiveFor } from '@/app/executive/_lib/ops'
 import { loadHospitalWallet, MIN_PAYOUT, type PayoutAccount } from '@/lib/wallet'
+import { sendPayoutUpdateEmail } from '@/lib/notify/email'
+import { hospitalAdmins } from '@/lib/notify/hospital'
+import { siteUrl } from '@/lib/site-url'
+
+/** Emails the hospital's admins (and whoever asked for it) that a withdrawal was paid or turned down. Never throws. */
+async function emailPayoutUpdate(admin: ReturnType<typeof createAdminClient>, payoutId: string, status: 'paid' | 'rejected') {
+  try {
+    const { data: payout } = await admin.from('hospital_payouts').select('hospital_id, amount, reference, note, requested_by').eq('id', payoutId).maybeSingle()
+    if (!payout) return
+    const [{ data: hospital }, people] = await Promise.all([
+      admin.from('hospitals').select('name').eq('id', payout.hospital_id).maybeSingle(),
+      hospitalAdmins(admin, payout.hospital_id as string, payout.requested_by as string | null),
+    ])
+    for (const p of people) {
+      await sendPayoutUpdateEmail({
+        to: p.email,
+        name: p.name,
+        hospital: hospital?.name ?? 'your hospital',
+        amount: formatINR(Number(payout.amount) || 0),
+        status,
+        reference: payout.reference,
+        note: payout.note,
+        siteUrl: siteUrl(),
+      })
+    }
+  } catch (err) {
+    console.error('payout email:', err)
+  }
+}
 
 // Hospital wallets (lib/wallet.ts): a hospital admin keeps the bank account or UPI ID withdrawals are paid to and asks
 // for a withdrawal; the operations team (executives) pays it and marks it paid, or rejects it, and records what a
@@ -122,6 +151,7 @@ export async function markPayoutPaid(payoutId: string, rawReference: string): Pr
     .select('id')
   if (error) return fail(missing(error) ? NEEDS_UPDATE : 'Could not mark it paid.')
   if (!data?.length) return fail('This withdrawal is no longer waiting.')
+  await emailPayoutUpdate(ctx.admin, payoutId, 'paid')
   refresh()
   return { ok: true }
 }
@@ -140,6 +170,7 @@ export async function rejectPayout(payoutId: string, rawNote: string): Promise<R
     .select('id')
   if (error) return fail(missing(error) ? NEEDS_UPDATE : 'Could not reject it.')
   if (!data?.length) return fail('This withdrawal is no longer waiting.')
+  await emailPayoutUpdate(ctx.admin, payoutId, 'rejected')
   refresh()
   return { ok: true }
 }

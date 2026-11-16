@@ -13,7 +13,7 @@ export default async function DoctorPatientsPage(props: { searchParams?: Promise
   const params = (await props.searchParams) ?? {}
   const { admin, doctor } = await requireDoctor()
   const now = currentTime()
-  const visits = (await loadVisits(admin, doctor.id)).filter((v) => PAID.includes(v.status) && v.patient)
+  const visits = (await loadVisits(admin, doctor.id)).filter((v) => PAID.includes(v.status) && v.patient && !v.recordsHidden)
 
   // Group this doctor's paid visits by patient. Patients with only unpaid bookings aren't listed yet.
   const byPatient = new Map<string, Visit[]>()

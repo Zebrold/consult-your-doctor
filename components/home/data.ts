@@ -1,6 +1,7 @@
 import type { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { toLatLng } from '@/lib/geo'
+import { pausedDoctorIds } from '@/lib/doctor-pause'
 import type { HomeHospital } from './types'
 
 type Supabase = Awaited<ReturnType<typeof createClient>>
@@ -60,9 +61,13 @@ export async function loadHospitals(supabase: Supabase): Promise<HomeHospital[]>
     }
   }
 
+  // Doctors whose bookings are paused don't count towards a hospital's doctors or specialities.
+  const paused = await pausedDoctorIds()
+
   return rows.map((h) => {
+    const listed = (h.doctors ?? []).filter((d) => !paused.has(d.id))
     const counts = new Map<string, number>()
-    for (const d of h.doctors ?? []) {
+    for (const d of listed) {
       const name = d.specialty?.trim()
       if (name) counts.set(name, (counts.get(name) ?? 0) + 1)
     }
@@ -75,7 +80,7 @@ export async function loadHospitals(supabase: Supabase): Promise<HomeHospital[]>
       city: h.city,
       address: h.address,
       image: h.image_url,
-      doctors: h.doctors?.length ?? 0,
+      doctors: listed.length,
       specialties: Array.from(counts, ([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count),
       open247: facilities.some((f) => ALWAYS_OPEN.test(f)),
       facility: facilities.find((f) => !ALWAYS_OPEN.test(f)) ?? null,

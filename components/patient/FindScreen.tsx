@@ -6,6 +6,7 @@ import { currentTime, loadAvailability, one } from "@/components/patient/data";
 import { pricedTests } from "@/lib/pricing";
 import { getBookingFees } from "@/lib/booking-fees";
 import { toLatLng } from "@/lib/geo";
+import { pausedDoctorIds } from "@/lib/doctor-pause";
 import { PatientDock } from "@/components/PatientDock";
 
 type DoctorRow = {
@@ -60,7 +61,9 @@ export async function loadFindData() {
 
   // Doctors are seen at their hospital, so they are as near as its pin.
   const pins = new Map(allHospitals.map((h) => [h.id, h.lat != null && h.lng != null ? { lat: h.lat, lng: h.lng } : null]));
-  const doctors: FindDoctor[] = ((dbDoctors ?? []) as DoctorRow[]).map((d) => {
+  // Doctors whose bookings are paused are hidden from patients.
+  const paused = await pausedDoctorIds();
+  const doctors: FindDoctor[] = ((dbDoctors ?? []) as DoctorRow[]).filter((d) => !paused.has(d.id)).map((d) => {
     const hospital = one(d.hospitals);
     const pin = hospital ? pins.get(hospital.id) ?? null : null;
     return {

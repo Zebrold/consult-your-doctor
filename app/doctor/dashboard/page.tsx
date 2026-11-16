@@ -11,6 +11,8 @@ import { latestAllergy } from '../_lib/notes'
 import { NextStepButton, PrescriptionButton, SIZE, WritePrescriptionButton, type PickVisit, type VisitRef } from '../_components/VisitControls'
 import { Inpatients } from '../_components/Inpatients'
 import { hasLiveBadge } from '@/lib/badges'
+import { doctorPause } from '@/lib/doctor-pause'
+import { BookingSwitch } from '../_components/BookingSwitch'
 import {
   BarChart, DeskHead, DocBody, DocHeader, Donut, EmptyLine, Initials, MoreLink, Panel, PanelHead, Readings, Row, StatCard, Status, Verified, btnOutline,
   btnSmall, card, delta,
@@ -95,6 +97,8 @@ export default async function DoctorDashboard() {
   const weekSlots = slots.filter((s) => Date.parse(s.start) > now && Date.parse(s.start) < now + 7 * DAY)
   const openWeek = weekSlots.filter((s) => !s.booked).length
   const bookedWeek = weekSlots.length - openWeek
+  // Fast-track bookings in those seven days
+  const fastWeek = paid.filter((v) => v.fastTrack && v.start && Date.parse(v.start) > now && Date.parse(v.start) < now + 7 * DAY).length
 
   // This week, Monday first, for the bar chart
   const monday = istDateKey(noonOf(todayKey) - ((new Date(noonOf(todayKey)).getUTCDay() + 6) % 7) * DAY)
@@ -121,7 +125,17 @@ export default async function DoctorDashboard() {
     .slice(0, 15)
     .map((v) => ({ ...ref(v), when: formatSlot(v.start ?? v.createdAt, now) }))
 
+  // New consult: today's checked-in patients (fast track first), then the booked ones by slot time. Picking one opens
+  // Write Prescription for that visit; nothing is booked.
+  const consultVisits: PickVisit[] = [
+    ...checkedIn,
+    ...todays
+      .filter((v) => v.status === 'confirmed')
+      .sort((a, b) => Number(b.fastTrack) - Number(a.fastTrack) || (a.start ?? '').localeCompare(b.start ?? '')),
+  ].map((v) => ({ ...ref(v), when: formatSlot(v.start ?? v.createdAt, now) }))
+
   const name = doctorName(doctor.name)
+  const pause = await doctorPause(admin, doctor.id)
   const verified = (await hasLiveBadge(admin, 'doctor', doctor.id)) ? <Verified /> : null
   const where = [doctor.specialty, doctor.hospital && [doctor.hospital.name, doctor.hospital.city].filter(Boolean).join(', ')].filter(Boolean).join(' · ')
   const dateLine = (() => {
@@ -130,7 +144,27 @@ export default async function DoctorDashboard() {
     return `${part({ weekday: 'long' })}, ${part({ day: 'numeric' })} ${part({ month: 'long' })}`
   })()
 
+  const shortDate = (() => {
+    const d = new Date(now)
+    const part = (o: Intl.DateTimeFormatOptions) => d.toLocaleDateString('en-GB', { timeZone: IST, ...o })
+    return `${part({ weekday: 'short' })}, ${part({ day: 'numeric' })} ${part({ month: 'short' })}`
+  })()
+
   const writeRx = () => <WritePrescriptionButton current={prescribeFor ? ref(prescribeFor) : null} recent={recentVisits} kind="primary" />
+
+  const newConsult = () => (
+    <WritePrescriptionButton
+      current={null}
+      recent={consultVisits}
+      label="New consult"
+      kind="outline"
+      picker={{
+        title: 'New consult',
+        sub: "Pick one of today's patients. Their prescription opens straight away.",
+        empty: "No one is booked or checked in for today. Patients are booked online or by your hospital's desk.",
+      }}
+    />
+  )
 
   const glance = [
     { label: "Today's appointments", value: todays.length, note: `${checkedIn.length} checked in`, color: '#067647' },
@@ -146,7 +180,9 @@ export default async function DoctorDashboard() {
 
   return (
     <>
-      <DocHeader doctor={{ name: doctor.name, image: doctor.image }} eyebrow={`${greeting(now)},`} title={name} titleExtra={verified} subtitle={where || undefined} />
+      <DocHeader doctor={{ name: doctor.name, image: doctor.image }} eyebrow={`${greeting(now)},`} title={name} titleExtra={verified} subtitle={where || undefined}>
+        <BookingSwitch paused={pause.paused} by={pause.by} ready={pause.ready} variant="header" />
+      </DocHeader>
 
       <DocBody>
         <DeskHead
@@ -158,11 +194,20 @@ export default async function DoctorDashboard() {
               ? `You have ${plural(todays.length, 'appointment')} today. ${checkedIn.length ? `${plural(checkedIn.length, 'patient')} ${checkedIn.length === 1 ? 'is' : 'are'} waiting.` : 'No one is waiting yet.'}`
               : 'No appointments today.'
           }
-          actions={writeRx()}
+          actions={
+            <>
+              <BookingSwitch paused={pause.paused} by={pause.by} ready={pause.ready} variant="desk" />
+              {writeRx()}
+              {newConsult()}
+            </>
+          }
         />
 
         {/* Phone: quick actions and today at a glance */}
-        <div className="lg:hidden grid gap-2.5 mb-3.5">{writeRx()}</div>
+        <div className="lg:hidden grid grid-cols-2 gap-2.5 mb-3.5">
+          {newConsult()}
+          {writeRx()}
+        </div>
         <section aria-label="Today at a glance" className={`lg:hidden ${card} grid grid-cols-2 overflow-hidden mb-3.5`}>
           {glance.map((s) => (
             <div key={s.label} className="px-4 py-3.5 shadow-[inset_-1px_-1px_0_#EEF2F7]">
@@ -207,7 +252,18 @@ export default async function DoctorDashboard() {
             <Panel className="order-3 lg:order-none" label="Today's schedule">
               <PanelHead
                 title="Today's schedule"
-                sub={todays.length ? `${doctor.hospital?.name ?? 'In-person'} · ${formatTime(todays[0].start!)} to ${formatTime(todays[todays.length - 1].end ?? todays[todays.length - 1].start!)}` : 'No appointments today'}
+                sub={
+                  todays.length ? (
+                    <>
+                      <span className="lg:hidden">
+                        {shortDate} · {plural(todays.length, 'appointment')}
+                      </span>
+                      <span className="hidden lg:inline">{`${doctor.hospital?.name ?? 'In-person'} · ${formatTime(todays[0].start!)} to ${formatTime(todays[todays.length - 1].end ?? todays[todays.length - 1].start!)}`}</span>
+                    </>
+                  ) : (
+                    'No appointments today'
+                  )
+                }
                 right={<MoreLink href="/doctor/schedule">Full schedule</MoreLink>}
               />
               {todays.length === 0 ? (
@@ -282,7 +338,7 @@ export default async function DoctorDashboard() {
                   <div className="flex-1 min-w-0">
                     <Row label="Booked">{bookedWeek}</Row>
                     <Row label="Open">{openWeek}</Row>
-                    <Row label="Published">{weekSlots.length}</Row>
+                    <Row label="Fast track">{fastWeek}</Row>
                   </div>
                 </div>
               </Panel>

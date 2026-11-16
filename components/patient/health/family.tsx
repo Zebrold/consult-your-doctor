@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Trash2, UserPlus } from "lucide-react";
+import { Trash2, UserPlus } from "lucide-react";
 import { btnOutline, btnPrimary, card } from "@/components/patient/app-ui";
 import { firstName, initials } from "@/components/patient/format";
 import { BOOK_FOR_KEY } from "@/components/patient/WhoFor";
@@ -66,7 +66,7 @@ export function MemberCard({ person }: { person: Card }) {
         <Row
           label="Insurance"
           value={
-            person.covered == null ? <span className="text-[#8A94A6]">No policy added</span> : person.covered ? <span className="text-[#067647]">Covered</span> : <span className="text-[#5B667A]">Not covered</span>
+            person.covered == null ? <span className="text-[#8A94A6]">No policy added</span> : person.covered ? <span className="inline-flex items-center h-6 px-[9px] rounded-full bg-[#EEF3FF] text-[11.5px] font-extrabold text-[#2A4DD0]">Covered</span> : <span className="inline-flex items-center h-6 px-[9px] rounded-full bg-[#F1F4F9] text-[11.5px] font-extrabold text-[#5B667A]">Not covered</span>
           }
         />
         <Row label="Next visit" value={person.nextVisit ?? <span className="font-bold text-[#8A94A6]">No upcoming visits</span>} />
@@ -230,14 +230,12 @@ export function AddMember({ count, ready }: { count: number; ready: boolean }) {
         </div>
       )}
       {state === "added" && (
-        <div className="mt-3 rounded-2xl bg-[#ECFDF3] p-4">
-          <p className="flex items-center gap-2 text-[14px] font-extrabold text-[#067647]">
-            <CheckCircle2 className="w-[18px] h-[18px]" /> Family member added
-          </p>
-          <p className="mt-1 text-[12.5px] text-[#27324A]">You can now book visits and keep records for them.</p>
+        <div className="mt-3 rounded-2xl bg-[#F5F8FF] shadow-[inset_0_0_0_1px_#DCE5FF] p-4">
+          <p className="text-[15px] font-extrabold text-[#2A4DD0]">Family member added</p>
+          <p className="mt-1 text-[13px] text-[#27324A]">You can now book visits and keep records for them.</p>
           {count < FAMILY_LIMIT && (
-            <button type="button" onClick={() => setState("adding")} className="mt-2.5 flex items-center gap-1.5 text-[13px] font-extrabold text-[#2A4DD0] hover:underline">
-              <UserPlus className="w-3.5 h-3.5" /> Add another
+            <button type="button" onClick={() => setState("adding")} className={`${btnOutline} w-full mt-3`}>
+              Add another
             </button>
           )}
         </div>

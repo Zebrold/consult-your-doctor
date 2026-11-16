@@ -10,9 +10,9 @@ export const dynamic = 'force-dynamic'
 export default async function HospitalReportsPage({ searchParams }: { searchParams: Promise<{ months?: string }> }) {
   const { months } = await searchParams
   const range = RANGES.find((r) => String(r) === months) ?? 6
-  const { admin, hospital } = await requireHospital()
+  const { admin, hospital, staff } = await requireHospital()
   const doctors = await loadHospitalDoctors(admin, hospital.id)
   const doctorIds = doctors.map((d) => d.id)
   const [visits, reviews] = await Promise.all([loadHospitalVisits(admin, hospital.id, doctorIds), loadReviewsFor(admin, { doctorIds, hospitalId: hospital.id })])
-  return <HospitalReports hospital={hospital} doctors={doctors} visits={visits} reviews={reviews} now={currentTime()} range={range} />
+  return <HospitalReports hospital={hospital} staff={staff} doctors={doctors} visits={visits} reviews={reviews} now={currentTime()} range={range} />
 }

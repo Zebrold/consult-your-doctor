@@ -41,7 +41,7 @@ export function DeskTitle({ title, subtitle, actions }: { title: string; subtitl
 }
 
 /** A section's title with an optional line under it and a "See all" style link on the right. */
-export function SectionHead({ title, sub, href, link = "View all", id }: { title: string; sub?: ReactNode; href?: string; link?: string; id?: string }) {
+export function SectionHead({ title, sub, href, link = "View all", id }: { title: ReactNode; sub?: ReactNode; href?: string; link?: string; id?: string }) {
   return (
     <div className="flex items-end lg:items-start justify-between gap-3 mb-3 lg:mb-3.5">
       <div className="min-w-0">

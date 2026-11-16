@@ -91,14 +91,8 @@ export default async function HospitalFinancePage() {
   const monthLabel = new Date(`${month}-15T12:00:00+05:30`).toLocaleDateString('en-GB', { timeZone: IST, month: 'long', year: 'numeric' })
   const subtitle = `Consultation fees collected at your counter. Booking fees (${formatINR(fees.consultation)} general, ${formatINR(fees.fastTrack)} fast track) are collected by Consult your Doctor in the app.`
   const changePct = lastTotal > 0 ? Math.round(((monthTotal - lastTotal) / lastTotal) * 100) : null
-  const changeLine =
-    changePct != null
-      ? `${changePct >= 0 ? '+' : ''}${changePct}% vs ${monthName(lastMonth)}`
-      : lastTotal > 0
-        ? `+100% vs ${monthName(lastMonth)}`
-        : monthTotal > 0
-          ? `+100% vs ${monthName(lastMonth)}`
-          : `0% vs ${monthName(lastMonth)}`
+  // No comparison line when last month had nothing to compare with.
+  const changeLine = changePct != null ? `${changePct >= 0 ? '+' : ''}${changePct}% vs ${monthName(lastMonth)}` : null
 
   const methodsPanel = (
     <Panel>
@@ -161,9 +155,9 @@ export default async function HospitalFinancePage() {
         )}
       </Panel>
       <Panel>
-        <PanelHead title="Test charges" sub="Amount for each test at your hospital" right={<MoreLink href="/hospital/profile#tests">Edit</MoreLink>} />
+        <PanelHead title="Services & charges" sub="Price of each service, paid at the hospital" right={<MoreLink href="/hospital/settings/services">Manage</MoreLink>} />
         {testCharges.length === 0 ? (
-          <EmptyLine>No test charges yet. Add them on your hospital profile.</EmptyLine>
+          <EmptyLine>No services yet. Add them in Services & charges.</EmptyLine>
         ) : (
           <ul>
             {testCharges.map((t) => (
@@ -185,7 +179,7 @@ export default async function HospitalFinancePage() {
         <div className="mt-4 mx-1.5">
           <span className="block text-[12px] font-bold text-[#CFDCFF]">Collected this month</span>
           <span className="block text-[32px] font-extrabold tracking-[-0.02em]">{formatINR(monthTotal)}</span>
-          <span className="block text-[12.5px] font-bold">{changeLine}</span>
+          {changeLine && <span className="block text-[12.5px] font-bold">{changeLine}</span>}
         </div>
       </HosBackHeader>
       <HosBody>
@@ -217,7 +211,7 @@ export default async function HospitalFinancePage() {
           <StatCard label="Awaiting payment" value={formatINR(awaitingValue)} note={`${plural(awaiting.length, 'upcoming booking')} not paid`} />
         </section>
 
-        <div className="hidden lg:grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-5 mb-5 items-start">
+        <div className="hidden lg:grid grid-cols-[minmax(0,1fr)_340px] gap-5 mb-5 items-start">
           <Panel>
             <PanelHead title="Daily collections" sub="Last 14 days · consultation fees" />
             {days.every((k) => onDay(k) === 0) ? <EmptyLine>No payments in the last 14 days.</EmptyLine> : <BarChart bars={dailyBars} label="Collections each day, last 14 days" width={560} height={200} />}

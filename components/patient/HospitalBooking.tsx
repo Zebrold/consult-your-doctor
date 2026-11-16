@@ -73,6 +73,7 @@ export function HospitalBooking({
   initialFastTrack = false,
   initialServices = [],
   freeFollowUp = [],
+  preview = false,
   intro,
   children,
 }: {
@@ -95,6 +96,8 @@ export function HospitalBooking({
   initialServices?: string[];
   /** Doctors this patient can book a free follow-up with (no booking fee, lib/follow-up.ts). */
   freeFollowUp?: string[];
+  /** The hospital's own preview of this page: nothing can be booked, and no booking action is ever called. */
+  preview?: boolean;
   /** Cards above the doctors (the consultation charges). */
   intro?: ReactNode;
   children: ReactNode;
@@ -146,7 +149,9 @@ export function HospitalBooking({
     doctor ? doctorBookingHref(doctor.id, hospitalId, { slotId, fastTrack: choices && fastTrack, services: pickedServices.map((s) => s.name) }) : `/hospitals/${hospitalId}`,
   )}`;
   const missing = patient ? patientDetailsError(patient) : null;
-  const cta = !doctor
+  const cta = preview
+    ? "Booking is off in preview"
+    : !doctor
     ? "Select a doctor"
     : !doctor.bookable
       ? "Booking unavailable"
@@ -177,7 +182,7 @@ export function HospitalBooking({
   };
 
   const confirm = async () => {
-    if (!doctor || !slot || !patient) return;
+    if (preview || !doctor || !slot || !patient) return;
     if (missing) return setError(missing);
     setSubmitting(true);
     setError(null);
@@ -318,7 +323,7 @@ export function HospitalBooking({
         <div className="flex flex-col gap-3.5 lg:gap-5 min-w-0">
           {intro}
           <section aria-labelledby="book-title" className={`p-4 lg:p-[22px] ${card} rounded-[20px]! lg:rounded-2xl!`}>
-            <h2 id="book-title" className="text-[16px] font-extrabold">Choose your doctor</h2>
+            <h2 id="book-title" className="text-[16px] font-extrabold">Book a doctor here</h2>
             <p className="mt-1 mb-3 text-[12.5px] text-[#5B667A]">{specialties.length > 1 ? "Pick a speciality, select a doctor, then pick a day and time." : "Select a doctor, then pick a day and time."}</p>
             {doctors.length === 0 ? (
               <p className="py-3 border-t border-[#EEF2F7] text-[13px] text-[#5B667A]">No doctors are listed at this hospital yet.</p>
@@ -455,10 +460,10 @@ export function HospitalBooking({
                 </>
               ) : (
                 <p className="text-[13px] text-[#5B667A]">
-                  <Link href={loginHref} className="font-extrabold text-[#2A4DD0] hover:underline">
+                  {preview ? "Patients log in with their mobile number to book. Booking is turned off in this preview." : (<><Link href={loginHref} className="font-extrabold text-[#2A4DD0] hover:underline">
                     Log in
                   </Link>{" "}
-                  with your mobile number to book. Your details are filled in from your profile, and you come back here with your choices kept.
+                  with your mobile number to book. Your details are filled in from your profile, and you come back here with your choices kept.</>)}
                 </p>
               )}
               <div className="lg:hidden mt-3 pt-3 border-t border-[#EEF2F7] flex flex-col gap-2.5">
@@ -485,14 +490,14 @@ export function HospitalBooking({
           <div className="mt-4 flex flex-col gap-3.5">
             <OnlinePayNote />
             {errorNote}
-            {ready && !patient ? (
+            {ready && !patient && !preview ? (
               <Link href={loginHref} className="w-full h-[50px] rounded-[11px] flex items-center justify-center gap-2 bg-[#2A4DD0] hover:bg-[#2443B8] text-[15px] font-extrabold text-white transition-colors">
                 <LogIn className="w-4 h-4" /> {cta}
               </Link>
             ) : (
               <button
                 type="button"
-                disabled={!ready || submitting}
+                disabled={preview || !ready || submitting}
                 onClick={confirm}
                 className="w-full h-[50px] rounded-[11px] flex items-center justify-center gap-2 bg-[#2A4DD0] hover:bg-[#2443B8] text-[15px] font-extrabold text-white transition-colors disabled:bg-[#C9D3E6] disabled:cursor-not-allowed"
               >
@@ -518,7 +523,7 @@ export function HospitalBooking({
         </aside>
       </div>
 
-      <div className="lg:hidden fixed z-40 inset-x-0 bottom-0 flex items-center gap-3 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] bg-white border-t border-[#E6EBF3] shadow-[0_-8px_20px_rgba(11,27,63,0.06)] font-(family-name:--font-manrope)">
+      {!preview && <div className="lg:hidden fixed z-40 inset-x-0 bottom-0 flex items-center gap-3 px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] bg-white border-t border-[#E6EBF3] shadow-[0_-8px_20px_rgba(11,27,63,0.06)] font-(family-name:--font-manrope)">
         <span className="flex-1 min-w-0">
           <span className="block text-[17px] font-extrabold">{formatINR(payable.total)}</span>
           <span className="block text-[11.5px] text-[#5B667A] truncate">
@@ -527,14 +532,14 @@ export function HospitalBooking({
               : "Booking fee in app · rest paid at hospital"}
           </span>
         </span>
-        {ready && !patient ? (
+        {ready && !patient && !preview ? (
           <Link href={loginHref} className="shrink-0 flex items-center gap-1.5 h-12 px-[18px] rounded-[14px] bg-[#2A4DD0] text-white text-[15px] font-extrabold shadow-[0_8px_16px_rgba(42,77,208,0.3)]">
             <LogIn className="w-4 h-4" /> {cta}
           </Link>
         ) : (
           <button
             type="button"
-            disabled={!ready || submitting}
+            disabled={preview || !ready || submitting}
             onClick={confirm}
             className={`shrink-0 flex items-center gap-1.5 h-12 px-[18px] rounded-[14px] text-white text-[15px] font-extrabold transition-colors disabled:cursor-not-allowed ${
               ready ? "bg-[#2A4DD0] shadow-[0_8px_16px_rgba(42,77,208,0.3)]" : "bg-[#C9D3E6]"
@@ -545,7 +550,7 @@ export function HospitalBooking({
             {!ready && <ArrowRight className="w-4 h-4" strokeWidth={2.6} />}
           </button>
         )}
-      </div>
+      </div>}
     </>
   );
 }

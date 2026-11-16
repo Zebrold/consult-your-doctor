@@ -7,7 +7,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { executiveFor } from '@/app/executive/_lib/ops'
 import { clientIp } from '@/lib/otp-guard'
 import { overLimit } from '@/lib/rate-limit'
-import { sendPartnerApplicationReceivedEmail } from '@/lib/notify/email'
+import { sendApplicationRejectedEmail, sendPartnerApplicationReceivedEmail } from '@/lib/notify/email'
 import { collectDocuments, documentsReady, missingDocuments } from '@/lib/application-uploads'
 import {
   CALL_TIMES,
@@ -290,13 +290,21 @@ export async function rejectPartnerApplication(id: string): Promise<Result> {
     .update({ status: 'rejected', reviewed_by: user.id, reviewed_at: new Date().toISOString() })
     .eq('id', id)
     .eq('status', 'pending')
-    .select('kind')
+    .select('kind, email, contact_name, organization_name')
     .maybeSingle()
   if (error) {
     console.error('rejectPartnerApplication:', error)
     return fail('Could not update the application. Please try again.')
   }
   if (!app) return fail('This application has already been reviewed.')
+  if (app.email && (app.kind === 'hospital' || app.kind === 'diagnostic_center' || app.kind === 'doctor')) {
+    await sendApplicationRejectedEmail({
+      to: app.email,
+      name: app.contact_name || 'there',
+      kind: app.kind,
+      organizationName: app.kind === 'doctor' ? null : app.organization_name,
+    }).catch(() => false)
+  }
   revalidatePath(app.kind === 'hospital' ? '/executive/hospitals' : '/executive/diagnostics')
   return { success: true }
 }

@@ -6,6 +6,7 @@ import { one } from '@/components/patient/data'
 import type { Tone } from '@/components/portal/ui'
 import { parseVitals, type Vitals } from '@/lib/vitals'
 import { signRecordFiles } from '@/lib/records'
+import { hiddenByBlock, loadRecordBlocks } from '@/lib/record-access'
 import { familyNames, RELATIONS } from '@/lib/patient-health'
 import { parseEducation, type EducationEntry } from '@/lib/education'
 import { bookedServices, isFastTrack, type BookedTest } from '@/lib/pricing'
@@ -102,6 +103,8 @@ export type Visit = {
   end: string | null
   patient: { id: string; name: string; phone: string | null; email: string | null } | null
   records: VisitRecord[]
+  /** The patient removed this doctor's access to this visit's records (record_access_blocks); records are empty. */
+  recordsHidden: boolean
   /** Booked as fast track: seen ahead of general patients once checked in. */
   fastTrack: boolean
   /** Hospital services the patient picked, paid at the counter. */
@@ -132,9 +135,12 @@ export async function loadVisits(admin: Admin, doctorId: string): Promise<Visit[
     medical_records: { id: string; notes: string | null; document_type: string | null; file_url: string | null }[] | null
   }
   const rows = (data ?? []) as unknown as Row[]
+  // Visits whose records the patient took back: decided before anything is signed, so a hidden file is never signed.
+  const blocks = await loadRecordBlocks(admin, doctorId)
+  const hidden = new Set(rows.filter((r) => hiddenByBlock(blocks, one(r.patient)?.id, one(r.schedules)?.start_time ?? r.created_at)).map((r) => r.id))
   // Files are private: hand the doctor signed links (valid for an hour).
   const [links, members] = await Promise.all([
-    signRecordFiles(admin, rows.flatMap((r) => (r.medical_records ?? []).map((m) => m.file_url))),
+    signRecordFiles(admin, rows.filter((r) => !hidden.has(r.id)).flatMap((r) => (r.medical_records ?? []).map((m) => m.file_url))),
     familyNames(admin, rows.map((r) => r.family_member_id)),
   ])
   return rows
@@ -149,7 +155,8 @@ export async function loadVisits(admin: Admin, doctorId: string): Promise<Visit[
         start: slot?.start_time ?? null,
         end: slot?.end_time ?? null,
         patient: patient ? { id: patient.id, name: patient.full_name || 'Patient', phone: patient.phone_number, email: patient.email } : null,
-        records: (r.medical_records ?? [])
+        recordsHidden: hidden.has(r.id),
+        records: (hidden.has(r.id) ? [] : r.medical_records ?? [])
           // medical_records has no timestamp column; a record dates from its visit.
           .map((m) => ({ id: m.id, type: m.document_type, notes: m.notes, fileUrl: (m.file_url && links[m.file_url]) || null, createdAt: null })),
         fastTrack: isFastTrack(r.booking_type),

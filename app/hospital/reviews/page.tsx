@@ -4,7 +4,7 @@ import { doctorName } from '@/components/patient/format'
 import { ReviewsBoard, type BoardDoctor, type BoardReview } from '@/components/portal/ReviewsBoard'
 import { loadReviewsFor, summarize, timeAgo } from '@/lib/reviews'
 import { loadHospitalDoctors, requireHospital } from '../_lib/hospital'
-import { DeskHead, HosBackHeader, HosBody } from '../_components/hos-ui'
+import { DeskHead, HosBody, HosHeader } from '../_components/hos-ui'
 
 export const metadata: Metadata = { title: 'Reviews | Hospital Portal' }
 export const dynamic = 'force-dynamic'
@@ -21,7 +21,7 @@ function shortName(name: string) {
  * visit, filtered by doctor, with the overall rating, its spread and each doctor's rating.
  */
 export default async function HospitalReviewsPage() {
-  const { admin, hospital } = await requireHospital()
+  const { admin, hospital, staff } = await requireHospital()
   const now = currentTime()
   const doctors = await loadHospitalDoctors(admin, hospital.id)
   const reviews = await loadReviewsFor(admin, { doctorIds: doctors.map((d) => d.id), hospitalId: hospital.id })
@@ -52,9 +52,7 @@ export default async function HospitalReviewsPage() {
 
   return (
     <>
-      <HosBackHeader backHref="/hospital/more" backLabel="Back to more" title="Reviews">
-        <p className="mt-2.5 mx-1.5 text-[13px] leading-[1.5] text-[#DCE6FF]">{subtitle}</p>
-      </HosBackHeader>
+      <HosHeader staff={staff} back={{ href: '/hospital/more', label: 'More' }} title="Reviews" subtitle={subtitle} />
       <HosBody>
         <DeskHead title="Reviews" subtitle={subtitle} />
         <ReviewsBoard reviews={board} summary={summarize(board.map((r) => r.rating))} doctors={byDoctor} tabs={tabs} />

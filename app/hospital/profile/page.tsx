@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import Link from 'next/link'
-import { Building2, Check, CircleAlert, ExternalLink } from 'lucide-react'
+import Image from 'next/image'
+import { SPECIALITIES, isOf, specialityIcon } from '@/components/home/specialities'
+import { Building2, Check, CircleAlert, ExternalLink, Stethoscope } from 'lucide-react'
 import { toLatLng } from '@/lib/geo'
 import { currentTime } from '@/components/patient/data'
 import { IST, formatINR, formatShortDate, istDateKey } from '@/components/patient/format'
@@ -133,13 +135,21 @@ export default async function HospitalProfilePage() {
           const fees = list.map((d) => d.fee).filter((f): f is number => f != null)
           const low = Math.min(...fees)
           const high = Math.max(...fees)
+          const sp = SPECIALITIES.find((s) => isOf(s, dept))
           return (
-            <div key={dept} className="flex items-center justify-between gap-3 py-2.5 border-t border-[#EEF2F7]">
-              <span className="min-w-0">
+            <div key={dept} className="flex items-center gap-3 py-2.5 border-t border-[#EEF2F7]">
+              {sp ? (
+                <Image src={specialityIcon(sp)} width={36} height={36} alt="" className="shrink-0" />
+              ) : (
+                <span className="w-9 h-9 rounded-[10px] bg-[#EEF3FF] text-[#2A4DD0] flex items-center justify-center shrink-0">
+                  <Stethoscope className="w-[18px] h-[18px]" />
+                </span>
+              )}
+              <span className="flex-1 min-w-0">
                 <span className="block text-[13.5px] font-extrabold truncate">{dept}</span>
                 <span className="block text-[12px] text-[#5B667A]">{plural(list.length, 'doctor')}</span>
               </span>
-              <span className="text-[14px] font-extrabold shrink-0">{fees.length === 0 ? '—' : low === high ? formatINR(low) : `${formatINR(low)} – ${formatINR(high)}`}</span>
+              <span className="text-[12.5px] font-extrabold shrink-0">{fees.length === 0 ? '—' : low === high ? formatINR(low) : `${formatINR(low)} – ${formatINR(high)}`}</span>
             </div>
           )
         })
@@ -172,7 +182,7 @@ export default async function HospitalProfilePage() {
 
   const insurance = (
     <Panel>
-      <PanelHead title="Insurance accepted" sub="Cashless and reimbursement" right={addLink('+ Add')} />
+      <PanelHead title="Insurance accepted" sub="Insurers and schemes you accept" right={addLink('+ Add')} />
       {hospital.insurance.length === 0 ? (
         <EmptyLine>Add the insurers and schemes you accept.</EmptyLine>
       ) : (
@@ -284,7 +294,7 @@ export default async function HospitalProfilePage() {
           </span>
         </div>
         <div className="grid grid-cols-2 gap-2 mt-4">
-          <Link href={`/hospitals/${hospital.id}`} className="h-[42px] px-3 rounded-[11px] bg-white text-[#2A4DD0] text-[13.5px] font-extrabold flex items-center justify-center gap-1.5">
+          <Link href="/hospital/preview" className="h-[42px] px-3 rounded-[11px] bg-white text-[#2A4DD0] text-[13.5px] font-extrabold flex items-center justify-center gap-1.5">
             <ExternalLink className="w-4 h-4" /> View patient page
           </Link>
           <HospitalProfileEditor
@@ -320,7 +330,7 @@ export default async function HospitalProfilePage() {
               </span>
             </span>
             <span className="flex gap-2.5 shrink-0">
-              <Link href={`/hospitals/${hospital.id}`} className={btnOutline}>
+              <Link href="/hospital/preview" className={btnOutline}>
                 <ExternalLink className="w-4 h-4" /> View patient page
               </Link>
               <HospitalProfileEditor hospital={editable} location={location} label="Edit profile" className={btnPrimary} />
@@ -356,9 +366,9 @@ export default async function HospitalProfilePage() {
           <div className="contents lg:flex lg:flex-col lg:gap-5 lg:min-w-0">
             {about}
             {departmentsCard}
+            {insurance}
           </div>
           <div className="contents lg:flex lg:flex-col lg:gap-5 lg:min-w-0">
-            {insurance}
             {reviewsCard}
             {facilities}
           </div>

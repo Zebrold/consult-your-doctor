@@ -8,6 +8,7 @@ import { executiveFor } from '@/app/executive/_lib/ops'
 import { clientIp } from '@/lib/otp-guard'
 import { overLimit } from '@/lib/rate-limit'
 import { sendApplicationRejectedEmail, sendPartnerApplicationReceivedEmail } from '@/lib/notify/email'
+import { alertTeamLater } from '@/lib/notify/team'
 import { collectDocuments, documentsReady, missingDocuments } from '@/lib/application-uploads'
 import {
   CALL_TIMES,
@@ -266,6 +267,15 @@ export async function submitPartnerApplication(kind: PartnerKind, _prev: unknown
   await sendPartnerApplicationReceivedEmail({ to: d.email, contactName: d.contactName, organizationName: d.organizationName, kind }).catch((err) =>
     console.error('Failed to send partner application email:', err),
   )
+  const noun = kind === 'hospital' ? 'hospital' : 'diagnostic centre'
+  alertTeamLater('partner-application', {
+    subject: `New ${noun} application: ${d.organizationName}, ${d.city}`,
+    heading: `New ${noun} application`,
+    lines: [`${d.organizationName} in ${d.city} applied to join as a partner ${noun}. Check the registration and accreditation details, then approve or decline it.`],
+    facts: [['Name', d.organizationName], ['City', d.city], ['Contact', d.contactName], ['Email', d.email], ['Phone', `${d.countryCode}${d.phone.replace(/\D/g, '')}`]],
+    page: kind === 'hospital' ? '/executive/hospitals' : '/executive/diagnostics',
+    button: 'Review applications',
+  })
   revalidatePath(kind === 'hospital' ? '/executive/hospitals' : '/executive/diagnostics')
   return { success: true }
 }

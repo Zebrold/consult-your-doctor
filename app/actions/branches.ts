@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/lib/supabase/server'
 import { canReach } from '@/lib/branches'
+import { alertTeamLater } from '@/lib/notify/team'
 
 // Accounts & branches (/hospital/branches). Switching changes profiles.hospital_id, the hospital the admin is signed in
 // to, after checking hospital_admin_access, so every hospital page, action and policy follows the switch. A new branch
@@ -95,6 +96,14 @@ export async function requestBranch(form: FormData): Promise<Result> {
     console.error('requestBranch:', error)
     return { ok: false, error: 'Could not send the branch for review. Please try again.' }
   }
+  alertTeamLater('branch-request', {
+    subject: `New branch request: ${d.name}, ${d.city} (branch of ${current?.name ?? 'a hospital'})`,
+    heading: 'New branch request',
+    lines: [`${current?.name ?? 'A partner hospital'} asked to add a branch, ${d.name} in ${d.city}. It is in the hospital applications, marked as a branch.`],
+    facts: [['Branch', d.name], ['City', d.city], ['Branch of', current?.name ?? ''], ['Contact', d.contactName], ['Phone', d.phone], ['Email', d.email]],
+    page: '/executive/hospitals',
+    button: 'Review applications',
+  })
   revalidatePath('/hospital/branches')
   return { ok: true }
 }

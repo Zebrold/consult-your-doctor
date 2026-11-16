@@ -81,37 +81,30 @@ export function notifyReportReady(args: { patientId: string; what: string; from:
   })
 }
 
-import QRCode from 'qrcode'
 import { generateAppointmentSlipPdf } from '@/lib/pdf/appointment-slip'
 import { payAtVenueNote } from '@/lib/pricing'
 import { formatINR } from '@/components/patient/format'
 import { loadBookingCard, type BookingCard } from '@/lib/booking-card'
-import { BOOKING_QR_CID, WHITE_LOGO_CID, bookingEmailLines, bookingEmailSubject, buildBookingEmailHtml } from './booking-email'
-import path from 'node:path'
+import { bookingEmailLines, bookingEmailSubject, buildBookingEmailHtml, type BookingEmailOptions } from './booking-email'
 
-/** The booking email (the same layout as the booking page), with the QR code inline once the booking is paid. */
-async function sendBookingEmail(card: BookingCard, opts: { failureReason?: string | null; slip?: { filename: string; content: Uint8Array } | null }) {
+/** The booking email (the same layout as the booking page). Its QR code loads from the website; only the slip is attached. */
+async function sendBookingEmail(card: BookingCard, opts: BookingEmailOptions & { slip?: { filename: string; content: Uint8Array } | null }) {
   if (!card.patient.email || !realEmail(card.patient.email)) return
-  const confirmed = card.state === 'confirmed'
-  const qr = confirmed ? await QRCode.toBuffer(card.links.confirmation, { margin: 1, width: 240 }) : null
   await sendEmail({
     to: card.patient.email,
-    subject: bookingEmailSubject(card, !!opts.failureReason),
+    subject: bookingEmailSubject(card, opts),
     paragraphs: bookingEmailLines(card, opts),
     html: buildBookingEmailHtml(card, opts),
-    attachments: [
-      ...(qr ? [{ filename: 'booking-qr.png', content: qr, contentType: 'image/png', cid: BOOKING_QR_CID }] : []),
-      ...(card.followUp ? [{ filename: 'logo-icon-white.png', path: path.join(process.cwd(), 'public', 'logo-icon-white.png'), contentType: 'image/png', cid: WHITE_LOGO_CID }] : []),
-      ...(opts.slip ? [{ filename: opts.slip.filename, content: opts.slip.content, contentType: 'application/pdf' }] : []),
-    ],
+    attachments: opts.slip ? [{ filename: opts.slip.filename, content: opts.slip.content, contentType: 'application/pdf' }] : undefined,
   })
 }
 
 /**
- * A booking has been paid (online, at a desk, or it is a free follow-up): sends the confirmation by email (with the PDF
- * slip attached), WhatsApp and SMS. `bookingId` is the full id of the appointment or lab booking.
+ * A booking has been paid (online, at a desk, or it is a free follow-up), or a paid booking moved to a new time
+ * (`moved`): sends the confirmation by email (with the PDF slip attached), WhatsApp and SMS. `bookingId` is the full id
+ * of the appointment or lab booking.
  */
-export function notifyBookingConfirmed(bookingId: string) {
+export function notifyBookingConfirmed(bookingId: string, opts: { moved?: BookingEmailOptions['moved'] } = {}) {
   later('booking', async (admin) => {
     const card = await loadBookingCard(admin, bookingId)
     if (!card || card.state !== 'confirmed') return
@@ -155,7 +148,36 @@ export function notifyBookingConfirmed(bookingId: string) {
     }
 
     // 3. Email in the booking page's layout, with the slip attached
-    await sendBookingEmail(card, { slip: pdfBytes ? { filename, content: pdfBytes } : null })
+    await sendBookingEmail(card, { moved: opts.moved, slip: pdfBytes ? { filename, content: pdfBytes } : null })
+  })
+}
+
+/**
+ * An unpaid booking's 30-minute hold ended (app/api/cron/release-holds), so its slot was freed. Email only: the patient
+ * was emailed "Complete your payment" when they booked, and this closes that loop. Nothing was charged.
+ */
+export function notifyHoldReleased(bookingId: string) {
+  later('hold-released', async (admin) => {
+    const card = await loadBookingCard(admin, bookingId)
+    if (!card || card.state !== 'cancelled' || card.kind !== 'consultation') return
+    const contact = await patientContact(admin, card.patientId)
+    if (!contact?.email) return
+    await sendEmail({
+      to: contact.email,
+      subject: `Booking ${card.code} wasn’t confirmed`,
+      heading: 'Your booking wasn’t confirmed',
+      paragraphs: [
+        `Hello ${firstName(contact.name)},`,
+        `The booking fee for your appointment with ${card.title}${card.when ? ` at ${card.when}` : ''} wasn’t paid within 30 minutes, so the slot has been released. Nothing was charged.`,
+        'You can book again whenever you’re ready; open slots are shown on the doctor’s page.',
+      ],
+      facts: [
+        ['Booking ID', card.code],
+        ['Doctor', card.title],
+        ['Hospital', card.place],
+      ],
+      button: { text: 'Book again', url: card.links.bookAgain ?? `${SITE_URL}/find` },
+    })
   })
 }
 
@@ -167,7 +189,7 @@ export function notifyPaymentPending(bookingId: string, reason: string | null) {
   later('payment-pending', async (admin) => {
     const card = await loadBookingCard(admin, bookingId)
     if (!card || card.state !== 'pending') return
-    await sendBookingEmail(card, { failureReason: reason })
+    await sendBookingEmail(card, { failureReason: reason || 'The payment was not completed.' })
   })
 }
 

@@ -2,8 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { emailConfigured, sendEmail } from '@/lib/notify/email'
-import { COMPANY } from '@/lib/company'
+import { emailConfigured, sendEmail, teamInbox } from '@/lib/notify/email'
 import { createSupportTicket } from './tickets'
 
 const TOPICS = ['Booking or appointment', 'Payment or refund', 'Prescription or report', 'Account or login', 'Something else']
@@ -45,7 +44,7 @@ export async function raiseSupportTicket(input: { topic: string; bookingId: stri
     message,
   ].filter((l): l is string => l !== null)
 
-  const to = process.env.SUPPORT_EMAIL || COMPANY.email
+  const to = teamInbox()
   const sent = emailConfigured() ? await sendEmail({ to, subject, heading: 'New support request', paragraphs: lines }) : false
   const mailto = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`
   return { ok: true, sent, mailto, ticketCode }

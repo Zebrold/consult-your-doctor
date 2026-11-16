@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { executiveFor } from '@/app/executive/_lib/ops'
 import { randomInt } from 'node:crypto'
 import { sendDoctorRegistrationReceivedEmail, sendDoctorActivationEmail, sendApplicationRejectedEmail } from '@/lib/notify/email'
+import { alertTeamLater } from '@/lib/notify/team'
 import { clientIp } from '@/lib/otp-guard'
 import { overLimit } from '@/lib/rate-limit'
 import { collectDocuments, documentsReady, missingDocuments } from '@/lib/application-uploads'
@@ -150,8 +151,16 @@ export async function submitDoctorSignup(_prevState: unknown, formData: FormData
     doctorName: fullName,
     specialty,
   }).catch((err) => console.error('Failed to dispatch doctor registration email:', err))
+  alertTeamLater('doctor-application', {
+    subject: `New doctor application: ${fullName}${specialty ? ` (${specialty})` : ''}`,
+    heading: 'New doctor application',
+    lines: [`${fullName} applied to join as a doctor${specialty ? ` in ${specialty}` : ''}. Check their registration with the medical council, then approve or decline the application.`],
+    facts: [['Doctor', fullName], ['Speciality', specialty], ['Registration no.', registrationNumber], ['Email', email], ['Phone', phone]],
+    page: '/executive/doctors',
+    button: 'Review applications',
+  })
 
-  return { success: true, message: 'Your application has been submitted and is pending verification by the Super Admin.' }
+  return { success: true, message: 'Your application has been sent. We’ve emailed you to confirm it arrived.' }
 }
 
 // Approving creates an account and returns its password, so only reviewers may call these actions.

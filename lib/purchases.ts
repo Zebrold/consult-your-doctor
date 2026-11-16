@@ -1,6 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { formatINR } from '@/components/patient/format'
 import { capturePayment, fetchPayment, fromPaise, type PurchaseNotes, type RazorpayPayment } from '@/lib/razorpay'
+import { emailBadgePaid } from '@/lib/notify/badges'
+import { emailOrderPlaced } from '@/lib/notify/hospital'
 
 // Partner purchases paid through Razorpay: a verified badge payment (badge_payments, covering one or more badges) or
 // an equipment order. The amount was fixed by our server when the purchase was made; a payment is accepted only for
@@ -64,7 +66,11 @@ export async function settlePurchase(notes: PurchaseNotes, payment: RazorpayPaym
       console.error('settlePurchase badges:', e3)
       return { ok: false, reason: 'Paid, but we could not record it just now. Our team will confirm it; you don’t need to pay again.' }
     }
-    if (moved?.length) return { ok: true }
+    if (moved?.length) {
+      // Only the report that moved the badges sends the receipt, so it goes out once.
+      emailBadgePaid(admin, r.id)
+      return { ok: true }
+    }
     // Nothing was waiting: either the other report of this payment moved them, or the request was withdrawn meanwhile.
     const { count: already } = await admin.from('verified_badges').select('id', { count: 'exact', head: true }).eq('payment_id', r.id).in('status', ['in_review', 'active'])
     if (already) return { ok: true }
@@ -102,6 +108,8 @@ export async function settlePurchase(notes: PurchaseNotes, payment: RazorpayPaym
   if (placed?.length) {
     const { error: stockError } = await admin.rpc('take_equipment_stock', { p_order: r.id })
     if (stockError && !/function|schema cache/i.test(stockError.message ?? '')) console.error('settlePurchase stock:', stockError)
+    // The receipt and the team's copy, once (this call placed the order).
+    emailOrderPlaced(admin, r.id)
   }
   return { ok: true }
 }

@@ -11,7 +11,8 @@ import { moveAppointmentSlot, releaseSlot } from '@/lib/booking-move'
 import { notifyBookingCancelled, notifyBookingConfirmed } from '@/lib/notify/patient'
 import { slotHospitalId } from '@/lib/practices'
 import { FOLLOW_UP_DAYS } from '@/lib/follow-up'
-import { formatDayLabel, formatTime, istDateKey } from '@/components/patient/format'
+import { formatDayLabel, formatINR, formatTime, istDateKey } from '@/components/patient/format'
+import { alertTeamLater } from '@/lib/notify/team'
 
 // A patient changing their own booking from My bookings: cancel it (the online fee is refunded when this is at least
 // 2 hours before it starts; the team records the refund on Payments) or move a doctor visit once to another open slot
@@ -127,6 +128,20 @@ export async function cancelMyBooking(input: { kind: 'visit' | 'lab'; id: string
   if (kind === 'visit' && scheduleId && doctorId) await releaseSlot(admin, scheduleId, doctorId)
 
   notifyBookingCancelled({ bookingId: id, refundDue: terms.refundDue, amount: paidAmount })
+  if (terms.refundDue) {
+    const code = id.slice(0, 8).toUpperCase()
+    alertTeamLater('refund-due', {
+      subject: `Refund due: ${formatINR(paidAmount)} for booking ${code}`,
+      heading: 'A refund is due',
+      lines: [
+        `A patient cancelled booking ${code} more than 2 hours before it, so the ${formatINR(paidAmount)} paid online is to be refunded.`,
+        'Refund it from the Razorpay dashboard, then record the refund on Payments (Refund due), which emails the patient.',
+      ],
+      facts: [['Booking ID', code], ['Refund', formatINR(paidAmount)], ['Booking', kind === 'visit' ? 'Doctor visit' : 'Lab tests']],
+      page: '/executive/payments',
+      button: 'Open Payments',
+    })
+  }
   revalidatePath('/patient/appointments')
   revalidatePath('/patient/payments')
   revalidatePath('/executive/payments')
@@ -287,7 +302,7 @@ export async function rescheduleMyBooking(appointmentId: string, scheduleId: str
   })
   if (!moved.ok) return moved
 
-  notifyBookingConfirmed(appt.id)
+  notifyBookingConfirmed(appt.id, { moved: 'patient' })
   revalidatePath('/patient/appointments')
   revalidatePath('/hospital/patients')
   revalidatePath('/doctor/schedule')

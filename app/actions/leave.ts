@@ -7,7 +7,7 @@ import { getCurrentUser } from '@/lib/supabase/server'
 import { doctorName, istDateKey } from '@/components/patient/format'
 import { BOOKED_CHOICES, LEAVE_REASONS, leaveDates, leaveWindow, type BookedPatients, type LeaveReason } from '@/lib/leave'
 import { notifyBookingConfirmed, notifyDoctorLeave } from '@/lib/notify/patient'
-import { emailLeaveDecision } from '@/lib/notify/hospital'
+import { emailLeaveDecision, emailLeaveRequested } from '@/lib/notify/hospital'
 import { slotHospitalId } from '@/lib/practices'
 import { moveAppointmentSlot } from '@/lib/booking-move'
 
@@ -82,6 +82,7 @@ export async function requestLeave(form: FormData): Promise<Result> {
     note: d.note || null,
   })
   if (error) return { ok: false, error: NOT_SET_UP }
+  emailLeaveRequested(ctx.admin, { doctorId: ctx.doctorId, hospitalId: ctx.hospitalId, dates: leaveDates({ startsOn: d.startsOn, endsOn: d.endsOn }), reason: LEAVE_REASONS[d.reason], note: d.note || null })
   revalidatePath('/doctor/leave')
   revalidatePath('/hospital/doctors/leave')
   return { ok: true }
@@ -138,12 +139,14 @@ export async function reviewLeave(leaveId: string, approve: boolean, reason = ''
     else closed += count ?? chunk.length
   }
 
-  const { error } = await ctx.admin
+  const { data: approved, error } = await ctx.admin
     .from('doctor_leaves')
     .update({ status: 'approved', slots_closed: closed, reviewed_by: ctx.user.id, reviewed_at: now })
     .eq('id', leaveId)
     .eq('status', 'pending')
+    .select('id')
   if (error) return { ok: false, error: 'Could not approve it. Please try again.' }
+  if (!approved?.length) return { ok: false, error: 'This request has already been answered.' }
   await tellDoctor(true)
 
   // Tell the patients already booked on those days.
@@ -211,7 +214,7 @@ export async function moveBooking(appointmentId: string, scheduleId: string): Pr
   })
   if (!result.ok) return result
 
-  notifyBookingConfirmed(appointmentId)
+  notifyBookingConfirmed(appointmentId, { moved: 'hospital' })
   revalidatePath('/hospital/doctors/leave')
   revalidatePath('/hospital/patients')
   revalidatePath('/hospital/dashboard')

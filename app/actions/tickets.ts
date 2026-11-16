@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { executiveFor } from '@/app/executive/_lib/ops'
-import { sendTicketConfirmationEmail, sendTicketReplyEmail, sendEmail } from '@/lib/notify/email'
+import { sendTicketConfirmationEmail, sendTicketReplyEmail, sendEmail, teamInbox } from '@/lib/notify/email'
 import { sendTicketUpdateSms } from '@/lib/notify/sms'
 import { notifyTicketWhatsApp } from '@/lib/notify/patient'
 import { revalidatePath } from 'next/cache'
@@ -180,7 +180,7 @@ async function insertAndNotifyTicket(
     }
     console.warn('tickets table insert fallback:', insertError.message)
     // If table not migrated yet, email the ticket directly to support inbox
-    const supportEmail = process.env.SUPPORT_EMAIL || 'support@consultyourdoctor.de'
+    const supportEmail = teamInbox()
     await sendEmail({
       to: supportEmail,
       subject: `[${ticketCode}] Support Request: ${subject}`,

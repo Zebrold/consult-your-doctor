@@ -53,7 +53,7 @@ export function DoctorSignupForm({ hospitals, uploads }: { hospitals: { id: stri
   const form = submitted ? (
     <JoinSent
       title="Application sent"
-      text="Thank you. Your application is now with our credentialing team, and we have emailed you to confirm it arrived. Once your registration is verified, we share your staff ID and password so you can sign in to the doctor portal."
+      text="Thank you. Your application is now with our credentialing team, and we have emailed you to confirm it arrived. Once your registration is verified, we email you a link to set your password and sign in to the doctor portal."
     />
   ) : (
     <form ref={formRef} onSubmit={onSubmit} onInput={updateProgress} onChange={updateProgress} className="rounded-[20px] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.06),0_8px_24px_-16px_rgba(11,27,63,0.16)] p-5 sm:p-7 md:p-9">

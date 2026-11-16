@@ -65,8 +65,11 @@ export async function verifySmtp(): Promise<{ ok: boolean; error?: string }> {
   }
 }
 
-import path from 'node:path'
 import { CANONICAL_SITE_URL } from '@/lib/site-url'
+import { COMPANY } from '@/lib/company'
+
+/** The operations team's inbox, for "something is waiting for you" emails: SUPPORT_EMAIL, else the company address. */
+export const teamInbox = () => process.env.SUPPORT_EMAIL?.trim() || COMPANY.email
 
 export type EmailAttachment = {
   filename: string
@@ -90,77 +93,110 @@ export type Email = {
   html?: string
 }
 
-/** Inline logos: the blue stethoscope (booking email) and the white one on the blue header (every other email). */
-const LOGO_CID = 'cydlogo'
-const LOGO_WHITE_CID = 'cydlogowhite'
+/**
+ * Where email images load from: the live site (the bare domain redirects here). Images are linked, not attached, so
+ * inboxes like Gmail don't list the logo as an attachment on every email.
+ */
+export const EMAIL_ASSET_URL = 'https://www.consultyourdoctor.de'
+export const emailImage = (file: string) => `${EMAIL_ASSET_URL}/${file.replace(/^\/+/, '')}`
 
-// The website's look: the blue header band with the white stethoscope and the name in Helvetica, Manrope text,
-// #2A4DD0 buttons and the blue footer. Email clients take tables and inline styles only.
-const FONT = "font-family:Manrope,'Helvetica Neue',Helvetica,Arial,sans-serif;"
+// The website's look: the blue header band with the white stethoscope and the name in Helvetica (SiteHeader), Manrope
+// text, #2A4DD0 buttons, and the blue footer with the brand, the tagline and the Help & Legal links (Footer). Email
+// clients take tables and inline styles only.
+export const EMAIL_FONT = "font-family:Manrope,'Helvetica Neue',Helvetica,Arial,sans-serif;"
+const FONT = EMAIL_FONT
 const BRAND_FONT = "font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;"
-const C = { ink: '#0B1B3F', text: '#3F4A5E', muted: '#5B667A', blue: '#2A4DD0', header: '#1D4ED8', soft: '#F5F7FB', line: '#E3E8F0', page: '#EEF2F7', footer: '#E1E8FA' }
+export const EMAIL_COLORS = { ink: '#0B1B3F', text: '#3F4A5E', muted: '#5B667A', blue: '#2A4DD0', header: '#1D4ED8', soft: '#F5F7FB', line: '#E3E8F0', page: '#EEF2F7', footer: '#E1E8FA' }
+const C = EMAIL_COLORS
 
 const escape = (s: string) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
 const linkify = (s: string) => escape(s).replace(/https?:\/\/[^\s<]+/g, (url) => `<a href="${url}" target="_blank" style="color:${C.blue};font-weight:700;text-decoration:underline;word-break:break-all;">${url}</a>`)
 
-function html(email: Pick<Email, 'heading' | 'paragraphs' | 'facts' | 'button'>) {
-  const site = CANONICAL_SITE_URL
-  const { heading, paragraphs, facts, button } = email
-  const factRows = (facts ?? [])
-    .map(
-      ([label, value], i) =>
-        `<tr><td valign="top" style="${FONT}font-size:13.5px;color:${C.muted};padding:9px 0;${i ? `border-top:1px solid ${C.line};` : ''}">${escape(label)}</td><td valign="top" align="right" style="${FONT}font-size:14px;font-weight:800;color:${C.ink};padding:9px 0 9px 16px;${i ? `border-top:1px solid ${C.line};` : ''}">${linkify(value)}</td></tr>`,
-    )
-    .join('')
+/** The inbox preview line: the first paragraph after the greeting, cut to a sentence or two. */
+function previewOf(paragraphs: string[]) {
+  const line = paragraphs.find((p) => p.trim() && !/^(dear|hello|hi)\b/i.test(p.trim())) ?? paragraphs[0] ?? ''
+  const flat = line.replace(/\s+/g, ' ').trim()
+  return flat.length > 150 ? `${flat.slice(0, 147).replace(/\s+\S*$/, '')}…` : flat
+}
 
+const footerLink = (href: string, text: string) => `<a href="${href}" target="_blank" style="color:#ffffff;font-weight:700;text-decoration:none;">${text}</a>`
+
+/**
+ * Every email's frame: the website's blue header, the white body (`body` is trusted HTML built by the caller), the help
+ * line and the website's footer. `preheader` is the inbox preview line, hidden in the email itself.
+ */
+export function emailShell(args: { title: string; preheader?: string | null; body: string }) {
+  const site = CANONICAL_SITE_URL
+  const preheader = args.preheader?.trim()
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="x-apple-disable-message-reformatting">
 <meta name="color-scheme" content="light">
-<title>${escape(heading || 'Consult your Doctor')}</title>
+<meta name="supported-color-schemes" content="light">
+<title>${escape(args.title)}</title>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&display=swap" rel="stylesheet">
 </head>
-<body style="margin:0;padding:0;background:${C.page};-webkit-font-smoothing:antialiased;">
+<body style="margin:0;padding:0;background:${C.page};-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;">
+${preheader ? `<div style="display:none;max-height:0;max-width:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:${C.page};opacity:0;">${escape(preheader)}${'&#8199;&#65279;&#847; '.repeat(60)}</div>` : ''}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.page};"><tr><td align="center" style="padding:24px 10px 32px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#ffffff;border:1px solid ${C.line};border-radius:14px;border-collapse:separate;overflow:hidden;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#ffffff;border:1px solid ${C.line};border-radius:14px;border-collapse:separate;">
 
-  <tr><td style="background:${C.header};border-radius:14px 14px 0 0;padding:18px 26px;">
+  <tr><td style="background:${C.header};border-radius:13px 13px 0 0;padding:18px 26px;">
     <a href="${site}" target="_blank" style="text-decoration:none;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-      <td valign="middle" style="padding-right:12px;"><img src="cid:${LOGO_WHITE_CID}" width="36" height="36" alt="" style="display:block;width:36px;height:36px;border:0;" /></td>
+      <td valign="middle" style="padding-right:12px;"><img src="${emailImage('logo-icon-white.png')}" width="36" height="36" alt="" style="display:block;width:36px;height:36px;border:0;outline:none;" /></td>
       <td valign="middle" style="${BRAND_FONT}font-size:22px;font-weight:700;letter-spacing:-0.2px;color:#ffffff;">Consult your Doctor</td>
     </tr></table></a>
   </td></tr>
 
-  <tr><td style="padding:30px 26px 10px;${FONT}">
-    ${heading ? `<div style="${FONT}font-size:22px;line-height:1.3;font-weight:800;color:${C.ink};padding-bottom:16px;">${escape(heading)}</div>` : ''}
-    ${paragraphs.map((p) => `<p style="margin:0 0 14px;${FONT}font-size:15px;line-height:1.6;color:${C.text};">${linkify(p)}</p>`).join('')}
-    ${factRows ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.soft};border-radius:12px;border-collapse:separate;margin:6px 0 14px;"><tr><td style="padding:6px 18px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${factRows}</table></td></tr></table>` : ''}
-    ${
-      button
-        ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:18px auto 10px;"><tr><td align="center" style="background:${C.blue};border-radius:10px;">
-        <a href="${escape(button.url)}" target="_blank" style="display:inline-block;padding:13px 44px;${FONT}font-size:15px;font-weight:800;color:#ffffff;text-decoration:none;">${escape(button.text)}</a>
-      </td></tr></table>`
-        : ''
-    }
-  </td></tr>
+  ${args.body}
 
   <tr><td style="padding:14px 26px 26px;${FONT}font-size:13px;line-height:1.55;color:${C.muted};">
     Questions? Visit <a href="${site}/contact" target="_blank" style="color:${C.blue};font-weight:700;text-decoration:none;">Help &amp; Support</a>. This mailbox doesn&#39;t take replies.
   </td></tr>
 
-  <tr><td style="background:${C.blue};border-radius:0 0 14px 14px;padding:22px 26px 24px;${FONT}font-size:12.5px;line-height:1.6;color:${C.footer};">
-    <div style="${BRAND_FONT}font-size:16px;font-weight:700;color:#ffffff;">Consult your Doctor</div>
-    <div style="padding-top:6px;">Find doctors at partner hospitals and diagnostic labs, book and pay online, and keep your prescriptions and reports in one place.</div>
-    <div style="padding-top:12px;"><a href="${site}" target="_blank" style="color:#ffffff;font-weight:700;text-decoration:none;">consultyourdoctor.de</a>&nbsp;&nbsp;&middot;&nbsp;&nbsp;<a href="${site}/contact" target="_blank" style="color:#ffffff;font-weight:700;text-decoration:none;">Help &amp; Support</a>&nbsp;&nbsp;&middot;&nbsp;&nbsp;<a href="${site}/legal" target="_blank" style="color:#ffffff;font-weight:700;text-decoration:none;">Legal</a></div>
-    <div style="padding-top:12px;color:#C9D4F5;">&copy; ${new Date().getFullYear()} Consult Your Doctor. All rights reserved.</div>
+  <tr><td style="background:${C.blue};border-radius:0 0 13px 13px;padding:24px 26px 26px;${FONT}font-size:12.5px;line-height:1.6;color:${C.footer};">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td valign="middle" style="padding-right:10px;"><img src="${emailImage('logo-icon-white.png')}" width="28" height="28" alt="" style="display:block;width:28px;height:28px;border:0;outline:none;" /></td>
+      <td valign="middle" style="${BRAND_FONT}font-size:17px;font-weight:700;color:#ffffff;">Consult your Doctor</td>
+    </tr></table>
+    <div style="padding-top:10px;">Find doctors at partner hospitals and diagnostic labs, book and pay online, and keep your prescriptions and reports in one place.</div>
+    <div style="padding-top:14px;">${footerLink(site, 'consultyourdoctor.de')}&nbsp;&nbsp;&middot;&nbsp;&nbsp;${footerLink(`${site}/contact`, 'Help &amp; Support')}&nbsp;&nbsp;&middot;&nbsp;&nbsp;${footerLink(`${site}/privacy-policy`, 'Privacy Policy')}&nbsp;&nbsp;&middot;&nbsp;&nbsp;${footerLink(`${site}/terms-of-use`, 'Terms &amp; Conditions')}</div>
+    <div style="padding-top:14px;margin-top:14px;border-top:1px solid rgba(255,255,255,0.22);font-size:11.5px;color:#C9D4F5;">You&#39;re receiving this email about your account, booking or application on Consult your Doctor.<br />&copy; ${new Date().getFullYear()} Consult Your Doctor. All rights reserved.</div>
   </td></tr>
 
 </table>
 </td></tr></table>
 </body>
 </html>`
+}
+
+function html(email: Pick<Email, 'heading' | 'paragraphs' | 'facts' | 'button'>) {
+  const { heading, paragraphs, facts, button } = email
+  const factRows = (facts ?? [])
+    .map(
+      ([label, value], i) =>
+        `<tr><td valign="top" style="${FONT}font-size:13.5px;color:${C.muted};padding:10px 0;${i ? `border-top:1px solid ${C.line};` : ''}">${escape(label)}</td><td valign="top" align="right" style="${FONT}font-size:14px;font-weight:800;color:${C.ink};padding:10px 0 10px 16px;${i ? `border-top:1px solid ${C.line};` : ''}">${linkify(value)}</td></tr>`,
+    )
+    .join('')
+
+  const body = `<tr><td style="padding:30px 26px 10px;${FONT}">
+    ${heading ? `<h1 style="margin:0;${FONT}font-size:22px;line-height:1.3;font-weight:800;color:${C.ink};padding-bottom:16px;">${escape(heading)}</h1>` : ''}
+    ${paragraphs.map((p) => `<p style="margin:0 0 14px;${FONT}font-size:15px;line-height:1.6;color:${C.text};">${linkify(p)}</p>`).join('')}
+    ${factRows ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.soft};border:1px solid ${C.line};border-radius:12px;border-collapse:separate;margin:8px 0 16px;"><tr><td style="padding:6px 18px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${factRows}</table></td></tr></table>` : ''}
+    ${
+      button
+        ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:20px auto 12px;"><tr><td align="center" style="background:${C.blue};border-radius:10px;">
+        <a href="${escape(button.url)}" target="_blank" style="display:inline-block;padding:13px 44px;${FONT}font-size:15px;font-weight:800;color:#ffffff;text-decoration:none;border-radius:10px;">${escape(button.text)}</a>
+      </td></tr></table>`
+        : ''
+    }
+  </td></tr>
+  <tr><td style="padding:0 26px;"><div style="border-top:1px solid ${C.line};font-size:0;line-height:0;">&nbsp;</div></td></tr>`
+
+  return emailShell({ title: heading || 'Consult your Doctor', preheader: previewOf(paragraphs), body })
 }
 
 /** The plain-text twin of html(), for clients that don't show HTML. */
@@ -198,14 +234,8 @@ export async function sendEmail(email: Email): Promise<boolean> {
       }
     }
 
+    // Images (logo, QR code, photos) are linked from the website, so only real files (PDFs) are attached.
     const renderedHtml = email.html || html(email)
-
-    // The website logos travel as inline images, so they show even where remote images are blocked.
-    for (const [cid, file] of [[LOGO_CID, 'logo-icon.png'], [LOGO_WHITE_CID, 'logo-icon-white.png']] as const) {
-      if (renderedHtml.includes(`cid:${cid}"`) && !finalAttachments.some((a) => a.cid === cid)) {
-        finalAttachments.push({ filename: file, path: path.join(process.cwd(), 'public', file), cid, contentType: 'image/png' })
-      }
-    }
 
     await mailer().sendMail({
       from,

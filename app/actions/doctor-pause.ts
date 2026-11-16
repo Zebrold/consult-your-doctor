@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/lib/supabase/server'
+import { emailDoctorPaused } from '@/lib/notify/hospital'
 
 // Pausing a doctor's new online bookings (migration 20261118 section 4; lib/doctor-pause.ts has the reads). The doctor's
 // home hospital can pause and resume any of its doctors; a doctor can pause themselves and resume only a pause they set.
@@ -51,6 +52,7 @@ export async function setHospitalDoctorPaused(doctorId: string, paused: boolean)
     return { ok: false, error: 'Could not save this. Please try again.' }
   }
   if (!data?.length) return { ok: false, error: 'Doctor not found.' }
+  emailDoctorPaused(admin, doctorId, hospitalId, paused)
   refresh(doctorId, hospitalId)
   return { ok: true, paused }
 }

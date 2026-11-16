@@ -8,6 +8,7 @@ import { executiveFor } from '@/app/executive/_lib/ops'
 import { loadHospitalWallet, MIN_PAYOUT, type PayoutAccount } from '@/lib/wallet'
 import { sendPayoutUpdateEmail } from '@/lib/notify/email'
 import { hospitalAdmins } from '@/lib/notify/hospital'
+import { alertTeamLater } from '@/lib/notify/team'
 import { siteUrl } from '@/lib/site-url'
 
 /** Emails the hospital's admins (and whoever asked for it) that a withdrawal was paid or turned down. Never throws. */
@@ -116,6 +117,15 @@ export async function requestHospitalPayout(rawAmount: number, via?: 'bank' | 'u
   const { error } = await ctx.admin.from('hospital_payouts').insert({ hospital_id: ctx.hospitalId, amount, account, requested_by: ctx.userId })
   if (error?.code === '23505') return fail('A withdrawal is already waiting to be paid.')
   if (error) return fail(missing(error) ? NEEDS_UPDATE : 'Could not ask for the withdrawal. Please try again.')
+  const { data: hospital } = await ctx.admin.from('hospitals').select('name').eq('id', ctx.hospitalId).maybeSingle()
+  alertTeamLater('payout-request', {
+    subject: `Withdrawal to pay: ${formatINR(amount)} for ${hospital?.name ?? 'a hospital'}`,
+    heading: 'A withdrawal is waiting',
+    lines: [`${hospital?.name ?? 'A hospital'} asked to withdraw ${formatINR(amount)} from its wallet. Pay it to the saved account and mark it paid, or turn it down with a reason.`],
+    facts: [['Hospital', hospital?.name ?? ''], ['Amount', formatINR(amount)], ['Pay to', account.accountNumber ? 'Bank account' : 'UPI ID']],
+    page: '/executive/wallets',
+    button: 'Open Wallets',
+  })
   refresh()
   return { ok: true, message: `Withdrawal of ${formatINR(amount)} requested. The Consult your Doctor team pays it to your account.` }
 }

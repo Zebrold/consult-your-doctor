@@ -8,7 +8,10 @@ import { clientIp } from '@/lib/otp-guard'
 import { overLimit } from '@/lib/rate-limit'
 import { collectDocuments, documentsReady } from '@/lib/application-uploads'
 import { HOSPITAL_DEPARTMENTS } from '@/lib/partner-applications'
-import { sendPartnerApplicationReceivedEmail } from '@/lib/notify/email'
+import { sendEmail, sendPartnerApplicationReceivedEmail } from '@/lib/notify/email'
+import { alertTeamLater } from '@/lib/notify/team'
+import { later } from '@/lib/notify/later'
+import { siteUrl } from '@/lib/site-url'
 
 // Partner enquiries (supabase/migrations/20261115_executive_workspace.sql): "Talk to our team" on the Partner with us
 // page, and the Support desk's joining pipeline, where the team calls each one and can fill the application in for
@@ -58,6 +61,30 @@ export async function submitPartnerEnquiry(_prev: unknown, form: FormData): Prom
   if (error) {
     console.error('submitPartnerEnquiry:', error)
     return { ok: false, error: 'We could not send this just now. Please apply with the form instead, or try again later.' }
+  }
+  const noun = d.kind === 'hospital' ? 'hospital' : 'diagnostic centre'
+  alertTeamLater('partner-enquiry', {
+    subject: `Call back: ${d.organizationName}, ${d.city} (${d.contactName})`,
+    heading: 'A partner asked us to call',
+    lines: [`${d.contactName} from ${d.organizationName} (${noun}, ${d.city}) asked our team to call them about joining.`, ...(d.message ? [`Their message: “${d.message}”`] : [])],
+    facts: [['Name', d.organizationName], ['City', d.city], ['Contact', `${d.contactName}${d.contactRole ? `, ${d.contactRole}` : ''}`], ['Phone', d.phone], ['Email', d.email]],
+    page: '/executive/support',
+    button: 'Open the joining pipeline',
+  })
+  if (d.email) {
+    later('partner-enquiry-receipt', () =>
+      sendEmail({
+        to: d.email,
+        subject: 'Consult Your Doctor: we’ll call you about joining',
+        heading: 'Thanks, we’ll call you',
+        paragraphs: [
+          `Dear ${d.contactName},`,
+          `Thank you for your interest in listing ${d.organizationName} on Consult Your Doctor. Our team will call you on ${d.phone} to talk it through, and can fill in the application with you on the call.`,
+          'If you’d rather apply now, you can fill in the application yourself.',
+        ],
+        button: { text: 'Apply online', url: `${siteUrl()}/signup/${d.kind === 'hospital' ? 'hospital' : 'diagnostic-centre'}` },
+      }),
+    )
   }
   revalidatePath('/executive/support')
   return { ok: true }

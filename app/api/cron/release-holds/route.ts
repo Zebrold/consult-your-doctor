@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { notifyHoldReleased } from '@/lib/notify/patient'
 
 // Releases the slots of consultations that were never paid for. Vercel Cron calls this with
 // `Authorization: Bearer <CRON_SECRET>`; nothing else may. A slot is also freed when a patient next tries to book it
@@ -35,6 +36,8 @@ export async function GET(request: Request) {
     if (!cancelled?.length) continue
     released++
     if (hold.schedule_id) await admin.from('schedules').update({ is_booked: false }).eq('id', hold.schedule_id)
+    // The patient was emailed "Complete your payment" when they booked; this tells them the slot has gone.
+    notifyHoldReleased(hold.id)
   }
 
   return NextResponse.json({ released })

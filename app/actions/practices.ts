@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { getCurrentUser } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/notify/email'
+import { emailPracticeAnswered, emailPracticeReviewed } from '@/lib/notify/hospital'
 import { executiveFor } from '@/app/executive/_lib/ops'
 import { siteUrl } from '@/lib/site-url'
 import { doctorName } from '@/components/patient/format'
@@ -93,6 +94,7 @@ export async function respondToPractice(practiceId: string, accept: boolean): Pr
     .select('id')
   if (error) return { ok: false, error: NOT_SET_UP }
   if (!data?.length) return { ok: false, error: 'This invitation has already been answered.' }
+  emailPracticeAnswered(ctx.admin, practiceId, accept)
   refresh()
   return { ok: true }
 }
@@ -109,6 +111,7 @@ export async function reviewPractice(practiceId: string, confirm: boolean, note 
     .select('id')
   if (error) return { ok: false, error: NOT_SET_UP }
   if (!data?.length) return { ok: false, error: 'This link isn’t waiting for review any more.' }
+  emailPracticeReviewed(ctx.admin, practiceId, confirm, note.trim().slice(0, 300) || null)
   refresh()
   return { ok: true }
 }

@@ -9,6 +9,7 @@ import { DesktopAccount, PhoneAccountButton } from "@/components/home/HomeHero";
 import type { HomeAccount } from "@/components/home/types";
 import { MenuSheet } from "@/components/patient/PhoneSheet";
 import { CorporateMenu } from "@/components/site/CorporateMenu";
+import { LoginMenu } from "@/components/site/LoginMenu";
 import { PartnerLink } from "@/components/site/PartnerMenu";
 
 /**
@@ -52,9 +53,7 @@ export function SiteHeader({ account }: { account: HomeAccount }) {
 
         <div className="md:hidden shrink-0">
           {corporatePage && account.kind === "guest" ? (
-            <Link href="/corporate#login" className="flex items-center h-9 px-3.5 rounded-[10px] bg-[#0B1B3F] text-white text-[13px] font-extrabold">
-              Sign in
-            </Link>
+            <LoginMenu partnersOnly className="flex items-center gap-1 h-9 px-3.5 rounded-[10px] bg-[#0B1B3F] text-white text-[13px] font-extrabold" />
           ) : (
             <PhoneAccountButton account={account} onMenu={() => setMenu(true)} />
           )}

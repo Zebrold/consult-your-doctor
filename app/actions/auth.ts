@@ -471,9 +471,11 @@ export async function staffLogin(prevState: unknown, formData: FormData) {
  * Staff ID or an address exists, so the form can't be used to find out which Staff IDs are registered.
  */
 export async function sendPasswordResetOTP(staffId: string) {
-  if (!staffId) return { error: 'Staff ID is required.' }
+  if (!staffId?.trim()) return { error: 'Enter your Staff ID or work email.' }
   const ip = (await clientIp()) ?? 'unknown'
-  const normalised = staffId.trim().toUpperCase()
+  // The login takes a Staff ID or a work email, so the reset does too.
+  const byEmail = staffId.includes('@')
+  const normalised = byEmail ? staffId.trim().toLowerCase() : staffId.trim().toUpperCase()
   const ipLimited = await overLimit(`staff-reset:ip:${ip}`, 5, 15 * 60_000)
   const idLimited = await overLimit(`staff-reset:id:${normalised}`, 3, 60 * 60_000)
   if (ipLimited || idLimited) {
@@ -486,10 +488,13 @@ export async function sendPasswordResetOTP(staffId: string) {
   const { data: profile } = await adminClient
     .from('profiles')
     .select('email, role')
-    .eq('staff_id', normalised)
+    .eq(byEmail ? 'email' : 'staff_id', normalised)
+    .in('role', ['doctor', 'executive', 'hospital_admin', 'diagnostic_admin'])
+    .limit(1)
     .maybeSingle()
 
-  if (profile?.email) {
+  // Generated @cyd.internal addresses are not real inboxes, so there is nowhere to send the link.
+  if (profile?.email && !String(profile.email).endsWith('.internal')) {
     const supabase = await createClient()
     const { error } = await supabase.auth.resetPasswordForEmail(profile.email, {
       redirectTo: `${siteUrl()}/update-password`,

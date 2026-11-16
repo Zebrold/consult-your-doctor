@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { SearchSuggest } from "@/components/patient/SearchSuggest";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
@@ -202,10 +203,10 @@ function TopBar({ pathname, isSignedIn }: { pathname: string; isSignedIn: boolea
         ))}
       </span>
       <span className="flex-1" />
-      <form action="/find" role="search" className="flex-[0_1_420px] flex items-center gap-2.5 h-[42px] px-3.5 rounded-xl bg-[#F4F6FA] shadow-[inset_0_0_0_1px_#E6EAF0] focus-within:shadow-[inset_0_0_0_1.5px_#2A4DD0] transition-shadow">
+      <form action="/find" role="search" className="relative flex-[0_1_420px] flex items-center gap-2.5 h-[42px] px-3.5 rounded-xl bg-[#F4F6FA] shadow-[inset_0_0_0_1px_#E6EAF0] focus-within:shadow-[inset_0_0_0_1.5px_#2A4DD0] transition-shadow">
         <Search className="w-[17px] h-[17px] text-[#5B667A] shrink-0" />
         <label htmlFor="patient-top-search" className="sr-only">Search doctors, hospitals or tests</label>
-        <input id="patient-top-search" type="search" name="q" placeholder="Search doctors, hospitals or tests" className="flex-1 min-w-0 bg-transparent border-0 outline-none text-[14px] text-[#0B1B3F] placeholder:text-[#7A8599]" />
+        <SearchSuggest id="patient-top-search" placeholder="Search doctors, hospitals or tests" inputClassName="flex-1 min-w-0 bg-transparent border-0 outline-none text-[14px] text-[#0B1B3F] placeholder:text-[#7A8599]" />
       </form>
       {isSignedIn ? (
         <Link href="/patient/appointments" aria-label="My bookings" title="My bookings" className="shrink-0 w-[42px] h-[42px] rounded-xl bg-[#F4F6FA] shadow-[inset_0_0_0_1px_#E6EAF0] flex items-center justify-center text-[#27324A] hover:bg-[#EEF2F8] transition-colors">

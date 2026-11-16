@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ChevronRight, Search } from "lucide-react";
+import { SearchSuggest } from "./SearchSuggest";
 
 // The patient app's shared pieces: the page body, desktop page title, cards, section heads, buttons and small labels.
 // Phones follow the app design (#F6F8FC page, white cards with a hairline ring); desktops sit right of the sidebar.
@@ -109,7 +110,7 @@ export function AppSearch({ placeholder = "Search doctors, hospitals or tests", 
     <form action="/find" role="search" className="relative flex items-center gap-2.5 h-12 pl-3.5 pr-[5px] rounded-[14px] bg-white text-[#0B1B3F] shadow-[0_8px_18px_rgba(11,27,63,0.18)]">
       <Search className="w-[18px] h-[18px] text-[#5B667A] shrink-0" />
       <label htmlFor="app-search" className="sr-only">Search</label>
-      <input id="app-search" type="search" name="q" defaultValue={defaultValue} placeholder={placeholder} className="flex-1 min-w-0 bg-transparent border-0 outline-none text-[14px] placeholder:text-[#7A8599]" />
+      <SearchSuggest id="app-search" defaultValue={defaultValue} placeholder={placeholder} inputClassName="flex-1 min-w-0 bg-transparent border-0 outline-none text-[14px] placeholder:text-[#7A8599]" />
       {Object.entries(hidden ?? {}).map(([k, v]) => (
         <input key={k} type="hidden" name={k} value={v} />
       ))}

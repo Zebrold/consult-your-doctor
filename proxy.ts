@@ -23,6 +23,15 @@ const isSharedPage = (path: string) => SHARED_PAGES.includes(path) || path === '
 const PUBLIC_BROWSE_PAGES = ['/find', '/search', '/specialities', '/doctors', '/hospitals', '/diagnostics', '/faq', '/prices', '/about', '/contact', '/what-we-treat', '/online-doctor', '/corporate']
 const isPublicBrowsePage = (path: string) => PUBLIC_BROWSE_PAGES.some((page) => path === page || path.startsWith(`${page}/`))
 
+/** Each portal's login page and the role it signs in. */
+const LOGIN_ROLE: Record<string, string> = {
+  '/login/patient': 'patient',
+  '/login/doctor': 'doctor',
+  '/login/hospital': 'hospital_admin',
+  '/login/executive': 'executive',
+  '/login/diagnostic': 'diagnostic_admin',
+}
+
 /** The roles that have a part of the site; an account with any other role (a retired one) is signed out. */
 const PORTAL_ROLES = new Set(['patient', 'doctor', 'executive', 'hospital_admin', 'diagnostic_admin'])
 
@@ -117,6 +126,12 @@ export async function proxy(request: NextRequest) {
     if (!PORTAL_ROLES.has(role) && !path.startsWith('/auth/signout')) {
       return redirectTo('/auth/signout?next=/')
     }
+
+    // Signed in to one portal and opening another portal's login (a patient opening the executive login, say): show
+    // that login, so the person can switch accounts. Signing in there replaces this session and its role cookie.
+    // Sending them back to their own home instead left them unable to reach the other portal at all.
+    const loginRole = LOGIN_ROLE[path]
+    if (loginRole && loginRole !== role) return supabaseResponse
 
     const { dashboardPath, allowedPrefix } = homeFor(role)
     let target: string | null = null

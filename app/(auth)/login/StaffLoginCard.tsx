@@ -171,7 +171,7 @@ export function StaffLoginCard({
       {view === 'forgot' && (
         <>
           <h1 className={authTitle}>Reset your password</h1>
-          <p className={authLead}>Enter your Staff ID and we&apos;ll email a reset link to the address registered on your account.</p>
+          <p className={authLead}>Enter your Staff ID or work email and we&apos;ll email a reset link to the address registered on your account.</p>
 
           <form onSubmit={handleSendReset} className="mt-8 space-y-6">
             {resetError && (
@@ -181,7 +181,7 @@ export function StaffLoginCard({
             )}
             <div>
               <label className={authLabel} htmlFor="reset-staff-id">
-                Staff ID
+                Staff ID or work email
                 {authRequired}
               </label>
               <input
@@ -190,8 +190,10 @@ export function StaffLoginCard({
                 value={staffId}
                 onChange={(e) => setStaffId(e.target.value)}
                 type="text"
-                autoCapitalize="characters"
-                className={`${authField} mt-2 uppercase`}
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
+                className={`${authField} mt-2`}
               />
               <p className={authHelp}>It&apos;s in the welcome email from our team.</p>
             </div>

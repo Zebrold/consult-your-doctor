@@ -105,7 +105,8 @@ export async function loadFindData() {
 
   const labs: FindLab[] = ((labsResult.data ?? []) as LabRow[]).map((l) => {
     const pin = toLatLng(l.latitude, l.longitude);
-    return { id: l.id, name: l.name, city: l.city, address: l.address, image: l.image_url, tests: pricedTests(l.test_prices).length, lat: pin?.lat ?? null, lng: pin?.lng ?? null };
+    const priced = pricedTests(l.test_prices);
+    return { id: l.id, name: l.name, city: l.city, address: l.address, image: l.image_url, tests: priced.length, testNames: priced.map((t) => t.name), lat: pin?.lat ?? null, lng: pin?.lng ?? null };
   });
 
   return {

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
+import { Outfit } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ChartLine, CreditCard, Landmark, ShieldCheck, type LucideIcon } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { SitePage } from "@/components/site/ui";
 import { PartnerEnquiry } from "./PartnerEnquiry";
-import { PartnerSignIn } from "./PartnerSignIn";
 import { PortalPreview } from "./PortalPreview";
 
 export const metadata: Metadata = {
@@ -19,33 +19,33 @@ export const metadata: Metadata = {
 
 const SIDES = "px-4 md:px-[max(24px,10%)]";
 
+/** The partner cards' heavy, rounded display face (titles, subtitles and tags). */
+const outfit = Outfit({ subsets: ["latin"], display: "swap" });
+
 const PARTNERS = [
   {
     id: "hospitals",
     title: "Hospitals",
     sub: "OPD & in-patient care",
     chip: "Online OPD bookings",
-    text: "Doctors, slots, beds and payments in one portal.",
     href: "/signup/hospital",
-    image: { src: "/images/home/hospital-building.webp", alt: "Hospital building", width: 787, height: 357, className: "right-2.5 bottom-3 w-[160px] lg:w-[176px] h-auto" },
+    image: { src: "/images/home/hospital-building.webp", width: 787, height: 357, className: "-right-2 bottom-2 w-[200px] lg:w-[240px] h-auto" },
   },
   {
     id: "diagnostics",
     title: "Diagnostic centres",
     sub: "Pathology & imaging labs",
     chip: "Online test bookings",
-    text: "Test menu, home collection and digital reports.",
     href: "/signup/diagnostic-centre",
-    image: { src: "/images/home/lab-microscope.webp", alt: "Microscope and sample tubes", width: 419, height: 395, className: "right-4 bottom-4 h-[110px] lg:h-[160px] w-auto" },
+    image: { src: "/images/home/lab-microscope.webp", width: 419, height: 395, className: "right-1 bottom-1 h-[136px] lg:h-[160px] w-auto" },
   },
   {
     id: "doctors",
     title: "Doctors",
     sub: "Verified specialists",
     chip: "Digital prescriptions",
-    text: "Appointments, prescriptions and follow-ups.",
     href: "/signup/doctor",
-    image: { src: "/images/home/doctor.webp", alt: "Doctor in a white coat", width: 376, height: 518, className: "right-5 bottom-0 h-[140px] lg:h-[190px] w-auto" },
+    image: { src: "/images/home/doctor.webp", width: 376, height: 518, className: "right-3 bottom-0 h-[168px] lg:h-[200px] w-auto" },
   },
 ];
 
@@ -106,25 +106,30 @@ export default function CorporatePage() {
           </div>
         </div>
 
-        <div id="join" className="scroll-mt-24 grid grid-cols-1 lg:grid-cols-3 gap-3.5 lg:gap-8 mt-[26px] lg:mt-12 lg:max-w-[1100px] lg:mx-auto">
+        {/* The three kinds of partner, each card a link to its application: a heavy uppercase title, a grey subtitle,
+            a fading tag, the round arrow and a large picture in the corner. */}
+        <div id="join" className="scroll-mt-24 grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8 mt-[26px] lg:mt-12 lg:max-w-[1100px] lg:mx-auto">
           {PARTNERS.map((p) => (
-            <div
+            <Link
               key={p.id}
               id={p.id}
-              className="scroll-mt-24 relative overflow-hidden flex flex-col gap-2 lg:gap-2.5 min-h-[196px] lg:min-h-[320px] p-5 lg:p-7 rounded-[22px] lg:rounded-[28px] bg-white text-[#0B1B3F] shadow-[0_14px_28px_rgba(11,27,63,0.20)] lg:shadow-[0_20px_40px_rgba(11,27,63,0.22)]"
+              href={p.href}
+              aria-label={`${p.title}: ${p.sub}. ${p.chip}. Apply now`}
+              className="group scroll-mt-24 relative overflow-hidden flex flex-col min-h-[208px] lg:min-h-[360px] p-6 lg:p-8 rounded-[28px] lg:rounded-[36px] bg-white text-[#0B1B3F] shadow-[0_14px_28px_rgba(11,27,63,0.20)] lg:shadow-[0_20px_40px_rgba(11,27,63,0.22)] transition-transform duration-200 hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/70"
             >
-              <h2 className="text-[20px] lg:text-[26px] font-extrabold tracking-[-0.02em] leading-[1.05] uppercase">{p.title}</h2>
-              <p className="text-[12.5px] lg:text-[15px] font-bold tracking-[0.02em] text-[#4A5878] uppercase">{p.sub}</p>
-              <span className="self-start px-2.5 py-[5px] lg:px-3 lg:py-[7px] rounded-lg lg:rounded-[10px] bg-[#EAF1FF] text-[#1D4ED8] text-[11.5px] lg:text-[13.5px] font-extrabold uppercase">{p.chip}</span>
-              <p className="hidden lg:block relative z-[1] mt-1.5 max-w-[44%] text-[15px] font-semibold leading-[1.45] text-[#4A5878]">{p.text}</p>
-              <Link
-                href={p.href}
-                className="relative z-[1] mt-auto self-start inline-flex items-center gap-1.5 lg:gap-2 h-10 lg:h-12 px-3.5 lg:px-[18px] rounded-full bg-[#1D4ED8] text-white text-[13px] lg:text-[14.5px] font-extrabold hover:bg-[#1A45C2] transition-colors"
+              <h2 className={`${outfit.className} relative z-[1] text-[25px] lg:text-[30px] font-extrabold leading-none tracking-[-0.01em] uppercase`}>{p.title}</h2>
+              <p className={`${outfit.className} relative z-[1] mt-2 text-[15px] lg:text-[18px] font-bold leading-[1.15] uppercase text-[#0B1B3F]/55`}>{p.sub}</p>
+              <span className={`${outfit.className} relative z-[1] mt-3.5 lg:mt-5 self-start pl-2.5 pr-8 py-1 lg:py-1.5 rounded-lg bg-gradient-to-r from-[#DCE7FF] via-[#EEF3FF] to-transparent text-[13px] lg:text-[16px] font-extrabold uppercase text-[#1D4ED8]`}>
+                {p.chip}
+              </span>
+              <span
+                aria-hidden
+                className="relative z-[1] mt-auto flex items-center justify-center w-11 h-11 lg:w-14 lg:h-14 rounded-full bg-[#1D4ED8] text-white shadow-[0_8px_18px_rgba(29,78,216,0.35)] transition-transform duration-200 group-hover:translate-x-1"
               >
-                Apply now <ArrowRight className="w-4 h-4 lg:w-5 lg:h-5" strokeWidth={2.4} />
-              </Link>
-              <Image src={p.image.src} alt={p.image.alt} width={p.image.width} height={p.image.height} sizes="(min-width: 1024px) 190px, 160px" className={`absolute ${p.image.className}`} />
-            </div>
+                <ArrowRight className="w-5 h-5 lg:w-7 lg:h-7" strokeWidth={2.6} />
+              </span>
+              <Image src={p.image.src} alt="" width={p.image.width} height={p.image.height} sizes="(min-width: 1024px) 260px, 200px" className={`absolute pointer-events-none select-none ${p.image.className}`} />
+            </Link>
           ))}
         </div>
       </section>
@@ -221,18 +226,7 @@ export default function CorporatePage() {
         </div>
       </section>
 
-      {/* Sign in */}
-      <section id="login" className={`scroll-mt-24 ${SIDES} pt-8 pb-9 lg:pt-[72px] lg:pb-20 bg-white border-t border-[#EEF2F7]`}>
-        <div className="mb-5 lg:mb-[30px]">
-          <h2 className="text-[24px] lg:text-[30px] font-extrabold tracking-[-0.02em] leading-[1.2]">
-            Already a partner? <span className="text-[#1D4ED8]">Sign in</span>
-          </h2>
-          <p className="mt-2 text-[14.5px] lg:text-[16px] leading-[1.55] text-[#5B667A]">Choose your portal and sign in to manage bookings, your team and payouts.</p>
-        </div>
-        <PartnerSignIn />
-      </section>
-
-      {/* Why partners choose us */}
+      {/* Why partners choose us. (Partners sign in from the header's Login menu.) */}
       <section aria-label="Why partners choose Consult your Doctor" className={`${SIDES} pt-8 pb-9 lg:pt-16 lg:pb-[72px] bg-white border-t border-[#EEF2F7]`}>
         <h2 className="mb-4 lg:mb-[22px] text-[22px] lg:text-[26px] font-extrabold tracking-[-0.02em] leading-[1.2]">
           Why partners choose <span className="text-[#1D4ED8]">Consult your Doctor</span>

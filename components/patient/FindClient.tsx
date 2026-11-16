@@ -44,7 +44,7 @@ export type FindDoctor = {
   city: string | null;
 };
 
-export type FindLab = { id: string; name: string; city: string | null; address: string | null; image: string | null; tests: number; lat: number | null; lng: number | null };
+export type FindLab = { id: string; name: string; city: string | null; address: string | null; image: string | null; tests: number; lat: number | null; lng: number | null; /** The tests it prices, so a search for a test finds the labs that do it. */ testNames?: string[] };
 
 export type FindMode = "doc" | "hosp" | "lab";
 type Sort = "near" | "soonest" | "rating" | "experience" | "doctors" | "tests";
@@ -153,7 +153,7 @@ export function FindClient({ doctors, hospitals, labs, now, initial, account, fe
   }, [hospitals, place.location, cityChoice, allDay, specialty, q, sort]);
 
   const labRows = useMemo(() => {
-    const rows = place_(labs).filter(({ item: l }) => has(l.name, l.city, l.address));
+    const rows = place_(labs).filter(({ item: l }) => has(l.name, l.city, l.address, ...(l.testNames ?? [])));
     if (sort === "tests") rows.sort((a, b) => b.item.tests - a.item.tests);
     return rows;
     // eslint-disable-next-line react-hooks/exhaustive-deps

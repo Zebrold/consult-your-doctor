@@ -20,7 +20,7 @@ export default async function ExecutiveStaffPage() {
   const { admin, profile, user, access } = await requireExecutivePage('staff')
   const now = currentTime()
   const [{ data }, teamsRes, gridRes, logRes] = await Promise.all([
-    admin.from('profiles').select('id, full_name, email, staff_id, hospital:hospitals ( name )').eq('role', 'executive').order('full_name').limit(200),
+    admin.from('profiles').select('id, full_name, email, staff_id, hospital:hospitals!profiles_hospital_id_fkey ( name )').eq('role', 'executive').order('full_name').limit(200),
     admin.from('profiles').select('id, executive_team').eq('role', 'executive').limit(200),
     admin.from('executive_page_access').select('team, page').limit(500),
     admin.from('executive_access_log').select('id, actor_name, action, created_at').order('created_at', { ascending: false }).limit(20),

@@ -27,7 +27,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ appoi
       .from('appointments')
       .select(`
         *,
-        doctors ( specialty, profiles ( full_name ) ),
+        doctors ( specialty, profiles!doctors_profile_id_fkey ( full_name ) ),
         hospitals ( name, address, city ),
         schedules ( start_time )
       `)

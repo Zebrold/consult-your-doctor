@@ -23,12 +23,17 @@ export const requireExecutive = cache(async function requireExecutive() {
   const user = await getCurrentUser()
   if (!user) redirect('/login/executive')
 
-  const { data: profile } = await supabase
+  // profiles and hospitals are linked twice (profiles.hospital_id, and hospital_admin_access since 20261114), so the
+  // join names its foreign key; without it the read fails with PGRST201.
+  const { data: profile, error } = await supabase
     .from('profiles')
-    .select('id, full_name, role, hospital_id, hospital:hospitals ( name )')
+    .select('id, full_name, role, hospital_id, hospital:hospitals!profiles_hospital_id_fkey ( name )')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
+  // A failed read is not a wrong account: show the error page rather than signing the executive out, which looked
+  // like a login that silently did nothing.
+  if (error) throw new Error(`Could not load the executive profile: ${error.message}`)
   if (profile?.role !== 'executive') redirect('/auth/signout?next=/login/executive')
 
   const admin = createAdminClient()

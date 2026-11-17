@@ -85,7 +85,7 @@ export function HospitalDock({ hospital, staff }: { hospital: { id: string; name
           <Image src="/logo-icon-white.png" alt="" width={96} height={96} sizes="30px" className="w-[30px] h-[30px] object-contain shrink-0" />
           <span className="min-w-0 leading-tight">
             <span className="block font-['Helvetica_Neue',Helvetica,Arial,sans-serif] text-[18px] font-bold tracking-[-0.01em]">Consult your Doctor</span>
-            <span className="block text-[11.5px] text-[#CFDCFF]">Hospital workspace</span>
+            <span className="block text-[11.5px] text-[#CFDCFF]">Your health, our priority</span>
           </span>
         </Link>
         <span className="shrink-0 px-3.5 pb-1.5 text-[11px] font-extrabold tracking-[0.1em] text-[#AFC2FF]">MENU</span>

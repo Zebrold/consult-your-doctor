@@ -96,12 +96,14 @@ export async function provisionDoctor(
   },
 ): Promise<{ success: true; doctorId: string; staffId: string; email: string | null; activationLink: string | null; invitationSent: boolean } | { error: string }> {
   const email = input.email?.trim().toLowerCase() || null
+  // Emailed to the doctor with their staff ID (sendDoctorActivationEmail), so they can log in from the email.
+  const password = input.password && input.password.length >= 8 ? input.password : randomPassword()
   const login = await createStaffLogin(admin, {
     role: 'doctor',
     fullName: input.fullName,
     email,
     hospitalId: input.hospitalId,
-    password: input.password && input.password.length >= 8 ? input.password : randomPassword(),
+    password,
   })
   if ('error' in login) return login
 
@@ -163,15 +165,17 @@ export async function provisionDoctor(
   let invitationSent = false
   if (email) {
     const base = siteUrl()
-    activationLink = `${base}/login/doctor`
+    const loginUrl = `${base}/login/doctor`
     try {
       const { data: link } = await admin.auth.admin.generateLink({ type: 'recovery', email, options: { redirectTo: `${base}/update-password` } })
-      if (link?.properties?.action_link) activationLink = link.properties.action_link
+      activationLink = link?.properties?.action_link ?? null
     } catch (err) {
       console.warn('provisionDoctor generateLink:', err)
     }
     const { data: hospital } = await admin.from('hospitals').select('name').eq('id', input.hospitalId).maybeSingle()
-    invitationSent = await sendDoctorActivationEmail({ to: email, doctorName: input.fullName, activationLink, hospitalName: hospital?.name ?? undefined })
+    invitationSent = await sendDoctorActivationEmail({ to: email, doctorName: input.fullName, staffId: login.staffId, password, loginUrl, activationLink, hospitalName: hospital?.name ?? undefined })
+    // Without a set-password link, the screen that made the account offers the login page instead.
+    activationLink ??= loginUrl
     try {
       await admin.from('doctor_invitations').insert({
         hospital_id: input.hospitalId,

@@ -45,7 +45,7 @@ export default async function Home(props: {
     const centerId = typeof searchParams.center_id === 'string' ? searchParams.center_id : null;
     redirect(centerId ? `/book/diagnostic/${encodeURIComponent(centerId)}` : '/diagnostics');
   }
-  if (searchParams?.booking === 'consultation') redirect('/find');
+  if (searchParams?.booking === 'consultation') redirect('/specialities');
 
   const supabase = await createClient();
   const user = await getSessionUser();

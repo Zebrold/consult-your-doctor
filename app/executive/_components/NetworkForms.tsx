@@ -134,16 +134,12 @@ function useSubmit<T extends { success: true } | { success: false; error: string
   return { pending, error, done, submit, reset: () => { setError(''); setDone(null) } }
 }
 
-const APPLICANT_NOTE = ' The applicant has been emailed their staff ID; give them the password privately.'
-
-/** What to tell the executive after adding a hospital or centre, depending on how its password was set. */
-function handOver(done: { temporaryPassword?: string; linkSentTo?: string | null }, fromApplication: boolean, where: string) {
-  if (done.temporaryPassword) {
-    return done.linkSentTo
-      ? `We emailed ${done.linkSentTo} their staff ID and a link to set their own password. They log in at ${where}. Keep the temporary password only for a call if the link doesn’t arrive.`
-      : `The email with the set-password link could not be sent. Share the staff ID and temporary password privately; they log in at ${where} and can change the password in their account.`
-  }
-  return `Give their staff the staff ID and the password you set. They log in at ${where}.${fromApplication ? APPLICANT_NOTE : ''}`
+/** What to tell the executive after adding a hospital or centre: whether the user ID and password were emailed. */
+function handOver(done: { temporaryPassword?: string; emailedTo?: string | null }, where: string) {
+  if (done.emailedTo) return `We emailed ${done.emailedTo} their user ID (staff ID) and password. They log in at ${where}.`
+  return done.temporaryPassword
+    ? `The email couldn’t be sent. Share the staff ID and temporary password privately; they log in at ${where} and can change the password in their account.`
+    : `No email was sent (there is no contact email). Give their staff the staff ID and the password you set. They log in at ${where}.`
 }
 
 /** Adds a hospital; with `fromApplication`, approves that application by adding it pre-filled. */
@@ -166,7 +162,7 @@ export function AddHospitalButton({ fromApplication }: { fromApplication?: Appli
               title="Hospital added"
               rows={[['Hospital ID', done.code], ['Staff ID', done.staffId]]}
               secret={done.temporaryPassword}
-              note={`${handOver(done, !!fromApplication, 'Login → Hospitals')} They can then add their doctors and slots.`}
+              note={`${handOver(done, 'Login → Hospitals')} They can then add their doctors and slots.`}
               onClose={close}
             />
           ) : (
@@ -209,7 +205,7 @@ export function AddDiagnosticCenterButton({ fromApplication }: { fromApplication
               title="Diagnostic centre added"
               rows={[['Centre ID', done.code], ['Staff ID', done.staffId]]}
               secret={done.temporaryPassword}
-              note={`${handOver(done, !!fromApplication, 'Login → Diagnostic centres')} They manage tests, bookings and reports there.`}
+              note={`${handOver(done, 'Login → Diagnostic centres')} They manage tests, bookings and reports there.`}
               onClose={close}
             />
           ) : (

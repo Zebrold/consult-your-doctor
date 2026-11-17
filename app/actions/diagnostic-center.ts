@@ -63,7 +63,7 @@ export async function saveLabTest(name: string, price: number): Promise<Result> 
     return fail('Could not save the test. Please try again.')
   }
   revalidateLabPages()
-  revalidatePath('/find')
+  revalidatePath('/diagnostics')
   updateTag(DIRECTORY_TAG)
   return { success: true }
 }
@@ -83,7 +83,7 @@ export async function removeLabTest(name: string): Promise<Result> {
     return fail('Could not remove the test. Please try again.')
   }
   revalidateLabPages()
-  revalidatePath('/find')
+  revalidatePath('/diagnostics')
   updateTag(DIRECTORY_TAG)
   return { success: true }
 }
@@ -213,7 +213,7 @@ export async function updateLabProfile(formData: FormData): Promise<Result> {
     return fail('Could not save your details. Please try again.')
   }
   revalidateLabPages()
-  revalidatePath('/find')
+  revalidatePath('/diagnostics')
   updateTag(DIRECTORY_TAG)
   return { success: true }
 }

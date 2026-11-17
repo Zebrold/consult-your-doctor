@@ -318,8 +318,9 @@ export default async function HospitalProfilePage() {
             {cover && <RemoteImage src={cover} alt={`Cover photo of ${hospital.name}`} fill sizes="(min-width: 1024px) 1340px, 100vw" load="eager" className="object-cover" />}
             <HospitalCoverEditor hasCover={!!cover} className="absolute top-4 right-5" />
           </div>
-          <div className="flex items-end gap-5 px-[26px] pb-[22px] -mt-11">
-            {photo(96, 'w-24 h-24 rounded-[20px] shadow-[0_0_0_4px_#fff,0_0_0_5px_#E6EAF0]')}
+          {/* relative: the photo sits over the cover's lower edge; without it the positioned cover paints on top of it. */}
+          <div className="relative flex items-end gap-5 px-[26px] pb-[22px] -mt-11">
+            {photo(96, 'w-24 h-24 rounded-[20px] bg-white shadow-[0_0_0_4px_#fff,0_0_0_5px_#E6EAF0]')}
             <span className="flex-1 min-w-0 pb-1">
               <span className="flex items-center gap-2 text-[24px] font-extrabold">
                 <span className="truncate">{hospital.name}</span>

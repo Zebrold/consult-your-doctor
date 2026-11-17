@@ -13,7 +13,7 @@ import { partnerCities } from "@/lib/partner-cities";
 type FooterLinkItem = { label: string; href: string };
 
 const SERVICES: FooterLinkItem[] = [
-  { label: "Find a doctor", href: "/find" },
+  { label: "Find a doctor", href: "/specialities" },
   { label: "Book a doctor online", href: "/doctors" },
   { label: "Hospitals", href: "/hospitals" },
   { label: "Lab tests", href: "/diagnostics" },

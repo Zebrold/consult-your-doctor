@@ -183,8 +183,10 @@ export async function HospitalPageView({ id, query, preview = false }: { id: str
     url: `https://consultyourdoctor.de/hospitals/${id}`,
   }
 
-  // The wide picture: the cover photo the hospital chose (20261117_hospital_cover.sql), else its photo.
+  // The wide picture: the cover photo the hospital chose (20261117_hospital_cover.sql), else its photo. With a cover,
+  // the hospital's own photo shows beside its name, so it isn't lost behind the cover.
   const banner: string | null = hospital.cover_url || hospital.image_url || null
+  const logo: string | null = hospital.cover_url && hospital.image_url && hospital.image_url !== hospital.cover_url ? hospital.image_url : null
   const photo = banner ? (
     <RemoteImage src={banner} alt={`Exterior of ${hospital.name}`} fill sizes="(min-width: 1024px) 1000px, 100vw" load="first" className="object-cover" />
   ) : (
@@ -204,6 +206,9 @@ export async function HospitalPageView({ id, query, preview = false }: { id: str
         {!preview && <HeroButtons backHref={back.href} backLabel={back.label} title={hospital.name} />}
       </div>
       <section className="lg:hidden relative -mt-9 mx-3 md:mx-6 p-4 rounded-[20px] bg-white shadow-[0_10px_26px_rgba(11,27,63,0.1)]">
+        {logo && (
+          <RemoteImage src={logo} alt={`${hospital.name} photo`} width={64} height={64} load="eager" className="block -mt-12 mb-2.5 w-16 h-16 rounded-2xl object-cover bg-white shadow-[0_0_0_3px_#fff,0_6px_16px_rgba(11,27,63,0.18)]" />
+        )}
         <div className="flex items-start justify-between gap-2.5">
           <h1 className="flex items-center gap-1.5 text-[20px] font-extrabold tracking-[-0.02em] leading-[1.2] min-w-0">
             <span className="min-w-0">{hospital.name}</span>
@@ -236,7 +241,10 @@ export async function HospitalPageView({ id, query, preview = false }: { id: str
             {photo}
             <span aria-hidden className="absolute inset-0 bg-[linear-gradient(to_top,rgba(8,20,51,0.75),rgba(8,20,51,0)_60%)]" />
             <div className="absolute left-7 right-7 bottom-[22px] flex items-end justify-between gap-5 text-white">
-              <span className="min-w-0">
+              {logo && (
+                <RemoteImage src={logo} alt={`${hospital.name} photo`} width={88} height={88} load="eager" className="shrink-0 w-[88px] h-[88px] rounded-[18px] object-cover bg-white shadow-[0_0_0_3px_#fff,0_8px_20px_rgba(4,16,70,0.35)]" />
+              )}
+              <span className={logo ? 'flex-1 min-w-0' : 'min-w-0'}>
                 <span className="flex items-center gap-2 text-[30px] font-extrabold tracking-[-0.02em]">
                   <h1 className="truncate">{hospital.name}</h1>
                   <VerifiedBadge hospitalId={hospital.id} className="w-6 h-6" />

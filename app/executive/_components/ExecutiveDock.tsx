@@ -87,7 +87,7 @@ export function ExecutiveDock({ person, access }: { person: { name: string; team
           <Image src="/logo-icon-white.png" alt="" width={96} height={96} sizes="30px" className="w-[30px] h-[30px] object-contain shrink-0" />
           <span className="min-w-0 leading-tight">
             <span className="block font-['Helvetica_Neue',Helvetica,Arial,sans-serif] text-[18px] font-bold tracking-[-0.01em]">Consult your Doctor</span>
-            <span className="block text-[11.5px] text-[#CFDCFF]">Executive workspace</span>
+            <span className="block text-[11.5px] text-[#CFDCFF]">Your health, our priority</span>
           </span>
         </Link>
         <RailLabel first>MENU</RailLabel>

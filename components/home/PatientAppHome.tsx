@@ -194,7 +194,7 @@ function DeskHero({ greeting, name }: { greeting: string; name: string | null })
         <h1 className="mt-1.5 text-[30px] font-extrabold tracking-[-0.02em] leading-[1.15]">Healthcare made simple, for everyone.</h1>
         <p className="mt-2 text-[14.5px] leading-normal text-[#E3EAFF]">Book verified doctors, hospitals and lab tests near you.</p>
         <div className="flex gap-2.5 mt-[18px]">
-          <Link href="/find" className="inline-flex items-center gap-2 h-[42px] px-4 rounded-[11px] bg-white text-[#2A4DD0] text-[13.5px] font-extrabold hover:bg-white/90 transition-colors">
+          <Link href="/specialities" className="inline-flex items-center gap-2 h-[42px] px-4 rounded-[11px] bg-white text-[#2A4DD0] text-[13.5px] font-extrabold hover:bg-white/90 transition-colors">
             <Search className="w-4 h-4" strokeWidth={2.2} /> Find a doctor
           </Link>
           <Link href="/diagnostics" className="inline-flex items-center h-[42px] px-4 rounded-[11px] border border-white/45 text-[13.5px] font-extrabold hover:bg-white/10 transition-colors">
@@ -215,7 +215,7 @@ function DeskHero({ greeting, name }: { greeting: string; name: string | null })
 }
 
 const QUICK = [
-  { href: "/find", title: "Book a doctor", sub: "In-clinic consultation", icon: Stethoscope },
+  { href: "/specialities", title: "Book a doctor", sub: "In-clinic consultation", icon: Stethoscope },
   { href: "/diagnostics", title: "Lab tests", sub: "Verified partner labs", icon: FlaskConical },
   { href: "/hospitals", title: "Hospitals", sub: "Verified partners near you", icon: Hospital },
   { href: "/patient/insurance", title: "Insurance", sub: "Your digital card", icon: ShieldCheck },
@@ -253,7 +253,7 @@ function QuickActions() {
 function PhoneSpecialities() {
   return (
     <div className="lg:hidden flex gap-2.5 overflow-x-auto no-scrollbar -mx-4 md:-mx-6 px-4 md:px-6 pt-1 pb-1.5">
-      <Link href="/find" className="shrink-0 w-16 flex flex-col items-center gap-1.5 text-center text-[11px] font-bold leading-tight text-[#2A4DD0]">
+      <Link href="/specialities" className="shrink-0 w-16 flex flex-col items-center gap-1.5 text-center text-[11px] font-bold leading-tight text-[#2A4DD0]">
         <span className="w-14 h-14 rounded-[18px] bg-[#2A4DD0] flex items-center justify-center shadow-[0_8px_16px_rgba(42,77,208,0.3)]">
           <Stethoscope className="w-[26px] h-[26px] text-white" />
         </span>
@@ -278,7 +278,7 @@ const visitHref = (v: PatientVisit) => (v.status === "pending_payment" ? `/patie
 function NextVisitStrip({ next }: { next: PatientVisit | null }) {
   if (!next) {
     return (
-      <Link href="/find" className={`flex items-center gap-3 p-3.5 ${card}`}>
+      <Link href="/specialities" className={`flex items-center gap-3 p-3.5 ${card}`}>
         <span className="shrink-0 w-[46px] h-[46px] rounded-xl shadow-[inset_0_0_0_1px_#E1E7F0] flex items-center justify-center text-[#2A4DD0]">
           <CalendarDays className="w-5 h-5" />
         </span>
@@ -319,7 +319,7 @@ function NextAppointmentCard({ next }: { next: PatientVisit | null }) {
       <div className={`${card} p-[22px]`}>
         <SectionHead title="Next appointment" />
         <p className="text-[13.5px] text-[#5B667A] leading-relaxed">You have no visits booked. Pick a doctor and an open time to book one.</p>
-        <Link href="/find" className={`${btnPrimary} w-full mt-4`}>
+        <Link href="/specialities" className={`${btnPrimary} w-full mt-4`}>
           Find a doctor
         </Link>
       </div>

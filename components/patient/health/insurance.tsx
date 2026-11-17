@@ -420,7 +420,7 @@ const NEEDS = {
 } as const;
 
 /** Start a claim to keep track of. Nothing is sent to the insurer from here. */
-export function StartClaim({ ready, tpa }: { ready: boolean; tpa: string | null }) {
+export function StartClaim({ ready, tpa, className = "" }: { ready: boolean; tpa: string | null; className?: string }) {
   const [type, setType] = useState<"cashless" | "reimbursement">("cashless");
   const [started, setStarted] = useState(false);
   const { pending, error, run } = useAction();
@@ -432,7 +432,7 @@ export function StartClaim({ ready, tpa }: { ready: boolean; tpa: string | null 
     run(() => startClaim(form), () => setStarted(true));
   };
   return (
-    <section className={`${card} p-4 lg:p-[22px]`}>
+    <section className={`${card} p-4 lg:p-[22px] ${className}`}>
       <h2 className="text-[16px] font-extrabold">Start a claim</h2>
       <p className="mt-0.5 text-[12.5px] lg:text-[13px] text-[#5B667A]">How were you treated?</p>
       {started ? (
@@ -444,24 +444,32 @@ export function StartClaim({ ready, tpa }: { ready: boolean; tpa: string | null 
           </button>
         </div>
       ) : (
-        <form onSubmit={submit} className="mt-3 flex flex-col gap-3.5">
-          <Chips
-            label="How were you treated"
-            options={[
-              { value: "cashless", label: "Cashless at hospital" },
-              { value: "reimbursement", label: "Reimbursement" },
-            ]}
-            value={[type]}
-            onChange={(v) => setType(v as "cashless" | "reimbursement")}
-          />
-          <p className="text-[12.5px] leading-normal text-[#4A5878]">{need.text}</p>
-          <ul className="flex flex-col gap-1.5">
-            {need.docs.map((d) => (
-              <li key={d} className="flex items-center gap-2 text-[13px] font-bold text-[#27324A]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#2A4DD0]" /> {d}
-              </li>
-            ))}
-          </ul>
+        // Desktops: how the claim works and what to bring on the left, the claim's details on the right.
+        <form onSubmit={submit} className="mt-3 grid gap-3.5 lg:grid-cols-2 lg:gap-x-8 lg:items-start">
+          <div className="flex flex-col gap-3.5">
+            <Chips
+              label="How were you treated"
+              options={[
+                { value: "cashless", label: "Cashless at hospital" },
+                { value: "reimbursement", label: "Reimbursement" },
+              ]}
+              value={[type]}
+              onChange={(v) => setType(v as "cashless" | "reimbursement")}
+            />
+            <p className="text-[12.5px] lg:text-[13.5px] leading-normal text-[#4A5878]">{need.text}</p>
+            <div className="lg:rounded-2xl lg:bg-[#F7F9FC] lg:shadow-[inset_0_0_0_1px_#E6EAF0] lg:p-4">
+              <p className="hidden lg:block mb-2.5 text-[12px] font-extrabold tracking-[0.06em] text-[#5B667A]">WHAT TO KEEP READY</p>
+              <ul className="flex flex-col gap-1.5 lg:gap-2.5">
+                {need.docs.map((d) => (
+                  <li key={d} className="flex items-center gap-2 text-[13px] font-bold text-[#27324A]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#2A4DD0] shrink-0" /> {d}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <p className="hidden lg:block text-[11.5px] leading-normal text-[#8A94A6]">Consult your Doctor doesn&apos;t send or settle claims. This keeps your papers and the claim&apos;s progress in one place.</p>
+          </div>
+          <div className="flex flex-col gap-3.5">
           <div>
             <label htmlFor="cl-hospital" className={fieldLabel}>Hospital or lab</label>
             <input id="cl-hospital" name="hospital" required minLength={2} maxLength={120} className={field} />
@@ -490,7 +498,8 @@ export function StartClaim({ ready, tpa }: { ready: boolean; tpa: string | null 
           <button type="submit" disabled={pending || !ready} className={`${btnPrimary} w-full h-12!`}>
             Save claim
           </button>
-          <p className="text-[11.5px] leading-normal text-[#8A94A6]">Consult your Doctor doesn&apos;t send or settle claims. This keeps your papers and the claim&apos;s progress in one place.</p>
+          <p className="lg:hidden text-[11.5px] leading-normal text-[#8A94A6]">Consult your Doctor doesn&apos;t send or settle claims. This keeps your papers and the claim&apos;s progress in one place.</p>
+          </div>
         </form>
       )}
     </section>

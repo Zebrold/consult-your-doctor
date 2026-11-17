@@ -133,7 +133,7 @@ export default async function OnlineDoctorPage() {
       <Section id="doctors" tint>
         <OnlineDoctorRoster doctors={doctors} bookingFee={bookingFee} />
         <div className="mt-8">
-          <TextLink href="/find">See all doctors</TextLink>
+          <TextLink href="/doctors">See all doctors</TextLink>
         </div>
       </Section>
 

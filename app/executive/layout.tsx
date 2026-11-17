@@ -4,7 +4,7 @@ import { ExecutiveDock } from './_components/ExecutiveDock'
 import { TEAM_LABEL } from './_lib/access'
 
 export const metadata: Metadata = {
-  title: 'Executive workspace',
+  title: 'Executive Portal',
 }
 
 export default async function ExecutiveLayout({ children }: { children: React.ReactNode }) {

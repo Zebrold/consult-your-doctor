@@ -88,7 +88,7 @@ function BrandRow({ brand }: { brand: WorkBrand }) {
         <Image src="/logo-icon-white.png" alt="" width={96} height={96} sizes="30px" priority className="w-[30px] h-[30px] object-contain shrink-0" />
         <span className="min-w-0 leading-tight">
           <span className="block font-['Helvetica_Neue',Helvetica,Arial,sans-serif] text-[18px] font-bold tracking-[-0.01em] truncate">Consult your Doctor</span>
-          <span className="block text-[11.5px] text-[#CFDCFF]">{brand.workspace}</span>
+          <span className="block text-[11.5px] text-[#CFDCFF]">Your health, our priority</span>
         </span>
       </Link>
       <Link href={brand.account.href} aria-label={brand.account.label} className="shrink-0 w-10 h-10 rounded-full bg-white text-[#2A4DD0] flex items-center justify-center text-[14px] font-extrabold overflow-hidden active:scale-95 transition-transform">

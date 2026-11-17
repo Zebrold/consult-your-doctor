@@ -168,8 +168,11 @@ export default async function InsurancePage() {
 
       <ClaimsList claims={claims} ready={claimsReady} />
 
+      {/* Desktops: the claim form across two columns (what to bring beside the fields), the two guides stacked beside it,
+          so the row is filled instead of three cards of very different heights. */}
       <div className="grid gap-3.5 lg:gap-5 lg:grid-cols-3 items-start">
-        <StartClaim ready={claimsReady} tpa={policy?.tpaName ?? null} />
+        <StartClaim ready={claimsReady} tpa={policy?.tpaName ?? null} className="lg:col-span-2" />
+        <div className="flex flex-col gap-3.5 lg:gap-5">
         {policy ? (
           <CashlessNearby hospitals={cashless} insurer={policy.insurer} />
         ) : (
@@ -189,6 +192,7 @@ export default async function InsurancePage() {
           </ul>
           <p className="mt-2.5 text-[12px] text-[#5B667A]">Many policies don&apos;t cover regular OPD consultations. Your policy document has the exact terms.</p>
         </section>
+        </div>
       </div>
     </AccountPage>
   )

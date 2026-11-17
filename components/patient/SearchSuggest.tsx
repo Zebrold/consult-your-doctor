@@ -7,7 +7,8 @@ import { Building2, FlaskConical, Search, Stethoscope, TestTube, UserRound, type
 import { SPECIALITIES, specialityIcon } from "@/components/home/specialities";
 
 // The search boxes' suggestions (app/api/search/suggest): as you type, matching specialities, doctors, hospitals,
-// diagnostic centres and tests, each opening its page; Enter on your own words still searches everything (/find).
+// diagnostic centres and tests, each opening its page. Enter opens the highlighted suggestion, else the first one; with
+// no suggestion it browses the specialities for the words (/specialities?q=).
 // Focused while empty, the box offers the popular specialities. Renders the input and the list; the list is placed
 // under the enclosing form, so the form needs `relative`.
 
@@ -45,7 +46,7 @@ export function SearchSuggest({
   inputClassName,
   value: controlled,
   onValueChange,
-  searchHref = (q) => `/find?q=${encodeURIComponent(q)}`,
+  searchHref = (q) => `/specialities?q=${encodeURIComponent(q)}`,
 }: {
   id: string;
   placeholder: string;
@@ -130,6 +131,10 @@ export function SearchSuggest({
     } else if (e.key === "Enter" && show && active >= 0) {
       e.preventDefault();
       go(active < items.length ? items[active].href : allHref);
+    } else if (e.key === "Enter" && typing && found.q === q && items.length > 0) {
+      // Own words with suggestions for them: open the best match (a doctor's name opens their page).
+      e.preventDefault();
+      go(items[0].href);
     } else if (e.key === "Escape") {
       setOpen(false);
       setActive(-1);
@@ -221,7 +226,7 @@ export function SearchSuggest({
                 <Search className="w-[17px] h-[17px]" strokeWidth={2.3} />
               </span>
               <span className="min-w-0 truncate text-[14px] font-bold">
-                {items.length ? "See all results for" : "Search for"} “{q}”
+                Browse specialities for “{q}”
               </span>
             </Link>
           )}

@@ -74,7 +74,7 @@ async function build(): Promise<Entry[]> {
     }
   }
   for (const [key, t] of tests) {
-    entries.push({ kind: 'test', title: t.name, sub: `Lab test · at ${t.labs} ${t.labs === 1 ? 'lab' : 'labs'}`, href: `/find?mode=labs&q=${encodeURIComponent(t.name)}`, words: key })
+    entries.push({ kind: 'test', title: t.name, sub: `Lab test · at ${t.labs} ${t.labs === 1 ? 'lab' : 'labs'}`, href: `/diagnostics?q=${encodeURIComponent(t.name)}`, words: key })
   }
   return entries
 }

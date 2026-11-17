@@ -54,7 +54,7 @@ export default async function SavedPage() {
           <div className="py-4 text-center">
             <p className="text-[15px] font-extrabold">Nobody here yet</p>
             <p className="mt-1 mb-4 text-[13px] text-[#5B667A]">Doctors and labs you book are kept here so you can book them again in a tap.</p>
-            <Link href="/find" className={btnPrimary}>
+            <Link href="/specialities" className={btnPrimary}>
               <Search className="w-4 h-4" /> Find care
             </Link>
           </div>

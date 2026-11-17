@@ -165,7 +165,7 @@ export function ConditionExplorer() {
                 </li>
               ))}
             </ol>
-            <Link href="/find" className={`${btnBlue} w-full mt-6`}>
+            <Link href="/specialities" className={`${btnBlue} w-full mt-6`}>
               Find a doctor
             </Link>
           </div>

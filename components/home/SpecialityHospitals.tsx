@@ -110,7 +110,7 @@ export function SpecialityHospitals({
           <div className="mx-4 md:mx-6 mb-10 p-5 rounded-2xl bg-[#F6F8FC] text-sm md:text-[15px] text-[#4A5878] leading-relaxed">
             No partner hospital lists {s.name} doctors yet. You can still browse{" "}
             <Link href="/hospitals" className="font-bold text-[#2A4DD0] underline underline-offset-2">all hospitals</Link> or{" "}
-            <Link href="/find" className="font-bold text-[#2A4DD0] underline underline-offset-2">find a doctor</Link>.
+            <Link href="/doctors" className="font-bold text-[#2A4DD0] underline underline-offset-2">see all doctors</Link>.
           </div>
         ) : shown.length === 0 ? (
           <p className="mx-4 md:mx-6 mb-10 text-sm text-[#4A5878]">None of these hospitals lists a round-the-clock service. Turn off &ldquo;Open 24/7&rdquo; to see them all.</p>

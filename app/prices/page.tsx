@@ -28,7 +28,7 @@ const plans = (fees: BookingFees) => [
       "In person, at the doctor's partner hospital",
       "Booking slip and token number on WhatsApp and email",
     ],
-    cta: { label: "Find a doctor", href: "/find" },
+    cta: { label: "Find a doctor", href: "/specialities" },
   },
   {
     icon: FlaskConical,

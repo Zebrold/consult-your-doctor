@@ -34,7 +34,6 @@ export function ConditionalLayout({
     pathname?.startsWith("/doctor") ||
     pathname?.startsWith("/diagnostic") ||
     pathname?.startsWith("/patient") ||
-    pathname?.startsWith("/find") ||
     pathname?.startsWith("/search") ||
     pathname?.startsWith("/book") ||
     pathname?.startsWith("/specialities") ||

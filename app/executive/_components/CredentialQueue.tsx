@@ -9,7 +9,7 @@ import type { Application } from '../_lib/ops'
 import { DocumentLinks } from './DocumentLinks'
 import { EmptyState, Initials, btnOutline, btnPrimary, btnSmall } from './ui'
 
-type Credentials = { name: string; staffId: string; email: string; password: string; activationLink?: string | null }
+type Credentials = { name: string; staffId: string; email: string; password: string; activationLink?: string | null; emailed?: boolean }
 
 export function CredentialQueue({ applications, submittedLabels }: { applications: Application[]; submittedLabels: Record<string, string> }) {
   const router = useRouter()
@@ -142,7 +142,11 @@ export function CredentialQueue({ applications, submittedLabels }: { application
                 <h3 id="credentials-title" className="text-[17px] font-extrabold">
                   {credentials.name} approved
                 </h3>
-                <p className="text-[12.5px] text-[#5B667A]">They sign in to the doctor workspace with these details.</p>
+                <p className="text-[12.5px] text-[#5B667A]">
+                  {credentials.emailed
+                    ? `We emailed their user ID and password to ${credentials.email}. They log in at Login → Doctors.`
+                    : `The email couldn’t be sent. Share these details with them privately; they log in at Login → Doctors.`}
+                </p>
               </div>
             </div>
             <dl className="flex flex-col gap-2">

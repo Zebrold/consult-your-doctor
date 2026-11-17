@@ -12,7 +12,10 @@ export const metadata: Metadata = {
 }
 
 // Where "Hospital booking" on the home page leads: every speciality, then partner hospitals near the patient.
-export default async function SpecialitiesPage() {
+export default async function SpecialitiesPage(props: { searchParams: Promise<{ q?: string | string[] }> }) {
+  // Words searched elsewhere (the search boxes send what matches no suggestion here).
+  const raw = (await props.searchParams).q
+  const q = (typeof raw === "string" ? raw : "").trim().slice(0, 80)
   const user = await getSessionUser()
   const [profile, hospitals] = await Promise.all([
     user ? createAdminClient().from('profiles').select('role, full_name, email').eq('id', user.id).maybeSingle() : Promise.resolve({ data: null }),
@@ -28,7 +31,7 @@ export default async function SpecialitiesPage() {
 
   return (
     <div className="bg-[#F6F8FC] lg:bg-transparent min-h-screen">
-      <BrowseSpecialities isSignedIn={isPatient} name={name} email={isPatient ? (profile.data?.email ?? user?.email ?? null) : null} hospitals={bookable} cities={cities} />
+      <BrowseSpecialities key={q} initialQuery={q} isSignedIn={isPatient} name={name} email={isPatient ? (profile.data?.email ?? user?.email ?? null) : null} hospitals={bookable} cities={cities} />
       {!isStaff && <PatientDock activeTab="find" isSignedIn={isPatient} name={name} detail={isPatient && user ? `UHID CYD-${user.id.slice(0, 8).toUpperCase()}` : null} />}
     </div>
   )

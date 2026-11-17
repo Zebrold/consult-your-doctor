@@ -48,7 +48,7 @@ export function MenuSheet({ name, email, isSignedIn, onClose }: { name: string |
           { href: "/patient/profile", label: "Profile & insurance", icon: UserRound },
         ]
       : []),
-    { href: "/find", label: "Find a doctor", icon: Stethoscope },
+    { href: "/specialities", label: "Find a doctor", icon: Stethoscope },
     { href: "/hospitals", label: "Hospitals", icon: Building2 },
     { href: "/diagnostics", label: "Lab tests", icon: FlaskConical },
     { href: isSignedIn ? "/patient/support" : "/contact", label: "Help & support", icon: LifeBuoy },

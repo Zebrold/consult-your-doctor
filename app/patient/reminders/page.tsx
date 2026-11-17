@@ -68,7 +68,7 @@ export default async function RemindersPage() {
     }
     const fu = followUpNote(notes)
     if (fu && !freeDoctors.includes(latest.visit.doctor?.id ?? '')) {
-      coming.push({ key: 'fu-note', title: `See ${doctorName(latest.visit.doctor?.name)} again`, sub: `The doctor asked: ${fu}`, href: latest.visit.doctor ? `/book/${latest.visit.doctor.id}` : '/find', action: 'Book' })
+      coming.push({ key: 'fu-note', title: `See ${doctorName(latest.visit.doctor?.name)} again`, sub: `The doctor asked: ${fu}`, href: latest.visit.doctor ? `/book/${latest.visit.doctor.id}` : '/specialities', action: 'Book' })
     }
   }
   for (const v of [...visits].sort((a, b) => (a.at ?? '').localeCompare(b.at ?? ''))) {

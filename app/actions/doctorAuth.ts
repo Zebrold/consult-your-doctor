@@ -320,9 +320,10 @@ export async function approveDoctor(requestId: string) {
   // Mark request as approved
   await adminClient.from('doctor_signup_requests').update({ status: 'approved' }).eq('id', requestId)
 
-  // Generate secure activation / password-setup link
+  // A personal link to choose their own password (optional: the email also has the password the account was made with).
   const siteUrl = publicSiteUrl()
-  let activationLink = `${siteUrl}/login/doctor`
+  const loginUrl = `${siteUrl}/login/doctor`
+  let setPasswordLink: string | null = null
 
   try {
     const { data: linkData } = await adminClient.auth.admin.generateLink({
@@ -330,9 +331,7 @@ export async function approveDoctor(requestId: string) {
       email: request.email,
       options: { redirectTo: `${siteUrl}/update-password` }
     })
-    if (linkData?.properties?.action_link) {
-      activationLink = linkData.properties.action_link
-    }
+    setPasswordLink = linkData?.properties?.action_link ?? null
   } catch (err) {
     console.warn('generateLink fallback:', err)
   }
@@ -340,21 +339,28 @@ export async function approveDoctor(requestId: string) {
   // Fetch hospital name for email
   const { data: hospital } = await adminClient.from('hospitals').select('name').eq('id', request.hospital_id).maybeSingle()
 
-  // Dispatch activation email
-  await sendDoctorActivationEmail({
+  // The approval email: their user ID (staff ID) and password, the doctor login, and the set-your-own-password link.
+  const emailed = await sendDoctorActivationEmail({
     to: request.email,
     doctorName: request.full_name,
-    activationLink,
+    staffId: generatedStaffId,
+    password,
+    loginUrl,
+    activationLink: setPasswordLink,
     hospitalName: hospital?.name,
-  }).catch((err) => console.error('Failed to send doctor activation email:', err))
+  }).catch((err) => {
+    console.error('Failed to send doctor activation email:', err)
+    return false
+  })
 
-  return { 
-    success: true, 
+  return {
+    success: true,
     credentials: {
       email: request.email,
       password: password,
       staffId: generatedStaffId,
-      activationLink,
+      activationLink: setPasswordLink ?? loginUrl,
+      emailed: !!emailed,
     }
   }
 }

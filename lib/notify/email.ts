@@ -340,28 +340,40 @@ export async function sendDoctorRegistrationReceivedEmail(args: {
     paragraphs: [
       `Dear Dr. ${args.doctorName},`,
       `Thank you for applying to join Consult Your Doctor as a doctor in ${args.specialty}.`,
-      `Our team checks your registration number and medical council details. Once your application is approved, we’ll email you a link to set your password and open your doctor workspace.`,
+      `Our team checks your registration number and medical council details. Once your application is approved, we’ll email you your user ID and password for the doctor login.`,
     ],
   })
 }
 
-/** Sends doctor account activation email with secure setup link */
+/**
+ * Sent when the team approves a doctor's application: the login ID (staff ID) and password the account was created
+ * with, the doctor login link, and a button to choose their own password.
+ */
 export async function sendDoctorActivationEmail(args: {
   to: string
   doctorName: string
-  activationLink: string
+  staffId: string
+  password: string
+  loginUrl: string
+  /** A personal set-your-own-password link; null when one couldn't be made. */
+  activationLink: string | null
   hospitalName?: string
 }) {
   return sendEmail({
     to: args.to,
-    subject: 'Consult Your Doctor: your doctor account is ready',
+    subject: 'Consult Your Doctor: your doctor account is ready, your login details',
     heading: 'Your doctor account is ready',
     paragraphs: [
       `Dear Dr. ${args.doctorName},`,
       `Your doctor account on Consult Your Doctor${args.hospitalName ? ` with ${args.hospitalName}` : ''} is approved.`,
-      `Set your password with the button below to open your doctor workspace. The link is personal and works for a limited time; we never send passwords by email.`,
+      `Log in at the doctor login with the user ID and password below${args.activationLink ? ', or choose your own password first with the button below (the link is personal and works for a limited time)' : ''}. Please change the password after you first log in, and don’t share these details with anyone.`,
     ],
-    button: { text: 'Set your password', url: args.activationLink },
+    facts: [
+      ['User ID (Staff ID)', args.staffId],
+      ['Password', args.password],
+      ['Doctor login', args.loginUrl],
+    ],
+    button: args.activationLink ? { text: 'Set your own password', url: args.activationLink } : { text: 'Go to the doctor login', url: args.loginUrl },
   })
 }
 
@@ -388,9 +400,9 @@ export async function sendPartnerApplicationReceivedEmail(args: {
 }
 
 /**
- * Sent when an executive approves a hospital or diagnostic centre application. With `setPasswordLink` (the login was
- * created with a temporary password and this email address), the admin sets their own password from the link; we
- * never send passwords by email.
+ * Sent when an executive approves a hospital or diagnostic centre application (or adds one): the login ID (staff ID)
+ * and password the login was created with, and the staff login link. With `setPasswordLink` (a login made with a
+ * temporary password and this email address) the button lets them choose their own password straight away.
  */
 export async function sendPartnerApprovedEmail(args: {
   to: string
@@ -399,25 +411,28 @@ export async function sendPartnerApprovedEmail(args: {
   kind: 'hospital' | 'diagnostic_center'
   staffId: string
   signInUrl: string
+  /** The login's password, so they can log in from this email. */
+  password?: string | null
   setPasswordLink?: string | null
 }) {
   const noun = partnerNoun(args.kind)
   return sendEmail({
     to: args.to,
-    subject: `Consult Your Doctor: ${args.organizationName} is approved`,
+    subject: `Consult Your Doctor: ${args.organizationName} is approved, your login details`,
     heading: `${args.organizationName} is approved`,
     paragraphs: [
       `Dear ${args.contactName},`,
       `${args.organizationName} is now a partner ${noun} on Consult Your Doctor.`,
-      args.setPasswordLink
-        ? `Your login is ready. Set your own password with the button below, then log in with your staff ID or this email address. The link is personal and works for a limited time; we never send passwords by email.`
-        : `Your team logs in with the staff ID below. Our operations team will give you the password separately; we never send passwords by email.`,
+      args.password
+        ? `Your login is ready. Log in at the staff login with the user ID and password below${args.setPasswordLink ? ', or choose your own password first with the button below (the link is personal and works for a limited time)' : ''}. Please change the password after you first log in, and don’t share these details with anyone.`
+        : `Your team logs in with the user ID below. Our operations team will give you the password separately.`,
     ],
     facts: [
-      ['Staff ID', args.staffId],
+      ['User ID (Staff ID)', args.staffId],
+      ...(args.password ? ([['Password', args.password]] as [string, string][]) : []),
       ['Staff login', args.signInUrl],
     ],
-    button: args.setPasswordLink ? { text: 'Set your password', url: args.setPasswordLink } : { text: 'Go to the staff login', url: args.signInUrl },
+    button: args.setPasswordLink ? { text: 'Set your own password', url: args.setPasswordLink } : { text: 'Go to the staff login', url: args.signInUrl },
   })
 }
 

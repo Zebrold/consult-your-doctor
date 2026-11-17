@@ -3,11 +3,11 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { currentTime } from '@/components/patient/data'
-import { doctorName, formatINR, formatLongDate, formatTime, istDateKey } from '@/components/patient/format'
+import { doctorName, formatINR, formatLongDate, istDateKey } from '@/components/patient/format'
 import { dayStartIso, loadHospitalDoctors, loadHospitalSlots, loadVisitingDoctors, requireHospital } from '../../../_lib/hospital'
 import { EmptyLine, HosBackHeader, HosBody, Initials, Panel, PanelHead } from '../../../_components/hos-ui'
 import { SlotGeneratorForm } from './SlotGeneratorForm'
-import { DeleteSlotButton } from './DeleteSlotButton'
+import { SlotGrid } from './SlotGrid'
 import { DatePicker } from './DatePicker'
 
 export const metadata: Metadata = { title: 'Doctor Schedule | Hospital Portal' }
@@ -65,7 +65,7 @@ export default async function DoctorSchedulePage(props: { params: Promise<{ id: 
           <Panel>
             <PanelHead
               title={formatLongDate(`${selected}T12:00:00+05:30`)}
-              sub="Open slots can be removed; booked ones can’t"
+              sub="Tap × to remove an open slot; booked ones stay"
               right={
                 <span className="shrink-0 text-[13px] font-extrabold text-[#2A4DD0]">
                   {booked} / {slots.length} booked
@@ -75,27 +75,7 @@ export default async function DoctorSchedulePage(props: { params: Promise<{ id: 
             {slots.length === 0 ? (
               <EmptyLine>No slots published for this day yet.</EmptyLine>
             ) : (
-              <ul className="grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-6 gap-2 lg:gap-2.5 mt-1">
-                {slots.map((s) => {
-                  const past = Date.parse(s.start) < now
-                  return (
-                    <li
-                      key={s.id}
-                      className={`relative h-[58px] rounded-xl flex flex-col items-center justify-center ${
-                        s.booked ? 'bg-[#2A4DD0] text-white' : past ? 'bg-[#F4F6FA] text-[#8A94A6]' : 'bg-white text-[#067647] shadow-[inset_0_0_0_1.5px_#ABEFC6]'
-                      }`}
-                    >
-                      <span className="text-[13.5px] font-extrabold">{formatTime(s.start)}</span>
-                      <span className="text-[11px] font-bold opacity-85">{s.booked ? 'Booked' : past ? 'Past' : 'Open'}</span>
-                      {!s.booked && !past && (
-                        <span className="absolute top-0.5 right-0.5">
-                          <DeleteSlotButton scheduleId={s.id} doctorId={doctor.id} />
-                        </span>
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
+              <SlotGrid doctorId={doctor.id} date={selected} now={now} slots={slots.map((s) => ({ id: s.id, start: s.start, booked: !!s.booked }))} />
             )}
             <p className="mt-4 text-[12.5px] text-[#5B667A]">Patients can book open slots on the website straight away.</p>
           </Panel>

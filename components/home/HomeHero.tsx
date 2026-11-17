@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Bell, CalendarClock, ChevronDown, ChevronRight, LayoutDashboard, MapPin, Search, UserRound } from "lucide-react";
 import { GetTheApp } from "@/components/GetTheApp";
 import { initials } from "@/components/patient/format";
-import { locationCity, type usePatientLocation } from "@/components/patient/location";
+import type { usePatientLocation } from "@/components/patient/location";
 import { formatCityName } from "@/lib/geo";
 import { LocationMenu, useLocationMenu } from "@/components/patient/LocationMenu";
 import { PATIENT_ACCOUNT_LINKS } from "@/components/patient/PhoneHeader";
@@ -51,8 +51,6 @@ export function HomeHero({ account, place, cities, visitLine, onMenu }: Props) {
   // The location dropdown, under the phone's or the desktop's location field.
   const loc = useLocationMenu();
   const location = place.location;
-  const rawCity = locationCity(location);
-  const city = rawCity ? formatCityName(rawCity) : null;
 
   const where =
     place.status === "locating"
@@ -61,12 +59,9 @@ export function HomeHero({ account, place, cities, visitLine, onMenu }: Props) {
         ? [formatCityName(location.label), location.city && location.city !== location.label ? formatCityName(location.city) : null].filter(Boolean).join(", ")
         : null;
 
-  const findHref = (q: string) => {
-    const params = new URLSearchParams();
-    if (q.trim()) params.set("q", q.trim());
-    if (city) params.set("city", city);
-    return params.size ? `/find?${params}` : "/find";
-  };
+  // Words that match no suggestion open Browse specialities, filtered by them (the search list itself opens a doctor,
+  // hospital or test straight away).
+  const findHref = (q: string) => (q.trim() ? `/specialities?q=${encodeURIComponent(q.trim())}` : "/specialities");
   const search = (e: FormEvent) => {
     e.preventDefault();
     router.push(findHref(query));

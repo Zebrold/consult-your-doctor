@@ -107,7 +107,7 @@ export function InfoRow({ label, value, valueClass = "" }: { label: ReactNode; v
 /** The phone header's search box: a white field with the blue search button. Searches doctors, hospitals and labs. */
 export function AppSearch({ placeholder = "Search doctors, hospitals or tests", defaultValue, hidden }: { placeholder?: string; defaultValue?: string; hidden?: Record<string, string> }) {
   return (
-    <form action="/find" role="search" className="relative flex items-center gap-2.5 h-12 pl-3.5 pr-[5px] rounded-[14px] bg-white text-[#0B1B3F] shadow-[0_8px_18px_rgba(11,27,63,0.18)]">
+    <form action="/specialities" role="search" className="relative flex items-center gap-2.5 h-12 pl-3.5 pr-[5px] rounded-[14px] bg-white text-[#0B1B3F] shadow-[0_8px_18px_rgba(11,27,63,0.18)]">
       <Search className="w-[18px] h-[18px] text-[#5B667A] shrink-0" />
       <label htmlFor="app-search" className="sr-only">Search</label>
       <SearchSuggest id="app-search" defaultValue={defaultValue} placeholder={placeholder} inputClassName="flex-1 min-w-0 bg-transparent border-0 outline-none text-[14px] placeholder:text-[#7A8599]" />

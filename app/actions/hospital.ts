@@ -149,56 +149,60 @@ export async function generateDoctorSlots(formData: FormData) {
   return { success: true, count: freshSlots.length, skipped }
 }
 
-export async function deleteDoctorSlot(formData: FormData) {
+/**
+ * Removes open slots a hospital published for a doctor: one slot (`scheduleId`), or every open slot still ahead on one
+ * day (`date`, YYYY-MM-DD in India time). Booked and past slots always stay.
+ *
+ * The caller and the doctor are checked here, then the rows are removed with the service role. Through the admin's own
+ * session the delete depended on a database rule (20261005_security_hardening.sql) that may not be in place, and
+ * without it Supabase removes nothing and reports no error, so the slot just stayed. The count removed is returned, so
+ * "nothing removed" is reported instead of looking like success.
+ */
+export async function deleteDoctorSlot(formData: FormData): Promise<{ success: true; removed: number } | { error: string }> {
   const supabase = await createClient()
-
-  // Verify caller is Hospital Admin
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated' }
-  const { data: profile } = await supabase.from('profiles').select('role, hospital_id').eq('id', user.id).single()
-  if (profile?.role !== 'hospital_admin' || !profile.hospital_id) return { error: 'Unauthorized' }
+  if (!user) return { error: 'Please log in again.' }
+  const service = createServiceClient()
+  const { data: profile } = await service.from('profiles').select('role, hospital_id').eq('id', user.id).maybeSingle()
+  if (profile?.role !== 'hospital_admin' || !profile.hospital_id) return { error: 'Only hospital administrators can remove slots.' }
+  const hospitalId = profile.hospital_id as string
 
-  const scheduleId = formData.get('scheduleId') as string
-  const doctorId = formData.get('doctorId') as string
+  const scheduleId = String(formData.get('scheduleId') ?? '')
+  const doctorId = String(formData.get('doctorId') ?? '')
+  const date = String(formData.get('date') ?? '')
+  if (!doctorId || (!scheduleId && !/^\d{4}-\d{2}-\d{2}$/.test(date))) return { error: 'Choose a slot to remove.' }
 
-  if (!scheduleId || !doctorId) return { error: 'Missing required fields' }
+  // The hospital's own doctor, or a visiting one whose slots here carry this hospital's id (lib/practices.ts).
+  const { data: doctor } = await service.from('doctors').select('hospital_id').eq('id', doctorId).maybeSingle()
+  if (!doctor) return { error: 'Doctor not found.' }
+  const visiting = doctor.hospital_id !== hospitalId
+  if (visiting && !(await isVisiting(service, doctorId, hospitalId))) return { error: 'This doctor isn’t at your hospital.' }
 
-  // Verify slot belongs to a doctor in this hospital, or is one this hospital published for a visiting doctor.
-  const { data: doctor } = await supabase.from('doctors').select('hospital_id').eq('id', doctorId).single()
-  if (doctor?.hospital_id !== profile.hospital_id) {
-    const service = createServiceClient()
-    if (!(await isVisiting(service, doctorId, profile.hospital_id))) return { error: 'Unauthorized access to this doctor' }
-    const { data: removed, error: removeError } = await service
-      .from('schedules')
-      .delete()
-      .eq('id', scheduleId)
-      .eq('doctor_id', doctorId)
-      .eq('hospital_id', profile.hospital_id)
-      .eq('is_booked', false)
-      .select('id')
-    if (removeError || !removed?.length) return { error: 'Slot not found, or it is booked.' }
-    revalidatePath(`/hospital/doctors/${doctorId}/schedule`)
-    revalidatePath('/hospital/doctors')
-    return { success: true }
+  const now = new Date().toISOString()
+  const dayStart = new Date(`${date}T00:00:00+05:30`).toISOString()
+  const dayEnd = new Date(Date.parse(dayStart) + 86_400_000).toISOString()
+  // An own doctor's slots here have no hospital_id, or this one; never touch the ones they have at another hospital.
+  // Before 20261115_executive_workspace.sql there is no hospital_id column and every slot is at the doctor's hospital.
+  const remove = (scoped: boolean) => {
+    let q = service.from('schedules').delete().eq('doctor_id', doctorId).eq('is_booked', false).gt('start_time', now)
+    q = scheduleId ? q.eq('id', scheduleId) : q.gte('start_time', dayStart).lt('start_time', dayEnd)
+    if (visiting) q = q.eq('hospital_id', hospitalId)
+    else if (scoped) q = q.or(`hospital_id.is.null,hospital_id.eq.${hospitalId}`)
+    return q.select('id')
   }
-
-  // Ensure the slot is this doctor's (not just any slot id) and not booked
-  const { data: schedule } = await supabase.from('schedules').select('is_booked').eq('id', scheduleId).eq('doctor_id', doctorId).maybeSingle()
-  if (!schedule) return { error: 'Slot not found.' }
-  if (schedule.is_booked) return { error: 'Cannot delete a booked slot.' }
-
-  // The doctor and is_booked filters also close the gap between the check above and the delete.
-  const { error } = await supabase.from('schedules').delete().eq('id', scheduleId).eq('doctor_id', doctorId).eq('is_booked', false)
-
-  if (error) {
-    console.error('Failed to delete slot:', error)
-    return { error: 'Failed to delete the slot.' }
+  let res = await remove(true)
+  if (res.error && !visiting && /hospital_id/.test(res.error.message ?? '')) res = await remove(false)
+  if (res.error) {
+    console.error('deleteDoctorSlot:', res.error)
+    return { error: 'Couldn’t remove the slot. Please try again.' }
   }
+  const removed = res.data?.length ?? 0
+  if (!removed) return { error: scheduleId ? 'That slot is booked or already gone. Refresh the page to see the latest.' : 'There are no open slots left to remove on this day.' }
 
   revalidatePath(`/hospital/doctors/${doctorId}/schedule`)
   revalidatePath('/hospital/doctors')
   revalidatePath('/hospital/dashboard')
-  return { success: true }
+  return { success: true, removed }
 }
 
 export async function createHospitalDoctor(formData: FormData) {

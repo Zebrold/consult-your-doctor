@@ -36,7 +36,7 @@ export function HomePage({ account, now, nextVisit, doctors, hospitals, cities, 
   const shownHospitals = useMemo(() => nearbyOnly(hospitals, place.location).slice(0, SHOWN), [hospitals, place.location]);
 
   const city = locationCity(place.location);
-  const findHref = city ? `/find?city=${encodeURIComponent(city)}` : "/find";
+  const findHref = city ? `/doctors?city=${encodeURIComponent(city)}` : "/doctors";
   const visitLine = nextVisit
     ? `${nextVisit.status === "pending_payment" ? "Awaiting payment: " : "Your next visit: "}${nextVisit.doctor ? doctorName(nextVisit.doctor) : "your doctor"}, ${formatSlot(nextVisit.at, now)}`
     : null;

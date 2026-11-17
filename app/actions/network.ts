@@ -56,15 +56,15 @@ export type CreatedOrg = {
   id: string
   code: string
   staffId: string
-  /** Made here when no password was typed; shown once. The admin sets their own from the emailed link. */
+  /** Made here when no password was typed; shown once. */
   temporaryPassword?: string
-  /** Where the set-password link went, when one was sent. */
-  linkSentTo?: string | null
+  /** Where the email with the user ID and password went, when it was sent. */
+  emailedTo?: string | null
 }
 
 /**
  * The staff login's password: the one typed, or (left blank) a temporary one made here, with the contact email as the
- * login's email so a set-your-password link can go to it. We never email passwords.
+ * login's email so a set-your-password link can go to it. Either way the approval email carries the user ID and password.
  */
 function chooseLogin(org: { password: string; contactEmail: string }): { password: string; email: string | null; generated: boolean } | { error: string } {
   if (!org.password) {
@@ -86,9 +86,21 @@ async function setPasswordLink(admin: ReturnType<typeof createAdminClient>, emai
   }
 }
 
+/** The new staff login, for the email that hands it over. */
+type LoginHandover = {
+  password: string
+  /** The org's contact email on the form (the login's own email when the password was made here), if any. */
+  contactEmail: string | null
+  contactName: string
+  orgName: string
+  /** A set-your-own-password link for the login's email, when the password was made here. */
+  setPasswordUrl: string | null
+}
+
 /**
- * When the hospital or centre was added from a partner application (/signup/hospital, /signup/diagnostic-centre),
- * marks the application approved and tells the applicant their staff ID. Not exported: only the actions below call it.
+ * Emails the new login's user ID (staff ID) and password. When the hospital or centre was added from a partner
+ * application (/signup/hospital, /signup/diagnostic-centre), also marks the application approved, and the applicant
+ * gets the email. Returns where it went. Not exported: only the actions below call it.
  */
 async function completeApplication(
   caller: NonNullable<Awaited<ReturnType<typeof executiveCaller>>>,
@@ -96,15 +108,21 @@ async function completeApplication(
   kind: PartnerKind,
   organizationId: string,
   staffId: string,
-  link: { url: string | null; email: string; name: string; contact: string } | null = null,
+  login: LoginHandover,
 ): Promise<string | null> {
   const signInUrl = `${siteUrl()}/login/${kind === 'hospital' ? 'hospital' : 'diagnostic'}`
+  const send = (to: string, contactName: string, organizationName: string, withLink: boolean) =>
+    sendPartnerApprovedEmail({ to, contactName, organizationName, kind, staffId, signInUrl, password: login.password, setPasswordLink: withLink ? login.setPasswordUrl : null }).catch((err) => {
+      console.error('Failed to send partner approval email:', err)
+      return false
+    })
+  const same = (a: string | null | undefined, b: string | null | undefined) => !!a && !!b && a.toLowerCase() === b.toLowerCase()
+
   const applicationId = field(form, 'applicationId')
   if (!z.string().uuid().safeParse(applicationId).success) {
-    // Added straight from Add hospital / Add diagnostic centre: send the set-password link when there is one.
-    if (!link?.url) return null
-    const sent = await sendPartnerApprovedEmail({ to: link.email, contactName: link.contact, organizationName: link.name, kind, staffId, signInUrl, setPasswordLink: link.url }).catch(() => false)
-    return sent ? link.email : null
+    // Added straight from Add hospital / Add diagnostic centre: to the contact email on the form, when there is one.
+    if (!login.contactEmail) return null
+    return (await send(login.contactEmail, login.contactName, login.orgName, true)) ? login.contactEmail : null
   }
   const { data: app, error } = await caller.admin
     .from('partner_applications')
@@ -127,23 +145,14 @@ async function completeApplication(
       .upsert({ profile_id: branchOf.requestedBy, hospital_id: organizationId, granted_by: caller.user.id }, { onConflict: 'profile_id,hospital_id' })
     if (accessError) console.error('completeApplication branch access:', accessError)
   }
-  // The set-password link goes to the login's own email (the contact email on the form), which is the applicant's
-  // unless the executive changed it; then the applicant still hears their staff ID.
-  const toApplicant = !link?.url || link.email.toLowerCase() === String(app.email).toLowerCase()
-  const sent = await sendPartnerApprovedEmail({
-    to: toApplicant || !link ? app.email : link.email,
-    contactName: app.contact_name,
-    organizationName: app.organization_name,
-    kind,
-    staffId,
-    signInUrl,
-    setPasswordLink: link?.url ?? null,
-  }).catch((err) => {
-    console.error('Failed to send partner approval email:', err)
-    return false
-  })
-  if (!toApplicant) await sendPartnerApprovedEmail({ to: app.email, contactName: app.contact_name, organizationName: app.organization_name, kind, staffId, signInUrl }).catch(() => false)
-  return sent && link?.url ? (toApplicant ? app.email : link.email) : null
+  // The applicant gets their user ID and password. The set-password link only works for the login's own email (the
+  // contact email on the form), so it goes with the applicant's copy when that is theirs, else to that address too.
+  const toApplicant = await send(app.email, app.contact_name, app.organization_name, !login.contactEmail || same(login.contactEmail, app.email))
+  if (login.contactEmail && login.setPasswordUrl && !same(login.contactEmail, app.email)) {
+    const toContact = await send(login.contactEmail, login.contactName, app.organization_name, true)
+    if (!toApplicant) return toContact ? login.contactEmail : null
+  }
+  return toApplicant ? app.email : null
 }
 
 export async function createHospital(form: FormData): Promise<CreatedOrg | Fail> {
@@ -185,10 +194,16 @@ export async function createHospital(form: FormData): Promise<CreatedOrg | Fail>
     ['General Medicine', 'Cardiology', 'Neurology', 'Orthopaedics', 'Pediatrics'].map((name) => ({ hospital_id: hospital.id, name })),
   )
   const code = await getOrAssignHospitalCode(admin, hospital.id)
-  const link = pick.generated && pick.email ? { url: await setPasswordLink(admin, pick.email), email: pick.email, name: org.name, contact: org.adminName || `${org.name} Admin` } : null
-  const linkSentTo = await completeApplication(caller, form, 'hospital', hospital.id, login.staffId, link)
+  const handover: LoginHandover = {
+    password: pick.password,
+    contactEmail: org.contactEmail || null,
+    contactName: org.adminName || `${org.name} Admin`,
+    orgName: org.name,
+    setPasswordUrl: pick.generated && pick.email ? await setPasswordLink(admin, pick.email) : null,
+  }
+  const emailedTo = await completeApplication(caller, form, 'hospital', hospital.id, login.staffId, handover)
   for (const path of ['/executive/hospitals', '/executive/doctors', '/hospitals']) revalidatePath(path)
-  return { success: true, id: hospital.id, code, staffId: login.staffId, temporaryPassword: pick.generated ? pick.password : undefined, linkSentTo }
+  return { success: true, id: hospital.id, code, staffId: login.staffId, temporaryPassword: pick.generated ? pick.password : undefined, emailedTo }
 }
 
 const priceListSchema = z
@@ -247,10 +262,16 @@ export async function createDiagnosticCenter(form: FormData): Promise<CreatedOrg
   }
 
   const code = await getOrAssignDiagnosticCenterCode(admin, center.id)
-  const link = pick.generated && pick.email ? { url: await setPasswordLink(admin, pick.email), email: pick.email, name: org.name, contact: org.adminName || `${org.name} Admin` } : null
-  const linkSentTo = await completeApplication(caller, form, 'diagnostic_center', center.id, login.staffId, link)
+  const handover: LoginHandover = {
+    password: pick.password,
+    contactEmail: org.contactEmail || null,
+    contactName: org.adminName || `${org.name} Admin`,
+    orgName: org.name,
+    setPasswordUrl: pick.generated && pick.email ? await setPasswordLink(admin, pick.email) : null,
+  }
+  const emailedTo = await completeApplication(caller, form, 'diagnostic_center', center.id, login.staffId, handover)
   for (const path of ['/executive/diagnostics', '/diagnostics']) revalidatePath(path)
-  return { success: true, id: center.id, code, staffId: login.staffId, temporaryPassword: pick.generated ? pick.password : undefined, linkSentTo }
+  return { success: true, id: center.id, code, staffId: login.staffId, temporaryPassword: pick.generated ? pick.password : undefined, emailedTo }
 }
 
 /** A sign-in for a hospital or centre that doesn't have one yet (added before logins were created with them). */

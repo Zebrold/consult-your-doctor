@@ -39,7 +39,7 @@ export default function AboutPage() {
         lead={`Consult Your Doctor is built by ${LEGAL_ENTITY}. We work with hospitals and diagnostic labs in India so patients can find the right specialist, book and pay online, and keep every prescription and report in one place. Hospitals and labs use the same platform to run their front desk, schedules and records.`}
         actions={
           <>
-            <Link href="/find" className={btnWhite}>
+            <Link href="/specialities" className={btnWhite}>
               Find a doctor <ArrowRight className="w-4 h-4" strokeWidth={2.6} />
             </Link>
             <Link href="/contact" className={btnGhost}>

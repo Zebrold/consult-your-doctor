@@ -100,7 +100,7 @@ export function BookingsClient({ items, patient }: { items: BookingItem[]; patie
         title="My bookings"
         subtitle="Appointments, lab tests and payments in one place"
         actions={
-          <Link href="/find" className={btnPrimary}>
+          <Link href="/specialities" className={btnPrimary}>
             <Plus className="w-4 h-4" strokeWidth={2.6} /> New booking
           </Link>
         }
@@ -239,7 +239,7 @@ export function BookingsClient({ items, patient }: { items: BookingItem[]; patie
                 {tab === "upcoming" ? (
                   <>
                     Book a doctor or a lab test and it shows here.{" "}
-                    <Link href="/find" className="font-extrabold text-[#2A4DD0] hover:underline">
+                    <Link href="/specialities" className="font-extrabold text-[#2A4DD0] hover:underline">
                       Find care
                     </Link>
                   </>
@@ -377,7 +377,7 @@ function actions(b: BookingItem, onPass: () => void) {
     case "past":
       return [link("slip", b.passHref, "Booking slip"), link("again", b.rebookHref, "Book again", btnPrimary) ?? link("help", b.supportHref, "Help", btnPrimary)];
     default:
-      return [link("help", b.supportHref, "Help"), link("again", b.rebookHref, "Book again", btnPrimary) ?? link("find", "/find", "Find care", btnPrimary)];
+      return [link("help", b.supportHref, "Help"), link("again", b.rebookHref, "Book again", btnPrimary) ?? link("find", "/specialities", "Find care", btnPrimary)];
   }
 }
 

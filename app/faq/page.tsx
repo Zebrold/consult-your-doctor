@@ -42,7 +42,7 @@ export default async function FaqPage() {
         lead="Answers about bookings, prescriptions, reports and payments."
         actions={
           <>
-            <Link href="/find" className={btnWhite}>
+            <Link href="/specialities" className={btnWhite}>
               Find a doctor <ArrowRight className="w-4 h-4" strokeWidth={2.6} />
             </Link>
             <Link href="/contact" className={btnGhost}>

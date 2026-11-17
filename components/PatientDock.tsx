@@ -104,13 +104,13 @@ function Rail({ pathname, isSignedIn, name, detail }: { pathname: string; isSign
   const menu: NavItem[] = isSignedIn
     ? [
         { key: "home", href: "/", label: "Home", icon: House },
-        { key: "find", href: "/find", label: "Find care", icon: Search },
+        { key: "find", href: "/specialities", label: "Find care", icon: Search },
         { key: "book", href: "/patient/appointments", label: "My bookings", icon: CalendarDays },
         { key: "profile", href: "/patient/profile", label: "Profile & insurance", icon: UserRound },
       ]
     : [
         { key: "home", href: "/", label: "Home", icon: House },
-        { key: "find", href: "/find", label: "Find care", icon: Search },
+        { key: "find", href: "/specialities", label: "Find care", icon: Search },
         { key: "hospitals", href: "/hospitals", label: "Hospitals", icon: Hospital },
         { key: "labs", href: "/diagnostics", label: "Lab tests", icon: FlaskConical },
       ];
@@ -131,7 +131,7 @@ function Rail({ pathname, isSignedIn, name, detail }: { pathname: string; isSign
         <Image src="/logo-icon-white.png" alt="" width={96} height={96} sizes="32px" className="w-8 h-8 object-contain shrink-0" />
         <span className="min-w-0 leading-tight">
           <span className="block font-['Helvetica_Neue',Helvetica,Arial,sans-serif] text-[18px] font-bold tracking-[-0.01em]">Consult your Doctor</span>
-          <span className="block text-[11.5px] text-[#CFDCFF]">{isSignedIn ? "Patient workspace" : "Your health, our priority"}</span>
+          <span className="block text-[11.5px] text-[#CFDCFF]">Your health, our priority</span>
         </span>
       </Link>
       <span className="px-3.5 pb-1.5 text-[11px] font-extrabold tracking-[0.1em] text-[#AFC2FF]">MENU</span>
@@ -203,7 +203,7 @@ function TopBar({ pathname, isSignedIn }: { pathname: string; isSignedIn: boolea
         ))}
       </span>
       <span className="flex-1" />
-      <form action="/find" role="search" className="relative flex-[0_1_420px] flex items-center gap-2.5 h-[42px] px-3.5 rounded-xl bg-[#F4F6FA] shadow-[inset_0_0_0_1px_#E6EAF0] focus-within:shadow-[inset_0_0_0_1.5px_#2A4DD0] transition-shadow">
+      <form action="/specialities" role="search" className="relative flex-[0_1_420px] flex items-center gap-2.5 h-[42px] px-3.5 rounded-xl bg-[#F4F6FA] shadow-[inset_0_0_0_1px_#E6EAF0] focus-within:shadow-[inset_0_0_0_1.5px_#2A4DD0] transition-shadow">
         <Search className="w-[17px] h-[17px] text-[#5B667A] shrink-0" />
         <label htmlFor="patient-top-search" className="sr-only">Search doctors, hospitals or tests</label>
         <SearchSuggest id="patient-top-search" placeholder="Search doctors, hospitals or tests" inputClassName="flex-1 min-w-0 bg-transparent border-0 outline-none text-[14px] text-[#0B1B3F] placeholder:text-[#7A8599]" />

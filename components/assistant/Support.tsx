@@ -39,9 +39,9 @@ const PORTAL_ROLE: [string, string][] = [
 const isAiPage = (path: string) => /^\/(?:(?:doctor|diagnostic-center|hospital|executive)\/)?ai$/.test(path)
 
 // Pages with the navigation pill along the bottom: lift the button above it.
-const APP_PREFIXES = ['/patient', '/find', '/book', '/hospitals', '/doctors', '/diagnostics', '/specialities']
+const APP_PREFIXES = ['/patient', '/book', '/hospitals', '/doctors', '/diagnostics', '/specialities']
 
-const BAR_PREFIXES = ['/doctor', '/doctors', '/diagnostic-center', '/hospital', '/executive', '/patient', '/find', '/book']
+const BAR_PREFIXES = ['/doctor', '/doctors', '/diagnostic-center', '/hospital', '/executive', '/patient', '/book']
 
 const pill = 'max-w-[300px] px-4 py-[9px] rounded-[20px] border-[1.5px] border-[#2A4DD0] text-[14px] font-semibold leading-[1.35] text-left transition-colors'
 const headerButton = 'w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0 hover:bg-[#F0F2F5] transition-colors'

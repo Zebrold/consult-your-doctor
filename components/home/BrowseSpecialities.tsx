@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, MapPin, Search, SlidersHorizontal, Stethoscope } from "lucide-react";
+import { ChevronDown, MapPin, Search, Stethoscope } from "lucide-react";
 import { PhoneHeader } from "@/components/patient/PhoneHeader";
 import { LocationMenu, useLocationMenu } from "@/components/patient/LocationMenu";
 import { nearbyOnly, usePatientLocation } from "@/components/patient/location";
@@ -25,6 +25,7 @@ export function BrowseSpecialities({
   email,
   hospitals,
   cities,
+  initialQuery = "",
 }: {
   isSignedIn: boolean;
   name: string | null;
@@ -32,12 +33,16 @@ export function BrowseSpecialities({
   /** Partner hospitals that can be booked (they have doctors). */
   hospitals: HomeHospital[];
   cities: string[];
+  /** Words searched elsewhere on the site (/specialities?q=). */
+  initialQuery?: string;
 }) {
   const place = usePatientLocation();
   const loc = useLocationMenu();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const q = query.trim().toLowerCase();
   const tiles = SPECIALITIES.filter((s) => matches(s, q));
+  // With no speciality for the words, the bookable hospitals whose name, place or specialities have them.
+  const hospitalHits = q && tiles.length === 0 ? hospitals.filter((h) => [h.name, h.city, h.address, ...h.specialties.map((s) => s.name)].some((t) => t?.toLowerCase().includes(q))).slice(0, 6) : [];
   const where = place.location?.label;
   const near = nearbyOnly(hospitals, place.location).slice(0, 6);
 
@@ -54,8 +59,13 @@ export function BrowseSpecialities({
       >
         <form
           role="search"
-          action="/find"
-          className="relative flex items-center gap-2.5 h-12 pl-3.5 pr-[5px] rounded-[14px] bg-white text-[#0B1B3F] shadow-[0_8px_18px_rgba(11,27,63,0.18)] lg:max-w-[560px]"
+          action="/specialities"
+          // The tiles filter as you type, so Enter only closes the keyboard.
+          onSubmit={(e) => {
+            e.preventDefault();
+            (document.activeElement as HTMLElement | null)?.blur();
+          }}
+          className="relative flex items-center gap-2.5 h-12 pl-3.5 pr-3.5 rounded-[14px] bg-white text-[#0B1B3F] shadow-[0_8px_18px_rgba(11,27,63,0.18)] lg:max-w-[560px]"
         >
           <Search className="w-[18px] h-[18px] text-[#5B667A] shrink-0" />
           <label htmlFor="speciality-search" className="sr-only">
@@ -70,13 +80,6 @@ export function BrowseSpecialities({
             placeholder="Search a speciality or symptom"
             className="flex-1 min-w-0 bg-transparent border-0 outline-none text-[14px] placeholder:text-[#7A8599]"
           />
-          <Link
-            href="/find"
-            aria-label="Search doctors with filters"
-            className="shrink-0 w-[38px] h-[38px] rounded-[10px] bg-[#2A4DD0] text-white flex items-center justify-center active:scale-95 transition-transform"
-          >
-            <SlidersHorizontal className="w-[17px] h-[17px]" strokeWidth={2.2} />
-          </Link>
         </form>
       </PhoneHeader>
 
@@ -94,13 +97,24 @@ export function BrowseSpecialities({
             <p className="mt-0.5 text-[13px] text-[#5B667A]">Tap one to see hospitals and doctors near you.</p>
 
             {tiles.length === 0 ? (
-              <div className={`${card} mt-3.5 p-5 text-[13.5px] leading-relaxed text-[#4A5878]`}>
-                No speciality matches &ldquo;{query.trim()}&rdquo;.{" "}
-                <Link href={`/find?q=${encodeURIComponent(query.trim())}`} className="font-extrabold text-[#2A4DD0] hover:underline">
-                  Search doctors for it
-                </Link>{" "}
-                or ask the Care Assistant below.
-              </div>
+              <>
+                <div className={`${card} mt-3.5 p-5 text-[13.5px] leading-relaxed text-[#4A5878]`}>
+                  No speciality matches &ldquo;{query.trim()}&rdquo;.{" "}
+                  {hospitalHits.length > 0 ? "These hospitals do. " : ""}
+                  Looking for a doctor? Type their name in the search at the top and pick them from the list, or{" "}
+                  <Link href="/doctors" className="font-extrabold text-[#2A4DD0] hover:underline">
+                    see all doctors
+                  </Link>
+                  . Not sure what you need? Ask the Care Assistant below.
+                </div>
+                {hospitalHits.length > 0 && (
+                  <div className="mt-3.5 flex flex-col md:grid md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                    {hospitalHits.map((h) => (
+                      <HospitalListCard key={h.id} hospital={h} km={null} />
+                    ))}
+                  </div>
+                )}
+              </>
             ) : (
               <ul className="mt-3.5 grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 gap-2.5 lg:gap-3.5">
                 {tiles.map((s) => (

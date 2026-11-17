@@ -85,11 +85,11 @@ export function StatusDot({ label, color }: { label: string; color: string }) {
   );
 }
 
-/** A rating in a soft green pill, e.g. "★ 4.8". */
-export function RatingPill({ rating, className = "" }: { rating: number; className?: string }) {
+/** A rating in a soft green pill, e.g. "★ 4.8"; "★ 0.0" in grey until the first review (rating null). */
+export function RatingPill({ rating, className = "" }: { rating: number | null; className?: string }) {
   return (
-    <span className={`shrink-0 inline-flex items-center gap-[3px] px-[7px] py-0.5 rounded-[7px] bg-[#EAF7F0] text-[11.5px] font-extrabold text-[#0B1B3F] ${className}`}>
-      <span className="sr-only">Rated </span>★ {rating.toFixed(1)}
+    <span className={`shrink-0 inline-flex items-center gap-[3px] px-[7px] py-0.5 rounded-[7px] ${rating != null ? "bg-[#EAF7F0] text-[#0B1B3F]" : "bg-[#F1F4F9] text-[#5B667A]"} text-[11.5px] font-extrabold ${className}`}>
+      <span className="sr-only">Rated </span>★ {(rating ?? 0).toFixed(1)}
     </span>
   );
 }

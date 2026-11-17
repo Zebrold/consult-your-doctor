@@ -233,7 +233,7 @@ export default async function DoctorDashboard() {
           <StatCard label="Consults this month" value={thisMonth} change={delta(thisMonth, lastMonth, { percent: true })} note={`vs ${lastMonthName}`} series={consultSeries} />
           <StatCard
             label="Avg. rating"
-            value={reviews.summary.average != null ? reviews.summary.average.toFixed(1) : '—'}
+            value={(reviews.summary.average ?? 0).toFixed(1)}
             note={reviews.summary.count ? `from ${plural(reviews.summary.count, 'review')}` : 'No reviews yet'}
             extra={
               <span aria-hidden className="flex gap-0.5 pb-1">

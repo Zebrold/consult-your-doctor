@@ -133,7 +133,7 @@ export function HospitalReports({ hospital, staff, doctors, visits, reviews, now
     },
     {
       label: 'Average rating',
-      value: rating.average != null ? rating.average.toFixed(1) : '—',
+      value: (rating.average ?? 0).toFixed(1),
       ...change(pointsDelta(rating.average, ratingBefore.average), `since 1 ${monthName(month, 'short')}`, plural(rating.count, 'review')),
     },
   ]
@@ -222,7 +222,7 @@ export function HospitalReports({ hospital, staff, doctors, visits, reviews, now
                     <span className="block font-extrabold truncate">{d.name}</span>
                     <span className="block lg:hidden text-[12px] text-[#5B667A] truncate">
                       {d.noShow == null ? 'No past slots yet' : `${Math.round(d.noShow)}% no-shows`}
-                      {d.rating != null && ` · ${d.rating.toFixed(1)} ★`}
+                      {` · ${(d.rating ?? 0).toFixed(1)} ★`}
                     </span>
                   </span>
                 </span>
@@ -232,13 +232,7 @@ export function HospitalReports({ hospital, staff, doctors, visits, reviews, now
                 </span>
                 <span className="hidden lg:block tabular-nums">{d.noShow == null ? '—' : `${Math.round(d.noShow)}%`}</span>
                 <span className="hidden lg:block">
-                  {d.rating != null ? (
-                    <>
-                      {d.rating.toFixed(1)} <span className="text-[#E8A317]">★</span>
-                    </>
-                  ) : (
-                    <span className="text-[#98A2B3]">No reviews</span>
-                  )}
+                  {(d.rating ?? 0).toFixed(1)} <span className={d.rating != null ? 'text-[#E8A317]' : 'text-[#98A2B3]'}>★</span>
                 </span>
               </li>
             ))}
@@ -278,7 +272,7 @@ export function HospitalReports({ hospital, staff, doctors, visits, reviews, now
           />
           <StatCard
             label="Average rating"
-            value={rating.average != null ? rating.average.toFixed(1) : '—'}
+            value={(rating.average ?? 0).toFixed(1)}
             change={pointsDelta(rating.average, ratingBefore.average)}
             note={rating.count ? `since 1 ${monthName(month, 'short')} · ${plural(rating.count, 'review')}` : 'No reviews yet'}
           />

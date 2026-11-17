@@ -91,7 +91,7 @@ export default async function HospitalProfilePage() {
   const location = toLatLng(pin?.latitude, pin?.longitude)
   const addLink = (label: string) => <HospitalProfileEditor hospital={editable} location={location} label={label} icon={false} className="shrink-0 text-[13px] font-extrabold text-[#2A4DD0] hover:underline" />
 
-  const rating = summary.average != null ? summary.average.toFixed(1) : '—'
+  const rating = (summary.average ?? 0).toFixed(1)
   const ratingNote = summary.count ? `from ${plural(summary.count, 'review')}` : 'No reviews yet'
   const photo = (size: number, className: string) =>
     hospital.image ? (
@@ -342,7 +342,7 @@ export default async function HospitalProfilePage() {
               [String(doctors.length), `Doctors · ${plural(departments.size, 'department')}`],
               [beds.ready && bedSummary.total ? `${bedSummary.occupied} / ${bedSummary.total}` : '—', 'Beds in use'],
               [patients.toLocaleString('en-IN'), 'Patients served'],
-              [summary.count ? `${rating} ★` : '—', summary.count ? plural(summary.count, 'review') : 'No reviews yet'],
+              [`${rating} ★`, summary.count ? plural(summary.count, 'review') : 'No reviews yet'],
               [`${completeness}%`, 'Profile complete'],
             ].map(([value, label], i) => (
               <div key={label} className={`px-[22px] py-4 ${i ? 'border-l border-[#EEF2F7]' : ''}`}>

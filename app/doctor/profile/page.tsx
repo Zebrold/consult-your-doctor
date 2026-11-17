@@ -296,7 +296,7 @@ export default async function DoctorProfilePage() {
   const stats = [
     { v: completed.length.toLocaleString('en-IN'), k: 'Consultations' },
     { v: patientsSeen.toLocaleString('en-IN'), k: 'Patients' },
-    { v: rating != null ? `${rating.toFixed(1)} ★` : '—', k: reviews.summary.count ? `${reviews.summary.count} ${reviews.summary.count === 1 ? 'review' : 'reviews'}` : 'No reviews yet' },
+    { v: `${(rating ?? 0).toFixed(1)} ★`, k: reviews.summary.count ? `${reviews.summary.count} ${reviews.summary.count === 1 ? 'review' : 'reviews'}` : 'No reviews yet' },
     { v: String(upcoming.length), k: 'Upcoming' },
     { v: `${completeness}%`, k: 'Profile complete' },
   ]

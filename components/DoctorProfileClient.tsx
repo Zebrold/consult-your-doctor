@@ -171,7 +171,7 @@ export function DoctorProfileClient({ doctor, bookingFee, now, account, alsoAt =
       </div>
       <div className="mt-4 grid grid-cols-3 rounded-[16px] bg-white/12 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]">
         <HeroFact label="Experience" value={experience ? `${experience} yrs` : "—"} />
-        <HeroFact label="Rating" value={rating != null ? `${rating.toFixed(1)} ★` : "New"} note={reviewCount ? `${reviewCount} review${reviewCount === 1 ? "" : "s"}` : undefined} border />
+        <HeroFact label="Rating" value={`${(rating ?? 0).toFixed(1)} ★`} note={`${reviewCount} review${reviewCount === 1 ? "" : "s"}`} border />
         <HeroFact label="Open today" value={bookable ? (openToday ? `${openToday} slot${openToday === 1 ? "" : "s"}` : "None") : "—"} border />
       </div>
     </>
@@ -493,7 +493,7 @@ export function DoctorProfileClient({ doctor, bookingFee, now, account, alsoAt =
               <Dots items={[experience ? `${experience} yrs experience` : null, hospital ? [hospital.name, hospital.city].filter(Boolean).join(", ") : null, registration]} className="mt-2.5" />
             </div>
             <div className="shrink-0 flex gap-3">
-              <DeskFact icon={Star} label="Patient rating" value={rating != null ? rating.toFixed(1) : "New"} note={reviewCount ? `${reviewCount} review${reviewCount === 1 ? "" : "s"}` : "No reviews yet"} />
+              <DeskFact icon={Star} label="Patient rating" value={(rating ?? 0).toFixed(1)} note={`${reviewCount} review${reviewCount === 1 ? "" : "s"}`} />
               <DeskFact icon={CalendarDays} label="Open today" value={bookable ? String(openToday) : "—"} note={bookable ? (openToday === 1 ? "slot" : "slots") : "Booking not open"} />
             </div>
           </section>

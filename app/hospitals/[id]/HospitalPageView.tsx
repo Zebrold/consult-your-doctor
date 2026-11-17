@@ -133,7 +133,9 @@ export async function HospitalPageView({ id, query, preview = false }: { id: str
     slotsBy.set(picked.doctor_id, [...(slotsBy.get(picked.doctor_id) ?? []), { id: picked.id, start: picked.start_time }].sort((a, b) => a.start.localeCompare(b.start)))
   }
   const ratings = ratingResult.error ? [] : ((ratingResult.data ?? []) as { rating: number }[]).map((r) => r.rating)
-  const rating = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null
+  // 0 until the first published review (shown greyed), then the average.
+  const rating = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0
+  const rated = ratings.length > 0
 
   const doctors: HospitalDoctor[] = rows
     .map((d) => ({
@@ -214,7 +216,7 @@ export async function HospitalPageView({ id, query, preview = false }: { id: str
             <span className="min-w-0">{hospital.name}</span>
             <VerifiedBadge hospitalId={hospital.id} className="w-[18px] h-[18px]" />
           </h1>
-          {rating != null && <GreenRating rating={rating} />}
+          <GreenRating rating={rating} muted={!rated} />
         </div>
         <p className="mt-1.5 text-[13.5px] text-[#4A5878]">{tags}</p>
         {address && (
@@ -251,7 +253,9 @@ export async function HospitalPageView({ id, query, preview = false }: { id: str
                 </span>
                 <span className="block text-[14px] text-[#E3EAFF] truncate">{[tags, address].filter(Boolean).join(' · ')}</span>
               </span>
-              {rating != null && <span className="shrink-0 px-3 py-1.5 rounded-[10px] bg-[#1F8A57] text-[15px] font-extrabold">{rating.toFixed(1)} ★</span>}
+              <span className={`shrink-0 px-3 py-1.5 rounded-[10px] text-[15px] font-extrabold ${rated ? 'bg-[#1F8A57]' : 'bg-white/20'}`}>
+                {rating.toFixed(1)} ★
+              </span>
             </div>
           </section>
 
@@ -403,9 +407,10 @@ function Insurer({ name }: { name: string }) {
   )
 }
 
-function GreenRating({ rating }: { rating: number }) {
+/** The rating pill: green once patients have rated, grey while it is still 0.0. */
+function GreenRating({ rating, muted = false }: { rating: number; muted?: boolean }) {
   return (
-    <span className="shrink-0 flex items-center gap-1 px-[9px] py-1 rounded-lg bg-[#1F8A57] text-white text-[13px] font-extrabold">
+    <span className={`shrink-0 flex items-center gap-1 px-[9px] py-1 rounded-lg text-white text-[13px] font-extrabold ${muted ? 'bg-[#98A2B3]' : 'bg-[#1F8A57]'}`}>
       <span className="sr-only">Rated </span>
       {rating.toFixed(1)}
       <Star className="w-[11px] h-[11px] fill-white" strokeWidth={0} />

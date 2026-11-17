@@ -159,7 +159,8 @@ function Chip({
 
 function HospitalTile({ hospital: h, km, far, slug }: { hospital: SpecialityHospital; km: number | null; far: boolean; slug: string }) {
   const rated = h.rating != null;
-  const facts = [rated ? h.rating!.toFixed(1) : null, plural(h.specialityDoctors, "doctor"), km != null ? formatDistance(km) : null].filter(Boolean).join(" · ");
+  // The rating starts at 0.0 (grey star) and shows the average once patients rate.
+  const facts = [(rated ? h.rating! : 0).toFixed(1), plural(h.specialityDoctors, "doctor"), km != null ? formatDistance(km) : null].filter(Boolean).join(" · ");
   const tags = [...h.matched, h.specialties.length >= 3 ? "Multi-speciality" : null].filter(Boolean).join(", ");
   return (
     <Link href={`/hospitals/${h.id}?speciality=${slug}`} className="group flex flex-col gap-[3px] min-w-0">
@@ -180,14 +181,12 @@ function HospitalTile({ hospital: h, km, far, slug }: { hospital: SpecialityHosp
         <VerifiedBadge hospitalId={h.id} className="w-[15px] h-[15px]" />
       </span>
       <span className="flex items-center gap-[5px] text-[13.5px] font-extrabold min-w-0">
-        {rated && (
-          <svg aria-hidden width="17" height="17" viewBox="0 0 24 24" className="shrink-0">
-            <circle cx="12" cy="12" r="11" fill="#1F8A57" />
-            <path d="m12 6 1.8 3.8 4.1.4-3.1 2.8.9 4.1L12 15l-3.7 2.1.9-4.1-3.1-2.8 4.1-.4Z" fill="#fff" />
-          </svg>
-        )}
+        <svg aria-hidden width="17" height="17" viewBox="0 0 24 24" className="shrink-0">
+          <circle cx="12" cy="12" r="11" fill={rated ? "#1F8A57" : "#98A2B3"} />
+          <path d="m12 6 1.8 3.8 4.1.4-3.1 2.8.9 4.1L12 15l-3.7 2.1.9-4.1-3.1-2.8 4.1-.4Z" fill="#fff" />
+        </svg>
         <span className="truncate">
-          {rated && <span className="sr-only">Rated </span>}
+          <span className="sr-only">Rated </span>
           {facts}
         </span>
       </span>

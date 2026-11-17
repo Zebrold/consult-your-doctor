@@ -63,7 +63,7 @@ export default async function ReviewsPage() {
           </span>
           <span>
             <span className="block text-[12px] font-bold text-[#CFDCFF]">Average you gave</span>
-            <span className="block mt-1 text-[24px] font-extrabold tabular-nums">{average != null ? `★ ${average.toFixed(1)}` : '–'}</span>
+            <span className="block mt-1 text-[24px] font-extrabold tabular-nums">{`★ ${(average ?? 0).toFixed(1)}`}</span>
           </span>
         </div>
       }
@@ -92,7 +92,7 @@ export default async function ReviewsPage() {
             </span>
             <span>
               <span className="block text-[12.5px] font-bold text-[#5B667A]">Average you gave</span>
-              <span className="block mt-1 text-[26px] font-extrabold tabular-nums">{average != null ? `★ ${average.toFixed(1)}` : '–'}</span>
+              <span className="block mt-1 text-[26px] font-extrabold tabular-nums">{`★ ${(average ?? 0).toFixed(1)}`}</span>
             </span>
           </section>
           <section className={`${card} p-4 lg:p-[22px]`}>

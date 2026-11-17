@@ -43,12 +43,10 @@ export function HospitalListCard({ hospital: h, km }: { hospital: HomeHospital; 
             <span className="truncate">{h.name}</span>
             <VerifiedBadge hospitalId={h.id} className="w-[15px] h-[15px]" />
           </span>
-          {h.rating != null && (
-            <span className="shrink-0 px-2 py-[3px] rounded-full border border-white/70 bg-[rgba(8,20,51,0.45)] text-white text-[11.5px] font-extrabold">
-              <span className="sr-only">Rated </span>
-              {h.rating.toFixed(1)} ★
-            </span>
-          )}
+          <span className="shrink-0 px-2 py-[3px] rounded-full border border-white/70 bg-[rgba(8,20,51,0.45)] text-white text-[11.5px] font-extrabold">
+            <span className="sr-only">Rated </span>
+            {(h.rating ?? 0).toFixed(1)} ★
+          </span>
         </span>
       </span>
       <span className="flex flex-col gap-1.5 p-3">
@@ -76,11 +74,9 @@ export function HospitalGridCard({ hospital: h, km }: { hospital: HomeHospital; 
     <Link href={`/hospitals/${h.id}`} className={`group block overflow-hidden ${card}`}>
       <span className="relative block h-[150px] overflow-hidden">
         <Photo h={h} className="group-hover:scale-[1.03] transition-transform duration-300" />
-        {h.rating != null && (
-          <span className="absolute top-2.5 right-2.5 px-[9px] py-1 rounded-lg bg-white text-[12.5px] font-extrabold">
-            <span className="sr-only">Rated </span>★ {h.rating.toFixed(1)}
-          </span>
-        )}
+        <span className={`absolute top-2.5 right-2.5 px-[9px] py-1 rounded-lg bg-white text-[12.5px] font-extrabold ${h.rating != null ? "" : "text-[#5B667A]"}`}>
+          <span className="sr-only">Rated </span>★ {(h.rating ?? 0).toFixed(1)}
+        </span>
       </span>
       <span className="block px-4 pt-3.5 pb-4">
         <span className="flex items-center gap-1.5 text-[15px] font-extrabold min-w-0">

@@ -151,7 +151,7 @@ export function ReviewsBoard({
       <div className="contents lg:flex lg:flex-col lg:gap-4 lg:order-2 min-w-0">
         <section className={`${card} p-4 lg:p-[22px] order-1 lg:order-none`} aria-label="Rating">
           <div className="flex items-center gap-[18px]">
-            <span className="text-[40px] lg:text-[48px] font-extrabold tracking-[-0.03em] leading-none tabular-nums">{summary.average != null ? summary.average.toFixed(1) : '—'}</span>
+            <span className="text-[40px] lg:text-[48px] font-extrabold tracking-[-0.03em] leading-none tabular-nums">{(summary.average ?? 0).toFixed(1)}</span>
             <span className="min-w-0">
               <Stars rating={summary.average ?? 0} className="block text-[18px] tracking-[2px]" />
               <span className="block mt-1 text-[13px] text-[#5B667A]">
@@ -190,13 +190,7 @@ export function ReviewsBoard({
                       <Initial name={d.name} size="sm" />
                       <span className={`flex-1 min-w-0 text-[13.5px] font-extrabold truncate ${on ? 'text-[#2A4DD0]' : ''}`}>{d.name}</span>
                       <span className="text-[13px] font-extrabold whitespace-nowrap">
-                        {d.average != null ? (
-                          <>
-                            {d.average.toFixed(1)} <span className="text-[#E8A317]">★</span>
-                          </>
-                        ) : (
-                          <span className="text-[#98A2B3]">—</span>
-                        )}
+                        {(d.average ?? 0).toFixed(1)} <span className={d.average != null ? 'text-[#E8A317]' : 'text-[#98A2B3]'}>★</span>
                       </span>
                       <span className="w-[70px] text-right text-[12px] text-[#5B667A] tabular-nums">{d.count ? d.count.toLocaleString('en-IN') : 'No reviews'}</span>
                     </button>

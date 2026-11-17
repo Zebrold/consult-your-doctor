@@ -107,11 +107,9 @@ export function DoctorBadge({
           </span>
           <span className="hidden sm:block text-right shrink-0">
             {doctor.fee != null && <span className="block text-[16px] font-extrabold">{formatINR(doctor.fee)}</span>}
-            {doctor.rating != null && (
-              <span className="block text-[12px] text-[#5B667A]">
-                {doctor.rating.toFixed(1)} ★ · {doctor.reviews} {doctor.reviews === 1 ? 'review' : 'reviews'}
-              </span>
-            )}
+            <span className="block text-[12px] text-[#5B667A]">
+              {(doctor.rating ?? 0).toFixed(1)} ★ · {doctor.reviews} {doctor.reviews === 1 ? 'review' : 'reviews'}
+            </span>
           </span>
         </div>
         <p className="mt-2 text-[12px] text-[#5B667A]">How your name shows with the badge.</p>

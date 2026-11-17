@@ -194,17 +194,15 @@ function HospitalResult({ hospital: h, km, fee, load }: { hospital: HomeHospital
               <span className="truncate group-hover:text-[#2A4DD0] transition-colors">{h.name}</span>
               <VerifiedBadge hospitalId={h.id} className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
             </span>
-            {h.rating != null && <RatingPill rating={h.rating} className="lg:hidden" />}
+            <RatingPill rating={h.rating} className="lg:hidden" />
           </span>
           <span className="text-[12px] lg:text-[13.5px] lg:mt-0.5 text-[#5B667A] truncate">{hospitalTags(h)}</span>
           <span className="flex items-center gap-1 text-[12px] lg:text-[13px] lg:mt-2.5 text-[#5B667A] lg:text-[#27324A] min-w-0">
             <MapPin className="w-3 h-3 lg:w-3.5 lg:h-3.5 text-[#7A8599] shrink-0" />
             <span className="truncate">{area}</span>
-            {h.rating != null && (
-              <span className="hidden lg:flex items-center gap-1.5 ml-3">
-                <Star className="w-3.5 h-3.5 text-[#E0A100]" /> <strong>{h.rating.toFixed(1)}</strong> ({h.reviewCount})
-              </span>
-            )}
+            <span className="hidden lg:flex items-center gap-1.5 ml-3">
+              <Star className={`w-3.5 h-3.5 ${h.rating != null ? "text-[#E0A100]" : "text-[#98A2B3]"}`} /> <strong>{(h.rating ?? 0).toFixed(1)}</strong> ({h.reviewCount})
+            </span>
           </span>
           <Dots items={[h.open247 && "Open 24/7", count(h.doctors, "doctor", "doctors"), h.facility]} className="mt-0.5 lg:mt-2" />
           <span className="lg:hidden flex items-center gap-1 mt-auto pt-1 text-[12.5px] font-extrabold text-[#2A4DD0]">

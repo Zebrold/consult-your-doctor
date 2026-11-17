@@ -134,7 +134,7 @@ export default async function ExecutiveReviewsPage() {
         <Stat label="Waiting for a check" value={toCheck} note="Low ratings or contact details" tone={toCheck ? 'warn' : undefined} />
         <Stat label="Published this month" value={count(publishedThisMonth)} note="Shown on public pages" />
         <Stat label="Hidden" value={(hiddenDoc.count ?? 0) + (hiddenHos.count ?? 0)} note="Taken off public pages" />
-        <Stat label="Average rating" value={average ?? '—'} note="Last 90 days, published" tone="blue" />
+        <Stat label="Average rating" value={(average ?? 0).toFixed(1)} note="Last 90 days, published" tone="blue" />
       </Stats>
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-3.5 lg:gap-5 items-start">

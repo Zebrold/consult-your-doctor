@@ -77,15 +77,13 @@ function HospitalCard({ hospital: h, km }: { hospital: HomeHospital; km: number 
             <span className="truncate">{h.name}</span>
             <VerifiedBadge hospitalId={h.id} className="w-3.5 h-3.5 md:w-4 md:h-4" />
           </h3>
-          {h.rating != null && (
-            <span
-              aria-label={`Rated ${h.rating.toFixed(1)} out of 5 by ${plural(h.reviewCount, "patient")}`}
-              className="shrink-0 flex items-center gap-1 px-2 py-[3px] rounded-full border border-white/70 bg-[rgba(8,20,51,0.45)] text-white text-[10.5px] md:text-xs font-extrabold"
-            >
-              {h.rating.toFixed(1)}
-              <Star className="w-[11px] h-[11px] fill-white" strokeWidth={0} />
-            </span>
-          )}
+          <span
+            aria-label={`Rated ${(h.rating ?? 0).toFixed(1)} out of 5 by ${plural(h.reviewCount, "patient")}`}
+            className="shrink-0 flex items-center gap-1 px-2 py-[3px] rounded-full border border-white/70 bg-[rgba(8,20,51,0.45)] text-white text-[10.5px] md:text-xs font-extrabold"
+          >
+            {(h.rating ?? 0).toFixed(1)}
+            <Star className="w-[11px] h-[11px] fill-white" strokeWidth={0} />
+          </span>
         </span>
       </Link>
       <div className="p-3 md:p-4 flex flex-col gap-[7px] md:gap-2 flex-1">
@@ -169,15 +167,13 @@ function DoctorCard({ doctor: d, km, now }: { doctor: HomeDoctor; km: number | n
               <Link href={profile} className="truncate hover:text-[#2A4DD0] transition-colors">{doctorName(d.name)}</Link>
               <VerifiedBadge doctorId={d.id} className="w-[13px] h-[13px] md:w-4 md:h-4" />
             </h3>
-            {rated && (
-              <span
-                aria-label={`Rated ${d.rating!.toFixed(1)} out of 5 by ${plural(d.reviewCount, "patient")}`}
-                className="shrink-0 flex items-center gap-[3px] md:gap-1 px-1.5 md:px-2 py-0.5 md:py-[3px] rounded-[7px] md:rounded-lg bg-[#EAF7F0] text-[10.5px] md:text-[12.5px] font-extrabold"
-              >
-                <Star className="w-2.5 h-2.5 md:w-[11px] md:h-[11px] fill-[#0B1B3F]" strokeWidth={0} />
-                {d.rating!.toFixed(1)}
-              </span>
-            )}
+            <span
+              aria-label={`Rated ${(rated ? d.rating! : 0).toFixed(1)} out of 5 by ${plural(d.reviewCount, "patient")}`}
+              className={`shrink-0 flex items-center gap-[3px] md:gap-1 px-1.5 md:px-2 py-0.5 md:py-[3px] rounded-[7px] md:rounded-lg ${rated ? "bg-[#EAF7F0]" : "bg-[#F1F4F9] text-[#5B667A]"} text-[10.5px] md:text-[12.5px] font-extrabold`}
+            >
+              <Star className={`w-2.5 h-2.5 md:w-[11px] md:h-[11px] ${rated ? "fill-[#0B1B3F]" : "fill-[#98A2B3]"}`} strokeWidth={0} />
+              {(rated ? d.rating! : 0).toFixed(1)}
+            </span>
           </div>
           <p className="text-xs md:text-sm font-bold text-[#2A4DD0] truncate">{d.specialty || "Specialist"}</p>
           {details && <p className="text-[10.5px] md:text-[12.5px] text-[#5B667A] truncate">{details}</p>}

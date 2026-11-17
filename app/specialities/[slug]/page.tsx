@@ -40,8 +40,6 @@ export default async function SpecialityPage(props: { params: Promise<{ slug: st
     for (const sp of matched) byName.set(sp.name, (byName.get(sp.name) ?? 0) + sp.count)
     offering.push({ ...h, specialityDoctors: matched.reduce((n, sp) => n + sp.count, 0), matched: matched.map((sp) => sp.name) })
   }
-  const topName = [...byName].sort((a, b) => b[1] - a[1])[0]?.[0]
-  const findHref = topName ? `/doctors?specialty=${encodeURIComponent(topName)}` : `/doctors?q=${encodeURIComponent(speciality.name)}`
   const cities = Array.from(new Set(hospitals.map((h) => h.city).filter(Boolean) as string[])).sort()
 
   return (
@@ -50,7 +48,6 @@ export default async function SpecialityPage(props: { params: Promise<{ slug: st
         speciality={{ slug: speciality.slug, name: speciality.name, desc: speciality.desc }}
         hospitals={offering}
         cities={cities}
-        findHref={findHref}
         doctorCount={[...byName.values()].reduce((a, b) => a + b, 0)}
         docked={isPatient}
       />

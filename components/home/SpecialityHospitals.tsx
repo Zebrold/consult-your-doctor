@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, type MouseEvent, type ReactNode, type Ref } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Building2, ChevronDown, MapPin } from "lucide-react";
+import { ArrowLeft, Building2, ChevronDown, MapPin } from "lucide-react";
 import { byNearness, usePatientLocation } from "@/components/patient/location";
 import { LocationMenu, useLocationMenu } from "@/components/patient/LocationMenu";
 import { formatDistance } from "@/lib/geo";
@@ -31,15 +31,12 @@ export function SpecialityHospitals({
   speciality: s,
   hospitals,
   cities,
-  findHref,
   doctorCount,
   docked = false,
 }: {
   speciality: SpecialityInfo;
   hospitals: SpecialityHospital[];
   cities: string[];
-  /** The doctors list filtered to this speciality. */
-  findHref: string;
   doctorCount: number;
   /** Shown inside the patient workspace, whose desktop bar has the breadcrumb and search. */
   docked?: boolean;
@@ -82,9 +79,9 @@ export function SpecialityHospitals({
           <h1 className="text-[22px] md:text-[34px] font-extrabold tracking-[-0.02em]">{s.name}</h1>
           <p className="mt-1.5 text-sm md:text-base leading-normal text-[#4A5878] max-w-2xl">{s.desc}</p>
           {doctorCount > 0 && (
-            <Link href={findHref} className="mt-3 inline-flex items-center gap-1.5 text-sm md:text-[15px] font-extrabold text-[#2A4DD0] hover:underline underline-offset-4">
-              {doctorCount === 1 ? `See the ${s.name} doctor` : `See all ${doctorCount} ${s.name} doctors`} <ArrowRight className="w-4 h-4" strokeWidth={2.4} />
-            </Link>
+            <p className="mt-3 text-sm md:text-[15px] font-extrabold text-[#2A4DD0]">
+              {doctorCount === 1 ? `1 ${s.name} doctor` : `${doctorCount} ${s.name} doctors`} at the hospitals below
+            </p>
           )}
         </section>
 
@@ -110,7 +107,7 @@ export function SpecialityHospitals({
           <div className="mx-4 md:mx-6 mb-10 p-5 rounded-2xl bg-[#F6F8FC] text-sm md:text-[15px] text-[#4A5878] leading-relaxed">
             No partner hospital lists {s.name} doctors yet. You can still browse{" "}
             <Link href="/hospitals" className="font-bold text-[#2A4DD0] underline underline-offset-2">all hospitals</Link> or{" "}
-            <Link href="/doctors" className="font-bold text-[#2A4DD0] underline underline-offset-2">see all doctors</Link>.
+            <Link href="/specialities" className="font-bold text-[#2A4DD0] underline underline-offset-2">other specialities</Link>.
           </div>
         ) : shown.length === 0 ? (
           <p className="mx-4 md:mx-6 mb-10 text-sm text-[#4A5878]">None of these hospitals lists a round-the-clock service. Turn off &ldquo;Open 24/7&rdquo; to see them all.</p>

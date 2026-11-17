@@ -1,6 +1,6 @@
 import { jsonLd } from "@/lib/json-ld";
 import { Metadata } from "next";
-import { FindScreen, loadFindData } from "@/components/patient/FindScreen";
+import { LabDirectoryScreen, loadDirectoryLabs } from "@/components/patient/DirectoryScreen";
 import { directoryFilters, type DirectorySearch } from "@/lib/directory-params";
 
 export const revalidate = 0;
@@ -12,12 +12,12 @@ export const metadata: Metadata = {
 
 export default async function DiagnosticsDirectoryPage(props: { searchParams: Promise<DirectorySearch> }) {
   const filters = directoryFilters(await props.searchParams);
-  const data = await loadFindData();
+  const labs = await loadDirectoryLabs();
 
   const schema = {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    "itemListElement": data.labs.map((center, index) => ({
+    "itemListElement": labs.map((center, index) => ({
       "@type": "ListItem",
       "position": index + 1,
       "url": `https://consultyourdoctor.de/book/diagnostic/${center.id}`
@@ -27,7 +27,7 @@ export default async function DiagnosticsDirectoryPage(props: { searchParams: Pr
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(schema) }} />
-      <FindScreen data={data} initial={{ mode: "lab", ...filters }} />
+      <LabDirectoryScreen labs={labs} filters={filters} />
     </>
   );
 }

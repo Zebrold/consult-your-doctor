@@ -68,8 +68,8 @@ export function OnlineDoctorRoster({ doctors, bookingFee }: { doctors: RosterDoc
       {visible.length === 0 ? (
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
           <p className="text-slate-600 mb-4">No doctors are listed right now.</p>
-          <Link href="/doctors" className="inline-flex items-center gap-2 text-vibrant-blue font-semibold hover:underline">
-            Browse all doctors <ArrowRight className="w-4 h-4" />
+          <Link href="/specialities" className="inline-flex items-center gap-2 text-vibrant-blue font-semibold hover:underline">
+            Browse specialities <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
       ) : (

@@ -24,7 +24,7 @@ function refresh(doctorId: string, hospitalId: string | null) {
   revalidatePath('/doctor/dashboard')
   revalidatePath(`/doctors/${doctorId}`)
   if (hospitalId) revalidatePath(`/hospitals/${hospitalId}`)
-  revalidatePath('/doctors')
+  revalidatePath('/specialities')
   revalidatePath('/')
   // The cached patient-facing lists (lib/public-directory.ts), so the pause shows at once.
   updateTag(PAUSED_DOCTORS_TAG)

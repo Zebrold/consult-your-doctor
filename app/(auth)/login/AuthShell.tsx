@@ -6,8 +6,8 @@ import { AuthBack } from './AuthBack'
 
 // The login pages, after the user's login design: a blue header with a back arrow, the page's name in capitals, one
 // line under it and a clipboard picture on the right, then the form on white with underlined fields, a full-width
-// button, "OR" and Google. Phones get it edge to edge; wider screens get the same thing as a card in the middle of a
-// pale page, with the brand above it.
+// button, "OR" and Google. Phones get it edge to edge; tablets get the same thing as a card in the middle of a
+// pale page, with the brand above it. Desktops (1024px and up) keep the split-screen login in _desk/.
 
 export type AuthArt = 'patient' | 'doctor' | 'hospital' | 'lab' | 'executive'
 
@@ -102,7 +102,7 @@ export function AuthShell({
   return (
     <div className="w-full min-h-[calc(100dvh-var(--strip-h))] bg-white sm:bg-[#EEF2FA] sm:flex sm:flex-col sm:items-center sm:justify-center sm:px-6 sm:py-10 font-(family-name:--font-manrope) text-[#0B1B3F]">
       <Link href="/" aria-label="Consult your Doctor home" className="hidden sm:inline-flex items-center gap-2.5 mb-6 text-[#0B1B3F]">
-        <Image src="/logo-icon.png" alt="" width={72} height={72} priority className="w-8 h-8 object-contain" />
+        <Image src="/logo-icon.png" alt="" width={72} height={72} className="w-8 h-8 object-contain" />
         <span className="font-['Helvetica_Neue',Helvetica,Arial,sans-serif] text-[21px] font-bold tracking-[-0.01em]">Consult your Doctor</span>
       </Link>
 

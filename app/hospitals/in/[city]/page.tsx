@@ -1,7 +1,7 @@
 import { jsonLd } from "@/lib/json-ld";
 import { Metadata } from "next";
 import { sameCity } from "@/lib/geo";
-import { FindScreen, loadFindData } from "@/components/patient/FindScreen";
+import { HospitalDirectoryScreen, loadBookableHospitals } from "@/components/patient/DirectoryScreen";
 
 export const revalidate = 0;
 
@@ -23,12 +23,12 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 export default async function HospitalsInCityPage(props: Props) {
   const { city } = await props.params;
   const decodedCity = decodeURIComponent(city);
-  const data = await loadFindData();
+  const hospitals = await loadBookableHospitals();
 
   const schema = {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    "itemListElement": data.hospitals.filter((h) => sameCity(h.city, decodedCity)).map((hosp, index) => ({
+    "itemListElement": hospitals.filter((h) => sameCity(h.city, decodedCity)).map((hosp, index) => ({
       "@type": "ListItem",
       "position": index + 1,
       "url": `https://consultyourdoctor.de/hospitals/${hosp.id}`
@@ -38,7 +38,7 @@ export default async function HospitalsInCityPage(props: Props) {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(schema) }} />
-      <FindScreen data={data} initial={{ mode: "hosp", city: decodedCity }} />
+      <HospitalDirectoryScreen hospitals={hospitals} filters={{ city: decodedCity }} />
     </>
   );
 }

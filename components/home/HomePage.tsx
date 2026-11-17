@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { doctorName, formatSlot } from "@/components/patient/format";
-import { locationCity, nearbyOnly, usePatientLocation } from "@/components/patient/location";
+import { nearbyOnly, usePatientLocation } from "@/components/patient/location";
 import { MenuSheet } from "@/components/patient/PhoneSheet";
 import { HomeHero } from "./HomeHero";
 import { DoctorsSection, HospitalsSection, SpecialitiesSection, TreatSection } from "./HomeSections";
@@ -35,8 +35,7 @@ export function HomePage({ account, now, nextVisit, doctors, hospitals, cities, 
   const shownDoctors = useMemo(() => nearbyOnly(doctors, place.location).slice(0, SHOWN), [doctors, place.location]);
   const shownHospitals = useMemo(() => nearbyOnly(hospitals, place.location).slice(0, SHOWN), [hospitals, place.location]);
 
-  const city = locationCity(place.location);
-  const findHref = city ? `/doctors?city=${encodeURIComponent(city)}` : "/doctors";
+  const findHref = "/specialities";
   const visitLine = nextVisit
     ? `${nextVisit.status === "pending_payment" ? "Awaiting payment: " : "Your next visit: "}${nextVisit.doctor ? doctorName(nextVisit.doctor) : "your doctor"}, ${formatSlot(nextVisit.at, now)}`
     : null;

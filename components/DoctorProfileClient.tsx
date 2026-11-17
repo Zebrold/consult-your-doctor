@@ -140,7 +140,7 @@ export function DoctorProfileClient({ doctor, bookingFee, now, account, alsoAt =
 
   // Booking goes through the hospital's page, which opens with this doctor and the picked time selected.
   const bookHref = doctorBookingHref(doctor.id, hospital?.id, { slotId: selected?.id });
-  const otherDoctors = hospital ? `/hospitals/${hospital.id}` : "/doctors";
+  const otherDoctors = hospital ? `/hospitals/${hospital.id}` : "/specialities";
   const support = account?.isSignedIn ? "/patient/support" : "/contact";
 
   const photo = (className: string, text: string) =>
@@ -463,7 +463,7 @@ export function DoctorProfileClient({ doctor, bookingFee, now, account, alsoAt =
   return (
     <div className="bg-[#F6F8FC] lg:bg-transparent min-h-screen font-(family-name:--font-manrope) text-[#0B1B3F]">
       {account ? (
-        <PhoneHeader backHref="/doctors" isSignedIn={account.isSignedIn} name={account.name} email={account.email} container="max-w-[900px] px-4 md:px-6" deskHidden>
+        <PhoneHeader backHref="/specialities" isSignedIn={account.isSignedIn} name={account.name} email={account.email} container="max-w-[900px] px-4 md:px-6" deskHidden>
           {hero}
         </PhoneHeader>
       ) : (
@@ -475,8 +475,8 @@ export function DoctorProfileClient({ doctor, bookingFee, now, account, alsoAt =
       <main className={account ? "pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-11" : "pb-11"}>
         <div className={`max-w-[1340px] lg:px-9 lg:pt-7 ${account ? "" : "mx-auto"}`}>
           {account && (
-            <Link href="/doctors" className="hidden lg:inline-flex items-center gap-1.5 mb-3.5 text-[13.5px] font-extrabold text-[#2A4DD0] hover:underline">
-              <ArrowLeft className="w-4 h-4" strokeWidth={2.4} /> Back to doctors
+            <Link href="/specialities" className="hidden lg:inline-flex items-center gap-1.5 mb-3.5 text-[13.5px] font-extrabold text-[#2A4DD0] hover:underline">
+              <ArrowLeft className="w-4 h-4" strokeWidth={2.4} /> Back to specialities
             </Link>
           )}
 

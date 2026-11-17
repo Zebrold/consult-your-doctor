@@ -19,7 +19,7 @@ export default function NotFound() {
             Go to home page
           </Link>
           <Link
-            href="/doctors"
+            href="/specialities"
             className="inline-flex w-full sm:w-auto items-center justify-center rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
           >
             Find a doctor

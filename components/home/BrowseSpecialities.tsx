@@ -101,9 +101,9 @@ export function BrowseSpecialities({
                 <div className={`${card} mt-3.5 p-5 text-[13.5px] leading-relaxed text-[#4A5878]`}>
                   No speciality matches &ldquo;{query.trim()}&rdquo;.{" "}
                   {hospitalHits.length > 0 ? "These hospitals do. " : ""}
-                  Looking for a doctor? Type their name in the search at the top and pick them from the list, or{" "}
-                  <Link href="/doctors" className="font-extrabold text-[#2A4DD0] hover:underline">
-                    see all doctors
+                  Looking for a doctor or a hospital? Type the name in the search at the top and pick it from the list, or{" "}
+                  <Link href="/hospitals" className="font-extrabold text-[#2A4DD0] hover:underline">
+                    see all hospitals
                   </Link>
                   . Not sure what you need? Ask the Care Assistant below.
                 </div>

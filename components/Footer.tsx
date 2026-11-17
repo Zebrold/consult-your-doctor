@@ -14,7 +14,7 @@ type FooterLinkItem = { label: string; href: string };
 
 const SERVICES: FooterLinkItem[] = [
   { label: "Find a doctor", href: "/specialities" },
-  { label: "Book a doctor online", href: "/doctors" },
+  { label: "Book a doctor online", href: "/specialities" },
   { label: "Hospitals", href: "/hospitals" },
   { label: "Lab tests", href: "/diagnostics" },
   { label: "What we treat", href: "/what-we-treat" },

@@ -1,6 +1,6 @@
 import { jsonLd } from "@/lib/json-ld";
 import { Metadata } from "next";
-import { FindScreen, loadFindData } from "@/components/patient/FindScreen";
+import { HospitalDirectoryScreen, loadBookableHospitals } from "@/components/patient/DirectoryScreen";
 import { directoryFilters, type DirectorySearch } from "@/lib/directory-params";
 
 export const revalidate = 0;
@@ -12,12 +12,12 @@ export const metadata: Metadata = {
 
 export default async function HospitalsDirectoryPage(props: { searchParams: Promise<DirectorySearch> }) {
   const filters = directoryFilters(await props.searchParams);
-  const data = await loadFindData();
+  const hospitals = await loadBookableHospitals();
 
   const schema = {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    "itemListElement": data.hospitals.map((hosp, index) => ({
+    "itemListElement": hospitals.map((hosp, index) => ({
       "@type": "ListItem",
       "position": index + 1,
       "url": `https://consultyourdoctor.de/hospitals/${hosp.id}`
@@ -27,7 +27,7 @@ export default async function HospitalsDirectoryPage(props: { searchParams: Prom
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(schema) }} />
-      <FindScreen data={data} initial={{ mode: "hosp", ...filters }} />
+      <HospitalDirectoryScreen hospitals={hospitals} filters={filters} />
     </>
   );
 }

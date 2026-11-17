@@ -141,7 +141,8 @@ export function PatientAuthForm({ googleEnabled = true }: { googleEnabled?: bool
   }, [next])
 
   useEffect(() => {
-    if (!googleEnabled) return
+    // Phones and tablets only: desktops get the desktop form (../_desk/PatientAuthForm), which prompts there.
+    if (!googleEnabled || window.matchMedia('(min-width: 1024px)').matches) return
 
     const clientId = getGoogleClientId()
     if (!clientId) return

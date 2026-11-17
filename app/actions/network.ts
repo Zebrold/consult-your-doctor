@@ -338,6 +338,6 @@ export async function createDoctorAccount(form: FormData): Promise<
 
   const result = await provisionDoctor(caller.admin, { ...d, password: d.email ? null : d.password, invitedBy: caller.user.id })
   if ('error' in result) return fail(result.error)
-  for (const path of ['/executive/doctors', '/executive/hospitals', '/hospital/doctors', '/doctors']) revalidatePath(path)
+  for (const path of ['/executive/doctors', '/executive/hospitals', '/hospital/doctors', '/hospitals']) revalidatePath(path)
   return { success: true, staffId: result.staffId, email: result.email, invitationSent: result.invitationSent }
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Save, Loader2, Phone } from 'lucide-react'
+import { X, Save, Loader2 } from 'lucide-react'
 import { updatePatientProfile } from '@/app/actions/patient_profile'
 
 export function EditProfileModal({ 
@@ -109,18 +109,6 @@ export function EditProfileModal({
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
           <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-6">
             
-            {needsPhone && (
-              <div className="p-4 rounded-xl bg-blue-50 border border-blue-200/80 flex items-start gap-3 text-blue-950">
-                <Phone className="w-5 h-5 text-vibrant-blue shrink-0 mt-0.5" />
-                <div className="text-xs space-y-0.5">
-                  <p className="font-bold text-sm text-blue-900">Mobile Number is Mandatory</p>
-                  <p className="text-blue-800/90 leading-relaxed">
-                    Please provide your 10-digit mobile number. It is required to send your official appointment confirmation slip, WhatsApp notifications, and doctor prescription updates.
-                  </p>
-                </div>
-              </div>
-            )}
-
             {error && (
               <div className="p-3 rounded-lg bg-error/10 text-error font-label-sm font-semibold">
                 {error}
@@ -132,7 +120,9 @@ export function EditProfileModal({
               <h3 className="font-title-md font-bold text-on-surface mb-4">Basic Information</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="font-label-sm text-on-surface-variant">Full Legal Name *</label>
+                  <label className="font-label-sm text-on-surface-variant">
+                    Full legal name <span className="text-error font-bold" aria-hidden="true">*</span>
+                  </label>
                   <input 
                     name="full_name"
                     defaultValue={profile?.full_name || ''}
@@ -142,9 +132,8 @@ export function EditProfileModal({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="font-label-sm text-on-surface-variant flex items-center justify-between">
-                    <span>Mobile / WhatsApp Number <span className="text-error font-bold">*</span></span>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-vibrant-blue bg-blue-50 px-2 py-0.5 rounded-full">Mandatory</span>
+                  <label className="font-label-sm text-on-surface-variant">
+                    Mobile / WhatsApp number <span className="text-error font-bold" aria-hidden="true">*</span>
                   </label>
                   <div className="flex items-center rounded-xl border border-outline-variant/50 bg-surface-container-lowest focus-within:ring-2 focus-within:ring-vibrant-blue/50 overflow-hidden">
                     <span className="px-3.5 py-2.5 bg-surface-container text-on-surface-variant font-semibold text-sm border-r border-outline-variant/30 select-none">
@@ -161,7 +150,7 @@ export function EditProfileModal({
                       className="w-full px-3.5 py-2.5 bg-transparent focus:outline-none text-on-surface text-sm font-medium"
                     />
                   </div>
-                  <p className="text-[11px] text-on-surface-variant">Enter 10 digits for WhatsApp slips &amp; doctor updates.</p>
+                  <p className="text-[11px] text-on-surface-variant">Booking confirmations and doctor updates are sent here.</p>
                 </div>
               </div>
             </div>

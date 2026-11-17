@@ -3,63 +3,71 @@
 import { useState, useTransition, type FormEvent, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { CircleCheck, KeyRound, Plus, Trash2, UserCheck } from 'lucide-react'
-import { DeskDialog, ErrorNote, Field, PrimaryButton, QuietButton, deskInput } from '@/components/portal/desk'
+import {
+  DlgDone,
+  DlgField,
+  DlgForm,
+  DlgGrid,
+  DlgRupee,
+  DlgSection,
+  FormDialog,
+  dlgBareInput,
+  dlgBtnBlue,
+  dlgBtnLine,
+  dlgChip,
+  dlgInput,
+} from '@/components/portal/form-dialog'
+import { SPECIALITIES } from '@/components/home/specialities'
 import { addOrganizationLogin, createDiagnosticCenter, createDoctorAccount, createHospital } from '@/app/actions/network'
 
 // The executive portal's "add to the network" dialogs: hospitals and diagnostic centres (each with its staff
-// sign-in), doctor accounts at any hospital, and a sign-in for an older hospital or centre that has none.
+// sign-in), doctor accounts at any hospital, and a sign-in for an older hospital or centre that has none. They use the
+// same dialog as the hospital's Add doctor (components/portal/form-dialog.tsx).
 
-const AUTO_PASSWORD_HINT = 'Leave blank: a temporary password is made and the contact email gets a link to set their own. Or type one (10+ characters, letters and numbers) and share it privately.'
-const PASSWORD_HINT = 'At least 10 characters, with letters and numbers. Share it privately, never by email or chat.'
+const PASSWORD_RULE = 'At least 10 characters, with letters and numbers.'
 
 /** A hospital or centre application (/signup/hospital, /signup/diagnostic-centre) to add to the network. */
 export type ApplicationPrefill = { id: string; name: string; city: string; address: string | null; email: string; contactName: string }
 
 function OpenButton({ children, onClick, approve = false }: { children: ReactNode; onClick: () => void; approve?: boolean }) {
-  if (approve) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        className="inline-flex items-center justify-center gap-2 h-[42px] px-4 rounded-[11px] text-[13.5px] font-extrabold whitespace-nowrap bg-[#2A4DD0] text-white shadow-[0_6px_14px_rgba(42,77,208,0.25)] hover:bg-[#2443B8] active:scale-[0.98] transition-all"
-      >
-        <UserCheck className="w-4 h-4" /> {children}
-      </button>
-    )
-  }
+  const Icon = approve ? UserCheck : Plus
   return (
     <button
       type="button"
       onClick={onClick}
       className="inline-flex items-center justify-center gap-2 h-[42px] px-4 rounded-[11px] text-[13.5px] font-extrabold whitespace-nowrap bg-[#2A4DD0] text-white shadow-[0_6px_14px_rgba(42,77,208,0.25)] hover:bg-[#2443B8] active:scale-[0.98] transition-all"
     >
-      <Plus className="w-4 h-4" /> {children}
+      <Icon className="w-4 h-4" /> {children}
     </button>
   )
 }
 
-/** What the executive needs to hand over once an account exists. */
-function Created({ title, rows, note, onClose, secret }: { title: string; rows: [string, string][]; note: string; onClose: () => void; secret?: string }) {
+/** A blue line with a tick: what happens after saving. */
+function InfoNote({ children }: { children: ReactNode }) {
+  return (
+    <p className="mt-[18px] flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-[#F5F8FF] text-[13px] leading-[1.45] text-[#27324A]">
+      <CircleCheck className="w-[18px] h-[18px] shrink-0 text-[#2A4DD0] mt-px" />
+      <span>{children}</span>
+    </p>
+  )
+}
+
+/** What the executive needs to hand over once an account exists: the IDs, the temporary password, and a note. */
+function Handover({ rows, secret, note }: { rows: [string, string][]; secret?: string; note: string }) {
   const [shown, setShown] = useState(false)
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <span className="w-11 h-11 rounded-2xl bg-secondary-container text-secondary flex items-center justify-center shrink-0">
-          <CircleCheck className="w-6 h-6" />
-        </span>
-        <p className="font-semibold text-indigo-gray-900">{title}</p>
-      </div>
-      <dl className="rounded-xl bg-surface-container-low p-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+    <>
+      <dl className="w-full max-w-[560px] grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 p-4 rounded-2xl bg-[#F5F8FF] shadow-[0_0_0_1px_#DCE6FF] text-left text-[14px]">
         {rows.map(([label, value]) => (
           <div key={label} className="contents">
-            <dt className="text-indigo-gray-600">{label}</dt>
-            <dd className="font-mono font-semibold text-indigo-gray-900 break-all">{value}</dd>
+            <dt className="font-bold text-[#5B667A]">{label}</dt>
+            <dd className="font-mono font-extrabold text-[#2A4DD0] break-all">{value}</dd>
           </div>
         ))}
         {secret && (
           <div className="contents">
-            <dt className="text-indigo-gray-600">Temporary password</dt>
-            <dd className="flex items-center gap-2 font-mono font-semibold text-indigo-gray-900 break-all">
+            <dt className="font-bold text-[#5B667A]">Temporary password</dt>
+            <dd className="flex items-center gap-2 font-mono font-extrabold text-[#0B1B3F] break-all">
               {shown ? secret : '••••••••••••'}
               <button type="button" onClick={() => setShown((v) => !v)} className="font-sans text-[12.5px] font-extrabold text-[#2A4DD0] hover:underline underline-offset-4">
                 {shown ? 'Hide' : 'Show'}
@@ -68,48 +76,52 @@ function Created({ title, rows, note, onClose, secret }: { title: string; rows: 
           </div>
         )}
       </dl>
-      <p className="text-sm text-indigo-gray-600">{note}</p>
-      <div className="flex justify-end">
-        <PrimaryButton type="button" onClick={onClose}>Done</PrimaryButton>
-      </div>
-    </div>
+      <p className="max-w-[560px] text-[14px] leading-[1.5] text-[#5B667A]">{note}</p>
+    </>
   )
 }
 
-/** Name, city, address, contact email, and the staff sign-in fields shared by hospitals and centres. */
-function OrgFields({ kind, prefill }: { kind: 'hospital' | 'lab'; prefill?: ApplicationPrefill }) {
+/** The hospital's or centre's details and its staff sign-in: the first two sections of Add hospital / centre. */
+function OrgSections({ kind, prefill }: { kind: 'hospital' | 'lab'; prefill?: ApplicationPrefill }) {
   const noun = kind === 'hospital' ? 'hospital' : 'centre'
   return (
     <>
       {prefill && <input type="hidden" name="applicationId" value={prefill.id} />}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Field label={kind === 'hospital' ? 'Hospital name' : 'Centre name'} className="sm:col-span-2">
-          <input name="name" required minLength={2} maxLength={160} defaultValue={prefill?.name} className={deskInput} autoComplete="organization" />
-        </Field>
-        <Field label="City">
-          <input name="city" required minLength={2} maxLength={80} defaultValue={prefill?.city} className={deskInput} autoComplete="address-level2" />
-        </Field>
-        <Field label="Contact email" hint="Optional">
-          <input name="contactEmail" type="email" maxLength={160} defaultValue={prefill?.email} className={deskInput} autoComplete="email" />
-        </Field>
-        <Field label="Address" className="sm:col-span-2">
-          <input name="address" maxLength={300} defaultValue={prefill?.address ?? undefined} className={deskInput} autoComplete="street-address" />
-        </Field>
-      </div>
-      <fieldset className="flex flex-col gap-3 rounded-xl border border-outline-variant/50 p-4">
-        <legend className="px-1 text-sm font-semibold text-indigo-gray-900">Staff login for this {noun}</legend>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label="Account name" hint={`Optional. Defaults to "<name> Admin".`}>
-            <input name="adminName" maxLength={120} defaultValue={prefill?.contactName} className={deskInput} />
-          </Field>
-          <Field label="Staff ID" hint="Optional. Leave blank to generate one.">
-            <input name="staffId" maxLength={24} pattern="[A-Za-z0-9-]{4,24}" className={`${deskInput} uppercase`} autoCapitalize="characters" />
-          </Field>
-          <Field label="Password" hint={AUTO_PASSWORD_HINT} className="sm:col-span-2">
-            <input name="password" type="password" maxLength={128} className={deskInput} autoComplete="new-password" placeholder="Leave blank to create one automatically" />
-          </Field>
-        </div>
-      </fieldset>
+      <DlgSection n={1} title={kind === 'hospital' ? 'Hospital details' : 'Centre details'} sub={`What patients see on the ${noun}’s page.`}>
+        <DlgGrid>
+          <DlgField label={kind === 'hospital' ? 'Hospital name' : 'Centre name'} required className="sm:col-span-2">
+            <input name="name" required minLength={2} maxLength={160} defaultValue={prefill?.name} className={dlgInput} autoComplete="organization" />
+          </DlgField>
+          <DlgField label="City" required>
+            <input name="city" required minLength={2} maxLength={80} defaultValue={prefill?.city} className={dlgInput} autoComplete="address-level2" />
+          </DlgField>
+          <DlgField label="Contact email" hint="We email the user ID and password here.">
+            <input name="contactEmail" type="email" maxLength={160} defaultValue={prefill?.email} className={dlgInput} autoComplete="email" />
+          </DlgField>
+          <DlgField label="Address" className="sm:col-span-2">
+            <input name="address" maxLength={300} defaultValue={prefill?.address ?? undefined} className={dlgInput} autoComplete="street-address" />
+          </DlgField>
+        </DlgGrid>
+      </DlgSection>
+
+      <DlgSection n={2} title="Staff login" sub={`How the ${noun}’s staff sign in to the ${noun} portal.`}>
+        <DlgGrid>
+          <DlgField label="Account name" hint={`Leave blank for the ${noun} name plus “Admin”.`}>
+            <input name="adminName" maxLength={120} defaultValue={prefill?.contactName} className={dlgInput} />
+          </DlgField>
+          <DlgField label="Staff ID" hint="Leave blank to make one.">
+            <input name="staffId" maxLength={24} pattern="[A-Za-z0-9-]{4,24}" className={`${dlgInput} uppercase`} autoCapitalize="characters" />
+          </DlgField>
+          <DlgField
+            label="Password"
+            hint={`Leave blank and we make a temporary one (the contact email is then needed). Or type one: ${PASSWORD_RULE.toLowerCase()}`}
+            className="sm:col-span-2"
+          >
+            <input name="password" type="password" maxLength={128} className={dlgInput} autoComplete="new-password" placeholder="Leave blank to create one automatically" />
+          </DlgField>
+        </DlgGrid>
+        <InfoNote>We email the user ID (staff ID) and password to the contact email. With no contact email, you hand them over yourself.</InfoNote>
+      </DlgSection>
     </>
   )
 }
@@ -119,6 +131,7 @@ function useSubmit<T extends { success: true } | { success: false; error: string
   const [pending, start] = useTransition()
   const [error, setError] = useState('')
   const [done, setDone] = useState<Extract<T, { success: true }> | null>(null)
+  const [round, setRound] = useState(0)
   const submit = (e: FormEvent<HTMLFormElement>, extra?: (form: FormData) => void) => {
     e.preventDefault()
     const form = new FormData(e.currentTarget)
@@ -131,7 +144,16 @@ function useSubmit<T extends { success: true } | { success: false; error: string
       router.refresh()
     })
   }
-  return { pending, error, done, submit, reset: () => { setError(''); setDone(null) } }
+  const reset = () => {
+    setError('')
+    setDone(null)
+  }
+  // A fresh, empty form for the next one.
+  const another = () => {
+    reset()
+    setRound((r) => r + 1)
+  }
+  return { pending, error, done, submit, reset, another, round }
 }
 
 /** What to tell the executive after adding a hospital or centre: whether the user ID and password were emailed. */
@@ -142,118 +164,190 @@ function handOver(done: { temporaryPassword?: string; emailedTo?: string | null 
     : `No email was sent (there is no contact email). Give their staff the staff ID and the password you set. They log in at ${where}.`
 }
 
+const ORG_STEPS = (noun: string) => [
+  { label: `${noun} details`, sub: 'Name and place' },
+  { label: 'Staff login', sub: 'User ID and password' },
+]
+
 /** Adds a hospital; with `fromApplication`, approves that application by adding it pre-filled. */
 export function AddHospitalButton({ fromApplication }: { fromApplication?: ApplicationPrefill } = {}) {
   const [open, setOpen] = useState(false)
-  const { pending, error, done, submit, reset } = useSubmit(createHospital)
-  const close = () => { setOpen(false); reset() }
+  const { pending, error, done, submit, reset, another, round } = useSubmit(createHospital)
+  const close = () => {
+    setOpen(false)
+    reset()
+  }
   return (
     <>
-      <OpenButton onClick={() => setOpen(true)} approve={!!fromApplication}>{fromApplication ? 'Approve & add' : 'Add hospital'}</OpenButton>
+      <OpenButton onClick={() => setOpen(true)} approve={!!fromApplication}>
+        {fromApplication ? 'Approve & add' : 'Add hospital'}
+      </OpenButton>
       {open && (
-        <DeskDialog
-          title={fromApplication ? `Approve ${fromApplication.name}` : 'Add a hospital'}
-          subtitle={fromApplication ? 'Check the details from the application, then set the staff login. It is listed for booking straight away.' : 'It is listed for booking straight away, and its staff log in with the ID below.'}
+        <FormDialog
+          title={fromApplication ? `Approve ${fromApplication.name}` : 'Add hospital'}
+          subtitle={
+            fromApplication
+              ? 'Check the details from the application, then set the staff login. It is listed for booking straight away.'
+              : 'It is listed for booking straight away, and its staff log in with the user ID below.'
+          }
+          steps={ORG_STEPS('Hospital')}
+          done={!!done}
           onClose={close}
-          wide
         >
           {done ? (
-            <Created
-              title="Hospital added"
-              rows={[['Hospital ID', done.code], ['Staff ID', done.staffId]]}
-              secret={done.temporaryPassword}
-              note={`${handOver(done, 'Login → Hospitals')} They can then add their doctors and slots.`}
-              onClose={close}
-            />
+            <DlgDone
+              title={fromApplication ? 'Application approved' : 'Hospital added'}
+              actions={
+                <>
+                  {!fromApplication && (
+                    <button type="button" onClick={another} className={dlgBtnLine}>
+                      <Plus className="w-4 h-4" strokeWidth={2.6} /> Add another hospital
+                    </button>
+                  )}
+                  <button type="button" onClick={close} className={dlgBtnBlue}>
+                    Done
+                  </button>
+                </>
+              }
+            >
+              <Handover
+                rows={[['Hospital ID', done.code], ['Staff ID', done.staffId]]}
+                secret={done.temporaryPassword}
+                note={`${handOver(done, 'Login → Hospitals')} They can then add their doctors and slots.`}
+              />
+            </DlgDone>
           ) : (
-            <form onSubmit={(e) => submit(e)} className="flex flex-col gap-4">
-              <OrgFields kind="hospital" prefill={fromApplication} />
-              <ErrorNote>{error}</ErrorNote>
-              <div className="flex justify-end gap-2">
-                <QuietButton onClick={close}>Cancel</QuietButton>
-                <PrimaryButton pending={pending}>{fromApplication ? 'Approve & add hospital' : 'Add hospital'}</PrimaryButton>
-              </div>
-            </form>
+            <DlgForm
+              key={round}
+              onSubmit={(e) => submit(e)}
+              onCancel={close}
+              pending={pending}
+              error={error}
+              submitLabel={fromApplication ? 'Approve & add hospital' : 'Add hospital'}
+              submitIcon={<Plus className="w-4 h-4" strokeWidth={2.6} />}
+            >
+              <OrgSections kind="hospital" prefill={fromApplication} />
+            </DlgForm>
           )}
-        </DeskDialog>
+        </FormDialog>
       )}
     </>
   )
 }
 
 const STARTER_TESTS = ['Complete Blood Count (CBC)', 'Thyroid Profile', 'Lipid Profile', 'X-Ray', 'Ultrasound', 'ECG']
+const starterTests = () => STARTER_TESTS.map((name) => ({ name, price: '' }))
 
 /** Adds a diagnostic centre; with `fromApplication`, approves that application by adding it pre-filled. */
 export function AddDiagnosticCenterButton({ fromApplication }: { fromApplication?: ApplicationPrefill } = {}) {
   const [open, setOpen] = useState(false)
-  const [tests, setTests] = useState(() => STARTER_TESTS.map((name) => ({ name, price: '' })))
-  const { pending, error, done, submit, reset } = useSubmit(createDiagnosticCenter)
-  const close = () => { setOpen(false); reset(); setTests(STARTER_TESTS.map((name) => ({ name, price: '' }))) }
+  const [tests, setTests] = useState(starterTests)
+  const { pending, error, done, submit, reset, another, round } = useSubmit(createDiagnosticCenter)
+  const close = () => {
+    setOpen(false)
+    reset()
+    setTests(starterTests())
+  }
   const priced = tests.filter((t) => t.name.trim() && t.price !== '')
   return (
     <>
-      <OpenButton onClick={() => setOpen(true)} approve={!!fromApplication}>{fromApplication ? 'Approve & add' : 'Add diagnostic centre'}</OpenButton>
+      <OpenButton onClick={() => setOpen(true)} approve={!!fromApplication}>
+        {fromApplication ? 'Approve & add' : 'Add diagnostic centre'}
+      </OpenButton>
       {open && (
-        <DeskDialog
-          title={fromApplication ? `Approve ${fromApplication.name}` : 'Add a diagnostic centre'}
-          subtitle={fromApplication ? 'Check the details from the application, then set the staff login. Patients can book its priced tests straight away.' : 'Patients can book its priced tests straight away; the centre can edit its menu later.'}
+        <FormDialog
+          title={fromApplication ? `Approve ${fromApplication.name}` : 'Add diagnostic centre'}
+          subtitle={
+            fromApplication
+              ? 'Check the details from the application, then set the staff login. Patients can book its priced tests straight away.'
+              : 'Patients can book its priced tests straight away; the centre can edit its menu later.'
+          }
+          steps={[...ORG_STEPS('Centre'), { label: 'Price list', sub: 'Tests to start with' }]}
+          done={!!done}
           onClose={close}
-          wide
         >
           {done ? (
-            <Created
-              title="Diagnostic centre added"
-              rows={[['Centre ID', done.code], ['Staff ID', done.staffId]]}
-              secret={done.temporaryPassword}
-              note={`${handOver(done, 'Login → Diagnostic centres')} They manage tests, bookings and reports there.`}
-              onClose={close}
-            />
-          ) : (
-            <form
-              onSubmit={(e) => submit(e, (form) => form.set('tests', JSON.stringify(priced.map((t) => ({ name: t.name.trim(), price: Number(t.price) })))))}
-              className="flex flex-col gap-4"
-            >
-              <OrgFields kind="lab" prefill={fromApplication} />
-              <fieldset className="flex flex-col gap-2 rounded-xl border border-outline-variant/50 p-4">
-                <legend className="px-1 text-sm font-semibold text-indigo-gray-900">Starting price list</legend>
-                <p className="text-[12px] text-indigo-gray-600">Only tests with a price are listed. Leave this empty if the centre will add its own.</p>
-                {tests.map((t, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <input
-                      aria-label="Test name"
-                      value={t.name}
-                      onChange={(e) => setTests((list) => list.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
-                      maxLength={80}
-                      className={`${deskInput} flex-1 min-w-0`}
-                    />
-                    <span className="relative w-28 shrink-0">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-gray-600 text-sm">₹</span>
-                      <input
-                        aria-label={`Price for ${t.name || 'this test'}`}
-                        value={t.price}
-                        onChange={(e) => setTests((list) => list.map((x, j) => (j === i ? { ...x, price: e.target.value.replace(/[^\d.]/g, '') } : x)))}
-                        inputMode="decimal"
-                        placeholder="Price"
-                        className={`${deskInput} pl-7`}
-                      />
-                    </span>
-                    <button type="button" aria-label={`Remove ${t.name || 'test'}`} onClick={() => setTests((list) => list.filter((_, j) => j !== i))} className="w-10 h-10 rounded-full flex items-center justify-center text-indigo-gray-600 hover:bg-surface-container shrink-0">
-                      <Trash2 className="w-4 h-4" />
+            <DlgDone
+              title={fromApplication ? 'Application approved' : 'Diagnostic centre added'}
+              actions={
+                <>
+                  {!fromApplication && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        another()
+                        setTests(starterTests())
+                      }}
+                      className={dlgBtnLine}
+                    >
+                      <Plus className="w-4 h-4" strokeWidth={2.6} /> Add another centre
                     </button>
-                  </div>
-                ))}
-                <button type="button" onClick={() => setTests((list) => [...list, { name: '', price: '' }])} className="self-start inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-semibold text-vibrant-blue hover:bg-primary-fixed/50">
-                  <Plus className="w-4 h-4" /> Add a test
-                </button>
-              </fieldset>
-              <ErrorNote>{error}</ErrorNote>
-              <div className="flex justify-end gap-2">
-                <QuietButton onClick={close}>Cancel</QuietButton>
-                <PrimaryButton pending={pending}>{fromApplication ? 'Approve & add centre' : 'Add centre'}</PrimaryButton>
-              </div>
-            </form>
+                  )}
+                  <button type="button" onClick={close} className={dlgBtnBlue}>
+                    Done
+                  </button>
+                </>
+              }
+            >
+              <Handover
+                rows={[['Centre ID', done.code], ['Staff ID', done.staffId]]}
+                secret={done.temporaryPassword}
+                note={`${handOver(done, 'Login → Diagnostic centres')} They manage tests, bookings and reports there.`}
+              />
+            </DlgDone>
+          ) : (
+            <DlgForm
+              key={round}
+              onSubmit={(e) => submit(e, (form) => form.set('tests', JSON.stringify(priced.map((t) => ({ name: t.name.trim(), price: Number(t.price) })))))}
+              onCancel={close}
+              pending={pending}
+              error={error}
+              submitLabel={fromApplication ? 'Approve & add centre' : 'Add centre'}
+              submitIcon={<Plus className="w-4 h-4" strokeWidth={2.6} />}
+            >
+              <OrgSections kind="lab" prefill={fromApplication} />
+              <DlgSection n={3} title="Starting price list" sub="Only tests with a price are listed. Leave it empty if the centre will add its own.">
+                <div className="flex flex-col gap-2.5">
+                  {tests.map((t, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input
+                        aria-label="Test name"
+                        value={t.name}
+                        onChange={(e) => setTests((list) => list.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
+                        maxLength={80}
+                        placeholder="Test name"
+                        className={`${dlgInput} flex-1 min-w-0`}
+                      />
+                      <span className="w-32 shrink-0">
+                        <DlgRupee>
+                          <input
+                            aria-label={`Price for ${t.name || 'this test'}`}
+                            value={t.price}
+                            onChange={(e) => setTests((list) => list.map((x, j) => (j === i ? { ...x, price: e.target.value.replace(/[^\d.]/g, '') } : x)))}
+                            inputMode="decimal"
+                            placeholder="Price"
+                            className={dlgBareInput}
+                          />
+                        </DlgRupee>
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`Remove ${t.name || 'test'}`}
+                        onClick={() => setTests((list) => list.filter((_, j) => j !== i))}
+                        className="shrink-0 w-[42px] h-[42px] rounded-[11px] flex items-center justify-center text-[#5B667A] hover:bg-[#FEF3F2] hover:text-[#B42318]"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => setTests((list) => [...list, { name: '', price: '' }])} className={`${dlgBtnLine} self-start`}>
+                    <Plus className="w-4 h-4" strokeWidth={2.6} /> Add a test
+                  </button>
+                </div>
+              </DlgSection>
+            </DlgForm>
           )}
-        </DeskDialog>
+        </FormDialog>
       )}
     </>
   )
@@ -261,71 +355,136 @@ export function AddDiagnosticCenterButton({ fromApplication }: { fromApplication
 
 export type HospitalOption = { id: string; name: string; city: string | null }
 
+const DOCTOR_STEPS = [
+  { label: 'Doctor profile', sub: 'Name and speciality' },
+  { label: 'Hospital and fee', sub: 'Where they consult' },
+  { label: 'Account access', sub: 'Sign-in' },
+]
+
 export function AddDoctorButton({ hospitals }: { hospitals: HospitalOption[] }) {
   const [open, setOpen] = useState(false)
-  const [email, setEmail] = useState('')
-  const { pending, error, done, submit, reset } = useSubmit(createDoctorAccount)
-  const close = () => { setOpen(false); reset(); setEmail('') }
+  const [mode, setMode] = useState<'email' | 'manual'>('email')
+  const { pending, error, done, submit, reset, another, round } = useSubmit(createDoctorAccount)
+  const close = () => {
+    setOpen(false)
+    reset()
+    setMode('email')
+  }
   return (
     <>
       <OpenButton onClick={() => setOpen(true)}>Add doctor</OpenButton>
       {open && (
-        <DeskDialog title="Add a doctor" subtitle="Creates the doctor's account at the hospital they practise in." onClose={close} wide>
+        <FormDialog
+          title="Add doctor"
+          subtitle="Create the doctor’s account at the hospital they practise in, and send them their login."
+          steps={DOCTOR_STEPS}
+          done={!!done}
+          onClose={close}
+        >
           {done ? (
-            <Created
-              title="Doctor account created"
-              rows={[['Staff ID', done.staffId], ...(done.email ? ([['Email', done.email]] as [string, string][]) : [])]}
-              note={
-                done.email
-                  ? done.invitationSent
-                    ? 'An activation email is on its way; the doctor sets their own password from it and logs in at Login → Doctors.'
-                    : "The activation email couldn't be sent. The doctor can use \"Forgot password\" on the doctor login page with this email."
-                  : 'Give the doctor their staff ID and the password you set. They log in at Login → Doctors.'
+            <DlgDone
+              title="Doctor added"
+              actions={
+                <>
+                  <button type="button" onClick={another} className={dlgBtnLine}>
+                    <Plus className="w-4 h-4" strokeWidth={2.6} /> Add another doctor
+                  </button>
+                  <button type="button" onClick={close} className={dlgBtnBlue}>
+                    Done
+                  </button>
+                </>
               }
-              onClose={close}
-            />
+            >
+              <Handover
+                rows={[['Staff ID', done.staffId], ...(done.email ? ([['Email', done.email]] as [string, string][]) : [])]}
+                note={
+                  done.email
+                    ? done.invitationSent
+                      ? `We emailed ${done.email} their user ID (staff ID) and password, with a link to set their own. They log in at Login → Doctors.`
+                      : `The email couldn’t be sent. The doctor can use “Forgot password” on the doctor login page with ${done.email}.`
+                    : 'Give the doctor their staff ID and the password you set. They log in at Login → Doctors.'
+                }
+              />
+            </DlgDone>
           ) : hospitals.length === 0 ? (
-            <p className="text-sm text-indigo-gray-600">Add a hospital first; every doctor belongs to one.</p>
+            <div className="px-4 sm:px-7 py-9 text-center text-[14px] text-[#5B667A]">Add a hospital first; every doctor belongs to one.</div>
           ) : (
-            <form onSubmit={(e) => submit(e)} className="flex flex-col gap-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Field label="Hospital" className="sm:col-span-2">
-                  <select name="hospitalId" required defaultValue="" className={deskInput}>
-                    <option value="" disabled>Choose the hospital</option>
-                    {hospitals.map((h) => (
-                      <option key={h.id} value={h.id}>{h.name}{h.city ? `, ${h.city}` : ''}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Doctor's full name">
-                  <input name="fullName" required minLength={2} maxLength={120} className={deskInput} autoComplete="name" />
-                </Field>
-                <Field label="Specialty">
-                  <input name="specialty" required minLength={2} maxLength={80} className={deskInput} placeholder="e.g. Cardiology" />
-                </Field>
-                <Field label="Experience (years)">
-                  <input name="experienceYears" type="number" min={0} max={70} defaultValue={0} className={deskInput} />
-                </Field>
-                <Field label="Consultation fee (₹)">
-                  <input name="consultationFee" type="number" min={0} max={100000} required className={deskInput} />
-                </Field>
-                <Field label="Email" hint="Recommended: the doctor gets an activation link and sets their own password." className="sm:col-span-2">
-                  <input name="email" type="email" maxLength={160} value={email} onChange={(e) => setEmail(e.target.value)} className={deskInput} autoComplete="email" />
-                </Field>
-                {!email.trim() && (
-                  <Field label="Password" hint={`Needed without an email. ${PASSWORD_HINT}`} className="sm:col-span-2">
-                    <input name="password" type="password" required minLength={10} maxLength={128} className={deskInput} autoComplete="new-password" />
-                  </Field>
-                )}
-              </div>
-              <ErrorNote>{error}</ErrorNote>
-              <div className="flex justify-end gap-2">
-                <QuietButton onClick={close}>Cancel</QuietButton>
-                <PrimaryButton pending={pending}>Create account</PrimaryButton>
-              </div>
-            </form>
+            <DlgForm
+              key={round}
+              onSubmit={(e) => submit(e)}
+              onCancel={close}
+              pending={pending}
+              error={error}
+              submitLabel={mode === 'email' ? 'Add doctor and email login' : 'Add doctor'}
+              submitIcon={<Plus className="w-4 h-4" strokeWidth={2.6} />}
+            >
+              <DlgSection n={1} title="Doctor profile" sub="What patients see when they book this doctor.">
+                <DlgGrid>
+                  <DlgField label="Full name" required hint="As on the medical registration certificate.">
+                    <input name="fullName" required minLength={2} maxLength={120} className={dlgInput} autoComplete="off" />
+                  </DlgField>
+                  <DlgField label="Speciality" required>
+                    <input name="specialty" required minLength={2} maxLength={80} list="executive-specialities" className={dlgInput} placeholder="e.g. Cardiology" autoComplete="off" />
+                    <datalist id="executive-specialities">
+                      {SPECIALITIES.map((s) => (
+                        <option key={s.slug} value={s.name} />
+                      ))}
+                    </datalist>
+                  </DlgField>
+                  <DlgField label="Years of experience">
+                    <input name="experienceYears" type="number" inputMode="numeric" min={0} max={70} placeholder="0" className={dlgInput} />
+                  </DlgField>
+                </DlgGrid>
+              </DlgSection>
+
+              <DlgSection n={2} title="Hospital and fee" sub="Where patients book this doctor.">
+                <DlgGrid>
+                  <DlgField label="Hospital" required className="sm:col-span-2">
+                    <select name="hospitalId" required defaultValue="" className={`${dlgInput} cursor-pointer`}>
+                      <option value="" disabled>
+                        Choose the hospital
+                      </option>
+                      {hospitals.map((h) => (
+                        <option key={h.id} value={h.id}>
+                          {h.name}
+                          {h.city ? `, ${h.city}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </DlgField>
+                  <DlgField label="Consultation fee" required hint="Collected at the hospital counter for each visit.">
+                    <DlgRupee>
+                      <input name="consultationFee" type="number" inputMode="numeric" min={0} max={100000} required aria-label="Consultation fee in rupees" className={dlgBareInput} />
+                    </DlgRupee>
+                  </DlgField>
+                </DlgGrid>
+              </DlgSection>
+
+              <DlgSection n={3} title="Account access" sub="How the doctor signs in to the doctor portal.">
+                <div role="radiogroup" aria-label="Account access" className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-[18px]">
+                  <button type="button" role="radio" aria-checked={mode === 'email'} onClick={() => setMode('email')} className={dlgChip(mode === 'email')}>
+                    Email their login details
+                  </button>
+                  <button type="button" role="radio" aria-checked={mode === 'manual'} onClick={() => setMode('manual')} className={dlgChip(mode === 'manual')}>
+                    Set a password myself
+                  </button>
+                </div>
+                <DlgGrid>
+                  {mode === 'email' ? (
+                    <DlgField label="Doctor’s email" required hint="We email the doctor their user ID (staff ID) and password, with a link to set their own.">
+                      <input name="email" type="email" required maxLength={160} className={dlgInput} autoComplete="off" />
+                    </DlgField>
+                  ) : (
+                    <DlgField label="Password" required hint={`${PASSWORD_RULE} Give it to the doctor yourself.`}>
+                      <input name="password" type="password" required minLength={10} maxLength={128} className={dlgInput} autoComplete="new-password" />
+                    </DlgField>
+                  )}
+                </DlgGrid>
+                <InfoNote>A Staff ID is made automatically. Patients can book the doctor once the hospital publishes their slots.</InfoNote>
+              </DlgSection>
+            </DlgForm>
           )}
-        </DeskDialog>
+        </FormDialog>
       )}
     </>
   )
@@ -338,7 +497,11 @@ export function AddLoginButton({ kind, id, name }: { kind: 'hospital' | 'lab'; i
   const [pending, start] = useTransition()
   const [error, setError] = useState('')
   const [staffId, setStaffId] = useState<string | null>(null)
-  const close = () => { setOpen(false); setError(''); setStaffId(null) }
+  const close = () => {
+    setOpen(false)
+    setError('')
+    setStaffId(null)
+  }
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const form = new FormData(e.currentTarget)
@@ -352,29 +515,41 @@ export function AddLoginButton({ kind, id, name }: { kind: 'hospital' | 'lab'; i
   }
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center justify-center gap-1.5 h-[34px] px-3 rounded-[10px] text-[12.5px] font-extrabold whitespace-nowrap border-[1.5px] border-[#2A4DD0] bg-white text-[#2A4DD0] hover:bg-[#EEF3FF] transition-all">
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center justify-center gap-1.5 h-[34px] px-3 rounded-[10px] text-[12.5px] font-extrabold whitespace-nowrap border-[1.5px] border-[#2A4DD0] bg-white text-[#2A4DD0] hover:bg-[#EEF3FF] transition-all"
+      >
         <KeyRound className="w-4 h-4" /> Create login
       </button>
       {open && (
-        <DeskDialog title={`Staff login for ${name}`} subtitle="This account manages the listing, doctors, bookings and payments." onClose={close}>
+        <FormDialog title={`Staff login for ${name}`} subtitle="This account manages the listing, doctors, bookings and payments." width={640} done={!!staffId} onClose={close}>
           {staffId ? (
-            <Created title="Login created" rows={[['Staff ID', staffId]]} note="Give the staff their staff ID and the password you set." onClose={close} />
+            <DlgDone
+              title="Login created"
+              actions={
+                <button type="button" onClick={close} className={dlgBtnBlue}>
+                  Done
+                </button>
+              }
+            >
+              <Handover rows={[['Staff ID', staffId]]} note="Give the staff their staff ID and the password you set." />
+            </DlgDone>
           ) : (
-            <form onSubmit={submit} className="flex flex-col gap-4">
-              <Field label="Staff ID" hint="Optional. Leave blank to generate one.">
-                <input name="staffId" maxLength={24} pattern="[A-Za-z0-9-]{4,24}" className={`${deskInput} uppercase`} autoCapitalize="characters" />
-              </Field>
-              <Field label="Password" hint={PASSWORD_HINT}>
-                <input name="password" type="password" required minLength={10} maxLength={128} className={deskInput} autoComplete="new-password" />
-              </Field>
-              <ErrorNote>{error}</ErrorNote>
-              <div className="flex justify-end gap-2">
-                <QuietButton onClick={close}>Cancel</QuietButton>
-                <PrimaryButton pending={pending}>Create login</PrimaryButton>
-              </div>
-            </form>
+            <DlgForm onSubmit={submit} onCancel={close} pending={pending} error={error} submitLabel="Create login" submitIcon={<KeyRound className="w-4 h-4" />}>
+              <DlgSection n={1} title="Staff login" sub={`How ${name}’s staff sign in.`}>
+                <DlgGrid>
+                  <DlgField label="Staff ID" hint="Leave blank to make one.">
+                    <input name="staffId" maxLength={24} pattern="[A-Za-z0-9-]{4,24}" className={`${dlgInput} uppercase`} autoCapitalize="characters" />
+                  </DlgField>
+                  <DlgField label="Password" required hint={`${PASSWORD_RULE} Give it to the staff yourself.`}>
+                    <input name="password" type="password" required minLength={10} maxLength={128} className={dlgInput} autoComplete="new-password" />
+                  </DlgField>
+                </DlgGrid>
+              </DlgSection>
+            </DlgForm>
           )}
-        </DeskDialog>
+        </FormDialog>
       )}
     </>
   )

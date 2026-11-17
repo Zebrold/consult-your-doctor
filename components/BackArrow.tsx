@@ -3,8 +3,8 @@
 import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 
-/** The header's back arrow: the page the visitor came from on this site, else `fallback`. */
-export function AuthBack({ fallback }: { fallback: string }) {
+/** A blue header's back arrow (the login pages, Find a specialist): the page the visitor came from on this site, else `fallback`. */
+export function BackArrow({ fallback }: { fallback: string }) {
   const router = useRouter()
   const back = () => {
     let fromHere = false

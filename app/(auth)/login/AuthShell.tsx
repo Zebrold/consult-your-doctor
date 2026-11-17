@@ -2,7 +2,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { BriefcaseBusiness, Building2, FlaskConical, Plus, Stethoscope, type LucideIcon } from 'lucide-react'
-import { AuthBack } from './AuthBack'
+import { BackArrow } from '@/components/BackArrow'
 
 // The login pages, after the user's login design: a blue header with a back arrow, the page's name in capitals, one
 // line under it and a clipboard picture on the right, then the form on white with underlined fields, a full-width
@@ -110,7 +110,7 @@ export function AuthShell({
         <header className="relative isolate overflow-hidden bg-[linear-gradient(160deg,#3A5FEA_0%,#2A4DD0_48%,#2342B8_100%)] text-white px-5 sm:px-8 pt-4 sm:pt-6 pb-8 min-h-[196px] sm:min-h-[210px]">
           {/* A faint dot grid, and the soft circle behind the picture */}
           <span aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(rgba(255,255,255,0.14)_1px,transparent_1.3px)] [background-size:20px_20px] [mask-image:linear-gradient(to_right,transparent_35%,#000_100%)]" />
-          <AuthBack fallback={backHref} />
+          <BackArrow fallback={backHref} />
           <div className="relative z-10 mt-7 sm:mt-8 pr-[128px] sm:pr-[150px]">
             <h1 className="text-[30px] sm:text-[32px] leading-[1.1] font-extrabold uppercase tracking-[0.01em]">{title}</h1>
             <p className="mt-2 text-[15px] sm:text-[15.5px] leading-[1.45] text-[#DCE6FF]">{subtitle}</p>

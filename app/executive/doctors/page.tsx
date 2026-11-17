@@ -18,15 +18,15 @@ export default async function ExecutiveDoctorsPage() {
   const now = currentTime()
   const nowIso = new Date(now).toISOString()
 
-  const [doctors, applications, appointments, slotsResult, { data: hospitalRows }, badges, recentRes, weekRes] = await Promise.all([
+  const [doctors, applications, appointments, slotsResult, { data: hospitalRows }, badges, addedRes] = await Promise.all([
     loadDoctors(admin),
     loadApplications(admin, { withDocuments: true }),
     loadAppointments(admin),
     admin.from('schedules').select('doctor_id, start_time').eq('is_booked', false).gte('start_time', nowIso),
     admin.from('hospitals').select('id, name, city').order('name'),
     liveBadgeIds(admin),
-    admin.from('doctors').select('id, specialty, created_at, profiles!doctors_profile_id_fkey ( full_name ), hospitals ( name, status )').not('hospital_id', 'is', null).order('created_at', { ascending: false }).limit(5),
-    admin.from('doctors').select('id', { count: 'exact', head: true }).not('hospital_id', 'is', null).gte('created_at', new Date(now - 7 * 86_400_000).toISOString()),
+    // doctors has no created_at column: when a doctor was added is when their login (profile) was made.
+    admin.from('doctors').select('id, specialty, profiles!doctors_profile_id_fkey ( full_name, created_at ), hospitals ( name, status )').not('hospital_id', 'is', null).limit(10000),
   ])
   const hospitals = (hospitalRows ?? []) as HospitalOption[]
   const todayKey = istDateKey(now)
@@ -62,15 +62,21 @@ export default async function ExecutiveDoctorsPage() {
     .map(([label, value]) => ({ label, value, display: plural(value, 'booking') }))
   const submittedLabels = Object.fromEntries(pending.map((a) => [a.id, timeAgo(a.createdAt, now)]))
 
-  type RecentRow = { id: string; specialty: string | null; created_at: string | null; profiles: Joined<{ full_name: string | null }>; hospitals: Joined<{ name: string | null; status: string | null }> }
-  const recent = ((recentRes.data ?? []) as unknown as RecentRow[]).filter((r) => r.created_at)
+  type AddedRow = { id: string; specialty: string | null; profiles: Joined<{ full_name: string | null; created_at: string | null }>; hospitals: Joined<{ name: string | null; status: string | null }> }
+  const added = ((addedRes.data ?? []) as unknown as AddedRow[])
+    .map((r) => ({ ...r, created_at: one(r.profiles)?.created_at ?? null }))
+    .filter((r): r is AddedRow & { created_at: string } => !!r.created_at)
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+  const recent = added.slice(0, 5)
+  const weekAgo = now - 7 * 86_400_000
+  const addedThisWeek = added.filter((r) => Date.parse(r.created_at) >= weekAgo).length
 
   return (
     <ExePage name={profile.fullName} title="Doctors" subtitle="Every doctor on the network. Only doctors who register on their own need approval" actions={<AddDoctorButton hospitals={hospitals} />}>
       <Stats>
         <Stat label="Doctors on network" value={doctors.length.toLocaleString('en-IN')} note={`${withHospital} via hospitals · ${doctors.length - withHospital} independent`} />
         <Stat label="Independent registrations" value={pending.length} note={pending.length ? 'Waiting for approval' : 'Queue is clear'} tone={pending.length ? 'warn' : undefined} />
-        <Stat label="Added by hospitals" value={weekRes.count ?? 0} note="This week · live straight away" tone="blue" />
+        <Stat label="Added by hospitals" value={addedThisWeek} note="This week · live straight away" tone="blue" />
         <Stat label="Bookable today" value={openToday.size} note="With open slots" />
       </Stats>
 
@@ -100,7 +106,7 @@ export default async function ExecutiveDoctorsPage() {
                       </span>
                       <span className="shrink-0 text-right">
                         {one(r.hospitals)?.status === 'active' && <Status label="Live" color="#2A4DD0" />}
-                        <span className="block text-[12px] text-[#5B667A]">{formatShortDate(r.created_at!)}</span>
+                        <span className="block text-[12px] text-[#5B667A]">{formatShortDate(r.created_at)}</span>
                       </span>
                     </li>
                   )

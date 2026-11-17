@@ -31,7 +31,7 @@ const PORTALS: Record<Key, Portal> = {
   hos: {
     tab: "Hospitals",
     path: "/hospital/dashboard",
-    nav: [["Dashboard", LayoutDashboard], ["Patients", Users], ["Beds", BedDouble], ["Doctors & roster", CalendarDays], ["Finance", IndianRupee], ["Payouts", Wallet]],
+    nav: [["Dashboard", LayoutDashboard], ["Patients", Users], ["Beds", BedDouble], ["Doctors", CalendarDays], ["Finance", IndianRupee], ["Payouts", Wallet]],
     title: "Today at Medora Hospitals",
     features: [
       "Live queue with online bookings, walk-ins and fast track",

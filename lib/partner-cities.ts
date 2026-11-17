@@ -1,9 +1,11 @@
 import { unstable_cache } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { formatCityName } from '@/lib/geo'
+import { DIRECTORY_TAG } from '@/lib/public-directory'
 
-// The cities with a live partner hospital or diagnostic centre, for the footer's "Available in" (the same cities the
-// home page offers). Cached for an hour, so the footer doesn't cost a query on every page.
+// The cities with a live partner hospital or diagnostic centre, for the footer's "Available in" and the location
+// menu's "Cities we're in". Kept as long as the other public lists and expired with them (DIRECTORY_TAG) when a
+// hospital, lab or doctor is added or changed, so a city shows only while a partner is there.
 
 export const partnerCities = unstable_cache(
   async (): Promise<string[]> => {
@@ -16,5 +18,5 @@ export const partnerCities = unstable_cache(
     return Array.from(new Set(rows.map((r) => formatCityName(r.city)).filter(Boolean))).sort()
   },
   ['partner-cities'],
-  { revalidate: 3600 },
+  { tags: [DIRECTORY_TAG], revalidate: 120 },
 )

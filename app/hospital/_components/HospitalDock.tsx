@@ -15,7 +15,7 @@ const TABS: NavItem[] = [
   { href: '/hospital/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/hospital/patients', label: 'Patients', icon: Users },
   { href: '/hospital/beds', label: 'Beds', icon: BedDouble },
-  { href: '/hospital/doctors', label: 'Roster', icon: CalendarDays },
+  { href: '/hospital/doctors', label: 'Doctors', icon: CalendarDays },
   { href: '/hospital/more', label: 'More', icon: LayoutGrid },
 ]
 
@@ -23,7 +23,7 @@ const MENU: NavItem[] = [
   { href: '/hospital/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/hospital/patients', label: 'Patients', icon: Users },
   { href: '/hospital/beds', label: 'Beds', icon: BedDouble },
-  { href: '/hospital/doctors', label: 'Doctors & roster', icon: CalendarDays },
+  { href: '/hospital/doctors', label: 'Doctors', icon: CalendarDays },
   { href: '/hospital/revenue', label: 'Finance', icon: IndianRupee },
   { href: '/hospital/wallet', label: 'Payouts', icon: Wallet },
   { href: '/hospital/staff', label: 'Staff & access', icon: UsersRound },
@@ -48,8 +48,8 @@ const isActive = (pathname: string, href: string) => pathname === href || pathna
 
 /** The top bar's "where am I". */
 function crumb(pathname: string): string[] {
-  if (/^\/hospital\/doctors\/[^/]+\/schedule/.test(pathname)) return ['Doctors & roster', 'Slots']
-  if (pathname.startsWith('/hospital/doctors/leave')) return ['Doctors & roster', 'Leave requests']
+  if (/^\/hospital\/doctors\/[^/]+\/schedule/.test(pathname)) return ['Doctors', 'Slots']
+  if (pathname.startsWith('/hospital/doctors/leave')) return ['Doctors', 'Leave requests']
   if (pathname.startsWith('/hospital/branches/new')) return ['Accounts & branches', 'Add a branch']
   if (pathname.startsWith('/hospital/settings/services')) return ['Settings', 'Services & charges']
   if (pathname.startsWith('/hospital/settings/account')) return ['Settings', 'Login details']

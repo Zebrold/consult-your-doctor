@@ -134,7 +134,7 @@ export default async function HospitalFinancePage() {
         )}
       </Panel>
       <Panel>
-        <PanelHead title="Consultation fee card" sub="What each doctor charges per visit" right={<MoreLink href="/hospital/doctors">Edit on roster</MoreLink>} />
+        <PanelHead title="Consultation fee card" sub="What each doctor charges per visit" right={<MoreLink href="/hospital/doctors">Edit in Doctors</MoreLink>} />
         {feeCard.length === 0 ? (
           <EmptyLine>No doctors yet.</EmptyLine>
         ) : (

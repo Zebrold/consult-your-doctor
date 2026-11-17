@@ -27,7 +27,7 @@ type Props = {
 const SHOWN = 10;
 
 export function HomePage({ account, now, nextVisit, doctors, hospitals, cities, appQr }: Props) {
-  const place = usePatientLocation();
+  const place = usePatientLocation(cities);
   const [sheet, setSheet] = useState<"menu" | null>(null);
   const closeSheet = useCallback(() => setSheet(null), []);
 

@@ -1,7 +1,8 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
 import { z } from 'zod'
+import { DIRECTORY_TAG } from '@/lib/public-directory'
 import { executiveFor } from '@/app/executive/_lib/ops'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getOrAssignDiagnosticCenterCode, getOrAssignHospitalCode } from '@/lib/organization-ids'
@@ -203,6 +204,8 @@ export async function createHospital(form: FormData): Promise<CreatedOrg | Fail>
   }
   const emailedTo = await completeApplication(caller, form, 'hospital', hospital.id, login.staffId, handover)
   for (const path of ['/executive/hospitals', '/executive/doctors', '/hospitals']) revalidatePath(path)
+  // The public hospital list and the location menu's cities show the new hospital straight away.
+  updateTag(DIRECTORY_TAG)
   return { success: true, id: hospital.id, code, staffId: login.staffId, temporaryPassword: pick.generated ? pick.password : undefined, emailedTo }
 }
 
@@ -271,6 +274,7 @@ export async function createDiagnosticCenter(form: FormData): Promise<CreatedOrg
   }
   const emailedTo = await completeApplication(caller, form, 'diagnostic_center', center.id, login.staffId, handover)
   for (const path of ['/executive/diagnostics', '/diagnostics']) revalidatePath(path)
+  updateTag(DIRECTORY_TAG)
   return { success: true, id: center.id, code, staffId: login.staffId, temporaryPassword: pick.generated ? pick.password : undefined, emailedTo }
 }
 
@@ -339,5 +343,6 @@ export async function createDoctorAccount(form: FormData): Promise<
   const result = await provisionDoctor(caller.admin, { ...d, password: d.email ? null : d.password, invitedBy: caller.user.id })
   if ('error' in result) return fail(result.error)
   for (const path of ['/executive/doctors', '/executive/hospitals', '/hospital/doctors', '/hospitals']) revalidatePath(path)
+  updateTag(DIRECTORY_TAG)
   return { success: true, staffId: result.staffId, email: result.email, invitationSent: result.invitationSent }
 }

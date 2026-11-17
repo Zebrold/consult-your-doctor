@@ -35,12 +35,12 @@ export default async function DoctorSchedulePage(props: { params: Promise<{ id: 
 
   return (
     <>
-      <HosBackHeader backHref={rosterHref} backLabel="Back to the roster" title={`${name} · slots`}>
+      <HosBackHeader backHref={rosterHref} backLabel="Back to Doctors" title={`${name} · slots`}>
         <p className="mt-1 ml-[52px] text-[13px] text-[#DCE6FF] truncate">{facts}</p>
       </HosBackHeader>
       <HosBody>
         <div className="hidden lg:flex items-center gap-4 mb-[22px]">
-          <Link href={rosterHref} aria-label="Back to the roster" className="w-[42px] h-[42px] rounded-[11px] border border-[#D6DDE8] bg-white flex items-center justify-center hover:bg-[#F4F6FA]">
+          <Link href={rosterHref} aria-label="Back to Doctors" className="w-[42px] h-[42px] rounded-[11px] border border-[#D6DDE8] bg-white flex items-center justify-center hover:bg-[#F4F6FA]">
             <ArrowLeft className="w-[18px] h-[18px]" />
           </Link>
           <Initials name={name} image={doctor.image} className="w-12 h-12 text-[14px]" />

@@ -117,11 +117,27 @@ async function placeOf(lat: number, lng: number): Promise<{ label: string; city:
 
 export type LocateStatus = "idle" | "locating" | "denied" | "unavailable";
 
-export function usePatientLocation() {
+/**
+ * The patient's location in this browser. `cities`, when given, are the cities with partners: a city picked before
+ * that has none now counts as no location (so the lists don't come up empty), and the recent locations show only
+ * places in those cities. The device's own location is always kept; it is where the patient is.
+ */
+export function usePatientLocation(cities?: string[]) {
   const raw = useSyncExternalStore(subscribe, read, () => null);
-  const location = useMemo(() => parse(raw), [raw]);
   const rawRecent = useSyncExternalStore(subscribe, readRecent, () => null);
-  const recent = useMemo(() => parseRecent(rawRecent), [rawRecent]);
+  // A string, so a list rebuilt on every render doesn't redo the work below.
+  const servedKey = cities?.length ? Array.from(new Set(cities.map(formatCityName).filter(Boolean))).join("|") : "";
+  const location = useMemo(() => {
+    const saved = parse(raw);
+    if (!servedKey || saved?.kind !== "city") return saved;
+    return servedKey.split("|").some((c) => sameCity(c, saved.city)) ? saved : null;
+  }, [raw, servedKey]);
+  const recent = useMemo(() => {
+    const all = parseRecent(rawRecent);
+    if (!servedKey) return all;
+    const served = servedKey.split("|");
+    return all.filter((l) => !!l.city && served.some((c) => sameCity(c, l.city)));
+  }, [rawRecent, servedKey]);
   const [status, setStatus] = useState<LocateStatus>("idle");
 
   // A device location saved before cities were recorded: look its city up once.

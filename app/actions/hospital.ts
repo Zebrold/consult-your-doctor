@@ -2,8 +2,9 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
 import { createAdminClient as createServiceClient } from '@/lib/supabase/admin'
+import { DIRECTORY_TAG } from '@/lib/public-directory'
 import { provisionDoctor } from '@/lib/provisioning'
 import { isVisiting } from '@/lib/practices'
 
@@ -240,6 +241,8 @@ export async function createHospitalDoctor(formData: FormData) {
   if ('error' in result) return { error: result.error }
 
   for (const path of ['/hospital/dashboard', '/hospital/doctors', '/hospital/staff']) revalidatePath(path)
+  // Patients see the new doctor on the public lists straight away.
+  updateTag(DIRECTORY_TAG)
   return {
     success: true,
     doctorId: result.staffId,
@@ -379,6 +382,7 @@ export async function deleteHospitalDoctor(formData: FormData): Promise<{ succes
   }
 
   for (const path of ['/hospital/dashboard', '/hospital/doctors', '/hospital/staff']) revalidatePath(path)
+  updateTag(DIRECTORY_TAG)
   return { success: true }
 }
 

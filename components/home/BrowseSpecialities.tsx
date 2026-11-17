@@ -68,7 +68,7 @@ export function BrowseSpecialities({
   /** Words searched elsewhere on the site (/specialities?q=). */
   initialQuery?: string;
 }) {
-  const place = usePatientLocation();
+  const place = usePatientLocation(cities);
   const loc = useLocationMenu();
   const searchRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);

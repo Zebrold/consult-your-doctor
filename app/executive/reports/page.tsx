@@ -44,7 +44,9 @@ export default async function ExecutiveReportsPage() {
     admin.from('payments').select('transaction_id, amount, gateway, status, created_at, refund_amount').gte('created_at', lastStart).limit(20000),
     admin.from('doctor_reviews').select('rating, created_at').eq('is_published', true).gte('created_at', lastStart).limit(20000),
     admin.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'patient').gte('created_at', monthStart),
-    admin.from('doctors').select('id', { count: 'exact', head: true }).gte('created_at', monthStart),
+    // doctors has no created_at, so new doctors are new doctor logins. hospitals gets one in 20261120; until then
+    // this read fails and the row shows "—".
+    admin.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'doctor').gte('created_at', monthStart),
     admin.from('hospitals').select('id', { count: 'exact', head: true }).gte('created_at', monthStart),
     admin.from('verified_badges').select('id', { count: 'exact', head: true }).in('status', ['in_review', 'active']).gte('created_at', monthStart),
     admin.from('equipment_orders').select('id', { count: 'exact', head: true }).not('paid_at', 'is', null).gte('paid_at', monthStart),

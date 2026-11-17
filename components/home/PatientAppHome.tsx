@@ -49,7 +49,7 @@ const weekday = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { tim
 
 /** A signed-in patient's home: greeting, search, specialities, their next visit and partner hospitals near them. */
 export function PatientAppHome({ greeting, name, isSignedIn, hospitals, cities, next, vitals, vitalsAt, records, insurance = null }: Props) {
-  const place = usePatientLocation();
+  const place = usePatientLocation(cities);
   const loc = useLocationMenu();
   const near = nearbyOnly(hospitals, place.location).slice(0, 6);
   const where = place.location?.label;

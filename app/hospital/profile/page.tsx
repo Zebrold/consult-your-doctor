@@ -127,9 +127,9 @@ export default async function HospitalProfilePage() {
 
   const departmentsCard = (
     <Panel>
-      <PanelHead title="Departments & fees" sub="Consultation fee paid at the desk" right={<MoreLink href="/hospital/doctors">Roster</MoreLink>} />
+      <PanelHead title="Departments & fees" sub="Consultation fee paid at the desk" right={<MoreLink href="/hospital/doctors">Doctors</MoreLink>} />
       {departments.size === 0 ? (
-        <EmptyLine>No doctors yet. Add them from the duty roster.</EmptyLine>
+        <EmptyLine>No doctors yet. Add them from Doctors.</EmptyLine>
       ) : (
         Array.from(departments.entries()).map(([dept, list]) => {
           const fees = list.map((d) => d.fee).filter((f): f is number => f != null)

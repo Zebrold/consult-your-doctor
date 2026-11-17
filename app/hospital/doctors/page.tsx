@@ -12,7 +12,7 @@ import { doctorPauses } from '@/lib/doctor-pause'
 import { DutySheetButton, RosterList, type RosterDoctor, type RosterState } from '../_components/RosterList'
 import { BarChart, DeskHead, EmptyLine, HosBody, HosHeader, Meter, Panel, PanelHead, PhoneStats, StatCard, btnOutline, btnPrimary, plural } from '../_components/hos-ui'
 
-export const metadata: Metadata = { title: 'Duty Roster | Hospital Portal' }
+export const metadata: Metadata = { title: 'Doctors | Hospital Portal' }
 export const dynamic = 'force-dynamic'
 
 const DAY = 86_400_000
@@ -170,7 +170,7 @@ export default async function HospitalRosterPage(props: { searchParams?: Promise
 
   return (
     <>
-      <HosHeader staff={staff} title="Doctors & duty roster" subtitle={subtitle}>
+      <HosHeader staff={staff} title="Doctors" subtitle={subtitle}>
         <div className="flex items-center justify-between p-1.5 rounded-[14px] bg-white text-[#0B1B3F]">
           <Link href={dayHref(shiftDay(day, -1))} aria-label="Previous day" className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center active:bg-[#F4F6FA]">
             <ChevronLeft className="w-5 h-5" />
@@ -191,7 +191,7 @@ export default async function HospitalRosterPage(props: { searchParams?: Promise
           </Link>
         )}
         <DeskHead
-          title="Doctors & duty roster"
+          title="Doctors"
           subtitle={subtitle}
           actions={
             <>

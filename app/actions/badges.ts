@@ -141,7 +141,7 @@ export async function startHospitalBadges(input: { hospital: boolean; doctorIds:
   }
 
   if (input.hospital) {
-    const { data: h } = await admin.from('hospitals').select('status, created_at').eq('id', hospitalId).maybeSingle()
+    const { data: h } = await admin.from('hospitals').select('status').eq('id', hospitalId).maybeSingle()
     if (h?.status !== 'active') return { ok: false, error: 'Your hospital needs to be live on Consult your Doctor first.' }
     const badges = await subjectBadges(admin, 'hospital_id', hospitalId, 'hospital')
     if (!badges) return { ok: false, error: NOT_SET_UP }

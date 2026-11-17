@@ -38,7 +38,8 @@ export async function buildMonthlyReport(admin: Admin, month: string, now = Date
     admin.from('diagnostic_bookings').select('id, status, test_name, created_at, diagnostic_centers ( name )').gte('created_at', from).lt('created_at', to).limit(20000),
     admin.from('payments').select('transaction_id, amount, gateway, status, created_at').gte('created_at', from).lt('created_at', to).limit(20000),
     admin.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'patient').gte('created_at', from).lt('created_at', to),
-    admin.from('doctors').select('id', { count: 'exact', head: true }).gte('created_at', from).lt('created_at', to),
+    // doctors has no created_at, so new doctors are new doctor logins; hospitals.created_at comes with 20261120.
+    admin.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'doctor').gte('created_at', from).lt('created_at', to),
     admin.from('hospitals').select('id', { count: 'exact', head: true }).gte('created_at', from).lt('created_at', to),
     admin.from('verified_badges').select('id', { count: 'exact', head: true }).in('status', ['in_review', 'active']).gte('created_at', from).lt('created_at', to),
     admin.from('equipment_orders').select('id', { count: 'exact', head: true }).not('paid_at', 'is', null).gte('paid_at', from).lt('paid_at', to),
@@ -69,7 +70,7 @@ export async function buildMonthlyReport(admin: Admin, month: string, now = Date
     ['Refund rate', settled.length ? `${((refunded.length / settled.length) * 100).toFixed(1)}%` : '—'],
     ['New patients', String(patients.count ?? 0)],
     ['New doctors', String(doctors.count ?? 0)],
-    ['New hospitals and branches', String(hospitals.count ?? 0)],
+    ['New hospitals and branches', hospitals.error ? '—' : String(hospitals.count ?? 0)],
     ...(badges.error ? [] : ([['Badge sign-ups', String(badges.count ?? 0)]] as [string, string][])),
     ...(orders.error ? [] : ([['Equipment orders', String(orders.count ?? 0)]] as [string, string][])),
     ['Support tickets', String((tickets.data ?? []).length)],

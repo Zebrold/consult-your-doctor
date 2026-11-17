@@ -335,7 +335,7 @@ export function AddDoctorButton({
                         <Rupee>
                           <input name="consultationFee" type="number" inputMode="numeric" min={1} required aria-label="Consultation fee in rupees" className={bareInput} />
                         </Rupee>
-                        <span className={hint}>Collected at your counter for each visit. Publish the doctor’s slots from Doctors &amp; roster after adding them.</span>
+                        <span className={hint}>Collected at your counter for each visit. Publish the doctor’s slots from Doctors after adding them.</span>
                       </label>
                       <label className="block min-w-0">
                         <span className={label}>Room or cabin</span>

@@ -188,7 +188,7 @@ function AddPatientDialog({ doctors, fees, onClose, onAnother }: { doctors: Desk
   const slotText = chosen ? `${formatDayLabel(chosen.start, now)}, ${formatTime(chosen.start)}` : 'Walk-in, seen now'
   const fast = priority === 'fast_track' && fees.fastTrack != null
   const canAdd = !!verified && !!doctor?.fee
-  const blocker = !verified ? 'Confirm the mobile number to continue' : !doctor?.fee ? 'Set this doctor’s fee on the Roster first' : null
+  const blocker = !verified ? 'Confirm the mobile number to continue' : !doctor?.fee ? 'Set this doctor’s fee in Doctors first' : null
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -369,7 +369,7 @@ function AddPatientDialog({ doctors, fees, onClose, onAnother }: { doctors: Desk
                   Attending doctor<span className="text-[#B42318]"> *</span>
                 </span>
                 {doctors.length === 0 ? (
-                  <p className="p-3.5 rounded-xl bg-[#F7F9FC] text-[13.5px] text-[#5B667A]">Add a doctor on the Roster first.</p>
+                  <p className="p-3.5 rounded-xl bg-[#F7F9FC] text-[13.5px] text-[#5B667A]">Add a doctor in Doctors first.</p>
                 ) : (
                   <div role="radiogroup" aria-label="Attending doctor" className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {doctors.map((d) => {
@@ -404,7 +404,7 @@ function AddPatientDialog({ doctors, fees, onClose, onAnother }: { doctors: Desk
                   <div>
                     <span className={label}>Consultation fee (₹)</span>
                     <div className="flex items-center h-[46px] px-3.5 rounded-xl border border-[#E1E7F0] bg-[#F7F9FC] text-[15px] font-extrabold">{doctor?.fee ? `₹ ${doctor.fee}` : '—'}</div>
-                    <span className={hint}>{doctor?.fee ? `${doctor.name}’s fee, set on the Roster. Paid at your desk.` : 'Set this doctor’s consultation fee on the Roster first.'}</span>
+                    <span className={hint}>{doctor?.fee ? `${doctor.name}’s fee, set in Doctors. Paid at your desk.` : 'Set this doctor’s consultation fee in Doctors first.'}</span>
                   </div>
                   <div>
                     <span className={label}>Visit priority</span>

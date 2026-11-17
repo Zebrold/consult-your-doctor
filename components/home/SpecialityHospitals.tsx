@@ -41,7 +41,7 @@ export function SpecialityHospitals({
   /** Shown inside the patient workspace, whose desktop bar has the breadcrumb and search. */
   docked?: boolean;
 }) {
-  const place = usePatientLocation();
+  const place = usePatientLocation(cities);
   const loc = useLocationMenu();
   const locChip = useRef<HTMLButtonElement>(null);
   const [chosenSort, setSort] = useState<Sort | null>(null);

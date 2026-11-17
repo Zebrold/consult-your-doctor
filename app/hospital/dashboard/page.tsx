@@ -106,7 +106,7 @@ export default async function HospitalDashboardPage() {
     attention.push({
       id: 'slots',
       title: `${doctorName(unscheduled[0].name)} has no slots${unscheduled.length > 1 ? ` (+${unscheduled.length - 1} more)` : ''}`,
-      tag: 'Roster',
+      tag: 'Doctors',
       color: '#B42318',
       sub: `Nothing published for the next 7 days, so patients can’t book. ${unscheduled[0].department}.`,
       cta: 'Publish slots',
@@ -180,7 +180,7 @@ export default async function HospitalDashboardPage() {
           actions={
             <>
               <Link href="/hospital/doctors" className={btnOutline}>
-                <CalendarDays className="w-4 h-4" /> Duty roster
+                <CalendarDays className="w-4 h-4" /> Doctors
               </Link>
               <Link href="/hospital/patients?walkin=1" className={btnOutline}>
                 <Plus className="w-4 h-4" strokeWidth={2.4} /> Walk-in patient
@@ -192,7 +192,7 @@ export default async function HospitalDashboardPage() {
 
         <div className="lg:hidden grid grid-cols-2 gap-2.5 mb-3.5">
           <Link href="/hospital/doctors" className={`${btnOutline} !h-[46px]`}>
-            <CalendarDays className="w-4 h-4" /> Duty roster
+            <CalendarDays className="w-4 h-4" /> Doctors
           </Link>
           <AddDoctorButton departments={departments} hospitalName={[hospital.name, hospital.city].filter(Boolean).join(', ')} label="Add doctor" className={`${btnPrimary} !h-[46px] !shadow-none`} />
         </div>
@@ -318,9 +318,9 @@ export default async function HospitalDashboardPage() {
             </Panel>
 
             <Panel className="order-3 lg:hidden" label="Clinic sessions today">
-              <PanelHead title="Clinic sessions today" sub="Published slots by doctor" right={<MoreLink href="/hospital/doctors">Roster</MoreLink>} />
+              <PanelHead title="Clinic sessions today" sub="Published slots by doctor" right={<MoreLink href="/hospital/doctors">Doctors</MoreLink>} />
               {onDuty.length === 0 ? (
-                <EmptyLine>No sessions today. Publish slots from the duty roster.</EmptyLine>
+                <EmptyLine>No sessions today. Publish slots from Doctors.</EmptyLine>
               ) : (
                 <ul>
                   {onDuty.map(({ doctor: d, mine }) => {
@@ -392,7 +392,7 @@ export default async function HospitalDashboardPage() {
             </Panel>
 
             <Panel>
-              <PanelHead title="Doctors on duty" sub={`${onDuty.length} of ${doctors.length} today`} right={<MoreLink href="/hospital/doctors">Roster</MoreLink>} />
+              <PanelHead title="Doctors on duty" sub={`${onDuty.length} of ${doctors.length} today`} right={<MoreLink href="/hospital/doctors">Doctors</MoreLink>} />
               {onDuty.length === 0 ? (
                 <EmptyLine>No doctor has slots today.</EmptyLine>
               ) : (

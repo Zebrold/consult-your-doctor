@@ -88,12 +88,12 @@ function DirectoryFrame<T extends Placed>({
   matches: (item: T, q: string) => boolean;
   render: (item: T, km: number | null, load: ImageLoad) => ReactNode;
 }) {
-  const place = usePatientLocation();
+  const cities = Array.from(new Set(items.map((i) => i.city).filter(Boolean) as string[])).sort();
+  const place = usePatientLocation(cities);
   const loc = useLocationMenu();
   const [query, setQuery] = useState(initialQuery);
   const q = query.trim().toLowerCase();
   const where = place.location?.label ?? (initialCity || null);
-  const cities = Array.from(new Set(items.map((i) => i.city).filter(Boolean) as string[])).sort();
   // A city in the link (/hospitals/in/<city>) narrows the list until the patient sets a location of their own.
   const inCity = !place.location && initialCity ? items.filter((i) => sameCity(i.city, initialCity)) : items;
   const rows = byNearness(inCity, place.location).filter(({ item }) => !q || matches(item, q));

@@ -17,7 +17,6 @@ type HospitalRow = {
   address: string | null
   status: string | null
   hospital_code: string | null
-  created_at: string | null
 }
 
 /** Hospitals after DeskExeHospitals: applications to review, and every hospital with its doctors, login and badge. */
@@ -25,7 +24,8 @@ export default async function ExecutiveHospitalsPage() {
   const { admin, profile } = await requireExecutivePage('hospitals')
 
   const [{ data: hospitalRows }, { data: doctorRows }, { data: loginRows }, applications, badges, bedsRes, accessRes, { data: adminRows }] = await Promise.all([
-    admin.from('hospitals').select('id, name, city, address, status, hospital_code, created_at').order('name'),
+    // hospitals has no created_at column; asking for one fails the whole read and the page shows no hospitals.
+    admin.from('hospitals').select('id, name, city, address, status, hospital_code').order('name'),
     admin.from('doctors').select('hospital_id'),
     admin.from('profiles').select('hospital_id, staff_id').eq('role', 'hospital_admin'),
     loadPartnerApplications(admin, 'hospital', { withDocuments: true }),

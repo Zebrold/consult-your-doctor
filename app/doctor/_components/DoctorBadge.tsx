@@ -12,6 +12,8 @@ import { Panel, PanelHead, Verified, btnOutline, btnPrimary } from './doc-ui'
 
 type State = {
   liveUntil: string | null
+  /** The live badge is the free one every new doctor gets (no paid period after it yet). */
+  liveFree?: boolean
   inReview: boolean
   askedHospital: { id: string; plan: BadgePlan } | null
   rejected: string | null
@@ -120,8 +122,12 @@ export function DoctorBadge({
           <div className="flex items-center gap-3.5 mt-5 p-4 lg:p-[18px] rounded-[14px] bg-[#F5F8FF] shadow-[inset_0_0_0_1px_#DCE5FF]">
             <BadgeCheck className="w-7 h-7 text-[#2A4DD0] shrink-0" />
             <span className="flex-1">
-              <span className="block text-[15.5px] font-extrabold">Your verified badge is active</span>
-              <span className="block mt-0.5 text-[13px] text-[#27324A]">Until {state.liveUntil}. It doesn’t renew by itself; you can renew it here in its last 7 days.</span>
+              <span className="block text-[15.5px] font-extrabold">{state.liveFree ? 'Your free verified badge is active' : 'Your verified badge is active'}</span>
+              <span className="block mt-0.5 text-[13px] text-[#27324A]">
+                {state.liveFree
+                  ? `Included free for your first 3 months, until ${state.liveUntil}. To keep the blue tick after that, renew it here in its last 7 days.`
+                  : `Until ${state.liveUntil}. It doesn’t renew by itself; you can renew it here in its last 7 days.`}
+              </span>
             </span>
           </div>
         )}

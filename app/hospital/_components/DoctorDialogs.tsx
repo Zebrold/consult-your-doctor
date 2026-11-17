@@ -366,16 +366,16 @@ export function AddDoctorButton({
                       {mode === 'manual' && (
                         <label className="block min-w-0">
                           <span className={label}>
-                            Password
+                            Temporary password
                             <Req />
                           </span>
                           <input name="password" type="password" required minLength={8} autoComplete="new-password" className={input} />
-                          <span className={hint}>At least 8 characters. Share it with the doctor yourself.</span>
+                          <span className={hint}>At least 8 characters. Share it with the doctor; they set their own when they first sign in.</span>
                         </label>
                       )}
                     </div>
                     <p className="mt-[18px] flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-[#F5F8FF] text-[13px] leading-[1.45] text-[#27324A]">
-                      <CircleCheck className="w-[18px] h-[18px] shrink-0 text-[#2A4DD0] mt-px" />A Doctor ID is created automatically. Patients can book the doctor once their slots are published.
+                      <CircleCheck className="w-[18px] h-[18px] shrink-0 text-[#2A4DD0] mt-px" />A Doctor ID is created automatically, and the doctor gets the verified badge free for 3 months. Patients can book the doctor once their slots are published.
                     </p>
                   </Section>
 

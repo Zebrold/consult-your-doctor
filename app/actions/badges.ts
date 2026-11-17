@@ -160,7 +160,8 @@ export async function startHospitalBadges(input: { hospital: boolean; doctorIds:
     if (blocked) return { ok: false, error: blocked }
     // A doctor's own "ask my hospital to pay" request is paid as asked (their plan); otherwise monthly.
     const asked = badges.find((b) => b.status === 'awaiting_payment' && b.paidBy === 'hospital') ?? null
-    lines.push({ subject: 'doctor', doctorId: id, plan: asked?.plan ?? 'monthly', amount: asked?.amount ?? prices.doctor.monthly, reuse: asked?.id ?? null })
+    const askedPlan = asked && asked.plan !== 'welcome' ? asked.plan : 'monthly'
+    lines.push({ subject: 'doctor', doctorId: id, plan: askedPlan, amount: asked?.amount ?? prices.doctor.monthly, reuse: asked?.id ?? null })
   }
 
   const total = lines.reduce((s, l) => s + l.amount, 0)
@@ -237,7 +238,7 @@ export async function approveBadge(badgeId: string): Promise<Result> {
   const { data } = await ctx.admin.from('verified_badges').select(BADGE_COLUMNS).eq('id', badgeId).maybeSingle()
   if (!data) return { ok: false, error: 'Not found.' }
   const badge = toBadge(data as Parameters<typeof toBadge>[0])
-  if (badge.status !== 'in_review') return { ok: false, error: 'Only paid badges waiting for review can be approved.' }
+  if (badge.status !== 'in_review' || badge.plan === 'welcome') return { ok: false, error: 'Only paid badges waiting for review can be approved.' }
   const column = badge.subject === 'doctor' ? 'doctor_id' : 'hospital_id'
   const others = (await subjectBadges(ctx.admin, column, (badge.doctorId ?? badge.hospitalId)!, badge.subject)) ?? []
   const now = new Date()

@@ -3,6 +3,7 @@
 import { revalidatePath, updateTag } from 'next/cache'
 import { z } from 'zod'
 import { DIRECTORY_TAG } from '@/lib/public-directory'
+import { grantWelcomeBadge } from '@/lib/badges'
 import { executiveFor } from '@/app/executive/_lib/ops'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getOrAssignDiagnosticCenterCode, getOrAssignHospitalCode } from '@/lib/organization-ids'
@@ -189,6 +190,9 @@ export async function createHospital(form: FormData): Promise<CreatedOrg | Fail>
     await admin.from('hospitals').delete().eq('id', hospital.id)
     return fail(login.error)
   }
+
+  // Every new hospital shows the verified tick free for its first 3 months.
+  await grantWelcomeBadge(admin, 'hospital', hospital.id)
 
   // The usual departments, so doctors can be added straight away.
   await admin.from('departments').insert(

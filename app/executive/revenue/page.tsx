@@ -32,7 +32,7 @@ export default async function ExecutiveRevenuePage() {
     loadAppointments(admin),
     loadLabBookings(admin),
     loadPayments(admin),
-    admin.from('verified_badges').select('subject, amount, status, created_at').in('status', ['in_review', 'active']).gte('created_at', monthStart).limit(5000),
+    admin.from('verified_badges').select('subject, amount, status, created_at').in('status', ['in_review', 'active']).neq('plan', 'welcome').gte('created_at', monthStart).limit(5000),
     admin.from('equipment_orders').select('total, status, paid_at').not('paid_at', 'is', null).gte('paid_at', monthStart).limit(5000),
     admin.from('hospital_payouts').select('hospital_id, amount, processed_at').eq('status', 'paid').gte('processed_at', monthStart).limit(5000),
     admin.from('hospitals').select('id, name'),

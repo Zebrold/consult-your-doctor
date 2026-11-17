@@ -15,6 +15,8 @@ export type HospitalBadgeState = {
   /** Listed on Consult your Doctor (a badge needs that first). */
   live: boolean
   activeUntil: string | null
+  /** The live badge is the free one every new hospital gets (no paid period after it yet). */
+  activeFree?: boolean
   renewedUntil: string | null
   inReview: boolean
   rejected: string | null
@@ -136,7 +138,7 @@ export function HospitalBadges({
             </span>
           ) : h.activeUntil && !h.canRenew ? (
             <span className="flex items-center justify-between gap-2.5 mt-1 pt-3.5 border-t border-[#EEF2F7] lg:block lg:mt-0 lg:pt-0 lg:border-0">
-              <span className="inline-flex items-center h-6 px-[9px] rounded-full bg-[#EEF3FF] text-[#2A4DD0] text-[11.5px] font-extrabold">Active</span>
+              <span className="inline-flex items-center h-6 px-[9px] rounded-full bg-[#EEF3FF] text-[#2A4DD0] text-[11.5px] font-extrabold">{h.activeFree ? 'Free for 3 months' : 'Active'}</span>
               <span className="block lg:mt-1.5 text-[12.5px] text-[#5B667A]">Until {h.renewedUntil ?? h.activeUntil}</span>
             </span>
           ) : (
@@ -145,7 +147,7 @@ export function HospitalBadges({
                 {formatINR(hospital.prices[plan])}
                 <span className="text-[13px] font-semibold text-[#5B667A]"> / {plan === 'yearly' ? 'year' : 'month'}</span>
               </span>
-              {h.activeUntil && <span className="block text-[12.5px] text-[#5B667A]">Active until {h.activeUntil}</span>}
+              {h.activeUntil && <span className="block text-[12.5px] text-[#5B667A]">{h.activeFree ? 'Free badge' : 'Active'} until {h.activeUntil}</span>}
               {h.rejected && <span className="block col-span-2 max-w-[260px] lg:ml-auto text-[12.5px] text-[#B42318]">Not approved: {h.rejected}</span>}
               <button type="button" disabled={!ready || !h.live || !!busy} onClick={() => pay('hospital')} className={`${btnPrimary} col-start-2 row-start-1 row-span-2 lg:mt-2`}>
                 {busy === 'hospital' && <Loader2 className="w-4 h-4 animate-spin" />}

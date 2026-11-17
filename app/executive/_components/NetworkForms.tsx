@@ -475,7 +475,7 @@ export function AddDoctorButton({ hospitals }: { hospitals: HospitalOption[] }) 
                       <input name="email" type="email" required maxLength={160} className={dlgInput} autoComplete="off" />
                     </DlgField>
                   ) : (
-                    <DlgField label="Password" required hint={`${PASSWORD_RULE} Give it to the doctor yourself.`}>
+                    <DlgField label="Temporary password" required hint={`${PASSWORD_RULE} Give it to the doctor; they set their own when they first sign in.`}>
                       <input name="password" type="password" required minLength={10} maxLength={128} className={dlgInput} autoComplete="new-password" />
                     </DlgField>
                   )}

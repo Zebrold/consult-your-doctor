@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { TEMPORARY_PASSWORD, hasTemporaryPassword } from '@/lib/temporary-password'
 
 // A staff member's own sign-in details: their name and phone, their Staff ID and their password.
 //
@@ -98,10 +99,54 @@ export async function changeMyPassword(input: { current: string; next: string })
   if (wrong) return fail('Your current password is incorrect.')
   await check.auth.signOut({ scope: 'local' }).catch(() => {})
 
-  const { error } = await ctx.admin.auth.admin.updateUserById(ctx.user.id, { password: input.next })
+  const { error } = await ctx.admin.auth.admin.updateUserById(ctx.user.id, { password: input.next, ...notTemporary(ctx.user) })
   if (error) {
     console.error('changeMyPassword:', error)
     return fail(/weak|short|password/i.test(error.message) ? error.message : 'Could not change your password. Please try again.')
   }
   return { ok: true }
+}
+
+/** Clears the temporary-password mark (lib/temporary-password.ts) along with a password change. */
+const notTemporary = (user: { app_metadata?: Record<string, unknown> }) => (hasTemporaryPassword(user) ? { app_metadata: { [TEMPORARY_PASSWORD]: false } } : {})
+
+const passwordProblem = (next: string, confirm: string) =>
+  next.length < 8
+    ? 'Use a password of at least 8 characters.'
+    : !/[A-Za-z]/.test(next) || !/\d/.test(next)
+      ? 'Use letters and at least one number.'
+      : next !== confirm
+        ? 'The two passwords don’t match.'
+        : null
+
+/**
+ * The first sign-in with a temporary password: the staff member sets their own. They have just signed in with the
+ * temporary one, so it isn't asked for again; this only works while the login is still marked temporary.
+ */
+export async function setMyFirstPassword(input: { next: string; confirm: string }): Promise<Result> {
+  const ctx = await staffContext()
+  if (!ctx) return fail('Please log in with your staff account.')
+  if (!hasTemporaryPassword(ctx.user)) return fail('Your password is already your own. Change it from Login details.')
+  const problem = passwordProblem(input.next, input.confirm)
+  if (problem) return fail(problem)
+
+  const { error } = await ctx.admin.auth.admin.updateUserById(ctx.user.id, { password: input.next, ...notTemporary(ctx.user) })
+  if (error) {
+    console.error('setMyFirstPassword:', error)
+    if (/same|different/i.test(error.message)) return fail('Choose a password different from the temporary one.')
+    return fail(/weak|short|password/i.test(error.message) ? error.message : 'Could not save your password. Please try again.')
+  }
+  refresh(ctx.profile.role)
+  return { ok: true }
+}
+
+/**
+ * After a staff member sets a new password from an emailed link (/update-password), their login is no longer on a
+ * temporary password. Only ever clears the caller's own mark.
+ */
+export async function clearMyTemporaryPassword(): Promise<void> {
+  const ctx = await staffContext()
+  if (!ctx || !hasTemporaryPassword(ctx.user)) return
+  const { error } = await ctx.admin.auth.admin.updateUserById(ctx.user.id, notTemporary(ctx.user))
+  if (error) console.error('clearMyTemporaryPassword:', error)
 }

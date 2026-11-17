@@ -275,6 +275,7 @@ export default async function DoctorProfilePage() {
     <section className={`${card} overflow-hidden`}>
       {[
         { href: `/doctors/${doctor.id}`, label: 'Public profile' },
+        { href: '/doctor/account', label: 'Login details & password' },
         { href: '/doctor/ai', label: 'Help & support' },
         { href: '/terms-of-use', label: 'Terms & conditions' },
         { href: '/privacy-policy', label: 'Privacy policy' },

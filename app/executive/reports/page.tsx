@@ -48,7 +48,7 @@ export default async function ExecutiveReportsPage() {
     // this read fails and the row shows "—".
     admin.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'doctor').gte('created_at', monthStart),
     admin.from('hospitals').select('id', { count: 'exact', head: true }).gte('created_at', monthStart),
-    admin.from('verified_badges').select('id', { count: 'exact', head: true }).in('status', ['in_review', 'active']).gte('created_at', monthStart),
+    admin.from('verified_badges').select('id', { count: 'exact', head: true }).in('status', ['in_review', 'active']).neq('plan', 'welcome').gte('created_at', monthStart),
     admin.from('equipment_orders').select('id', { count: 'exact', head: true }).not('paid_at', 'is', null).gte('paid_at', monthStart),
     admin.from('hospital_payouts').select('hospital_id, amount, status, reference, created_at, processed_at').gte('created_at', lastStart).lt('created_at', monthStart).limit(5000),
     admin.from('tickets').select('ticket_code, requester_role, category, subject, priority, status, created_at').gte('created_at', lastStart).lt('created_at', monthStart).limit(5000),

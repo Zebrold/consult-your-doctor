@@ -4,11 +4,18 @@ type Admin = ReturnType<typeof createAdminClient>
 
 // Verified badges (supabase/migrations/20261114_grow_and_manage.sql): a doctor or hospital pays for a badge, the
 // Consult your Doctor team checks the requirements (/executive/badges), and the blue tick shows on public pages only
-// while the badge is active. Paying never switches it on by itself.
+// while the badge is active. Paying never switches it on by itself. The one exception is the free welcome badge
+// (grantWelcomeBadge): every hospital and doctor gets the tick for their first 3 months when they join.
 
 export type BadgeSubject = 'doctor' | 'hospital'
+/** The plans that can be bought. */
 export type BadgePlan = 'monthly' | 'yearly'
+/** Any badge's plan: a bought one, or the free welcome badge every new hospital and doctor gets (20261121). */
+export type BadgeTerm = BadgePlan | 'welcome'
 export type BadgeStatus = 'awaiting_payment' | 'in_review' | 'active' | 'rejected' | 'cancelled'
+
+/** How long the free welcome badge lasts. */
+export const WELCOME_MONTHS = 3
 
 export type BadgePrices = Record<BadgeSubject, Record<BadgePlan, number>>
 
@@ -26,7 +33,7 @@ export const MAX_BADGE_PRICE = 100_000
 /** Whole rupees, from ₹1 to ₹1,00,000. */
 export const validBadgePrice = (n: unknown): n is number => typeof n === 'number' && Number.isInteger(n) && n >= MIN_BADGE_PRICE && n <= MAX_BADGE_PRICE
 
-export const PLAN_LABEL: Record<BadgePlan, string> = { monthly: 'Monthly', yearly: 'Yearly' }
+export const PLAN_LABEL: Record<BadgeTerm, string> = { monthly: 'Monthly', yearly: 'Yearly', welcome: `Free ${WELCOME_MONTHS} months` }
 export const PLAN_PER: Record<BadgePlan, string> = { monthly: 'per month', yearly: 'per year' }
 
 export type Badge = {
@@ -34,7 +41,7 @@ export type Badge = {
   subject: BadgeSubject
   doctorId: string | null
   hospitalId: string | null
-  plan: BadgePlan
+  plan: BadgeTerm
   amount: number
   status: BadgeStatus
   paidBy: 'doctor' | 'hospital'
@@ -49,7 +56,7 @@ type Row = {
   subject: BadgeSubject
   doctor_id: string | null
   hospital_id: string | null
-  plan: BadgePlan
+  plan: BadgeTerm
   amount: number | string
   status: BadgeStatus
   paid_by: 'doctor' | 'hospital'
@@ -159,6 +166,31 @@ export function doctorRequirements(d: { registrationNumber: string | null; image
 
 /** The requirements a doctor can be bought a badge with: everything that can be seen is met. */
 export const meetsRequirements = (reqs: Requirement[]) => reqs.every((r) => r.met !== false)
+
+/**
+ * Switches on the free welcome badge for a hospital or doctor that has just joined: the blue tick for their first
+ * WELCOME_MONTHS months, with no payment and no review (the team checked them when they were added or approved).
+ * After that they can buy one like anyone else. One per hospital or doctor, ever (a unique index in 20261121). Never
+ * blocks joining: until that migration runs the insert fails and is only logged.
+ */
+export async function grantWelcomeBadge(admin: Admin, subject: BadgeSubject, id: string): Promise<void> {
+  const start = new Date()
+  const end = new Date(start)
+  end.setUTCMonth(end.getUTCMonth() + WELCOME_MONTHS)
+  const { error } = await admin.from('verified_badges').insert({
+    subject,
+    ...(subject === 'doctor' ? { doctor_id: id } : { hospital_id: id }),
+    plan: 'welcome',
+    amount: 0,
+    status: 'active',
+    paid_by: subject,
+    starts_at: start.toISOString(),
+    ends_at: end.toISOString(),
+    reviewed_at: start.toISOString(),
+  })
+  // 23505: they already had their welcome badge.
+  if (error && error.code !== '23505') console.error(`grantWelcomeBadge ${subject} ${id}:`, error.message)
+}
 
 /** When a badge approved now (or after the live one) would end. */
 export function periodEnd(startIso: string, plan: BadgePlan) {

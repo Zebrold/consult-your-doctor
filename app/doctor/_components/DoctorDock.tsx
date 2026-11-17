@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, CalendarDays, CalendarX2, ChartLine, CircleHelp, ExternalLink, Hospital, LayoutGrid, LogOut, Search, ShieldCheck, Star, UserRound, Users, type LucideIcon } from 'lucide-react'
+import { Bell, CalendarDays, CalendarX2, ChartLine, CircleHelp, ExternalLink, Hospital, KeyRound, LayoutGrid, LogOut, Search, ShieldCheck, Star, UserRound, Users, type LucideIcon } from 'lucide-react'
 import { initials } from '@/components/patient/format'
 import { FloatingTabBar } from '@/components/FloatingTabBar'
 
@@ -25,7 +25,7 @@ const GROW: NavItem[] = [
 ]
 
 // Reached from Profile on phones, so the Profile tab stays lit there.
-const UNDER_PROFILE = GROW.map((g) => g.href)
+const UNDER_PROFILE = [...GROW.map((g) => g.href), '/doctor/account']
 
 const isActive = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`)
 
@@ -36,6 +36,7 @@ function crumb(pathname: string): string[] {
   if (pathname.startsWith('/doctor/schedule')) return ['Schedule']
   if (pathname.startsWith('/doctor/profile')) return ['Profile']
   if (pathname.startsWith('/doctor/ai')) return ['Help & support']
+  if (pathname.startsWith('/doctor/account')) return ['Login details']
   const grow = GROW.find((g) => isActive(pathname, g.href))
   if (grow) return [grow.label]
   return ['Dashboard']
@@ -81,6 +82,7 @@ export function DoctorDock({ doctor }: { doctor: { id: string; name: string; spe
         ))}
         <span className="flex-1 min-h-8" />
         <RailLink item={{ href: `/doctors/${doctor.id}`, label: 'Public profile', icon: ExternalLink }} active={false} small />
+        <RailLink item={{ href: '/doctor/account', label: 'Login details', icon: KeyRound }} active={pathname.startsWith('/doctor/account')} small />
         <RailLink item={{ href: '/doctor/ai', label: 'Help & support', icon: CircleHelp }} active={pathname.startsWith('/doctor/ai')} small />
         <div className="shrink-0 flex items-center gap-2.5 mt-3 p-3 rounded-[14px] border border-white/20">
           <Link href="/doctor/profile" className="flex flex-1 min-w-0 items-center gap-2.5">

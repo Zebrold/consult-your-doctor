@@ -29,7 +29,7 @@ export default async function ExecutiveBadgesPage(props: { searchParams?: Promis
   const [review, active, month] = await Promise.all([
     admin.from('verified_badges').select(BADGE_COLUMNS).eq('status', 'in_review').order('created_at', { ascending: true }).limit(200),
     admin.from('verified_badges').select(BADGE_COLUMNS).eq('status', 'active').gt('ends_at', new Date(now).toISOString()).order('ends_at', { ascending: true }).limit(200),
-    admin.from('verified_badges').select('amount').in('status', ['in_review', 'active']).gte('created_at', monthStart).limit(5000),
+    admin.from('verified_badges').select('amount').in('status', ['in_review', 'active']).neq('plan', 'welcome').gte('created_at', monthStart).limit(5000),
   ])
   if (review.error) {
     return (
@@ -179,7 +179,7 @@ export default async function ExecutiveBadgesPage(props: { searchParams?: Promis
                           </span>
                         </td>
                         <td className={`${td} whitespace-nowrap font-extrabold`}>
-                          {PLAN_LABEL[b.plan]} {formatINR(b.amount)}
+                          {b.plan === 'welcome' ? PLAN_LABEL.welcome : `${PLAN_LABEL[b.plan]} ${formatINR(b.amount)}`}
                         </td>
                         <td className={`${td} whitespace-nowrap`}>{soon ? <Status label={`Ends ${formatShortDate(b.endsAt!)}`} color="#B54708" /> : `Ends ${formatShortDate(b.endsAt!)}`}</td>
                         <td className={`${td} whitespace-nowrap`}>

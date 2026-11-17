@@ -37,6 +37,7 @@ export default async function HospitalBadgesPage() {
   const hospitalState: HospitalBadgeState = {
     live: hospital.status === 'active',
     activeUntil: own.live?.endsAt ? formatShortDate(own.live.endsAt) : null,
+    activeFree: own.live?.plan === 'welcome' && !own.upcoming,
     renewedUntil: own.upcoming?.endsAt ? formatShortDate(own.upcoming.endsAt) : null,
     inReview: !!own.inReview,
     rejected: own.rejected && !own.live && !own.inReview ? own.rejected.reviewNote : null,
@@ -52,7 +53,7 @@ export default async function HospitalBadgesPage() {
     const note = s.inReview
       ? 'Paid · our team is checking it'
       : s.live
-        ? `Active until ${formatShortDate(s.upcoming?.endsAt ?? s.live.endsAt!)}`
+        ? `${s.live.plan === 'welcome' && !s.upcoming ? 'Free badge' : 'Active'} until ${formatShortDate(s.upcoming?.endsAt ?? s.live.endsAt!)}`
         : s.awaiting?.paidBy === 'hospital'
           ? `Asked you to pay · ${s.awaiting.plan === 'yearly' ? 'yearly' : 'monthly'} plan`
           : missing

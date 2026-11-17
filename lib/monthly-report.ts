@@ -41,7 +41,7 @@ export async function buildMonthlyReport(admin: Admin, month: string, now = Date
     // doctors has no created_at, so new doctors are new doctor logins; hospitals.created_at comes with 20261120.
     admin.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'doctor').gte('created_at', from).lt('created_at', to),
     admin.from('hospitals').select('id', { count: 'exact', head: true }).gte('created_at', from).lt('created_at', to),
-    admin.from('verified_badges').select('id', { count: 'exact', head: true }).in('status', ['in_review', 'active']).gte('created_at', from).lt('created_at', to),
+    admin.from('verified_badges').select('id', { count: 'exact', head: true }).in('status', ['in_review', 'active']).neq('plan', 'welcome').gte('created_at', from).lt('created_at', to),
     admin.from('equipment_orders').select('id', { count: 'exact', head: true }).not('paid_at', 'is', null).gte('paid_at', from).lt('paid_at', to),
     admin.from('tickets').select('ticket_code, requester_role, category, subject, priority, status, created_at').gte('created_at', from).lt('created_at', to).limit(5000),
   ])

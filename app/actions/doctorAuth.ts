@@ -14,6 +14,8 @@ import { DOCTOR_LANGUAGES, DOCTOR_SPECIALTIES, GENDERS, MEDICAL_COUNCILS, PRACTI
 import { WEEKDAYS } from '@/lib/partner-applications'
 import { EMAIL_MESSAGE, PERSONAL_PAN_MESSAGE, isEmail, isLaterTime, phoneProblem } from '@/lib/join-rules'
 import { APPLICATION_DOCS } from '@/lib/application-documents'
+import { grantWelcomeBadge } from '@/lib/badges'
+import { temporaryPasswordMetadata } from '@/lib/temporary-password'
 
 export async function getHospitals() {
   const supabase = await createClient()
@@ -234,7 +236,9 @@ export async function approveDoctor(requestId: string) {
     email: request.email,
     password: password,
     email_confirm: true,
-    user_metadata: { role: 'doctor' }
+    user_metadata: { role: 'doctor' },
+    // The emailed password is generated, so the doctor sets their own when they first sign in.
+    app_metadata: temporaryPasswordMetadata,
   })
 
   if (authError || !authData.user) {
@@ -298,7 +302,7 @@ export async function approveDoctor(requestId: string) {
   const extra = doctorDetails((request as { details?: unknown }).details, qualString)
 
   // Create doctor record
-  const { error: doctorError } = await adminClient.from('doctors').insert({
+  const { data: newDoctor, error: doctorError } = await adminClient.from('doctors').insert({
     profile_id: userId,
     hospital_id: request.hospital_id,
     department_id: departmentId,
@@ -309,13 +313,16 @@ export async function approveDoctor(requestId: string) {
     ...(packed.registration ? { registration_number: packed.registration } : {}),
     ...(packed.council ? { registration_council: packed.council } : {}),
     ...(extra.bio ? { bio: extra.bio } : {}),
-  })
+  }).select('id').single()
 
-  if (doctorError) {
+  if (doctorError || !newDoctor) {
     await adminClient.auth.admin.deleteUser(userId) // Cleanup zombie
     await adminClient.from('profiles').delete().eq('id', userId)
-    return { success: false, error: doctorError.message }
+    return { success: false, error: doctorError?.message || 'Could not create the doctor.' }
   }
+
+  // Every new doctor shows the verified tick free for their first 3 months.
+  await grantWelcomeBadge(adminClient, 'doctor', newDoctor.id)
 
   // Mark request as approved
   await adminClient.from('doctor_signup_requests').update({ status: 'approved' }).eq('id', requestId)

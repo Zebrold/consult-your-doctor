@@ -366,11 +366,12 @@ export async function sendDoctorActivationEmail(args: {
     paragraphs: [
       `Dear Dr. ${args.doctorName},`,
       `Your doctor account on Consult Your Doctor${args.hospitalName ? ` with ${args.hospitalName}` : ''} is approved.`,
-      `Log in at the doctor login with the user ID and password below${args.activationLink ? ', or choose your own password first with the button below (the link is personal and works for a limited time)' : ''}. Please change the password after you first log in, and don’t share these details with anyone.`,
+      `Log in at the doctor login with the user ID and temporary password below${args.activationLink ? ', or choose your own password first with the button below (the link is personal and works for a limited time)' : ''}. The first time you log in, you’ll be asked to set your own password. Please don’t share these details with anyone.`,
+      `Your verified badge (the blue tick on your public profile) is included free for your first 3 months.`,
     ],
     facts: [
       ['User ID (Staff ID)', args.staffId],
-      ['Password', args.password],
+      ['Temporary password', args.password],
       ['Doctor login', args.loginUrl],
     ],
     button: args.activationLink ? { text: 'Set your own password', url: args.activationLink } : { text: 'Go to the doctor login', url: args.loginUrl },
@@ -422,7 +423,7 @@ export async function sendPartnerApprovedEmail(args: {
     heading: `${args.organizationName} is approved`,
     paragraphs: [
       `Dear ${args.contactName},`,
-      `${args.organizationName} is now a partner ${noun} on Consult Your Doctor.`,
+      `${args.organizationName} is now a partner ${noun} on Consult Your Doctor.${args.kind === 'hospital' ? ' Its verified badge (the blue tick on its public page) is included free for the first 3 months.' : ''}`,
       args.password
         ? `Your login is ready. Log in at the staff login with the user ID and password below${args.setPasswordLink ? ', or choose your own password first with the button below (the link is personal and works for a limited time)' : ''}. Please change the password after you first log in, and don’t share these details with anyone.`
         : `Your team logs in with the user ID below. Our operations team will give you the password separately.`,

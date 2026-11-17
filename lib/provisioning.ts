@@ -2,6 +2,8 @@ import crypto from 'crypto'
 import type { createAdminClient } from '@/lib/supabase/admin'
 import { siteUrl } from '@/lib/site-url'
 import { sendDoctorActivationEmail } from '@/lib/notify/email'
+import { grantWelcomeBadge } from '@/lib/badges'
+import { temporaryPasswordMetadata } from '@/lib/temporary-password'
 
 type Admin = ReturnType<typeof createAdminClient>
 
@@ -34,7 +36,17 @@ export function passwordProblem(password: string): string | null {
  */
 export async function createStaffLogin(
   admin: Admin,
-  input: { role: StaffRole; fullName: string; password: string; email?: string | null; hospitalId?: string | null; centerId?: string | null; staffId?: string },
+  input: {
+    role: StaffRole
+    fullName: string
+    password: string
+    email?: string | null
+    hospitalId?: string | null
+    centerId?: string | null
+    staffId?: string
+    /** The password was chosen for them: they set their own the first time they sign in (lib/temporary-password.ts). */
+    temporaryPassword?: boolean
+  },
 ): Promise<{ userId: string; staffId: string } | { error: string }> {
   const staffId = (input.staffId?.trim().toUpperCase()) || (await newStaffId(admin, input.fullName))
   if (input.staffId) {
@@ -52,6 +64,7 @@ export async function createStaffLogin(
     password: input.password,
     email_confirm: true,
     user_metadata: { role: input.role, full_name: input.fullName },
+    ...(input.temporaryPassword ? { app_metadata: temporaryPasswordMetadata } : {}),
   })
   if (authError || !created?.user) return { error: authError?.message || 'Could not create the login.' }
 
@@ -104,6 +117,8 @@ export async function provisionDoctor(
     email,
     hospitalId: input.hospitalId,
     password,
+    // Whoever added the doctor chose (or we generated) this password, so it is only for the first sign-in.
+    temporaryPassword: true,
   })
   if ('error' in login) return login
 
@@ -160,6 +175,9 @@ export async function provisionDoctor(
       .eq('id', doctor.id)
     if (registrationError) console.warn('provisionDoctor registration:', registrationError)
   }
+
+  // Every new doctor shows the verified tick free for their first 3 months.
+  await grantWelcomeBadge(admin, 'doctor', doctor.id)
 
   let activationLink: string | null = null
   let invitationSent = false

@@ -45,6 +45,8 @@ export default async function ExecutiveCommandPage(props: { searchParams?: Promi
       .from('verified_badges')
       .select('id, subject, amount, status, created_at, doctors ( profiles!doctors_profile_id_fkey ( full_name ) ), hospitals ( name )')
       .in('status', ['in_review', 'active'])
+      // Bought badges only: the free welcome badge isn't a payment.
+      .neq('plan', 'welcome')
       .order('created_at', { ascending: false })
       .limit(6),
   ])

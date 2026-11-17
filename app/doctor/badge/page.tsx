@@ -50,7 +50,8 @@ export default async function DoctorBadgePage() {
           state={{
             liveUntil: s.live?.endsAt ? formatShortDate(s.upcoming?.endsAt ?? s.live.endsAt) : null,
             inReview: !!s.inReview,
-            askedHospital: s.awaiting?.paidBy === 'hospital' ? { id: s.awaiting.id, plan: s.awaiting.plan } : null,
+            askedHospital: s.awaiting?.paidBy === 'hospital' && s.awaiting.plan !== 'welcome' ? { id: s.awaiting.id, plan: s.awaiting.plan } : null,
+            liveFree: s.live?.plan === 'welcome' && !s.upcoming,
             rejected: s.rejected && !s.live && !s.inReview ? (s.rejected.reviewNote ?? 'See our note') : null,
             canBuy: !s.inReview && !s.upcoming && renewable && meetsRequirements(reqs),
           }}

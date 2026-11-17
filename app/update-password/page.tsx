@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { clearMyTemporaryPassword } from '@/app/actions/staff-account'
 import { Loader2, KeyRound, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -51,6 +52,8 @@ export default function UpdatePasswordPage() {
       setError(error.message)
     } else {
       setSuccess(true)
+      // A password set here is their own, so a doctor's temporary-password step is done.
+      await clearMyTemporaryPassword().catch(() => {})
       // Sign them out so they can log back in via the standard portal with their Staff ID
       await supabase.auth.signOut()
     }

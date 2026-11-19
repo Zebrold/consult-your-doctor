@@ -23,7 +23,7 @@ const isSharedPage = (path: string) => SHARED_PAGES.includes(path) || path === '
  * Public pages staff may also browse: the doctor and hospital listings, the diagnostics search and the help pages. Booking
  * stays with patients (the /book and checkout pages are not listed).
  */
-const PUBLIC_BROWSE_PAGES = ['/find', '/search', '/specialities', '/doctors', '/hospitals', '/diagnostics', '/faq', '/prices', '/about', '/contact', '/what-we-treat', '/online-doctor', '/corporate']
+const PUBLIC_BROWSE_PAGES = ['/find', '/search', '/specialities', '/doctors', '/hospitals', '/diagnostics', '/faq', '/prices', '/about', '/contact', '/what-we-treat', '/online-doctor', '/corporate', '/walk-in']
 const isPublicBrowsePage = (path: string) => PUBLIC_BROWSE_PAGES.some((page) => path === page || path.startsWith(`${page}/`))
 
 /** Each portal's login page and the role it signs in. */

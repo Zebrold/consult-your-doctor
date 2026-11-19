@@ -6,8 +6,11 @@ import { doctorBookingFee, isFastTrack, labDoorstepFee, matchBookedTests, priced
 import { patientServices } from '@/lib/hospital-services'
 import { loadBookingFees } from '@/lib/booking-fees'
 import { followUpBase } from '@/lib/follow-up'
-import { slotHospitalId } from '@/lib/practices'
+import { isVisiting, slotHospitalId } from '@/lib/practices'
 import { doctorPause } from '@/lib/doctor-pause'
+import { loadLeaves } from '@/lib/leave'
+import { WALK_IN, readWalkIn, walkInState } from '@/lib/walk-in'
+import { istDateKey } from '@/components/patient/format'
 import { notifyBookingConfirmed } from '@/lib/notify/patient'
 import { redirect } from 'next/navigation'
 
@@ -241,6 +244,8 @@ export async function finalizeConsultationAppointment(formData: FormData) {
     fastTrack: isFastTrack(formData.get('booking_type')),
     services: Array.from(new Set(formData.getAll('services').map(String).filter(Boolean))),
     memberId: await bookingMember(createAdminClient(), user.id, formData),
+    // A walk-in from the hospital's QR code: booked for now at that hospital, not on a published slot (lib/walk-in.ts).
+    walkInHospitalId: scheduleId === WALK_IN ? String(formData.get('hospital_id') || '') : undefined,
   }
   const result = await claimSlotAndCreateAppointment(user.id, doctorId, scheduleId, options)
   if ('error' in result) return { error: result.error }
@@ -248,8 +253,42 @@ export async function finalizeConsultationAppointment(formData: FormData) {
   return { success: true, appointmentId: result.appointmentId, confirmed: result.confirmed }
 }
 
-/** What the patient picked on the hospital page: fast track, hospital services by name, and who the visit is for. */
-type BookingOptions = { fastTrack: boolean; services: string[]; memberId?: string | null }
+/**
+ * What the patient picked on the hospital page: fast track, hospital services by name, who the visit is for, and, for
+ * a walk-in, the hospital they are at.
+ */
+type BookingOptions = { fastTrack: boolean; services: string[]; memberId?: string | null; walkInHospitalId?: string }
+
+/**
+ * Why this doctor can't take a walk-in at this hospital right now, or null when they can: the doctor must work there
+ * (or visit as a confirmed consultant), the hospital must be in its walk-in hours, and the doctor not on leave today.
+ */
+async function walkInProblem(admin: ReturnType<typeof createAdminClient>, hospitalId: string, doctor: { id: string; hospital_id: string | null }): Promise<string | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(hospitalId)) return 'Open the hospital’s page again from its QR code to book a walk-in.'
+  if (doctor.hospital_id !== hospitalId && !(await isVisiting(admin, doctor.id, hospitalId))) return 'This doctor doesn’t see patients at this hospital. Please choose another doctor.'
+  const { data: hospital } = await admin.from('hospitals').select('*').eq('id', hospitalId).maybeSingle()
+  const state = walkInState(readWalkIn(hospital as Record<string, unknown> | null).hours, Date.now())
+  if (!state) return 'This hospital isn’t taking walk-in bookings. Please pick a time instead.'
+  if (!state.open) return `Walk-ins here are ${state.hours}. ${state.note}. You can pick a time instead.`
+  const today = istDateKey(Date.now())
+  const { leaves } = await loadLeaves(admin, { doctorIds: [doctor.id] })
+  const away = leaves.some((l) => l.status === 'approved' && l.startsOn <= today && today <= l.endsOn && (!l.hospitalId || l.hospitalId === hospitalId))
+  return away ? 'This doctor is on leave today. Please choose another doctor.' : null
+}
+
+/** A slot for right now, already taken, for a walk-in (the front desk's walk-ins are booked the same way). */
+async function createWalkInSlot(admin: ReturnType<typeof createAdminClient>, doctorId: string, hospitalId: string): Promise<string | null> {
+  const start = new Date()
+  const row = { doctor_id: doctorId, start_time: start.toISOString(), end_time: new Date(start.getTime() + 15 * 60_000).toISOString(), is_booked: true }
+  let res = await admin.from('schedules').insert({ ...row, hospital_id: hospitalId }).select('id').single()
+  // Before 20261115_executive_workspace.sql slots have no hospital_id: the slot is then at the doctor's own hospital.
+  if (res.error && /hospital_id/.test(res.error.message)) res = await admin.from('schedules').insert(row).select('id').single()
+  if (res.error || !res.data) {
+    console.error('createWalkInSlot:', res.error)
+    return null
+  }
+  return res.data.id as string
+}
 
 /**
  * The family member a booking is for (form field `family_member_id`), when it is one of this patient's own, else null.
@@ -377,8 +416,15 @@ async function claimSlotAndCreateAppointment(
       return { error: "This doctor's consultation fee hasn't been set yet, so they can't be booked online." }
     }
 
+    // A walk-in is booked for now at the hospital the patient is at, during its walk-in hours.
+    const walkInAt = options.walkInHospitalId
+    if (walkInAt !== undefined) {
+      const problem = await walkInProblem(admin, walkInAt, { id: doctor.id as string, hospital_id: (doctor.hospital_id as string | null) ?? null })
+      if (problem) return { error: problem }
+    }
+
     // The booking belongs to the slot's hospital: the doctor's own, or one they visit (lib/practices.ts).
-    const hospitalId = await slotHospitalId(admin, scheduleId, doctor.hospital_id ?? null)
+    const hospitalId = walkInAt !== undefined ? walkInAt : await slotHospitalId(admin, scheduleId, doctor.hospital_id ?? null)
 
     // Services are stored with the hospital's own prices at booking time, never prices from the browser.
     let services: BookedTest[] = []
@@ -404,16 +450,26 @@ async function claimSlotAndCreateAppointment(
       return { error: 'You already have unpaid bookings waiting. Please pay for one of them from My Appointments, or try again in 30 minutes.' }
     }
 
-    // Claim the slot only while it is still free and in the future, so two patients can't book the same time.
-    let claimed = await claimSlot(admin, doctorId, scheduleId)
-    // A slot kept by an unpaid booking that was never paid for is free again: release that hold and try once more.
-    if (!claimed && (await releaseStaleHoldOn(admin, scheduleId))) claimed = await claimSlot(admin, doctorId, scheduleId)
-    if (!claimed) {
-      return { error: 'That time slot was just taken. Please pick another one.' }
+    let slotId = scheduleId
+    if (walkInAt !== undefined) {
+      const made = await createWalkInSlot(admin, doctorId, walkInAt)
+      if (!made) return { error: 'Could not start the walk-in. Please try again.' }
+      slotId = made
+    } else {
+      // Claim the slot only while it is still free and in the future, so two patients can't book the same time.
+      let claimed = await claimSlot(admin, doctorId, scheduleId)
+      // A slot kept by an unpaid booking that was never paid for is free again: release that hold and try once more.
+      if (!claimed && (await releaseStaleHoldOn(admin, scheduleId))) claimed = await claimSlot(admin, doctorId, scheduleId)
+      if (!claimed) {
+        return { error: 'That time slot was just taken. Please pick another one.' }
+      }
     }
+    // A walk-in's slot exists only for this booking, so it goes when the booking can't be made.
+    const releaseSlot = () =>
+      walkInAt !== undefined ? admin.from('schedules').delete().eq('id', slotId) : admin.from('schedules').update({ is_booked: false }).eq('id', slotId)
 
     // The booking keeps the fee it was made at, so a later change to the fees can't change what this patient pays.
-    const row = { patient_id: patientId, doctor_id: doctorId, hospital_id: hospitalId, schedule_id: scheduleId, ...choices }
+    const row = { patient_id: patientId, doctor_id: doctorId, hospital_id: hospitalId, schedule_id: slotId, ...choices, ...(walkInAt !== undefined ? { is_walk_in: true } : {}) }
     const paid = { ...row, status: 'pending_payment', booking_fee: doctorBookingFee(fees, options.fastTrack ? 'fast_track' : 'general') }
     const insert = (values: Record<string, unknown>) => admin.from('appointments').insert(values).select('id').single()
 
@@ -432,7 +488,7 @@ async function claimSlotAndCreateAppointment(
 
     if (aptError || !appointment) {
       console.error('Error finalizing appointment:', aptError)
-      await admin.from('schedules').update({ is_booked: false }).eq('id', scheduleId)
+      await releaseSlot()
       return { error: 'Could not create the appointment. Please try again.' }
     }
     await tagBookingMember(admin, 'appointments', appointment.id as string, patientId, options.memberId ?? null)
@@ -442,7 +498,7 @@ async function claimSlotAndCreateAppointment(
       return { appointmentId: appointment.id as string, confirmed: true }
     }
 
-    if (!(await keepWithinHoldLimit(admin, patientId, { id: appointment.id as string, schedule_id: scheduleId, created_at: '' }))) {
+    if (!(await keepWithinHoldLimit(admin, patientId, { id: appointment.id as string, schedule_id: slotId, created_at: '' }))) {
       return { error: 'You already have unpaid bookings waiting. Please pay for one of them from My Appointments, or try again in 30 minutes.' }
     }
 

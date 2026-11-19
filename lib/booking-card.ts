@@ -176,9 +176,10 @@ export async function loadBookingCard(admin: Admin, id: string, now = Date.now()
       place: hospital?.name || 'Partner hospital',
       placeLines: [hospital?.address, hospital?.city].filter(Boolean) as string[],
       image: hospital?.image_url || doctor?.image_url || null,
-      typeLabel: isFollowUp ? 'Free follow-up' : fastTrack ? 'Fast track appointment' : 'General appointment',
+      typeLabel: isFollowUp ? 'Free follow-up' : `${fastTrack ? 'Fast track' : 'General'} ${apt.is_walk_in === true ? 'walk-in' : 'appointment'}`,
       token: visitToken(id),
-      reportBy: startsAt ? cardTime(Date.parse(startsAt) - 15 * 60_000) : null,
+      // A walk-in (from the hospital's QR code, 20261122) was booked at the hospital, for now.
+      reportBy: apt.is_walk_in === true ? 'Now' : startsAt ? cardTime(Date.parse(startsAt) - 15 * 60_000) : null,
       followUp: isFollowUp || state === 'cancelled' ? null : { doctor: name, days: FOLLOW_UP_DAYS },
       isFollowUp,
       bookingFee,

@@ -228,14 +228,19 @@ export function LabChargesAtVenue({ tests, doorstepFee }: { tests: BookedTest[];
 }
 
 /** The cancellation and refund policy, shown with every booking and checkout summary. */
-export function RefundNote({ isConsultation }: { isConsultation: boolean }) {
+export function RefundNote({ isConsultation, walkIn = false }: { isConsultation: boolean; walkIn?: boolean }) {
   return (
     <p className="flex items-start gap-2 font-label-sm text-[11px] text-indigo-gray-600 leading-snug">
       <RotateCcw className="w-4 h-4 text-vibrant-blue shrink-0" />
-      <span>
-        Full refund if you cancel at least 2 hours before the slot, or if the {isConsultation ? "doctor or hospital" : "lab"} cancels.
-        Refunds go back to your original payment method within 5–7 working days.
-      </span>
+      {walkIn ? (
+        // A walk-in is booked for the moment it's made, so it has already started and can't be cancelled (lib/booking-change.ts).
+        <span>A walk-in is booked for right now, so you can&apos;t cancel it for a refund once it&apos;s paid. If the doctor or hospital cancels, the booking fee is refunded in full.</span>
+      ) : (
+        <span>
+          Full refund if you cancel at least 2 hours before the slot, or if the {isConsultation ? "doctor or hospital" : "lab"} cancels.
+          Refunds go back to your original payment method within 5–7 working days.
+        </span>
+      )}
     </p>
   );
 }

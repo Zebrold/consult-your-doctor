@@ -34,6 +34,8 @@ type VisitRow = {
   services?: unknown
   /** Missing until 20261118_self_service_features.sql runs. */
   reschedule_count?: number
+  /** Booked as a walk-in from the hospital's QR code (20261122_hospital_walk_in.sql). */
+  is_walk_in?: boolean
   doctors: Rel<{ id: string; specialty: string | null; image_url: string | null; profiles: Rel<{ full_name: string | null }> }>
   hospitals: Rel<{ id: string; name: string; city: string | null; address: string | null; image_url: string | null }>
   schedules: Rel<{ start_time: string }>
@@ -183,7 +185,7 @@ export default async function PatientAppointments() {
       placeName: hospital?.name || 'Partner hospital',
       placeAddress: [hospital?.address, hospital?.city].filter(Boolean).join(', ') || null,
       placeImage: hospital?.image_url ?? null,
-      reportBy: at && state === 'ok' ? formatTime(new Date(Date.parse(at) - ARRIVE_EARLY_MS).toISOString()) : null,
+      reportBy: at && state === 'ok' ? (v.is_walk_in ? 'Now' : formatTime(new Date(Date.parse(at) - ARRIVE_EARLY_MS).toISOString())) : null,
       slipHref: slipFor(v.id, state),
       at,
       date: at ? formatDayLabel(at, now) : 'Date to be set',

@@ -4,7 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  BedDouble, Bell, Building, Building2, CalendarDays, ChartLine, CircleHelp, IndianRupee, LayoutDashboard, LayoutGrid, LogOut, Search, Settings, ShieldCheck, ShoppingCart, Star, Users, UsersRound, Wallet, type LucideIcon,
+  BedDouble, Bell, Building, Building2, CalendarDays, ChartLine, CircleHelp, IndianRupee, LayoutDashboard, LayoutGrid, LogOut, QrCode, Search, Settings, ShieldCheck, ShoppingCart, Star, Users, UsersRound, Wallet, type LucideIcon,
 } from 'lucide-react'
 import { initials } from '@/components/patient/format'
 import { FloatingTabBar } from '@/components/FloatingTabBar'
@@ -24,6 +24,7 @@ const MENU: NavItem[] = [
   { href: '/hospital/patients', label: 'Patients', icon: Users },
   { href: '/hospital/beds', label: 'Beds', icon: BedDouble },
   { href: '/hospital/doctors', label: 'Doctors', icon: CalendarDays },
+  { href: '/hospital/walk-in', label: 'Walk-in & QR', icon: QrCode },
   { href: '/hospital/revenue', label: 'Finance', icon: IndianRupee },
   { href: '/hospital/wallet', label: 'Payouts', icon: Wallet },
   { href: '/hospital/staff', label: 'Staff & access', icon: UsersRound },
@@ -39,7 +40,7 @@ const GROW: NavItem[] = [
 ]
 
 // Sections reached from More on phones.
-const MORE = ['/hospital/more', '/hospital/settings', '/hospital/profile', '/hospital/revenue', '/hospital/wallet', '/hospital/staff', '/hospital/branches', '/hospital/badges', '/hospital/equipment', '/hospital/reviews', '/hospital/reports', '/hospital/ai']
+const MORE = ['/hospital/more', '/hospital/settings', '/hospital/walk-in', '/hospital/profile', '/hospital/revenue', '/hospital/wallet', '/hospital/staff', '/hospital/branches', '/hospital/badges', '/hospital/equipment', '/hospital/reviews', '/hospital/reports', '/hospital/ai']
 
 // Account & settings (/hospital/more on desktops too) and the pages under it.
 const isSettings = (pathname: string) => isActive(pathname, '/hospital/more') || isActive(pathname, '/hospital/settings')

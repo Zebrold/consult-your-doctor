@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Building, Building2, CalendarOff, ChartLine, ChevronRight, CircleHelp, Eye, FileText, IndianRupee, KeyRound, ShieldCheck, ShoppingCart, Star, Tag, UsersRound, Wallet, type LucideIcon } from 'lucide-react'
+import { Building, Building2, CalendarOff, ChartLine, ChevronRight, CircleHelp, Eye, FileText, IndianRupee, KeyRound, QrCode, ShieldCheck, ShoppingCart, Star, Tag, UsersRound, Wallet, type LucideIcon } from 'lucide-react'
 import { initials } from '@/components/patient/format'
 import { requireHospital } from '../_lib/hospital'
 import { DeskHead, HosBody, HosHeader, Row, btnOutline, card } from '../_components/hos-ui'
@@ -17,6 +17,7 @@ const MANAGE: Item[] = [
   { href: '/hospital/wallet', title: 'Payouts', sub: 'Your balance, withdrawals and payout accounts', icon: Wallet },
   { href: '/hospital/staff', title: 'Staff & access', sub: 'Doctors, front desk and admins', icon: UsersRound },
   { href: '/hospital/settings/services', title: 'Services & charges', sub: 'Tests, scans and procedures patients can add, with prices', icon: Tag },
+  { href: '/hospital/walk-in', title: 'Walk-in & QR', sub: 'Walk-in hours, and the QR code patients scan to book', icon: QrCode },
 ]
 
 const GROW: Item[] = [

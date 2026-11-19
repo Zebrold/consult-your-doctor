@@ -20,13 +20,15 @@ import { currentTime, loadPatientDefaults, one } from '@/components/patient/data
 import { FOLLOW_UP_DAYS, freeFollowUpDoctors } from '@/lib/follow-up'
 import { visitingDoctorIds } from '@/lib/practices'
 import { pausedDoctorIds } from '@/lib/doctor-pause'
-import { directionsHref, formatINR } from '@/components/patient/format'
+import { directionsHref, formatINR, istDateKey } from '@/components/patient/format'
+import { loadLeaves } from '@/lib/leave'
+import { WALK_IN, readWalkIn, walkInState } from '@/lib/walk-in'
 import { RemoteImage } from '@/components/RemoteImage'
 
 /** Open times listed per doctor; patients pick the day and time from these. */
 const SLOTS_PER_DOCTOR = 40
 
-export type HospitalPageQuery = { speciality?: string; doctor?: string; slot?: string; type?: string; service?: string | string[] }
+export type HospitalPageQuery = { speciality?: string; doctor?: string; slot?: string; type?: string; service?: string | string[]; walkin?: string }
 
 /**
  * The public hospital page, shared by /hospitals/[id] and the hospital's own /hospital/preview. In `preview` there is no
@@ -119,6 +121,17 @@ export async function HospitalPageView({ id, query, preview = false }: { id: str
     slotDoctorIds.length ? openSlotsHere(slotDoctorIds) : Promise.resolve({ data: [] }),
   ])
   const rows = [...ownRows, ...((visitingRows ?? []) as Row[])]
+
+  // Walk-ins (lib/walk-in.ts): the hospital's hours, and while they are open, the doctors on leave today, who can't be
+  // picked for one.
+  const walkIn = walkInState(readWalkIn(hospital as Record<string, unknown>).hours, now)
+  const onLeave = new Set<string>()
+  if (walkIn?.open && rows.length) {
+    const today = istDateKey(now)
+    const { leaves } = await loadLeaves(admin, { doctorIds: rows.map((r) => r.id) })
+    for (const l of leaves) if (l.status === 'approved' && l.startsOn <= today && today <= l.endsOn && (!l.hospitalId || l.hospitalId === id)) onLeave.add(l.doctorId)
+  }
+
   const slotsBy = new Map<string, { id: string; start: string }[]>()
   for (const s of (slotRows ?? []) as unknown as { id: string; doctor_id: string; start_time: string; hospital_id?: string | null }[]) {
     // Own doctors' slots here (no hospital_id, or this one); visiting doctors' only the ones published here.
@@ -147,6 +160,7 @@ export async function HospitalPageView({ id, query, preview = false }: { id: str
       bookable: Number(d.consultation_fee) > 0,
       fee: Number(d.consultation_fee) > 0 ? Number(d.consultation_fee) : null,
       slots: slotsBy.get(d.id) ?? [],
+      walkIn: !!walkIn?.open && Number(d.consultation_fee) > 0 && !onLeave.has(d.id),
     }))
     .sort((a, b) => Number(b.bookable) - Number(a.bookable) || (a.slots[0]?.start ?? '￿').localeCompare(b.slots[0]?.start ?? '￿'))
 
@@ -274,6 +288,9 @@ export async function HospitalPageView({ id, query, preview = false }: { id: str
               initialFastTrack={choices && isFastTrack(query.type)}
               initialServices={tests.filter((t) => askedServices.includes(t.name)).map((t) => t.name)}
               freeFollowUp={freeFollowUp}
+              walkIn={walkIn}
+              // From the hospital's walk-in QR code (/walk-in/<id>), or back from logging in with walk-in picked.
+              initialWalkIn={query.walkin === '1' || pickedSlot === WALK_IN}
               preview={preview}
               intro={
                 <Card id="fees" title="Consultation charges">

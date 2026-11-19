@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, CircleCheck, IdCard, LoaderCircle, Lock, LogIn, Share2, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, CircleCheck, Footprints, IdCard, LoaderCircle, Lock, LogIn, Share2, UserRound } from "lucide-react";
 import { VerifiedBadge } from "@/components/home/ui";
 import { SPECIALITIES, specialityIcon } from "@/components/home/specialities";
 import { doctorName, formatDayLabel, formatINR, formatSlot, formatTime, initials, istDateKey } from "./format";
@@ -19,6 +19,7 @@ import { PayableTable } from "./PayableTable";
 import { appendPatientDetails, FormError, OnlinePayNote, patientDetailsError, RefundNote, type PatientDetails } from "./booking-ui";
 import { usePatientLocation } from "./location";
 import { WhoFor } from "./WhoFor";
+import { WALK_IN, type WalkInState } from "@/lib/walk-in";
 
 export type HospitalDoctor = {
   id: string;
@@ -33,6 +34,8 @@ export type HospitalDoctor = {
   fee: number | null;
   /** Their next open times, soonest first. */
   slots: { id: string; start: string }[];
+  /** Walk-ins are open at the hospital now and this doctor can take one (bookable, not on leave today). */
+  walkIn?: boolean;
 };
 
 /** The speciality's icon when one of the app's specialities covers it. */
@@ -73,6 +76,8 @@ export function HospitalBooking({
   initialFastTrack = false,
   initialServices = [],
   freeFollowUp = [],
+  walkIn = null,
+  initialWalkIn = false,
   preview = false,
   intro,
   children,
@@ -96,6 +101,10 @@ export function HospitalBooking({
   initialServices?: string[];
   /** Doctors this patient can book a free follow-up with (no booking fee, lib/follow-up.ts). */
   freeFollowUp?: string[];
+  /** The hospital's walk-in hours and whether they are open now (lib/walk-in.ts); null when it takes no walk-ins. */
+  walkIn?: WalkInState | null;
+  /** Opened from the hospital's walk-in QR code: picking a doctor picks "Walk in now" with them. */
+  initialWalkIn?: boolean;
   /** The hospital's own preview of this page: nothing can be booked, and no booking action is ever called. */
   preview?: boolean;
   /** Cards above the doctors (the consultation charges). */
@@ -114,7 +123,7 @@ export function HospitalBooking({
     preset ? preset.specialty || "General" : initialSpeciality && specialties.includes(initialSpeciality) ? initialSpeciality : (specialties[0] ?? ""),
   );
   const [doctorId, setDoctorId] = useState<string | null>(preset?.id ?? null);
-  const [slotId, setSlotId] = useState<string | null>(presetSlot?.id ?? null);
+  const [slotId, setSlotId] = useState<string | null>(initialSlot === WALK_IN ? (preset?.walkIn ? WALK_IN : null) : (presetSlot?.id ?? null));
   const [day, setDay] = useState<string | null>(presetSlot ? istDateKey(presetSlot.start) : null);
   const [fastTrack, setFastTrack] = useState(choices && initialFastTrack);
   const [picked, setPicked] = useState<string[]>(initialServices);
@@ -133,7 +142,10 @@ export function HospitalBooking({
 
   const shown = doctors.filter((d) => (d.specialty || "General") === spec);
   const doctor = doctors.find((d) => d.id === doctorId) ?? null;
-  const slot = doctor?.slots.find((s) => s.id === slotId) ?? null;
+  // A walk-in is booked for the moment the patient confirms (lib/walk-in.ts); `now` stands in for its time until then.
+  const walkInSlot = useMemo(() => ({ id: WALK_IN, start: new Date(now).toISOString() }), [now]);
+  const slot = slotId === WALK_IN ? (doctor?.walkIn ? walkInSlot : null) : (doctor?.slots.find((s) => s.id === slotId) ?? null);
+  const slotText = (s: { id: string; start: string }) => (s.id === WALK_IN ? "Walk-in, today" : formatSlot(s.start, now));
   const ready = !!doctor && doctor.bookable && !!slot;
   // A general booking with a doctor seen in the last 12 days is a free follow-up; the server decides it again on booking.
   const followUp = !!doctor && !(choices && fastTrack) && freeFollowUp.includes(doctor.id);
@@ -155,7 +167,7 @@ export function HospitalBooking({
     ? "Select a doctor"
     : !doctor.bookable
       ? "Booking unavailable"
-      : !doctor.slots.length
+      : !doctor.slots.length && !doctor.walkIn
         ? "No open times"
         : !slot
           ? "Pick a time"
@@ -175,8 +187,10 @@ export function HospitalBooking({
     setError(null);
   };
   const pickDoctor = (id: string) => {
-    setDoctorId(doctorId === id ? null : id);
-    setSlotId(null);
+    const next = doctorId === id ? null : id;
+    setDoctorId(next);
+    // From the walk-in QR code, picking a doctor picks their walk-in too (they can still choose a time instead).
+    setSlotId(next && initialWalkIn && doctors.find((d) => d.id === next)?.walkIn ? WALK_IN : null);
     setDay(null);
     setError(null);
   };
@@ -208,6 +222,8 @@ export function HospitalBooking({
     const form = new FormData();
     form.append("doctor_id", doctor.id);
     form.append("schedule_id", slot.id);
+    // A walk-in is booked at this hospital, for now.
+    if (slot.id === WALK_IN) form.append("hospital_id", hospitalId);
     if (choices && fastTrack) form.append("booking_type", "fast_track");
     for (const s of pickedServices) form.append("services", s.name);
     if (forId) form.append("family_member_id", forId);
@@ -217,8 +233,8 @@ export function HospitalBooking({
     if ("error" in res && res.error) {
       setError(res.error);
       setSubmitting(false);
-      // Someone else took the time: reload the open times.
-      if (/slot/i.test(res.error)) router.refresh();
+      // Someone else took the time, or walk-ins just closed: reload the open times.
+      if (/slot|walk-in/i.test(res.error)) router.refresh();
       return;
     }
     const appointmentId = "appointmentId" in res ? res.appointmentId : undefined;
@@ -247,13 +263,52 @@ export function HospitalBooking({
     }
   };
 
+  /** "Walk in now" for this doctor, while the hospital takes walk-ins (lib/walk-in.ts). */
+  const walkInChoice = (d: HospitalDoctor) => {
+    if (!d.walkIn) return null;
+    const on = slotId === WALK_IN && doctorId === d.id;
+    return (
+      <button
+        type="button"
+        aria-pressed={on}
+        onClick={() => {
+          setSlotId(WALK_IN);
+          setError(null);
+        }}
+        className={`w-full flex items-center gap-3 mb-3 px-3.5 py-2.5 rounded-[12px] border-[1.5px] text-left transition-colors ${
+          on ? "border-[#2A4DD0] bg-[#2A4DD0] text-white" : "border-[#A9BCEF] bg-[#F3F6FF] text-[#0B1B3F] hover:border-[#2A4DD0]"
+        }`}
+      >
+        <span className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center ${on ? "bg-white/15 text-white" : "bg-white text-[#2A4DD0]"}`}>
+          <Footprints className="w-[18px] h-[18px]" />
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-[14px] font-extrabold">Walk in now</span>
+          <span className={`block text-[12px] ${on ? "text-white/85" : "text-[#5B667A]"}`}>Join {doctorName(d.name)}&apos;s queue today{walkIn?.open ? ` · ${walkIn.note.replace(/^Open now /, "open ")}` : ""}</span>
+        </span>
+        {on && <CircleCheck className="w-5 h-5 shrink-0" />}
+      </button>
+    );
+  };
+
   const times = (d: HospitalDoctor) => {
     if (!d.bookable) return <p className="text-[12.5px] text-[#5B667A]">Online booking for {doctorName(d.name)} isn&apos;t open yet.</p>;
-    if (!d.slots.length) return <p className="text-[12.5px] text-[#5B667A]">No open times yet. They appear here as soon as the hospital publishes them.</p>;
+    const walk = walkInChoice(d);
+    if (!d.slots.length)
+      return walk ? (
+        <>
+          {walk}
+          <p className="text-[12.5px] text-[#5B667A]">No later times published yet.</p>
+        </>
+      ) : (
+        <p className="text-[12.5px] text-[#5B667A]">No open times yet. They appear here as soon as the hospital publishes them.</p>
+      );
     const days = byDay(d.slots, now);
     const open = days.find((x) => x.key === day) ?? days[0];
     return (
       <>
+        {walk}
+        {walk && <p className="mb-2 text-[12.5px] font-extrabold text-[#5B667A]">Or book a time</p>}
         <div role="tablist" aria-label="Days with open times" className="flex gap-2 overflow-x-auto no-scrollbar -mx-3 lg:mx-0 px-3 lg:px-0 pb-0.5 mb-2.5">
           {days.map((x) => {
             const on = x.key === open.key;
@@ -322,9 +377,22 @@ export function HospitalBooking({
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-5 lg:items-start">
         <div className="flex flex-col gap-3.5 lg:gap-5 min-w-0">
           {intro}
-          <section aria-labelledby="book-title" className={`p-4 lg:p-[22px] ${card} rounded-[20px]! lg:rounded-2xl!`}>
+          <section id="book" aria-labelledby="book-title" className={`scroll-mt-24 p-4 lg:p-[22px] ${card} rounded-[20px]! lg:rounded-2xl!`}>
             <h2 id="book-title" className="text-[16px] font-extrabold">Book a doctor here</h2>
             <p className="mt-1 mb-3 text-[12.5px] text-[#5B667A]">{specialties.length > 1 ? "Pick a speciality, select a doctor, then pick a day and time." : "Select a doctor, then pick a day and time."}</p>
+            {walkIn && doctors.length > 0 && (
+              <div className={`mb-3.5 flex items-start gap-3 px-3.5 py-3 rounded-[14px] ${walkIn.open ? "bg-[#ECFDF3] text-[#05603A]" : "bg-[#F6F8FC] text-[#27324A]"}`}>
+                <Footprints className="w-5 h-5 mt-px shrink-0" />
+                <span className="min-w-0">
+                  <span className="block text-[13.5px] font-extrabold">{walkIn.open ? "Walk-ins open now" : "Walk-in hours"} · {walkIn.hours}</span>
+                  <span className={`block mt-0.5 text-[12.5px] leading-snug ${walkIn.open ? "text-[#067647]" : "text-[#5B667A]"}`}>
+                    {walkIn.open
+                      ? "Pick a doctor, then Walk in now to join their queue today. You pay the booking fee here and the consultation fee at the hospital."
+                      : `${walkIn.note}. You can still book a time below.`}
+                  </span>
+                </span>
+              </div>
+            )}
             {doctors.length === 0 ? (
               <p className="py-3 border-t border-[#EEF2F7] text-[13px] text-[#5B667A]">No doctors are listed at this hospital yet.</p>
             ) : (
@@ -379,7 +447,7 @@ export function HospitalBooking({
                             </span>
                             <span className="block text-[12px] lg:text-[12.5px] text-[#5B667A] truncate">{d.quals}</span>
                             <span className="block text-[12px] lg:text-[12.5px] font-bold text-[#2A4DD0] truncate">
-                              {d.slots[0] ? `Next: ${formatSlot(d.slots[0].start, now)}` : d.bookable ? "No open times yet" : "Online booking unavailable"}
+                              {d.walkIn ? "Walk-in open now" : d.slots[0] ? `Next: ${formatSlot(d.slots[0].start, now)}` : d.bookable ? "No open times yet" : "Online booking unavailable"}
                             </span>
                           </span>
                           <span aria-hidden className={`shrink-0 w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center ${on ? "border-[#2A4DD0]" : "border-[#B7C1D1]"}`}>
@@ -469,7 +537,7 @@ export function HospitalBooking({
               <div className="lg:hidden mt-3 pt-3 border-t border-[#EEF2F7] flex flex-col gap-2.5">
                 {patient && slot && <PayableTable payable={payable} item={bookingFeeItem(choices && fastTrack, followUp)} />}
                 <OnlinePayNote />
-                <RefundNote isConsultation />
+                <RefundNote isConsultation walkIn={slot?.id === WALK_IN} />
               </div>
               {error && <div className="lg:hidden mt-3">{errorNote}</div>}
             </section>
@@ -481,7 +549,7 @@ export function HospitalBooking({
           <h2 className="text-[17px] font-extrabold">Booking summary</h2>
           <div className="mt-2.5">
             <InfoRow label="Doctor" value={doctor ? doctorName(doctor.name) : "Not selected"} valueClass={doctor ? "" : "text-[#8A94A6]"} />
-            <InfoRow label="Time" value={slot ? formatSlot(slot.start, now) : "Not selected"} valueClass={slot ? "" : "text-[#8A94A6]"} />
+            <InfoRow label="Time" value={slot ? slotText(slot) : "Not selected"} valueClass={slot ? "" : "text-[#8A94A6]"} />
             <InfoRow label="Speciality" value={doctor?.specialty || spec || "—"} />
             {choices && <InfoRow label="Type" value={fastTrack ? "Fast track" : "General"} />}
             {patient && <InfoRow label="Patient" value={patient.name || "—"} />}
@@ -518,7 +586,7 @@ export function HospitalBooking({
           </ul>
           <p className="mt-3 text-[12px] leading-normal text-[#5B667A]">Only the booking fee and its payment convenience fee are paid online. You pay the consultation fee at the hospital at your visit.</p>
           <div className="mt-3">
-            <RefundNote isConsultation />
+            <RefundNote isConsultation walkIn={slot?.id === WALK_IN} />
           </div>
         </aside>
       </div>
@@ -528,7 +596,7 @@ export function HospitalBooking({
           <span className="block text-[17px] font-extrabold">{formatINR(payable.total)}</span>
           <span className="block text-[11.5px] text-[#5B667A] truncate">
             {ready && doctor && slot
-              ? [choices && fastTrack ? "Fast track" : null, doctorName(doctor.name), formatSlot(slot.start, now)].filter(Boolean).join(" · ")
+              ? [choices && fastTrack ? "Fast track" : null, doctorName(doctor.name), slotText(slot)].filter(Boolean).join(" · ")
               : "Booking fee in app · rest paid at hospital"}
           </span>
         </span>

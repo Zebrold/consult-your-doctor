@@ -12,6 +12,8 @@ const SHARED_PAGES = [
   '/terms',
   '/privacy-policy',
   '/privacy',
+  // Choosing a password from an emailed link: it names its own account, whoever is signed in on this browser.
+  '/update-password',
 ]
 
 /** The legal and policy documents (/legal and /legal/<document>, with their PDFs) are open to every account too. */

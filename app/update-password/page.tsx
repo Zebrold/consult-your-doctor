@@ -1,141 +1,210 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { clearMyTemporaryPassword } from '@/app/actions/staff-account'
-import { Loader2, KeyRound, CheckCircle2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { CheckCircle2, Eye, EyeOff, KeyRound, Loader2, TriangleAlert } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { setPasswordFromLink } from '@/app/actions/password-link'
+import { clearMyTemporaryPassword } from '@/app/actions/staff-account'
+
+// Choosing a password from an emailed link. New links carry ?token_hash=… (lib/password-link.ts), which is checked on
+// the server only when the password is submitted, so they work in any browser. Older emails may still hold Supabase's
+// own link, which lands here with #access_token=… (or ?code=… from a Forgot password made before the change); those
+// are signed in here in the browser, as far as they still can be.
+
+type Mode =
+  | { kind: 'checking' }
+  | { kind: 'link'; tokenHash: string }
+  | { kind: 'session' }
+  | { kind: 'expired'; message?: string }
+  | { kind: 'done'; loginHref: string }
+
+const RULE = 'At least 8 characters, with letters and at least one number.'
+
+function problemWith(next: string, confirm: string): string | null {
+  if (next.length < 8) return 'Use a password of at least 8 characters.'
+  if (!/[A-Za-z]/.test(next) || !/\d/.test(next)) return 'Use letters and at least one number.'
+  if (next !== confirm) return 'The two passwords don’t match.'
+  return null
+}
+
+/**
+ * Takes the link's tokens out of the address bar so they aren't left in the history. A tick later, because on the
+ * first render the app router writes the address it started with back after the page's own effects have run.
+ */
+function tidyAddress() {
+  window.setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 0)
+}
 
 export default function UpdatePasswordPage() {
   const [supabase] = useState(() => createClient())
-  
+  const [mode, setMode] = useState<Mode>({ kind: 'checking' })
   const [password, setPassword] = useState('')
-  const [isUpdating, setIsUpdating] = useState(false)
+  const [confirm, setConfirm] = useState('')
+  const [show, setShow] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
-  const [isCheckingSession, setIsCheckingSession] = useState(true)
 
   useEffect(() => {
-    // When landing here from the email link, Supabase will parse the URL fragment (#access_token=...)
-    // and establish the session automatically.
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        // We wait a tiny bit to see if the hash is still processing
-        setTimeout(async () => {
-          const { data: { session: delayedSession } } = await supabase.auth.getSession()
-          if (!delayedSession) {
-            setError('Link is invalid or has expired. Please request a new password reset.')
-          }
-          setIsCheckingSession(false)
-        }, 500)
-      } else {
-        setIsCheckingSession(false)
-      }
+    let cancelled = false
+    const settle = (next: Mode) => {
+      if (!cancelled) setMode(next)
     }
-    
-    checkSession()
+    const run = async () => {
+      const query = new URLSearchParams(window.location.search)
+      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+
+      const tokenHash = query.get('token_hash')
+      if (tokenHash) return settle({ kind: 'link', tokenHash })
+
+      // Supabase sends people back with the reason when its own link had already expired or been used.
+      if (hash.get('error') || hash.get('error_code') || query.get('error')) {
+        tidyAddress()
+        return settle({ kind: 'expired' })
+      }
+
+      // An older link: Supabase signed the browser in through the address fragment.
+      const accessToken = hash.get('access_token')
+      const refreshToken = hash.get('refresh_token')
+      if (accessToken && refreshToken) {
+        const { error: sessionError } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+        tidyAddress()
+        return settle(sessionError ? { kind: 'expired' } : { kind: 'session' })
+      }
+
+      // ?code=… is exchanged by the browser client as it starts, when this is the browser that asked for the reset.
+      const { data } = await supabase.auth.getSession()
+      if (query.get('code')) tidyAddress()
+      settle(data.session ? { kind: 'session' } : { kind: 'expired' })
+    }
+    run()
+    return () => {
+      cancelled = true
+    }
   }, [supabase])
 
-  const handleUpdate = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsUpdating(true)
+    const problem = problemWith(password, confirm)
+    if (problem) return setError(problem)
     setError('')
-    
-    const { error } = await supabase.auth.updateUser({
-      password: password
-    })
-    
-    setIsUpdating(false)
-    
-    if (error) {
-      setError(error.message)
-    } else {
-      setSuccess(true)
+    setSaving(true)
+    try {
+      if (mode.kind === 'link') {
+        const res = await setPasswordFromLink({ tokenHash: mode.tokenHash, password, confirm })
+        // The token stays in the address until it's used, so a reload before saving still works.
+        if (res.ok) {
+          tidyAddress()
+          setMode({ kind: 'done', loginHref: res.loginHref })
+        } else if (res.expired) {
+          tidyAddress()
+          setMode({ kind: 'expired', message: res.error })
+        } else setError(res.error)
+        return
+      }
+      const { error: updateError } = await supabase.auth.updateUser({ password })
+      if (updateError) return setError(updateError.message)
       // A password set here is their own, so a doctor's temporary-password step is done.
       await clearMyTemporaryPassword().catch(() => {})
-      // Sign them out so they can log back in via the standard portal with their Staff ID
+      // They sign in again with their Staff ID and the new password.
       await supabase.auth.signOut()
+      setMode({ kind: 'done', loginHref: '/login' })
+    } catch {
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setSaving(false)
     }
   }
 
+  const input =
+    'block w-full h-12 px-4 rounded-xl border border-[#D6DDE8] bg-white text-[15px] text-[#0B1B3F] placeholder:text-[#8A94A6] outline-none focus:border-[#2A4DD0] focus:ring-2 focus:ring-[#2A4DD0]/15'
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
-        
-        {isCheckingSession ? (
-          <div className="flex flex-col items-center py-12">
-            <Loader2 className="w-10 h-10 animate-spin text-blue-600 mb-4" />
-            <p className="text-gray-500 font-medium">Verifying reset link...</p>
+    <main className="min-h-[70dvh] bg-[#F5F7FB] flex flex-col items-center justify-center px-4 py-10 font-(family-name:--font-manrope) text-[#0B1B3F]">
+      <div className="w-full max-w-md bg-white px-6 py-8 sm:px-8 rounded-[22px] shadow-[0_0_0_1px_#E6EAF0,0_12px_32px_rgba(11,27,63,0.06)]">
+        {mode.kind === 'checking' ? (
+          <div className="flex flex-col items-center py-10">
+            <Loader2 className="w-9 h-9 animate-spin text-[#2A4DD0] mb-4" />
+            <p className="text-[15px] font-semibold text-[#5B667A]">Checking your link…</p>
           </div>
-        ) : success ? (
-          <div className="flex flex-col items-center py-6">
-            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6">
+        ) : mode.kind === 'done' ? (
+          <div className="flex flex-col items-center text-center py-4">
+            <span className="w-16 h-16 rounded-full bg-[#ECFDF3] text-[#067647] flex items-center justify-center mb-5">
               <CheckCircle2 className="w-8 h-8" />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Password Updated!</h1>
-            <p className="text-gray-500 text-center mb-8">
-              Your password has been successfully reset. You can now return to the login portal.
+            </span>
+            <h1 className="text-[24px] font-extrabold tracking-[-0.01em]">Password saved</h1>
+            <p className="mt-2 mb-7 text-[15px] leading-relaxed text-[#5B667A]">Log in with your Staff ID (or work email) and the new password.</p>
+            <Link href={mode.loginHref} className="w-full h-12 rounded-xl bg-[#2A4DD0] text-white text-[15px] font-extrabold flex items-center justify-center hover:bg-[#2443B8] transition-colors">
+              Go to login
+            </Link>
+          </div>
+        ) : mode.kind === 'expired' ? (
+          <div className="flex flex-col items-center text-center py-4">
+            <span className="w-16 h-16 rounded-full bg-[#FEF3F2] text-[#B42318] flex items-center justify-center mb-5">
+              <TriangleAlert className="w-8 h-8" />
+            </span>
+            <h1 className="text-[24px] font-extrabold tracking-[-0.01em]">This link no longer works</h1>
+            <p className="mt-2 text-[15px] leading-relaxed text-[#5B667A]">{mode.message ?? 'It has expired or was already used.'}</p>
+            <p className="mt-2 mb-7 text-[14px] leading-relaxed text-[#5B667A]">
+              Each link works once, for a limited time, and only the newest one counts. Open your portal’s login and choose <b className="text-[#27324A]">Forgot password</b> to get a new one.
             </p>
-            <Link 
-              href="/login" 
-              className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors text-center"
-            >
-              Return to Login
+            <Link href="/login" className="w-full h-12 rounded-xl bg-[#2A4DD0] text-white text-[15px] font-extrabold flex items-center justify-center hover:bg-[#2443B8] transition-colors">
+              Go to login
             </Link>
           </div>
         ) : (
           <>
-            <div className="flex flex-col items-center mb-8">
-              <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4">
+            <div className="flex flex-col items-center text-center mb-7">
+              <span className="w-16 h-16 rounded-full bg-[#EEF3FF] text-[#2A4DD0] flex items-center justify-center mb-4">
                 <KeyRound className="w-8 h-8" />
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900">Set New Password</h1>
-              <p className="text-gray-500 text-sm mt-1 text-center">
-                Please enter your new password below.
-              </p>
+              </span>
+              <h1 className="text-[24px] font-extrabold tracking-[-0.01em]">Choose a new password</h1>
+              <p className="mt-1.5 text-[14.5px] text-[#5B667A]">You’ll use it with your Staff ID to log in.</p>
             </div>
-
-            {error && (
-              <div className="mb-6 p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-200 text-center font-medium">
-                {error}
-              </div>
-            )}
-
-            {!error.includes('expired') && (
-              <form onSubmit={handleUpdate} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">New Password</label>
-                  <input 
-                    required 
+            <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+              <label className="block">
+                <span className="block mb-1.5 text-[13.5px] font-extrabold text-[#27324A]">New password</span>
+                <span className="relative block">
+                  <input
+                    required
+                    autoFocus
+                    autoComplete="new-password"
+                    type={show ? 'text' : 'password'}
                     value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    type="password" 
-                    placeholder="••••••••" 
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-gray-900" 
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={`${input} pr-12`}
                   />
-                </div>
-                <button 
-                  disabled={isUpdating || !password} 
-                  type="submit" 
-                  className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors mt-2 disabled:opacity-50 flex justify-center items-center gap-2"
-                >
-                  {isUpdating ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Update Password'}
-                </button>
-              </form>
-            )}
-            
-            {error.includes('expired') && (
-               <Link 
-                 href="/login" 
-                 className="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200 transition-colors mt-4 block text-center"
-               >
-                 Return to Login
-               </Link>
-            )}
+                  <button
+                    type="button"
+                    onClick={() => setShow((s) => !s)}
+                    aria-label={show ? 'Hide password' : 'Show password'}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-lg flex items-center justify-center text-[#5B667A] hover:bg-[#F4F6FA]"
+                  >
+                    {show ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </span>
+                <span className="block mt-1.5 text-[12.5px] text-[#5B667A]">{RULE}</span>
+              </label>
+              <label className="block">
+                <span className="block mb-1.5 text-[13.5px] font-extrabold text-[#27324A]">Type it again</span>
+                <input required autoComplete="new-password" type={show ? 'text' : 'password'} value={confirm} onChange={(e) => setConfirm(e.target.value)} className={input} />
+              </label>
+              {error && (
+                <p role="alert" className="p-3 rounded-xl bg-[#FEF3F2] text-[#B42318] text-[13.5px] font-bold">
+                  {error}
+                </p>
+              )}
+              <button
+                type="submit"
+                disabled={saving || !password || !confirm}
+                className="mt-1 h-12 rounded-xl bg-[#2A4DD0] text-white text-[15px] font-extrabold flex items-center justify-center gap-2 hover:bg-[#2443B8] disabled:opacity-50 transition-colors"
+              >
+                {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save password'}
+              </button>
+            </form>
           </>
         )}
       </div>
-    </div>
+    </main>
   )
 }

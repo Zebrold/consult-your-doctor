@@ -6,7 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/lib/supabase/server'
 import { PHOTO_CACHE } from '@/lib/photos'
 import { overLimit } from '@/lib/rate-limit'
-import { siteUrl } from '@/lib/site-url'
+import { passwordLink } from '@/lib/password-link'
 import { sendEmail } from '@/lib/notify/email'
 
 // What a hospital does for a doctor on its own roster: upload their profile photo and send them a password reset link.
@@ -93,13 +93,7 @@ export async function sendDoctorPasswordLink(doctorId: string): Promise<{ ok: tr
   if (!email || email.toLowerCase().endsWith('.internal')) return { ok: false, error: noEmail }
 
   const { data: hospital } = await ctx.admin.from('hospitals').select('name').eq('id', ctx.hospitalId).maybeSingle()
-  let link: string | null = null
-  try {
-    const { data } = await ctx.admin.auth.admin.generateLink({ type: 'recovery', email, options: { redirectTo: `${siteUrl()}/update-password` } })
-    link = data?.properties?.action_link ?? null
-  } catch {
-    link = null
-  }
+  const link = await passwordLink(ctx.admin, email)
   if (!link) return { ok: false, error: 'Could not make a link. Please try again.' }
 
   const sent = await sendEmail({

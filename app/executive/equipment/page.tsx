@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
-import { Boxes, Plus } from 'lucide-react'
+import { Boxes } from 'lucide-react'
 import { formatINR, formatShortDate, istDateKey } from '@/components/patient/format'
 import { CATEGORY_LABEL, ORDER_STATUS, loadOrders, loadProducts, loadSuppliers, supplierRatings, type Order } from '@/lib/equipment'
 import { currentTime, requireExecutivePage } from '../_lib/ops'
-import { Card, EmptyState, ExePage, Note, Stat, Stats, btnPrimary, plural } from '../_components/ui'
-import { AddProductForm, OrderTable, ProductEditor, SupplierList, type OrderRow } from '../_components/EquipmentDesk'
+import { Card, EmptyState, ExePage, Note, Stat, Stats, plural } from '../_components/ui'
+import { AddProductButton, OrderTable, ProductEditor, SupplierList, type OrderRow } from '../_components/EquipmentDesk'
 
 export const metadata: Metadata = { title: 'Equipment orders' }
 export const dynamic = 'force-dynamic'
@@ -71,11 +71,7 @@ export default async function ExecutiveEquipmentPage() {
       name={profile.fullName}
       title="Equipment orders"
       subtitle="Add equipment hospitals can buy, and follow every order from payment to delivery"
-      actions={
-        <a href="#add-equipment" className={btnPrimary}>
-          <Plus className="w-4 h-4" strokeWidth={2.4} aria-hidden /> Add equipment
-        </a>
-      }
+      actions={<AddProductButton categories={CATEGORY_LABEL} suppliers={suppliers} more={more} />}
     >
       <Stats>
         <Stat label="New orders" value={placed} note="Paid, need confirming" tone={placed ? 'warn' : undefined} />
@@ -100,14 +96,9 @@ export default async function ExecutiveEquipmentPage() {
         )}
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 lg:gap-5 items-start">
-        <Card id="add-equipment" title="Add equipment" sub="New products go live for hospitals straight away">
-          <AddProductForm categories={CATEGORY_LABEL} suppliers={suppliers} more={more} />
-        </Card>
-        <Card title="Suppliers" sub={rated.length ? `Ratings from ${rated.length} delivered ${rated.length === 1 ? 'order' : 'orders'} that hospitals rated` : 'Hospitals rate each delivered order; the ratings show here'}>
-          {supplierRes.ready ? <SupplierList suppliers={suppliers} ratings={ratings} /> : <p className="text-[13px] text-[#5B667A]">Starts once the 20261115 migration has run.</p>}
-        </Card>
-      </div>
+      <Card title="Suppliers" sub={rated.length ? `Ratings from ${rated.length} delivered ${rated.length === 1 ? 'order' : 'orders'} that hospitals rated` : 'Hospitals rate each delivered order; the ratings show here'}>
+        {supplierRes.ready ? <SupplierList suppliers={suppliers} ratings={ratings} /> : <p className="text-[13px] text-[#5B667A]">Starts once the 20261115 migration has run.</p>}
+      </Card>
     </ExePage>
   )
 }

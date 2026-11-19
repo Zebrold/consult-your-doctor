@@ -9,6 +9,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getOrAssignDiagnosticCenterCode, getOrAssignHospitalCode } from '@/lib/organization-ids'
 import { createStaffLogin, passwordProblem, provisionDoctor, randomPassword } from '@/lib/provisioning'
 import { siteUrl } from '@/lib/site-url'
+import { passwordLink } from '@/lib/password-link'
 import { sendPartnerApprovedEmail } from '@/lib/notify/email'
 import type { PartnerKind } from '@/lib/partner-applications'
 
@@ -78,14 +79,8 @@ function chooseLogin(org: { password: string; contactEmail: string }): { passwor
 }
 
 /** A link to set their own password, for a login made with a temporary one. */
-async function setPasswordLink(admin: ReturnType<typeof createAdminClient>, email: string) {
-  try {
-    const { data } = await admin.auth.admin.generateLink({ type: 'recovery', email, options: { redirectTo: `${siteUrl()}/update-password` } })
-    return data?.properties?.action_link ?? null
-  } catch (err) {
-    console.error('setPasswordLink:', err)
-    return null
-  }
+function setPasswordLink(admin: ReturnType<typeof createAdminClient>, email: string) {
+  return passwordLink(admin, email)
 }
 
 /** The new staff login, for the email that hands it over. */

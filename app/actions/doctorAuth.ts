@@ -16,6 +16,7 @@ import { EMAIL_MESSAGE, PERSONAL_PAN_MESSAGE, isEmail, isLaterTime, phoneProblem
 import { APPLICATION_DOCS } from '@/lib/application-documents'
 import { grantWelcomeBadge } from '@/lib/badges'
 import { temporaryPasswordMetadata } from '@/lib/temporary-password'
+import { passwordLink } from '@/lib/password-link'
 
 export async function getHospitals() {
   const supabase = await createClient()
@@ -330,18 +331,7 @@ export async function approveDoctor(requestId: string) {
   // A personal link to choose their own password (optional: the email also has the password the account was made with).
   const siteUrl = publicSiteUrl()
   const loginUrl = `${siteUrl}/login/doctor`
-  let setPasswordLink: string | null = null
-
-  try {
-    const { data: linkData } = await adminClient.auth.admin.generateLink({
-      type: 'recovery',
-      email: request.email,
-      options: { redirectTo: `${siteUrl}/update-password` }
-    })
-    setPasswordLink = linkData?.properties?.action_link ?? null
-  } catch (err) {
-    console.warn('generateLink fallback:', err)
-  }
+  const setPasswordLink = await passwordLink(adminClient, request.email, siteUrl)
 
   // Fetch hospital name for email
   const { data: hospital } = await adminClient.from('hospitals').select('name').eq('id', request.hospital_id).maybeSingle()

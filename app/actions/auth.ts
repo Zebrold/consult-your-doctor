@@ -33,7 +33,8 @@ import crypto from 'crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendWhatsAppOtp } from '@/lib/notify/whatsapp'
 import { sendOtpSms } from '@/lib/notify/sms'
-import { siteUrl } from '@/lib/site-url'
+import { passwordLink } from '@/lib/password-link'
+import { sendEmail } from '@/lib/notify/email'
 import { checkOtpChallenge, clientIp, otpSendAllowed, otpTableReady, recordOtpChallenge, type OtpVerdict } from '@/lib/otp-guard'
 import { findAuthUserId } from '@/lib/auth-users'
 import { clearAttempts, overLimit } from '@/lib/rate-limit'
@@ -491,19 +492,32 @@ export async function sendPasswordResetOTP(staffId: string) {
 
   const { data: profile } = await adminClient
     .from('profiles')
-    .select('email, role')
+    .select('email, role, staff_id')
     .eq(byEmail ? 'email' : 'staff_id', normalised)
     .in('role', ['doctor', 'executive', 'hospital_admin', 'diagnostic_admin'])
     .limit(1)
     .maybeSingle()
 
   // Generated @cyd.internal addresses are not real inboxes, so there is nowhere to send the link.
+  // Our own link and email, not Supabase's resetPasswordForEmail: its PKCE link only works in the browser that asked
+  // for it, so opening the email on a phone said "Link is invalid or has expired" (lib/password-link.ts).
   if (profile?.email && !String(profile.email).endsWith('.internal')) {
-    const supabase = await createClient()
-    const { error } = await supabase.auth.resetPasswordForEmail(profile.email, {
-      redirectTo: `${siteUrl()}/update-password`,
-    })
-    if (error) console.error('Password reset error:', error)
+    const link = await passwordLink(adminClient, profile.email)
+    if (!link) console.error('Password reset: could not make a link')
+    else {
+      const sent = await sendEmail({
+        to: profile.email,
+        subject: 'Reset your Consult Your Doctor password',
+        heading: 'Reset your password',
+        paragraphs: [
+          'Someone asked to reset the password for your Consult Your Doctor staff login. Open the button below to choose a new one.',
+          'The link works once, for a limited time; asking again replaces it. If you didn’t ask for this, ignore this email and your password stays the same.',
+        ],
+        facts: profile.staff_id ? [['Staff ID', String(profile.staff_id)]] : undefined,
+        button: { text: 'Choose a new password', url: link },
+      }).catch(() => false)
+      if (!sent) console.error('Password reset: the email could not be sent')
+    }
   }
 
   return { success: true, sent: true }

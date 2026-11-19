@@ -4,6 +4,7 @@ import { siteUrl } from '@/lib/site-url'
 import { sendDoctorActivationEmail } from '@/lib/notify/email'
 import { grantWelcomeBadge } from '@/lib/badges'
 import { temporaryPasswordMetadata } from '@/lib/temporary-password'
+import { passwordLink } from '@/lib/password-link'
 
 type Admin = ReturnType<typeof createAdminClient>
 
@@ -184,12 +185,7 @@ export async function provisionDoctor(
   if (email) {
     const base = siteUrl()
     const loginUrl = `${base}/login/doctor`
-    try {
-      const { data: link } = await admin.auth.admin.generateLink({ type: 'recovery', email, options: { redirectTo: `${base}/update-password` } })
-      activationLink = link?.properties?.action_link ?? null
-    } catch (err) {
-      console.warn('provisionDoctor generateLink:', err)
-    }
+    activationLink = await passwordLink(admin, email, base)
     const { data: hospital } = await admin.from('hospitals').select('name').eq('id', input.hospitalId).maybeSingle()
     invitationSent = await sendDoctorActivationEmail({ to: email, doctorName: input.fullName, staffId: login.staffId, password, loginUrl, activationLink, hospitalName: hospital?.name ?? undefined })
     // Without a set-password link, the screen that made the account offers the login page instead.

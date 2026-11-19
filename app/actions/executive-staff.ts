@@ -7,6 +7,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createStaffLogin, randomPassword } from '@/lib/provisioning'
 import { sendExecutiveLoginEmail } from '@/lib/notify/email'
 import { siteUrl } from '@/lib/site-url'
+import { passwordLink } from '@/lib/password-link'
 import { PAGE_LABEL, TEAM_LABEL, isPageKey, isTeam, type Team } from '@/app/executive/_lib/access'
 
 // Staff & access (/executive/staff): which pages each team opens, executives' teams, new executive logins and
@@ -102,13 +103,7 @@ export async function createExecutiveLogin(input: { fullName: string; email: str
   await ctx.admin.from('profiles').update({ executive_team: team }).eq('id', login.userId)
 
   const base = siteUrl()
-  let link: string | null = null
-  try {
-    const { data } = await ctx.admin.auth.admin.generateLink({ type: 'recovery', email, options: { redirectTo: `${base}/update-password` } })
-    link = data?.properties?.action_link ?? null
-  } catch (err) {
-    console.error('createExecutiveLogin generateLink:', err)
-  }
+  const link = await passwordLink(ctx.admin, email, base)
   const emailed = link
     ? await sendExecutiveLoginEmail({ to: email, name: fullName, staffId: login.staffId, team: TEAM_LABEL[team as Team], setPasswordLink: link, signInUrl: `${base}/login/executive` }).catch(() => false)
     : false
@@ -125,8 +120,7 @@ export async function resendExecutiveInvite(profileId: string): Promise<Result> 
   const { data: member } = await ctx.admin.from('profiles').select('role, full_name, email, staff_id').eq('id', profileId).maybeSingle()
   if (member?.role !== 'executive' || !member.email) return { ok: false, error: 'They have no email address on file.' }
   const base = siteUrl()
-  const { data } = await ctx.admin.auth.admin.generateLink({ type: 'recovery', email: member.email, options: { redirectTo: `${base}/update-password` } })
-  const link = data?.properties?.action_link
+  const link = await passwordLink(ctx.admin, member.email, base)
   if (!link) return { ok: false, error: 'Could not make a new link. Please try again.' }
   const { data: t } = await ctx.admin.from('profiles').select('executive_team').eq('id', profileId).maybeSingle()
   const team = (t as { executive_team?: string | null } | null)?.executive_team
